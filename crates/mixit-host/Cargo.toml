@@ -1,11 +1,20 @@
 [package]
 name = "mixit-host"
+description = "Audio device I/O for the engine (cpal), denormal protection, load statistics, streaming recorder and offline rendering."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+mixit-engine = { path = "../mixit-engine" }
+cpal.workspace = true
+hound.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+mixit-core = { path = "../mixit-core" }
 
 [lints]
 workspace = true
