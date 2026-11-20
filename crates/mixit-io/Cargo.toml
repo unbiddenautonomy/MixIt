@@ -1,11 +1,26 @@
 [package]
 name = "mixit-io"
+description = "Audio file decoding, resampling, content hashing, decode cache, tags and export."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+mixit-core = { path = "../mixit-core" }
+mixit-dsp = { path = "../mixit-dsp" }
+symphonia.workspace = true
+rubato.workspace = true
+audioadapter-buffers.workspace = true
+hound.workspace = true
+flacenc.workspace = true
+lofty.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+mixit-dsp = { path = "../mixit-dsp", features = ["testkit"] }
 
 [lints]
 workspace = true
