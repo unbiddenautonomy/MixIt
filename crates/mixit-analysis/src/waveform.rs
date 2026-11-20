@@ -36,6 +36,30 @@ pub struct Waveform {
 }
 
 impl Waveform {
+    /// Rebuilds the pyramid from the finest level (what libraries store).
+    pub fn from_base(sample_rate: u32, base: Vec<Column>) -> Waveform {
+        let mut levels = vec![WaveformLevel { frames_per_column: BASE_COLUMN, columns: base }];
+        for _ in 1..LEVELS {
+            let prev = levels.last().unwrap();
+            let columns: Vec<Column> = prev.columns.chunks(LEVEL_FACTOR).map(merge).collect();
+            let fpc = prev.frames_per_column * LEVEL_FACTOR;
+            levels.push(WaveformLevel { frames_per_column: fpc, columns });
+        }
+        Waveform { sample_rate, levels }
+    }
+
+    /// The finest level as 5 bytes per column (peak, rms, low, mid, high).
+    pub fn base_bytes(&self) -> Vec<u8> {
+        self.levels[0].columns.iter().flat_map(|c| [c.peak, c.rms, c.low, c.mid, c.high]).collect()
+    }
+
+    /// Inverse of [`Waveform::base_bytes`].
+    pub fn from_base_bytes(sample_rate: u32, bytes: &[u8]) -> Waveform {
+        let cols =
+            bytes.chunks_exact(5).map(|b| Column { peak: b[0], rms: b[1], low: b[2], mid: b[3], high: b[4] }).collect();
+        Waveform::from_base(sample_rate, cols)
+    }
+
     /// The coarsest level with at least `min_columns` columns (or the finest).
     pub fn level_for(&self, min_columns: usize) -> &WaveformLevel {
         self.levels.iter().rev().find(|l| l.columns.len() >= min_columns).unwrap_or(&self.levels[0])
@@ -123,14 +147,7 @@ pub fn waveform(interleaved: &[f32], sample_rate: u32) -> Waveform {
         col.mid = to_u8((b[1] / reference).sqrt());
         col.high = to_u8((b[2] / reference).sqrt());
     }
-    let mut levels = vec![WaveformLevel { frames_per_column: BASE_COLUMN, columns: base }];
-    for _ in 1..LEVELS {
-        let prev = levels.last().unwrap();
-        let columns: Vec<Column> = prev.columns.chunks(LEVEL_FACTOR).map(merge).collect();
-        let fpc = prev.frames_per_column * LEVEL_FACTOR;
-        levels.push(WaveformLevel { frames_per_column: fpc, columns });
-    }
-    Waveform { sample_rate, levels }
+    Waveform::from_base(sample_rate, base)
 }
 
 /// First and last frames where the audio rises above `threshold_db` (dBFS), ignoring

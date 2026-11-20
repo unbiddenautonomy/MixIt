@@ -66,6 +66,7 @@ blake3 = "1"
 memmap2 = "0.9"
 rusqlite = { version = "0.43", features = ["bundled"] }
 walkdir = "2"
+quick-xml = "0.42"
 signalsmith-stretch = "0.1"
 parking_lot = "0.13"
 crossbeam-channel = "0.5"
