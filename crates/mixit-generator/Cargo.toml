@@ -1,11 +1,15 @@
 [package]
 name = "mixit-generator"
+description = "Practice tracks with exact ground truth (beats, downbeats, key, sections)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+mixit-core = { path = "../mixit-core" }
+mixit-dsp = { path = "../mixit-dsp" }
+serde.workspace = true
 
 [lints]
 workspace = true

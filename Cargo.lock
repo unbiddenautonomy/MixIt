@@ -646,6 +646,14 @@ dependencies = [
 [[package]]
 name = "mixit-analysis"
 version = "0.1.0"
+dependencies = [
+ "mixit-core",
+ "mixit-dsp",
+ "mixit-generator",
+ "realfft",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "mixit-cli"
@@ -686,6 +694,11 @@ dependencies = [
 [[package]]
 name = "mixit-generator"
 version = "0.1.0"
+dependencies = [
+ "mixit-core",
+ "mixit-dsp",
+ "serde",
+]
 
 [[package]]
 name = "mixit-host"
