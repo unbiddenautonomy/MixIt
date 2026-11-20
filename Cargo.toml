@@ -1,0 +1,99 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/mixit-core",
+    "crates/mixit-dsp",
+    "crates/mixit-engine",
+    "crates/mixit-stretch",
+    "crates/mixit-analysis",
+    "crates/mixit-generator",
+    "crates/mixit-io",
+    "crates/mixit-project",
+    "crates/mixit-library",
+    "crates/mixit-host",
+    "crates/mixit-cli",
+    "apps/desktop/src-tauri",
+]
+# The desktop app needs the webview toolchain; everything else builds headless.
+default-members = [
+    "crates/mixit-core",
+    "crates/mixit-dsp",
+    "crates/mixit-engine",
+    "crates/mixit-stretch",
+    "crates/mixit-analysis",
+    "crates/mixit-generator",
+    "crates/mixit-io",
+    "crates/mixit-project",
+    "crates/mixit-library",
+    "crates/mixit-host",
+    "crates/mixit-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+repository = "https://github.com/unbiddenautonomy/MixIt"
+
+[workspace.dependencies]
+mixit-core = { path = "crates/mixit-core" }
+mixit-dsp = { path = "crates/mixit-dsp" }
+mixit-engine = { path = "crates/mixit-engine" }
+mixit-stretch = { path = "crates/mixit-stretch" }
+mixit-analysis = { path = "crates/mixit-analysis" }
+mixit-generator = { path = "crates/mixit-generator" }
+mixit-io = { path = "crates/mixit-io" }
+mixit-project = { path = "crates/mixit-project" }
+mixit-library = { path = "crates/mixit-library" }
+mixit-host = { path = "crates/mixit-host" }
+
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+rtrb = "0.4"
+realfft = "3"
+rustfft = "6"
+cpal = "0.18"
+symphonia = { version = "0.6", features = ["all"] }
+rubato = "5"
+audioadapter-buffers = "5"
+hound = "3"
+flacenc = "0.5"
+lofty = "0.25"
+blake3 = "1"
+memmap2 = "0.9"
+rusqlite = { version = "0.43", features = ["bundled"] }
+walkdir = "2"
+signalsmith-stretch = "0.1"
+parking_lot = "0.13"
+crossbeam-channel = "0.5"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+assert_no_alloc = "1"
+proptest = "1"
+ebur128 = "0.1"
+
+[profile.dev]
+# DSP is unusably slow without optimisation; keep debug info but optimise.
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.test]
+opt-level = 2
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = 1
+
+[workspace.lints.clippy]
+# DSP loops index several parallel buffers at once; iterator rewrites hurt clarity.
+needless_range_loop = "allow"
+# `next()` on smoothers and RNGs is the conventional DSP name.
+should_implement_trait = "allow"
+too_many_arguments = "allow"
