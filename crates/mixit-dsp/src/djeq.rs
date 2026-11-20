@@ -104,6 +104,12 @@ impl DjEq {
         self.mode
     }
 
+    /// Switches mode instantly (only while silent, e.g. at construction).
+    pub fn set_mode_now(&mut self, mode: EqMode) {
+        self.mode = mode;
+        self.blend.reset(if mode == EqMode::Isolator { 1.0 } else { 0.0 });
+    }
+
     pub fn set_mode(&mut self, mode: EqMode) {
         self.mode = mode;
         self.blend.set(if mode == EqMode::Isolator { 1.0 } else { 0.0 });

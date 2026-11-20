@@ -1,11 +1,20 @@
 [package]
 name = "mixit-engine"
+description = "MixIt's real-time DJ engine: decks, sync, mixer, effects and sampler."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+mixit-core = { path = "../mixit-core" }
+mixit-dsp = { path = "../mixit-dsp" }
+rtrb.workspace = true
+
+[dev-dependencies]
+mixit-dsp = { path = "../mixit-dsp", features = ["testkit"] }
+assert_no_alloc.workspace = true
+mixit-stretch = { path = "../mixit-stretch" }
 
 [lints]
 workspace = true
