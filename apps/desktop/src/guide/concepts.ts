@@ -397,6 +397,18 @@ export const CONCEPTS: Concept[] = [
     ],
     lab: "automation",
   },
+  {
+    id: "auto-dj",
+    title: "Auto DJ",
+    group: "Basics",
+    summary: "MixIt mixes a queue of tracks for you and says why it mixes each one the way it does.",
+    body: [
+      "Add tracks to the Auto DJ queue (right-click a track, drag tracks onto Auto DJ in the sidebar, or choose Play with Auto DJ on a playlist) and press Start. MixIt loads each next track on the free deck, cues it at its mix-in point and mixes it in at the top of a phrase near the end of the current track.",
+      "It picks the transition from the music: a bass swap when both tracks have heavy bass, a filter fade when the keys clash or the energy drops, an echo out when the tempos are far apart or a track ends abruptly, and a long blend when everything fits. With Fix clashing keys on, it shifts the next track a semitone or two so the melodies agree.",
+      "Watch the Next card and the log to learn why each choice was made. Touch any control to take over, press Mix now to mix early, or Stop to carry on by hand.",
+    ],
+    controls: ["app.autodj"],
+  },
   // ---------------------------------------------------------------- studio
   {
     id: "studio",

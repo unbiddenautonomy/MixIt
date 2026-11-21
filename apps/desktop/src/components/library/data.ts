@@ -25,6 +25,8 @@ export function localFilter(rows: TrackRow[], query: string): TrackRow[] {
 export async function refreshRows() {
   const my = ++seq;
   const { source, query, set } = useLibrary.getState();
+  // The Auto DJ page shows its own queue.
+  if (source.type === "autodj") return;
   set({ loading: true });
   try {
     let rows: TrackRow[] = [];

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { LibraryStats, PlaylistDto, SuggestionRow, TrackRow } from "../backend/types";
 
-export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" };
+export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" };
 
 export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | null;
 
