@@ -34,6 +34,14 @@ export interface MixerState {
   loopSize: number[]; // index into LOOP_SIZES per deck
   jumpSize: number[];
   quantize: boolean;
+  /** Indices into the registry's option lists. */
+  crossfaderCurve: number;
+  faderCurve: number;
+  eqMode: number;
+  splitCue: boolean;
+  crossfaderReverse: boolean;
+  /** Crossfader side per channel: 0 = A, 1 = thru, 2 = B. */
+  assign: number[];
 }
 
 export const LOOP_LABELS = ["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4", "8", "16", "32"];
@@ -99,6 +107,12 @@ export const useApp = create<AppState>((set) => ({
     loopSize: [7, 7, 7, 7],
     jumpSize: [2, 2, 2, 2],
     quantize: true,
+    crossfaderCurve: 1,
+    faderCurve: 1,
+    eqMode: 1,
+    splitCue: false,
+    crossfaderReverse: false,
+    assign: [0, 2, 0, 2],
   },
   workspace: "mix",
   paletteOpen: false,

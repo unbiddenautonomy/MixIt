@@ -8,9 +8,12 @@ type AppHandler = (id: string) => boolean;
 
 function keyName(e: KeyboardEvent): string {
   const parts: string[] = [];
-  if (isMac ? e.metaKey : e.ctrlKey) parts.push("Mod");
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+  if (mod) parts.push("Mod");
   if (e.altKey) parts.push("Alt");
-  if (e.shiftKey && e.key.length > 1) parts.push("Shift");
+  // Shift is part of the name for named keys and chords ("Mod+Shift+Z"), but not for
+  // characters it produces on its own ("?").
+  if (e.shiftKey && (e.key.length > 1 || mod || e.altKey)) parts.push("Shift");
   let k = e.key;
   if (k === " ") k = "Space";
   else if (k.length === 1) k = k.toUpperCase();

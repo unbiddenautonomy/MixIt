@@ -8,6 +8,7 @@ import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
 import { refreshRows } from "../components/library/data";
+import { redoProject, undoProject } from "../components/arrange/projectIo";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
 import { startTransition, type TransitionId } from "./transition";
@@ -71,9 +72,11 @@ export function runApp(id: string): boolean {
       s.set({ workspace: WORKSPACES[p[2]] ?? "mix" });
       return true;
     case "undo":
-    case "redo":
-      toast.message(p[1] === "undo" ? "Nothing to undo" : "Nothing to redo");
+    case "redo": {
+      const ok = s.workspace === "arrange" && (p[1] === "undo" ? undoProject() : redoProject());
+      if (!ok) toast.message(p[1] === "undo" ? "Nothing to undo" : "Nothing to redo");
       return true;
+    }
     default:
       return false;
   }

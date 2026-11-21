@@ -47,14 +47,61 @@ export function projectBeats(p: MixProject): number {
   return p.clips.reduce((m, c) => Math.max(m, c.start + c.length), 0);
 }
 
-export function setProject(p: MixProject | null, path?: string | null) {
-  useApp.getState().set(path === undefined ? { project: p } : { project: p, projectPath: path });
+// Undo history for project edits. Edits with the same key in quick succession (one
+// drag, typing a name) count as one step.
+const undoStack: MixProject[] = [];
+const redoStack: MixProject[] = [];
+let lastKey = "";
+let lastAt = 0;
+
+/**
+ * With a path (or null), replaces the project (open, new, close) and clears the
+ * history. Without one, records an edit that can be undone.
+ */
+export function setProject(p: MixProject | null, path?: string | null, key?: string) {
+  if (path !== undefined) {
+    undoStack.length = 0;
+    redoStack.length = 0;
+    lastKey = "";
+    useApp.getState().set({ project: p, projectPath: path });
+    return;
+  }
+  const cur = useApp.getState().project;
+  const now = performance.now();
+  if (cur && !(key && key === lastKey && now - lastAt < 1500)) {
+    undoStack.push(cur);
+    if (undoStack.length > 200) undoStack.shift();
+  }
+  lastKey = key ?? "";
+  lastAt = now;
+  redoStack.length = 0;
+  useApp.getState().set({ project: p });
+}
+
+export function undoProject(): boolean {
+  const cur = useApp.getState().project;
+  const prev = undoStack.pop();
+  if (!prev || !cur) return false;
+  redoStack.push(cur);
+  lastKey = "";
+  useApp.getState().set({ project: prev });
+  return true;
+}
+
+export function redoProject(): boolean {
+  const cur = useApp.getState().project;
+  const next = redoStack.pop();
+  if (!next || !cur) return false;
+  undoStack.push(cur);
+  lastKey = "";
+  useApp.getState().set({ project: next });
+  return true;
 }
 
 export function updateClip(id: number, patch: Partial<Clip>) {
   const p = useApp.getState().project;
   if (!p) return;
-  setProject({ ...p, clips: p.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  setProject({ ...p, clips: p.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) }, undefined, `clip:${id}:${Object.keys(patch).join(",")}`);
 }
 
 export async function openProject() {
@@ -82,7 +129,7 @@ export async function saveProject(saveAs: boolean) {
   if (!path) return;
   try {
     await backend().saveProject(path, project);
-    setProject(project, path);
+    useApp.getState().set({ projectPath: path });
     toast.success("Project saved", { description: path });
   } catch (e) {
     toast.error(String(e));

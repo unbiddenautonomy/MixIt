@@ -46,6 +46,7 @@ function mirror(id: string, input: ActionInput) {
       else if (c === "fader") s.setChannel(deck, { fader: v });
     }
     if (c === "cue") s.setChannel(deck, { cue: input.type === "press" ? !ch.cue : Boolean(v) });
+    if (c === "assign" && v !== null) s.setMixer({ assign: s.mixer.assign.map((x, i) => (i === deck ? v : x)) });
     if (c.startsWith("eq.kill.")) {
       const band = ["low", "mid", "high"].indexOf(p[4]);
       const kills = [...ch.kills] as [boolean, boolean, boolean];
@@ -57,6 +58,11 @@ function mirror(id: string, input: ActionInput) {
     else if (p[1] === "master") s.setMixer({ master: v });
     else if (p[1] === "headphones") s.setMixer({ headphones: v });
     else if (p[1] === "cue_mix") s.setMixer({ cueMix: v });
+    else if (p[1] === "crossfader_curve") s.setMixer({ crossfaderCurve: v });
+    else if (p[1] === "fader_curve") s.setMixer({ faderCurve: v });
+    else if (p[1] === "eq_mode") s.setMixer({ eqMode: v });
+    else if (p[1] === "split_cue") s.setMixer({ splitCue: Boolean(v) });
+    else if (p[1] === "crossfader_reverse") s.setMixer({ crossfaderReverse: Boolean(v) });
   } else if (p[0] === "fx" && p[1].length === 1) {
     const deck = p[1].charCodeAt(0) - 65;
     const slot = Number(p[2]) - 1;

@@ -2,13 +2,14 @@
 // headphone cue, meter and fader; the crossfader; master and headphone levels; and the
 // "Mix it" button that runs a whole transition in time with the music.
 import clsx from "clsx";
-import { Headphones, Sparkles, Square } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { Headphones, SlidersHorizontal, Sparkles, Square } from "lucide-react";
 import { useMemo, useState } from "react";
-import { setOn, setValue } from "../../lib/actions";
+import { choose, setOn, setValue } from "../../lib/actions";
 import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
 import { useApp, usePro } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
-import { Btn } from "../ui/Button";
+import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { Fader } from "../ui/Fader";
 import { Knob } from "../ui/Knob";
@@ -31,7 +32,12 @@ export function Mixer({ count }: { count: number }) {
         ))}
         <MasterSection pro={pro} />
       </div>
-      <Crossfader />
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <Crossfader />
+        </div>
+        {pro && <MixerOptions count={count} />}
+      </div>
       <MixIt count={count} />
     </section>
   );
@@ -234,5 +240,67 @@ function MixIt({ count }: { count: number }) {
         </Btn>
       </Ctl>
     </div>
+  );
+}
+
+/** Pro mixer options: curves, EQ character, headphone split and crossfader sides. */
+function MixerOptions({ count }: { count: number }) {
+  const m = useApp((s) => s.mixer);
+  const row = (label: string, explain: string, children: React.ReactNode) => (
+    <div className="flex flex-col gap-1">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
+      {children}
+      <div className="text-[11px] leading-snug text-zinc-500">{explain}</div>
+    </div>
+  );
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button type="button" className="rounded-md p-1 text-zinc-500 hover:bg-white/10 hover:text-zinc-200" aria-label="Mixer options" title="Mixer options">
+          <SlidersHorizontal size={13} />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content side="top" sideOffset={8} className="z-50 flex w-80 flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-xs shadow-2xl backdrop-blur">
+          {row(
+            "Crossfader curve",
+            "Smooth for long blends, sharp for quick cuts and scratching.",
+            <Segmented value={m.crossfaderCurve} onChange={(v) => choose("mixer.crossfader_curve", v)} options={["Smooth", "Power", "Sharp"].map((l, i) => ({ value: i, label: l }))} />,
+          )}
+          {row(
+            "Channel faders",
+            "How quickly the channel faders get loud as you raise them.",
+            <Segmented value={m.faderCurve} onChange={(v) => choose("mixer.fader_curve", v)} options={["Linear", "Smooth", "Steep"].map((l, i) => ({ value: i, label: l }))} />,
+          )}
+          {row(
+            "EQ",
+            "Classic shapes the tone gently; Isolator can remove each band completely.",
+            <Segmented value={m.eqMode} onChange={(v) => choose("mixer.eq_mode", v)} options={["Classic", "Isolator"].map((l, i) => ({ value: i, label: l }))} />,
+          )}
+          {row(
+            "Crossfader sides",
+            "Which side of the crossfader each channel is on. Thru ignores the crossfader.",
+            <div className="flex flex-col gap-1">
+              {channelOrder(count).map((d) => (
+                <div key={d} className="flex items-center gap-2">
+                  <span className="w-4 font-black" style={{ color: DECK_COLORS[d] }}>
+                    {String.fromCharCode(65 + d)}
+                  </span>
+                  <Segmented value={m.assign[d]} onChange={(v) => choose(`mixer.${String.fromCharCode(65 + d)}.assign`, v)} options={["A", "Thru", "B"].map((l, i) => ({ value: i, label: l }))} />
+                </div>
+              ))}
+            </div>,
+          )}
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input type="checkbox" checked={m.crossfaderReverse} onChange={(e) => setOn("mixer.crossfader_reverse", e.target.checked)} />
+            Reverse the crossfader
+          </label>
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input type="checkbox" checked={m.splitCue} onChange={(e) => setOn("mixer.split_cue", e.target.checked)} />
+            Split cue: headphone cue left, master right
+          </label>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

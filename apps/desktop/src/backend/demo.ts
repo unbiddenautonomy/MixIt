@@ -1108,6 +1108,8 @@ function demoRegistry(): T.ActionSpec[] {
   add("mixer.master", "Master volume", "Mixer", cont(-120, 6, 0), "The level of the whole mix.");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
+  add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");
+  add("app.redo", "Redo", "App", { type: "trigger" }, "Redoes the last undone change.", "Mod+Shift+Z");
   add("app.view_mode", "Easy / Pro view", "App", { type: "toggle" }, "Switches between the simple and the full interface.", "Mod+E");
   add("app.explain", "Explain mode", "App", { type: "momentary" }, "Shows what every control does.", "F1");
   add("app.settings", "Settings", "App", { type: "trigger" }, "Audio device, keys and preferences.", "Mod+,");

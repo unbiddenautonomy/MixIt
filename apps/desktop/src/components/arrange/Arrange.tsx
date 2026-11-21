@@ -66,7 +66,7 @@ export function Arrange() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2">
-        <input className="input h-8 w-56 text-sm font-semibold" value={project.name} onChange={(e) => setProject({ ...project, name: e.target.value })} />
+        <input className="input h-8 w-56 text-sm font-semibold" value={project.name} onChange={(e) => setProject({ ...project, name: e.target.value }, undefined, "name")} />
         <span className="font-mono text-xs text-zinc-400">
           {project.clips.length} clips · {clock(total)} · {fmtBpm(bpmAt(project, 0))}
           {project.tempo.segments.length > 1 && ` → ${fmtBpm(project.tempo.segments[project.tempo.segments.length - 1].bpm)}`} BPM
