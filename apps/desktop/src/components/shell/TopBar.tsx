@@ -1,7 +1,7 @@
 // The bar across the top: workspaces, the master clock and level, recording, engine
 // health, and the Easy/Pro, explain, coach, palette and settings switches.
 import clsx from "clsx";
-import { AlertTriangle, Circle, Command, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
+import { AlertTriangle, BookOpen, Circle, Command, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
 import { isMac } from "../../lib/actions";
 import { clock } from "../../lib/format";
@@ -16,6 +16,7 @@ export function TopBar() {
   const settings = useApp((s) => s.settings);
   const explain = useApp((s) => s.explain);
   const samplerOpen = useApp((s) => s.samplerOpen);
+  const guideOpen = useApp((s) => s.guideOpen);
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-zinc-950/80 px-3 backdrop-blur" data-tauri-drag-region>
       <div className="flex items-center gap-2 pr-1">
@@ -55,6 +56,12 @@ export function TopBar() {
             aria-label="Sampler and master FX"
           >
             <Grid2x2 size={14} />
+          </Btn>
+        </Ctl>
+        <Ctl id="app.guide" side="bottom">
+          <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">
+            <BookOpen size={14} />
+            <span className="hidden xl:inline">Guide</span>
           </Btn>
         </Ctl>
         <Ctl id="app.explain" side="bottom" label="Explain mode" explain="Shows what every control does. Hover anything. Hold ? for a quick look.">

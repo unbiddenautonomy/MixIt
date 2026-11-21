@@ -88,6 +88,9 @@ interface AppState {
   kit: KitSound[];
   pads: PadInfo[];
   samplerOpen: boolean;
+  /** The pad tab each deck shows ("cues", "loop", "jump", "fx", "grid"). */
+  padTabs: string[];
+  guideOpen: boolean;
 
   set: (p: Partial<AppState>) => void;
   setDeck: (d: DeckInfo) => void;
@@ -142,6 +145,8 @@ export const useApp = create<AppState>((set) => ({
   kit: [],
   pads: [],
   samplerOpen: true,
+  padTabs: ["cues", "cues", "cues", "cues"],
+  guideOpen: false,
 
   set: (p) => set(p),
   setDeck: (d) => set((s) => ({ decks: s.decks.map((x, i) => (i === d.deck ? d : x)) })),

@@ -5,6 +5,7 @@ import clsx from "clsx";
 import type { ReactNode } from "react";
 import { findAction, shortcutLabel } from "../../lib/actions";
 import { useApp } from "../../store/app";
+import { useGuide } from "../../guide/model";
 
 export function Ctl({ id, label, explain, children, side = "top", className }: { id?: string; label?: string; explain?: string; children: ReactNode; side?: "top" | "bottom" | "left" | "right"; className?: string }) {
   const explainOn = useApp((s) => s.explain || s.explainHeld);
@@ -13,11 +14,12 @@ export function Ctl({ id, label, explain, children, side = "top", className }: {
   const name = label ?? spec?.label;
   const text = explain ?? spec?.explain;
   const key = shortcutLabel(spec?.shortcut);
+  const lit = useGuide((s) => (id ? (s.highlight.includes(id) ? 2 : s.focus.includes(id) ? 1 : 0) : 0));
   if (!name && !text) return <>{children}</>;
   return (
     <Tooltip.Root delayDuration={explainOn ? 0 : 650}>
       <Tooltip.Trigger asChild>
-        <span className={clsx("inline-flex", explainOn && text && "explain-ring", className)} data-action={id}>
+        <span className={clsx("inline-flex", explainOn && text && !lit && "explain-ring", lit === 2 && "guide-highlight", lit === 1 && "guide-focus", className)} data-action={id}>
           {children}
         </span>
       </Tooltip.Trigger>

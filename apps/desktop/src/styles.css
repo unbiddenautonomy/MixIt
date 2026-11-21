@@ -186,3 +186,30 @@ select.input {
 option {
   background: #18181b;
 }
+
+/* The guide lights up the controls a step or concept is about. */
+.guide-focus {
+  outline: 2px solid color-mix(in oklab, #fbbf24 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.guide-highlight {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+  border-radius: 8px;
+  animation: guide-pulse 1s ease-in-out infinite;
+}
+@keyframes guide-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-highlight {
+    animation: none;
+  }
+}
