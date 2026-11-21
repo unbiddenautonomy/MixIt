@@ -412,6 +412,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "set-flow",
+    title: "How a set flows",
+    group: "Your library",
+    summary: "See a playlist as a set: energy, tempo, and which changes of track will be hard to mix.",
+    body: [
+      "Open a playlist and press Flow. Each bar is a track: its height is the energy and its colour the key, so neighbours with similar colours mix in key. The line is the tempo. The dot between two tracks says how easy that change is: green mixes smoothly, amber needs a little care (a key shift, a bigger tempo change, an energy jump) and red is hard.",
+      "Click a red or amber dot to see why, and MixIt finds tracks in your library that mix well with both sides, so you can insert one as a bridge. Smooth the order rearranges the whole playlist so each track flows into the next; Build up does the same while starting calm and rising to a peak.",
+    ],
+  },
+  {
     id: "preview",
     title: "Previewing tracks",
     group: "Your library",
