@@ -11,6 +11,7 @@
 
 pub mod denormals;
 pub mod offline;
+pub mod project;
 pub mod recorder;
 
 use std::sync::Arc;
@@ -326,7 +327,5 @@ where
             err_stats.device_lost.store(true, Ordering::Relaxed);
         }
     };
-    device
-        .build_output_stream::<T, _, _>(cfg.clone(), data_cb, err_cb, None)
-        .map_err(|e| HostError::Device(e.to_string()))
+    device.build_output_stream::<T, _, _>(*cfg, data_cb, err_cb, None).map_err(|e| HostError::Device(e.to_string()))
 }

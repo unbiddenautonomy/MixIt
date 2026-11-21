@@ -127,10 +127,36 @@ pub struct Analysis {
     pub cues: Vec<CueSuggestion>,
 }
 
+/// Where a track can be mixed, in its own grid beats.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MixPoints {
+    /// First downbeat with sound.
+    pub first_beat: f64,
+    /// Last whole bar with sound ends here.
+    pub last_beat: f64,
+    /// Where the incoming track should start (its intro phrase).
+    pub mix_in: f64,
+    /// Where to start mixing out (its outro).
+    pub mix_out: f64,
+}
+
 impl Analysis {
     /// Whether the track has a usable beat at all (spoken word, ambient, silence do not).
     pub fn is_rhythmic(&self) -> bool {
         self.pulse_clarity > 0.15
+    }
+
+    /// Mix points from the cue suggestions, snapped to bars of the grid.
+    pub fn mix_points(&self) -> MixPoints {
+        let bpb = self.grid.beats_per_bar.max(1) as f64;
+        let beat = |seconds: f64| self.grid.beat_at(seconds * self.sample_rate as f64);
+        let bar_round = |b: f64| (b / bpb).round() * bpb;
+        let cue = |role: CueRole| self.cues.iter().find(|c| c.role == role).map(|c| beat(c.seconds));
+        let first = cue(CueRole::Load).map(bar_round).unwrap_or_else(|| bar_round(beat(self.audible.0)).max(0.0));
+        let last = ((beat(self.audible.1) / bpb).floor() * bpb).max(first + bpb);
+        let mix_in = cue(CueRole::MixIn).map(bar_round).unwrap_or(first).clamp(first, last);
+        let mix_out = cue(CueRole::MixOut).map(bar_round).unwrap_or(last).clamp(mix_in, last);
+        MixPoints { first_beat: first, last_beat: last, mix_in, mix_out }
     }
 }
 
@@ -263,13 +289,15 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
         cue(s.start, CueRole::Section(s.label), s.label.name(), None);
     }
     let last_end = r.model.time((first_bar_k + st.bars as i64 * bpb) as f64);
-    let mix_out = st
-        .sections
-        .iter()
-        .rev()
-        .find(|s| s.label == SectionLabel::Outro)
-        .map(|s| s.start)
-        .unwrap_or_else(|| r.model.time(r.model.index(last_end) - 2.0 * phrase_beats).max(t_first));
+    let mix_out =
+        st.sections.iter().rev().find(|s| s.label == SectionLabel::Outro).map(|s| s.start).unwrap_or_else(|| {
+            // No outro found: start of the last section, kept between one and two phrases
+            // from the end (long enough to blend, short enough not to cut the track).
+            let end_k = r.model.index(last_end);
+            let last_k = st.sections.last().map(|s| r.model.index(s.start)).unwrap_or(end_k);
+            let k = last_k.clamp(end_k - 2.0 * phrase_beats, end_k - phrase_beats);
+            r.model.time(k).max(t_first)
+        });
     cue(mix_out, CueRole::MixOut, "Mix out", Some(phrase_beats));
     cues.sort_by(|a, b| a.seconds.partial_cmp(&b.seconds).unwrap());
 
