@@ -12,6 +12,7 @@ import { useTelemetry } from "../../store/telemetry";
 import { closePreview, resolveRoute, seekPreview, setPreviewGain, setPreviewRoute, setPreviewSync, togglePreview, useTrackPreview, type RouteChoice } from "../../store/trackPreview";
 import { loadOnDeck } from "../deck/Deck";
 import { useWaveform } from "../deck/useWaveform";
+import { Cover } from "../ui/Cover";
 
 /** Where the preview is now, moved on by the time since the last snapshot. */
 export function previewPosition(): number {
@@ -62,6 +63,7 @@ function Bar() {
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="translate-x-px" />}
         </button>
+        <Cover trackId={track.id} has={track.hasArt} title={track.title} artist={track.artist} size={28} rounded="rounded" />
         <div className="min-w-0">
           <div className="truncate text-[12px] font-medium text-zinc-100">{track.title}</div>
           <div className="truncate text-[11px] text-zinc-500">

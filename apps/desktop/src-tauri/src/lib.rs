@@ -101,6 +101,7 @@ pub fn run() {
             commands::library_analyze,
             commands::job_cancel,
             commands::track_detail,
+            commands::track_artwork,
             commands::track_edit,
             commands::tracks_remove,
             commands::suggest_next,

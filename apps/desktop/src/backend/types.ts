@@ -30,6 +30,8 @@ export interface TrackRow {
   missing: boolean;
   analysis: "pending" | "done" | "failed";
   comment: string;
+  /** The file has cover art (`Backend.artwork` reads it). */
+  hasArt?: boolean;
 }
 
 /** One of your own tags ("vocal", "peak time"), with how many tracks carry it. */

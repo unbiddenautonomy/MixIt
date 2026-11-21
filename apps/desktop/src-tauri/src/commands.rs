@@ -661,6 +661,19 @@ pub fn job_cancel(state: State<'_, AppState>) {
     state.render_cancel.store(true, Ordering::SeqCst);
 }
 
+/// A track's cover art as the file holds it (JPEG or PNG bytes), or nothing.
+#[tauri::command]
+pub async fn track_artwork(state: State<'_, AppState>, id: i64) -> R<tauri::ipc::Response> {
+    let path = state.library.lock().track(id).map_err(err)?.path;
+    // Reading the tag can take a moment on a slow drive: not on the main thread.
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        mixit_io::tags::read_artwork(&path).map(|(b, _)| b).unwrap_or_default()
+    })
+    .await
+    .map_err(err)?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 #[tauri::command]
 pub fn track_detail(state: State<'_, AppState>, id: i64) -> R<TrackDetail> {
     let lib = state.library.lock();

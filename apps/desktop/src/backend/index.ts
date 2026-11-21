@@ -201,6 +201,8 @@ export interface Backend {
   /** Generates the practice tracks for the guide's labs and adds them to the library. */
   addPracticeTracks(): Promise<void>;
 
+  /** A track's cover art (JPEG or PNG), or null when it has none. */
+  artwork(trackId: number): Promise<Blob | null>;
   importRekordbox(path: string): Promise<void>;
   /** Imports a Traktor collection.nml: tracks, grids, keys, cues, loops, ratings and playlists. */
   importTraktor(path: string): Promise<void>;

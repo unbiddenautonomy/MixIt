@@ -21,6 +21,7 @@ import { EjectButton, Pads } from "./Pads";
 import { useDropTarget } from "../../lib/dnd";
 import { DECK_COLORS } from "./useWaveform";
 import { openEditor } from "../editor/TrackEditor";
+import { Cover } from "../ui/Cover";
 
 export const TEMPO_RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 export const TEMPO_RANGE_LABELS = ["±6%", "±8%", "±10%", "±16%", "±50%", "±100%"];
@@ -102,6 +103,7 @@ function Header({ deck }: { deck: number }) {
       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl text-base font-black text-zinc-950" style={{ background: DECK_COLORS[deck] }}>
         {L}
       </div>
+      {t && <Cover trackId={t.id} has={t.hasArt} title={t.title} artist={t.artist} size={36} rounded="rounded-lg" />}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold leading-tight text-zinc-50" title={t?.title}>
           {t ? t.title || "Untitled" : <span className="text-zinc-500">No track</span>}
