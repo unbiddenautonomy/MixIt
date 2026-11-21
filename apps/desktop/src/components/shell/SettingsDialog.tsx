@@ -2,11 +2,15 @@
 // folders and the keyboard shortcut list.
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { FolderPlus, Trash2, X } from "lucide-react";
+import clsx from "clsx";
+import { FolderPlus, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { backend } from "../../backend";
 import type { DeviceInfo, Settings } from "../../backend/types";
 import { shortcutLabel } from "../../lib/actions";
+import { keyName } from "../../lib/keyboard";
+import { bindable, defaultShortcut, holderOf, reservedKey, resetAllShortcuts, resetShortcut, setShortcut, useShortcuts } from "../../lib/shortcuts";
+import { ask } from "./Dialogs";
 import { updateSettings } from "../../lib/appCommands";
 import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
@@ -259,26 +263,120 @@ function LibrarySettings() {
 
 function Shortcuts() {
   const registry = useApp((st) => st.registry);
-  const withKeys = registry.filter((a) => a.shortcut);
-  const groups = [...new Set(withKeys.map((a) => a.group))];
+  const overrides = useShortcuts((st) => st.overrides);
+  const [query, setQuery] = useState("");
+  const [all, setAll] = useState(false);
+  const [recording, setRecording] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const changed = Object.keys(overrides).length;
+
+  // While a row listens, the next key goes to it instead of the decks.
+  useEffect(() => {
+    if (!recording) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const name = keyName(e);
+      if (name === "Escape") {
+        setRecording(null);
+        return;
+      }
+      const why = reservedKey(name);
+      if (why === "") return; // a modifier on its own: wait for the key
+      if (why) {
+        setNote(`${shortcutLabel(name)}: ${why}`);
+        return;
+      }
+      const other = holderOf(name, recording);
+      setShortcut(recording, name);
+      setNote(other ? `${shortcutLabel(name)} now plays “${registry.find((a) => a.id === recording)?.label}” instead of “${other.label}”.` : null);
+      setRecording(null);
+    };
+    const swallow = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", swallow, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", swallow, true);
+    };
+  }, [recording, registry]);
+
+  const q = query.trim().toLowerCase();
+  const rows = registry.filter((a) => bindable(a) && (q ? `${a.label} ${a.group} ${a.id} ${a.shortcut ?? ""}`.toLowerCase().includes(q) : all || a.shortcut || a.id in overrides));
+  const groups = [...new Set(rows.map((a) => a.group))];
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3" data-testid="shortcut-editor">
+      <div className="flex items-center gap-2">
+        <input className="input h-8 flex-1" placeholder="Find an action or a key…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Find a shortcut" />
+        <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-zinc-400">
+          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show actions without a key
+        </label>
+      </div>
+      <p className="text-[11px] text-zinc-500">Click a key to change it, then press the new key (Esc cancels). Giving a key to one action takes it off the one that had it. Keys that hold (cue, hot cues, nudge) act while the key is down.</p>
+      {note && <div className="rounded-md bg-sky-400/10 px-2 py-1 text-[12px] text-sky-200">{note}</div>}
       {groups.map((g) => (
         <div key={g}>
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            {withKeys
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+            {rows
               .filter((a) => a.group === g)
-              .map((a) => (
-                <div key={a.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate text-zinc-300">{a.label}</span>
-                  <kbd className="rounded border border-white/10 bg-white/[0.04] px-1.5 font-mono text-[11px] text-zinc-300">{shortcutLabel(a.shortcut)}</kbd>
-                </div>
-              ))}
+              .map((a) => {
+                const custom = a.id in overrides;
+                const def = defaultShortcut(a.id);
+                const listening = recording === a.id;
+                return (
+                  <div key={a.id} className="group flex items-center justify-between gap-2" data-action={a.id}>
+                    <span className={clsx("truncate", custom ? "text-sky-200" : "text-zinc-300")} title={a.explain}>
+                      {a.label}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      {custom && (
+                        <button type="button" onClick={() => resetShortcut(a.id)} title={def ? `Back to ${shortcutLabel(def)}` : "Back to no key"} aria-label={`Reset ${a.label}`} className="text-zinc-500 opacity-0 hover:text-zinc-100 group-hover:opacity-100">
+                          <RotateCcw size={11} />
+                        </button>
+                      )}
+                      {a.shortcut && !listening && (
+                        <button type="button" onClick={() => setShortcut(a.id, null)} title="Take the key off" aria-label={`Remove the key of ${a.label}`} className="text-zinc-500 opacity-0 hover:text-zinc-100 group-hover:opacity-100">
+                          <X size={11} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNote(null);
+                          setRecording(listening ? null : a.id);
+                        }}
+                        className={clsx("min-w-12 rounded border px-1.5 font-mono text-[11px]", listening ? "animate-pulse border-sky-400 bg-sky-400/15 text-sky-200" : a.shortcut ? "border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/30" : "border-dashed border-white/10 text-zinc-600 hover:text-zinc-300")}
+                        data-testid="shortcut-key"
+                      >
+                        {listening ? "Press a key" : a.shortcut ? shortcutLabel(a.shortcut) : "Add"}
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       ))}
-      <p className="text-[11px] text-zinc-500">Shortcuts that hold (cue, hot cues, nudge) act while the key is down.</p>
+      {rows.length === 0 && <p className="text-zinc-500">No action matches.</p>}
+      <div className="flex items-center gap-2 border-t border-white/[0.06] pt-3">
+        <span className="text-[11px] text-zinc-500">{changed ? `${changed} changed from the defaults` : "All keys are the defaults."}</span>
+        {changed > 0 && (
+          <button
+            type="button"
+            className="ml-auto rounded-md border border-white/10 px-2 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06]"
+            onClick={async () => {
+              if (await ask({ title: "Reset all shortcuts?", body: "Every key goes back to how MixIt came.", confirm: "Reset all" })) resetAllShortcuts();
+            }}
+          >
+            Reset all
+          </button>
+        )}
+      </div>
     </div>
   );
 }

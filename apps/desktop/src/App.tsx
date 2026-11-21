@@ -1,5 +1,6 @@
 // The app shell: connects to the backend, wires its events into the stores, installs the
 // keyboard map, and lays out the three workspaces.
+import { installRegistry } from "./lib/shortcuts";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, type PointerEvent } from "react";
@@ -50,9 +51,9 @@ export function App() {
         const b = await getBackend();
         const info = await b.appInfo();
         if (cancelled) return;
+        installRegistry(info.registry);
         useApp.getState().set({
           info,
-          registry: info.registry,
           transitions: info.transitions,
           fxTypes: info.fxTypes,
           settings: info.settings,
