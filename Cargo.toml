@@ -70,7 +70,8 @@ quick-xml = "0.42"
 signalsmith-stretch = "0.1"
 parking_lot = "0.13"
 crossbeam-channel = "0.5"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
+dirs = "6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 assert_no_alloc = "1"

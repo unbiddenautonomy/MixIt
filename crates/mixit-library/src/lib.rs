@@ -9,6 +9,7 @@
 
 pub mod jobs;
 pub mod m3u;
+pub mod plan;
 pub mod query;
 pub mod rekordbox;
 pub mod scan;
@@ -39,6 +40,8 @@ pub enum LibraryError {
     Xml(String),
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("{0}")]
+    Invalid(String),
 }
 
 pub type Result<T> = std::result::Result<T, LibraryError>;

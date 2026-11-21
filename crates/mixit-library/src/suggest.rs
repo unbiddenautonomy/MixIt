@@ -221,6 +221,70 @@ pub fn suggest(current: &Candidate, pool: &[Candidate], opts: &SuggestOptions) -
     out
 }
 
+/// Orders tracks into a set: each next track is the best follow-up of the one before
+/// (tempo, key, energy as in [`suggest`]). With no `start`, every track is tried as
+/// the opener and the order with the best total transition score wins. Tracks that
+/// fit nowhere (tempo too far) are appended at the end, closest tempo first.
+pub fn order_set(tracks: &[Candidate], start: Option<usize>, energy: EnergyDirection) -> Vec<usize> {
+    let n = tracks.len();
+    if n <= 1 {
+        return (0..n).collect();
+    }
+    let opts = SuggestOptions { energy, limit: usize::MAX, ..Default::default() };
+    // Pairwise transition scores (None = not mixable).
+    let mut score = vec![vec![None; n]; n];
+    for i in 0..n {
+        for s in suggest(&tracks[i], tracks, &opts) {
+            if let Some(j) = tracks.iter().position(|t| t.id == s.id) {
+                if j != i {
+                    score[i][j] = Some(s.score);
+                }
+            }
+        }
+    }
+    let chain = |first: usize| -> (Vec<usize>, f64) {
+        let mut used = vec![false; n];
+        let mut order = vec![first];
+        used[first] = true;
+        let mut total = 0.0;
+        let mut cur = first;
+        while order.len() < n {
+            let best = (0..n)
+                .filter(|&j| !used[j])
+                .filter_map(|j| score[cur][j].map(|s| (j, s)))
+                .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap().then(b.0.cmp(&a.0)));
+            let Some((j, s)) = best else { break };
+            total += s;
+            used[j] = true;
+            order.push(j);
+            cur = j;
+        }
+        // Leftovers: closest tempo to the last track first.
+        let last_bpm = tracks[cur].bpm.unwrap_or(0.0);
+        let mut rest: Vec<usize> = (0..n).filter(|&j| !used[j]).collect();
+        rest.sort_by(|&a, &b| {
+            let d = |j: usize| (tracks[j].bpm.unwrap_or(0.0) - last_bpm).abs();
+            d(a).partial_cmp(&d(b)).unwrap()
+        });
+        total -= rest.len() as f64; // unmixable joins cost a whole transition
+        order.extend(rest);
+        (order, total)
+    };
+    match start {
+        Some(s) if s < n => chain(s).0,
+        _ => {
+            let mut best = chain(0);
+            for i in 1..n {
+                let c = chain(i);
+                if c.1 > best.1 + 1e-9 {
+                    best = c;
+                }
+            }
+            best.0
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,5 +334,22 @@ mod tests {
         let s = suggest(&cur, &pool, &opts);
         assert_eq!(s.len(), 1);
         assert_eq!(s[0].id, 3);
+    }
+
+    #[test]
+    fn orders_a_set_along_the_wheel() {
+        // 8A, 9A, 10A, 11A with rising energy, shuffled: the set walks the wheel upwards.
+        let k = |n: u8| Key::from_camelot(n, 'A').unwrap();
+        let pool =
+            vec![cand(1, 124.0, k(10), 7), cand(2, 124.0, k(8), 5), cand(3, 124.0, k(11), 8), cand(4, 124.0, k(9), 6)];
+        let order = order_set(&pool, Some(1), EnergyDirection::Up);
+        let ids: Vec<TrackId> = order.iter().map(|&i| pool[i].id).collect();
+        assert_eq!(ids, vec![2, 4, 1, 3]);
+        // A track at 170 BPM cannot be mixed in; it goes last.
+        let mut pool2 = pool.clone();
+        pool2.insert(0, cand(9, 170.0, k(8), 6));
+        let order = order_set(&pool2, None, EnergyDirection::Up);
+        assert_eq!(pool2[*order.last().unwrap()].id, 9);
+        assert_eq!(order.len(), 5);
     }
 }

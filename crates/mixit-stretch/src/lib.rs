@@ -91,6 +91,53 @@ impl TimeStretch for SignalsmithStretch {
     }
 }
 
+/// Time-stretches and pitch-shifts a whole interleaved stereo buffer offline.
+///
+/// `speed` is input frames per output frame (1.05 plays 5 % faster, so the result is
+/// shorter); `semitones` shifts the pitch independently. The output is aligned with the
+/// input (latency removed) and is `frames / speed` frames long.
+pub fn stretch_buffer(
+    input: &[f32],
+    sample_rate: u32,
+    speed: f64,
+    semitones: f32,
+    quality: StretchQuality,
+) -> Vec<f32> {
+    let frames = input.len() / 2;
+    let speed = if speed.is_finite() { speed.clamp(0.25, 4.0) } else { 1.0 };
+    let out_frames = (frames as f64 / speed).round() as usize;
+    let mut st = SignalsmithStretch::new(sample_rate, quality);
+    st.set_transpose(2f32.powf(semitones / 12.0));
+    let in_lat = st.input_latency();
+    let out_lat = st.output_latency();
+    // Pre-roll with exactly the input latency; output then trails by the output latency.
+    let lead = in_lat;
+    // Input with silence after the end so the tail drains.
+    let tail = ((out_lat as f64 + 64.0) * speed).ceil() as usize + in_lat;
+    let mut padded = Vec::with_capacity((frames + tail) * 2);
+    padded.extend_from_slice(&input[..frames * 2]);
+    padded.resize((frames + tail) * 2, 0.0);
+    let pre = lead.min(padded.len() / 2);
+    st.seek(&padded[..pre * 2], speed);
+    let want = out_frames + out_lat;
+    let mut out = vec![0.0f32; want * 2];
+    let block = 1024usize;
+    let mut done = 0usize;
+    let mut in_pos = pre as f64;
+    while done < want {
+        let n = block.min(want - done);
+        let next = in_pos + n as f64 * speed;
+        let a = (in_pos as usize).min(padded.len() / 2);
+        let b = (next as usize).min(padded.len() / 2);
+        st.process(&padded[a * 2..b * 2], &mut out[done * 2..(done + n) * 2]);
+        done += n;
+        in_pos = next;
+    }
+    out.drain(..out_lat * 2);
+    out.truncate(out_frames * 2);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +205,37 @@ mod tests {
         let st = SignalsmithStretch::new(48_000, StretchQuality::High);
         assert!(st.input_latency() > 0 && st.output_latency() > 0);
         assert!(st.input_latency() + st.output_latency() < 48_000 / 2);
+    }
+
+    fn click_at(frames: usize, at: usize) -> Vec<f32> {
+        let mut x = vec![0.0f32; frames * 2];
+        for i in 0..32 {
+            let v = (1.0 - i as f32 / 32.0) * if i % 2 == 0 { 0.9 } else { -0.9 };
+            x[(at + i) * 2] = v;
+            x[(at + i) * 2 + 1] = v;
+        }
+        x
+    }
+
+    fn peak_frame(x: &[f32]) -> usize {
+        let l = left(x);
+        (0..l.len()).max_by(|&a, &b| l[a].abs().partial_cmp(&l[b].abs()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn offline_stretch_is_aligned_and_sized() {
+        for speed in [1.0, 1.25, 0.8, 1.5, 2.0, 0.5] {
+            let x = click_at(96_000, 30_000);
+            let y = stretch_buffer(&x, 48_000, speed, 0.0, StretchQuality::High);
+            assert_eq!(y.len() / 2, (96_000.0 / speed).round() as usize);
+            let expect = 30_000.0 / speed;
+            let got = peak_frame(&y) as f64;
+            assert!((got - expect).abs() < 48.0 * 3.0, "speed {speed}: click at {got}, expected {expect}");
+        }
+        // Pitch shift keeps the length and moves the tone.
+        let tone = interleave(&testkit::sine(96_000, 440.0, 48_000.0, 0.5));
+        let y = left(&stretch_buffer(&tone, 48_000, 1.0, 12.0, StretchQuality::High));
+        assert_eq!(y.len(), 96_000);
+        assert!(testkit::tone_level(&y[24_000..72_000], 880.0, 48_000.0) > 0.3);
     }
 }
