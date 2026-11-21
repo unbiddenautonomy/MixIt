@@ -587,3 +587,151 @@ fn a_synced_deck_keeps_its_tempo_when_it_becomes_master() {
     assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "B jumped to {} BPM", t.decks[1].bpm);
     assert!((t.clock_bpm - 120.0).abs() < 0.2, "clock at {}", t.clock_bpm);
 }
+
+#[test]
+fn slicer_plays_a_slice_in_time_and_the_track_comes_back() {
+    let mut r = Rig::new();
+    // 120 BPM: a beat is 24 000 frames.
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    r.run(126_000); // beat 5.25
+    let before = r.tel().decks[0].beat;
+    assert!((before - 5.25).abs() < 0.05, "at beat {before}");
+    // Slice 3 of 8 over 8 beats is beat 2..3; the phase within the slice is kept.
+    r.deck(A, DeckCommand::SliceDown { index: 2, count: 8, beats: 8.0 });
+    r.run(2_400);
+    let b = r.tel().decks[0].beat;
+    assert!((2.0..3.0).contains(&b), "slice playing at beat {b}");
+    assert!((b - 2.35).abs() < 0.06, "phase kept: beat {b}");
+    // Held for two more beats, it loops inside the slice.
+    for _ in 0..8 {
+        r.run(6_000);
+        let b = r.tel().decks[0].beat;
+        assert!((2.0 - 1e-6..3.0 + 1e-6).contains(&b), "left the slice: beat {b}");
+    }
+    // Another pad's release does nothing; this pad's release brings the track back to
+    // where it would have been.
+    r.deck(A, DeckCommand::SliceUp(5));
+    r.run(2_400);
+    assert!(r.tel().decks[0].beat < 3.0);
+    r.deck(A, DeckCommand::SliceUp(2));
+    r.run(2_400);
+    let after = r.tel().decks[0].beat;
+    let expected = 5.25 + (2_400.0 + 48_000.0 + 2_400.0 + 2_400.0) / 24_000.0;
+    assert!((after - expected).abs() < 0.06, "back at beat {after}, expected {expected}");
+    assert!(!r.tel().decks[0].looping.active, "the slice loop is gone");
+}
+
+#[test]
+fn roll_pads_stutter_and_return() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    r.run(48_000); // beat 2
+    r.deck(A, DeckCommand::LoopRollDown(0.25));
+    for _ in 0..6 {
+        r.run(3_000);
+        let b = r.tel().decks[0].beat;
+        assert!((2.0 - 1e-6..2.25 + 1e-6).contains(&b), "roll left its quarter beat: {b}");
+    }
+    r.deck(A, DeckCommand::LoopRollUp);
+    r.run(2_400);
+    let after = r.tel().decks[0].beat;
+    let expected = 2.0 + (18_000.0 + 2_400.0) / 24_000.0;
+    assert!((after - expected).abs() < 0.06, "back at {after}, expected {expected}");
+}
+
+/// Frames where the signal rises out of silence (at least `gap` quiet frames before).
+fn onsets(x: &[f32], gap: usize) -> Vec<usize> {
+    let mut out = vec![];
+    let mut quiet = gap;
+    for (i, v) in x.iter().enumerate() {
+        if v.abs() > 1e-3 {
+            if quiet >= gap {
+                out.push(i);
+            }
+            quiet = 0;
+        } else {
+            quiet += 1;
+        }
+    }
+    out
+}
+
+fn seq_rig() -> Rig {
+    let mut r = Rig::new();
+    // Two short hits: 200 frames each.
+    for pad in 0..2 {
+        let x = vec![0.3f32; 200];
+        let audio = Arc::new(TrackAudio::from_mono(SR, &x));
+        r.send(Command::Sampler(SamplerCommand::Load { pad, audio, bpm: None }));
+    }
+    r.send(Command::Global(GlobalCommand::SetClockBpm(120.0)));
+    r
+}
+
+#[test]
+fn sequencer_plays_its_pattern_on_the_clock_to_the_frame() {
+    let mut r = seq_rig();
+    // Sixteenth-note steps at 120 BPM are 6 000 frames apart. Pad 0 on the beats, pad 1
+    // on the off-beats.
+    r.send(Command::Sampler(SamplerCommand::SeqPattern { pad: 0, steps: 0b0001_0001_0001_0001 }));
+    r.send(Command::Sampler(SamplerCommand::SeqPattern { pad: 1, steps: 0b0100_0100_0100_0100 }));
+    r.send(Command::Sampler(SamplerCommand::SeqSettings { on: true, steps: 16, step_beats: 0.25, swing: 0.0 }));
+    let out = r.run(24_000 * 4 + 1_000);
+    let lat = r.latency();
+    let got = onsets(&out, 1_000);
+    // Beats 0..=4: nine hits. (The level fades in over 2 ms, so an onset reads a few
+    // frames after the trigger; they all read the same.)
+    let want: Vec<usize> = (0..=8).map(|k| k * 12_000 + got[0]).collect();
+    assert!((got[0] as i64 - lat as i64).abs() <= 8, "first hit at {}, latency {lat}", got[0]);
+    assert_eq!(got.len(), want.len(), "onsets {got:?}");
+    for (g, w) in got.iter().zip(&want) {
+        assert!((*g as i64 - *w as i64).abs() <= 1, "onset at {g}, expected {w} ({got:?})");
+    }
+    assert!(r.tel().sequencer_step >= 0);
+    // Stopping it stops the pattern.
+    r.send(Command::Sampler(SamplerCommand::SeqSettings { on: false, steps: 16, step_beats: 0.25, swing: 0.0 }));
+    r.run(2_000);
+    let quiet = r.run(48_000);
+    assert!(quiet.iter().all(|v| v.abs() < 1e-3), "still playing after stop");
+    assert_eq!(r.tel().sequencer_step, -1);
+}
+
+#[test]
+fn sequencer_swing_delays_every_second_step() {
+    let mut r = seq_rig();
+    // Steps 1 and 3 (the off sixteenths) with 25 % swing land a quarter step late.
+    r.send(Command::Sampler(SamplerCommand::SeqPattern { pad: 0, steps: 0b1010 }));
+    r.send(Command::Sampler(SamplerCommand::SeqSettings { on: true, steps: 4, step_beats: 0.25, swing: 0.25 }));
+    let out = r.run(24_000 + 1_000);
+    let lat = r.latency();
+    let got = onsets(&out, 1_000);
+    let want = [6_000 + 1_500 + lat, 18_000 + 1_500 + lat];
+    assert_eq!(got.len(), 2, "{got:?}");
+    for (g, w) in got.iter().zip(&want) {
+        assert!((*g as i64 - *w as i64).abs() <= 8, "onset at {g}, expected {w}");
+    }
+    assert_eq!(got[1] - got[0], 12_000);
+}
+
+#[test]
+fn sequencer_retriggers_a_long_sound_without_clicks() {
+    let mut r = Rig::new();
+    // A steady half-second tone retriggered every sixteenth.
+    let x = testkit::sine(24_000, 220.0, SR as f32, 0.3);
+    let audio = Arc::new(TrackAudio::from_mono(SR, &x));
+    r.send(Command::Sampler(SamplerCommand::Load { pad: 0, audio, bpm: None }));
+    r.send(Command::Global(GlobalCommand::SetClockBpm(120.0)));
+    r.send(Command::Sampler(SamplerCommand::SeqPattern { pad: 0, steps: u64::MAX }));
+    r.send(Command::Sampler(SamplerCommand::SeqSettings { on: true, steps: 16, step_beats: 0.25, swing: 0.0 }));
+    let out = r.run(48_000);
+    let (at, biggest) = out
+        .windows(2)
+        .enumerate()
+        .skip(2_000)
+        .map(|(i, w)| (i, (w[1] - w[0]).abs()))
+        .fold((0, 0.0f32), |a, b| if b.1 > a.1 { b } else { a });
+    // A 220 Hz sine at this level moves at most ~0.01 per frame; a hard cut would jump ~0.2.
+    assert!(biggest < 0.03, "click of {biggest} at frame {at}");
+}

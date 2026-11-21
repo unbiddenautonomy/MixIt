@@ -1,6 +1,7 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
 import { startAutoDj, stopAutoDj, useAutoDj } from "../store/autodj";
+import { toggleSequencer } from "../store/sequencer";
 import { setAssistantOpen, useAssistant } from "../components/feedback/MixAssistant";
 import { withLiveSound } from "../store/studio";
 import { toast } from "sonner";
@@ -142,6 +143,10 @@ export function runApp(id: string): boolean {
         useLibrary.getState().set({ source: { type: "autodj" } });
         void startAutoDj();
       } else stopAutoDj();
+      return true;
+    case "sequencer":
+      s.set({ workspace: "mix", samplerOpen: true, samplerTab: "seq" });
+      toggleSequencer();
       return true;
     case "assistant":
       setAssistantOpen(!useAssistant.getState().open);

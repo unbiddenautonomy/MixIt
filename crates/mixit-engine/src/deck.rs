@@ -221,6 +221,8 @@ pub struct Deck {
     loop_in: Option<f64>,
     roll: bool,
     roll_slip_was: bool,
+    /// Slicer pad being held.
+    slice: Option<u8>,
 
     // Slip, reverse, scratch.
     slip: bool,
@@ -287,6 +289,7 @@ impl Deck {
             loop_in: None,
             roll: false,
             roll_slip_was: false,
+            slice: None,
             slip: false,
             ghost: 0.0,
             reverse: false,
@@ -592,6 +595,7 @@ impl Deck {
                 self.reverse = false;
                 self.censor = false;
                 self.roll = false;
+                self.slice = None;
                 self.scratching = false;
                 self.brake = None;
                 self.spin = None;
@@ -745,25 +749,15 @@ impl Deck {
                 }
             }
             C::LoopRollDown(beats) => {
-                if !self.roll {
-                    self.roll_slip_was = self.slip;
-                    if !self.slip {
-                        self.slip = true;
-                        self.ghost = self.audible();
-                    }
-                    self.roll = true;
-                }
+                self.roll_begin();
+                self.slice = None;
                 self.auto_loop(beats, env, ev);
             }
-            C::LoopRollUp => {
-                if self.roll {
-                    self.roll = false;
-                    if let Some(mut l) = self.reader.lp {
-                        l.active = false;
-                        self.set_loop(Some(l), ev);
-                    }
-                    self.slip_return();
-                    self.slip = self.roll_slip_was;
+            C::LoopRollUp => self.roll_end(ev),
+            C::SliceDown { index, count, beats } => self.slice_down(index, count, beats, ev),
+            C::SliceUp(index) => {
+                if self.slice == Some(index) {
+                    self.roll_end(ev);
                 }
             }
             C::SetTempo(t) => self.tempo = t.clamp(-1.0, 1.0),
@@ -982,6 +976,57 @@ impl Deck {
     fn set_loop(&mut self, l: Option<Loop>, ev: &mut EventSink) {
         self.reader.lp = l;
         ev.send(Event::LoopChanged { deck: self.id, looping: self.loop_info() });
+    }
+
+    /// Starts a slip roll: the track keeps moving underneath (the ghost) while a loop plays.
+    fn roll_begin(&mut self) {
+        if !self.roll {
+            self.roll_slip_was = self.slip;
+            if !self.slip {
+                self.slip = true;
+                self.ghost = self.audible();
+            }
+            self.roll = true;
+        }
+    }
+
+    /// Ends a roll or slice: the loop goes and the track comes back where it would be.
+    fn roll_end(&mut self, ev: &mut EventSink) {
+        if self.roll {
+            self.roll = false;
+            self.slice = None;
+            if let Some(mut l) = self.reader.lp {
+                l.active = false;
+                self.set_loop(Some(l), ev);
+            }
+            self.slip_return();
+            self.slip = self.roll_slip_was;
+        }
+    }
+
+    /// Plays slice `index` of `count` in the `beats`-long stretch the track is in, keeping
+    /// the beat phase within the slice so it lands in time.
+    fn slice_down(&mut self, index: u8, count: u8, beats: f64, ev: &mut EventSink) {
+        // An Arc clone (no allocation) so the grid can be read while the deck changes.
+        let Some(g) = self.track.as_ref().map(|t| t.grid.clone()) else { return };
+        if count == 0 || index >= count || beats <= 0.0 {
+            return;
+        }
+        let here = if self.roll { self.ghost } else { self.audible() };
+        self.roll_begin();
+        let len = beats / count as f64;
+        let domain = g.floor_boundary(here, beats);
+        let d0 = g.beat_at(domain);
+        let start_beat = d0 + index as f64 * len;
+        let offset = (g.beat_at(here) - d0).rem_euclid(len);
+        let start = g.frame_at(start_beat);
+        let end = g.frame_at(start_beat + len);
+        if end <= start + 4.0 {
+            return;
+        }
+        self.set_loop(Some(Loop { start, end, active: true }), ev);
+        self.jump_to(g.frame_at(start_beat + offset));
+        self.slice = Some(index);
     }
 
     fn auto_loop(&mut self, beats: f64, env: &DeckEnv, ev: &mut EventSink) {

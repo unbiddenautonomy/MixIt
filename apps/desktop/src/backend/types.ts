@@ -175,6 +175,8 @@ export interface Telemetry {
   overruns: number;
   /** Bit n is set while sampler pad n plays. */
   samplerPlaying: number;
+  /** Step the sampler's sequencer is on, or -1 while it is stopped. */
+  sequencerStep: number;
   /** Spectrum-analyser bands (dB, 96 log-spaced bands from 20 Hz to 20 kHz) while one is open. */
   spectrum?: number[];
 }
@@ -408,6 +410,19 @@ export interface PadInfo {
   quantized: boolean;
   color: number;
   error: string | null;
+}
+
+/** The sampler's step sequencer: one row of steps per pad. */
+export interface SequencerDto {
+  on: boolean;
+  /** Steps in the pattern (1 to 64). */
+  steps: number;
+  /** Length of one step in beats (0.25 = sixteenth notes). */
+  stepBeats: number;
+  /** 0 = straight, 0.5 = full triplet feel. */
+  swing: number;
+  /** pads[p][s]: whether pad p plays on step s. */
+  pads: boolean[][];
 }
 
 export interface PadPatch {

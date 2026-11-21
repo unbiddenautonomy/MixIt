@@ -108,6 +108,7 @@ function mirror(id: string, input: ActionInput) {
   } else if (p[0] === "deck" && v !== null) {
     const deck = p[1].charCodeAt(0) - 65;
     if (p[2] === "loop" && p[3] === "size") s.setMixer({ loopSize: s.mixer.loopSize.map((x, i) => (i === deck ? v : x)) });
+    if (p[2] === "slice" && p[3] === "size") s.setMixer({ sliceSize: s.mixer.sliceSize.map((x, i) => (i === deck ? v : x)) });
     if (p[2] === "beatjump" && p[3] === "size") s.setMixer({ jumpSize: s.mixer.jumpSize.map((x, i) => (i === deck ? v : x)) });
   } else if (p[0] === "deck" && p[2] === "loop" && (p[3] === "halve" || p[3] === "double") && input.type === "press") {
     const deck = p[1].charCodeAt(0) - 65;

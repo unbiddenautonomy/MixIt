@@ -108,6 +108,7 @@ pub fn run() {
             commands::sampler_set,
             commands::sampler_reset,
             commands::sampler_stop_all,
+            commands::sampler_sequence,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MixIt");

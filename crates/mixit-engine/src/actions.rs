@@ -7,7 +7,7 @@
 //! not engine actions (`app.*`, grid edits, key sync) come back as [`ActionError::NotEngine`]
 //! for the app to handle.
 
-use mixit_core::actions::{ECHO_TIMES, TEMPO_RANGES};
+use mixit_core::actions::{ECHO_TIMES, ROLL_SIZES, SLICE_SIZES, TEMPO_RANGES};
 use mixit_core::{DeckId, Quantize};
 use mixit_dsp::curves::{CrossfaderCurve, FaderCurve};
 use mixit_dsp::djeq::EqMode;
@@ -77,6 +77,7 @@ const NUDGE: f64 = 0.5;
 struct DeckState {
     loop_size: usize,
     jump_size: usize,
+    slice_size: usize,
     sync: bool,
     keylock: bool,
     loop_on: bool,
@@ -109,7 +110,7 @@ fn deck_index(letter: &str) -> Option<usize> {
 
 impl ActionDispatcher {
     pub fn new(sample_rate: u32, decks: usize) -> ActionDispatcher {
-        let d = DeckState { loop_size: 7, jump_size: 2, ..Default::default() }; // 4-beat loops, 4-beat jumps
+        let d = DeckState { loop_size: 7, jump_size: 2, slice_size: 1, ..Default::default() }; // 4-beat loops, 4-beat jumps
         ActionDispatcher {
             sample_rate: sample_rate as f32,
             decks: vec![d; decks.max(1)],
@@ -342,6 +343,42 @@ impl ActionDispatcher {
                 }
                 None => vec![],
             },
+            ["slice", "size"] => {
+                if let Some(c) = Self::choice(input, SLICE_SIZES.len(), id)? {
+                    self.decks[i].slice_size = c;
+                }
+                vec![]
+            }
+            ["slice", n] => {
+                let n: u8 = n
+                    .parse::<u8>()
+                    .ok()
+                    .filter(|&n| (1..=8).contains(&n))
+                    .ok_or_else(|| ActionError::Unknown(id.into()))?
+                    - 1;
+                if press {
+                    dc(DeckCommand::SliceDown { index: n, count: 8, beats: SLICE_SIZES[st.slice_size].1 })
+                } else if release {
+                    dc(DeckCommand::SliceUp(n))
+                } else {
+                    vec![]
+                }
+            }
+            ["roll", n] => {
+                let n: usize = n
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|&n| (1..=8).contains(&n))
+                    .ok_or_else(|| ActionError::Unknown(id.into()))?
+                    - 1;
+                if press {
+                    dc(DeckCommand::LoopRollDown(ROLL_SIZES[n].1))
+                } else if release {
+                    dc(DeckCommand::LoopRollUp)
+                } else {
+                    vec![]
+                }
+            }
             ["loop", "size"] => match Self::choice(input, LOOP_SIZES.len(), id)? {
                 Some(c) => {
                     self.decks[i].loop_size = c;

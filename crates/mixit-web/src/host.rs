@@ -325,6 +325,13 @@ impl Host {
                     self.pad_settings(pad, &s);
                 }
             }
+            "sequence" => {
+                let d: mixit_engine::view::SequencerDto =
+                    serde_json::from_value(v["sequencer"].clone()).map_err(|e| e.to_string())?;
+                for c in mixit_engine::view::sequencer_commands(&d, PADS) {
+                    self.send(Command::Sampler(c));
+                }
+            }
             "padClear" => {
                 let pad = v["pad"].as_u64().unwrap_or(0) as usize;
                 self.send(Command::Sampler(SamplerCommand::Unload(pad)));

@@ -114,6 +114,20 @@ pub mod specs {
 /// Echo return times (beats) for `mixer.echo.time`.
 pub const ECHO_TIMES: [(&str, f32); 6] =
     [("1/4 beat", 0.25), ("1/2 beat", 0.5), ("3/4 beat", 0.75), ("1 beat", 1.0), ("2 beats", 2.0), ("4 beats", 4.0)];
+/// Slicer stretch lengths (beats) for `deck.X.slice.size`, cut into 8 slices.
+pub const SLICE_SIZES: [(&str, f64); 3] = [("1 bar", 4.0), ("2 bars", 8.0), ("4 bars", 16.0)];
+/// Roll pad lengths (beats) for `deck.X.roll.1` … `roll.8`.
+pub const ROLL_SIZES: [(&str, f64); 8] = [
+    ("1/32", 0.03125),
+    ("1/16", 0.0625),
+    ("1/8", 0.125),
+    ("1/4", 0.25),
+    ("1/2", 0.5),
+    ("1", 1.0),
+    ("2", 2.0),
+    ("4", 4.0),
+];
+
 /// Which deck a channel ducks under (`mixer.X.duck_source`).
 pub const DUCK_SOURCES: [&str; 5] = ["Off", "Deck A", "Deck B", "Deck C", "Deck D"];
 
@@ -407,6 +421,39 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
                 None,
             );
         }
+        for n in 1..=8 {
+            b.add(
+                id(&format!("slice.{n}")),
+                format!("Slicer pad {n}"),
+                &g,
+                mom(),
+                "Cuts the bar the track is in into 8 slices and plays this one while held, in time. Let go and the track carries on where it would have been.",
+                false,
+                None,
+                Some("slicer"),
+            );
+            let (label, _) = ROLL_SIZES[n - 1];
+            b.add(
+                id(&format!("roll.{n}")),
+                format!("Roll {label}"),
+                &g,
+                mom(),
+                "Repeats a short slice while held (a stutter); on release the track carries on as if it never stopped.",
+                false,
+                None,
+                Some("loop-roll"),
+            );
+        }
+        b.add(
+            id("slice.size"),
+            "Slicer length",
+            &g,
+            choice(&SLICE_SIZES.map(|(l, _)| l), 1),
+            "How much music the 8 slicer pads cover: 1, 2 or 4 bars.",
+            false,
+            None,
+            Some("slicer"),
+        );
         b.add(
             id("loop.auto"),
             "Loop",
@@ -1303,6 +1350,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         true,
         None,
         Some("auto-dj"),
+    );
+    b.add(
+        "app.sequencer",
+        "Step sequencer",
+        ag,
+        ActionKind::Toggle,
+        "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.",
+        true,
+        None,
+        Some("sequencer"),
     );
     b.add(
         "app.assistant",

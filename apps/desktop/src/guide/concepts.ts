@@ -329,6 +329,31 @@ export const CONCEPTS: Concept[] = [
     glossary: ["sampler"],
   },
   {
+    id: "slicer",
+    title: "Slicer and roll pads",
+    group: "Effects and tricks",
+    summary: "Pads on each deck that chop the music into pieces you can replay, or stutter it in time.",
+    body: [
+      "The slicer cuts the bar (or 2 or 4 bars) that is playing into eight slices, one per pad. Hold a pad and that slice repeats in time with the beat; let go and the track carries on from where it would have been, so you never lose your place.",
+      "Roll pads repeat a tiny piece of the music, from a 32nd of a beat to 4 beats. Hold one for a drum roll, move from a long roll to short ones for a build-up, and let go on the drop.",
+    ],
+    controls: ["deck.A.slice.1", "deck.A.slice.size", "deck.A.roll.4"],
+    glossary: ["slicer", "loop-roll"],
+  },
+  {
+    id: "sequencer",
+    title: "Step sequencer",
+    group: "Effects and tricks",
+    summary: "Program the sampler pads into a beat that plays in time with the music.",
+    body: [
+      "The Steps tab shows a row of squares for each pad. Each square is a step, usually a sixteenth of a beat's length so four squares make one beat. Light a square and that pad plays on that step every time the pattern comes round.",
+      "The pattern follows the playing track, so it always lands on the beat, even when you change the tempo. Swing pushes every second step a little later for a looser groove. Start from a pattern such as Four on the floor, then change it to make it yours.",
+      "Use it to add claps or hats over a track that needs more drive, or to keep a beat going while you change records.",
+    ],
+    controls: ["app.sequencer"],
+    glossary: ["sequencer"],
+  },
+  {
     id: "mic",
     title: "Using a mic",
     group: "Effects and tricks",

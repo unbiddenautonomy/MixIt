@@ -47,6 +47,8 @@ export interface MixerState {
   samplerVolume: number;
   loopSize: number[]; // index into LOOP_SIZES per deck
   jumpSize: number[];
+  /** Index into SLICE_BARS per deck. */
+  sliceSize: number[];
   quantize: boolean;
   /** Indices into the registry's option lists. */
   crossfaderCurve: number;
@@ -69,6 +71,10 @@ export interface MixerState {
 
 export const LOOP_LABELS = ["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4", "8", "16", "32"];
 export const LOOP_BEATS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32];
+/** Slicer lengths, in the order of the registry's `deck.X.slice.size` choices. */
+export const SLICE_BARS = [1, 2, 4];
+/** Roll pad lengths in beats (`deck.X.roll.1` … `roll.8`). */
+export const ROLL_BEATS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4];
 export const JUMP_LABELS = ["1", "2", "4", "8", "16", "32"];
 export const FX_BEAT_LABELS = ["1/16", "1/8", "1/4", "1/2", "3/4", "1", "2", "4", "8", "16"];
 export const DECK_LETTERS = ["A", "B", "C", "D"];
@@ -129,6 +135,7 @@ interface AppState {
   kit: KitSound[];
   pads: PadInfo[];
   samplerOpen: boolean;
+  samplerTab: "pads" | "seq" | "fx";
   /** The pad tab each deck shows ("cues", "loop", "jump", "fx", "grid"). */
   padTabs: string[];
   guideOpen: boolean;
@@ -163,6 +170,7 @@ export const useApp = create<AppState>((set) => ({
     samplerVolume: 0.8,
     loopSize: [7, 7, 7, 7],
     jumpSize: [2, 2, 2, 2],
+    sliceSize: [1, 1, 1, 1],
     quantize: true,
     crossfaderCurve: 1,
     faderCurve: 1,
@@ -193,6 +201,7 @@ export const useApp = create<AppState>((set) => ({
   kit: [],
   pads: [],
   samplerOpen: true,
+  samplerTab: "pads",
   padTabs: ["cues", "cues", "cues", "cues"],
   guideOpen: false,
 

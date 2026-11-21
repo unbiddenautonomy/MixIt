@@ -38,6 +38,12 @@ pub const KIT: &[KitSound] = &[
     KitSound { id: "scratch", name: "Scratch", bpm: None, mode: 0, color: 0x84CC16 },
     KitSound { id: "hat_loop", name: "Hi-hat loop", bpm: Some(KIT_BPM), mode: 2, color: 0x8B5CF6 },
     KitSound { id: "sub_drop", name: "Sub drop", bpm: None, mode: 0, color: 0x64748B },
+    KitSound { id: "snare", name: "Snare", bpm: None, mode: 0, color: 0xF59E0B },
+    KitSound { id: "hat", name: "Hi-hat", bpm: None, mode: 0, color: 0x8B5CF6 },
+    KitSound { id: "open_hat", name: "Open hi-hat", bpm: None, mode: 0, color: 0x6366F1 },
+    KitSound { id: "rim", name: "Rim", bpm: None, mode: 0, color: 0x10B981 },
+    KitSound { id: "tom", name: "Tom", bpm: None, mode: 0, color: 0xDC2626 },
+    KitSound { id: "shaker", name: "Shaker", bpm: None, mode: 0, color: 0x0EA5E9 },
 ];
 
 pub fn kit_sound_info(id: &str) -> Option<&'static KitSound> {
@@ -61,6 +67,12 @@ pub fn kit_sound(id: &str, sample_rate: u32) -> Option<Vec<f32>> {
         "scratch" => mono(scratch(sr, &mut rng)),
         "hat_loop" => hat_loop(sr, &mut rng),
         "sub_drop" => mono(sub_drop(sr)),
+        "snare" => mono(snare(sr, &mut rng, 0.25)),
+        "hat" => mono(noise(sr, &mut rng, 0.06, 85.0, SvfMode::Highpass, 9_000.0, 0.7)),
+        "open_hat" => mono(noise(sr, &mut rng, 0.35, 9.0, SvfMode::Highpass, 7_000.0, 0.7)),
+        "rim" => mono(rim(sr, &mut rng)),
+        "tom" => mono(tom(sr)),
+        "shaker" => mono(shaker(sr, &mut rng)),
         _ => return None,
     };
     Some(normalise(interleave(&l, &r), -1.0))
@@ -373,6 +385,43 @@ fn hat_loop(sr: f64, rng: &mut Rng) -> (Vec<f32>, Vec<f32>) {
         }
     }
     (l, r)
+}
+
+/// A short woody click: two resonant tones and a tick of noise.
+fn rim(sr: f64, rng: &mut Rng) -> Vec<f32> {
+    let mut out = noise(sr, rng, 0.08, 90.0, SvfMode::Bandpass, 3_500.0, 2.0);
+    for (i, v) in out.iter_mut().enumerate() {
+        let t = i as f64 / sr;
+        let body = ((TAU * 820.0 * t).sin() + 0.6 * (TAU * 1_660.0 * t).sin()) * (-t * 60.0).exp();
+        *v = *v * 0.6 + body as f32;
+    }
+    out
+}
+
+/// A pitched drum that bends down as it rings.
+fn tom(sr: f64) -> Vec<f32> {
+    let n = (0.45 * sr) as usize;
+    let mut phase = 0.0f64;
+    let mut out: Vec<f32> = (0..n)
+        .map(|i| {
+            let t = i as f64 / sr;
+            phase += (110.0 + 60.0 * (-t * 18.0).exp()) / sr;
+            ((TAU * phase).sin() * (-t * 8.0).exp() * 1.1).tanh() as f32
+        })
+        .collect();
+    fade_edges(&mut out, sr);
+    out
+}
+
+/// Noise that swells and stops, like a shaker on the off-beat.
+fn shaker(sr: f64, rng: &mut Rng) -> Vec<f32> {
+    let mut out = noise(sr, rng, 0.12, 0.0, SvfMode::Highpass, 6_000.0, 0.7);
+    let len = out.len() as f64;
+    for (i, v) in out.iter_mut().enumerate() {
+        let x = i as f64 / len;
+        *v *= ((x / 0.35).min(1.0) * (1.0 - x).powi(2)) as f32;
+    }
+    out
 }
 
 fn sub_drop(sr: f64) -> Vec<f32> {
