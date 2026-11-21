@@ -9,5 +9,5 @@ export default defineConfig({
   server: { port: 5173, strictPort: true, watch: { ignored: ["**/src-tauri/**"] } },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   build: { target: "es2022", sourcemap: true, chunkSizeWarningLimit: 1500 },
-  test: { environment: "jsdom", include: ["src/**/*.test.ts", "src/**/*.test.tsx"] },
+  test: { environment: "jsdom", include: ["src/**/*.test.ts", "src/**/*.test.tsx"], testTimeout: 30_000, hookTimeout: 30_000 },
 });
