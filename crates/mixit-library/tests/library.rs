@@ -272,7 +272,7 @@ fn scan_analyse_move_and_exchange() {
 #[test]
 fn rekordbox_locations() {
     use mixit_library::rekordbox::{location_to_path, path_to_location};
-    assert_eq!(location_to_path("file://localhost/C:/Music/A%20B.mp3"), PathBuf::from("C:/Music/A B.mp3"));
+    assert_eq!(location_to_path("file://localhost/C:/Music/A%20B.mp3"), PathBuf::from("C:\\Music\\A B.mp3"));
     assert_eq!(
         location_to_path("file://localhost/Users/me/M%C3%BAsica/x.mp3"),
         PathBuf::from("/Users/me/Música/x.mp3")

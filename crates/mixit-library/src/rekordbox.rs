@@ -28,10 +28,11 @@ pub struct RekordboxImport {
 pub fn location_to_path(loc: &str) -> PathBuf {
     let rest = loc.strip_prefix("file://localhost").or_else(|| loc.strip_prefix("file://")).unwrap_or(loc);
     let decoded = percent_decode(rest);
-    // Windows: "/C:/Music/x.mp3" → "C:/Music/x.mp3".
+    // Windows: "/C:/Music/x.mp3" → "C:\Music\x.mp3", with native separators so the
+    // path matches the one the library stored when it scanned the file.
     let b = decoded.as_bytes();
     if b.len() >= 3 && b[0] == b'/' && b[2] == b':' && b[1].is_ascii_alphabetic() {
-        return PathBuf::from(&decoded[1..]);
+        return PathBuf::from(decoded[1..].replace('/', "\\"));
     }
     PathBuf::from(decoded)
 }
