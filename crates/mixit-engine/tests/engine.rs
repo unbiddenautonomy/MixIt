@@ -224,6 +224,21 @@ fn sync_matches_tempo_and_phase() {
 }
 
 #[test]
+fn clock_follows_the_playing_deck_without_sync() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(20.0, 124.0)));
+    r.deck(A, DeckCommand::Play);
+    r.run(24_000);
+    let t = r.tel();
+    assert_eq!(t.master_deck, None);
+    assert!((t.clock_bpm - 124.0).abs() < 1e-6, "clock at {}", t.clock_bpm);
+    // Paused, the clock keeps the last tempo.
+    r.deck(A, DeckCommand::Pause);
+    r.run(4_800);
+    assert!((r.tel().clock_bpm - 124.0).abs() < 1e-6);
+}
+
+#[test]
 fn half_tempo_tracks_sync_at_double() {
     let mut r = Rig::new();
     r.deck(A, DeckCommand::Load(ramp_track(60.0, 140.0)));
