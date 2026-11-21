@@ -195,6 +195,19 @@ function ImportExport() {
             className="menu-item"
             onSelect={() =>
               run(async () => {
+                const f = await backend().pickFiles(["nml"], "Traktor collection (collection.nml)");
+                if (!f?.[0]) return false;
+                await backend().importTraktor(f[0]);
+                await refreshAll();
+              }, "Importing from Traktor")
+            }
+          >
+            <Import size={12} /> Import Traktor collection…
+          </Dropdown.Item>
+          <Dropdown.Item
+            className="menu-item"
+            onSelect={() =>
+              run(async () => {
                 const f = await backend().pickFiles(["m3u", "m3u8"], "Playlist (M3U)");
                 if (!f?.[0]) return false;
                 await backend().importM3u(f[0]);

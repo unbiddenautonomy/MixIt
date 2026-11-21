@@ -137,6 +137,7 @@ pub fn run() {
             sound::sound_close,
             commands::project_preview,
             commands::import_rekordbox,
+            commands::import_traktor,
             commands::export_rekordbox,
             commands::export_playlist,
             commands::import_m3u,

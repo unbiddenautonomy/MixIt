@@ -1724,6 +1724,7 @@ export class DemoBackend implements Backend {
   }
 
   async importRekordbox() {}
+  async importTraktor() {}
   async exportRekordbox() {}
   async exportPlaylist() {}
   async importM3u() {

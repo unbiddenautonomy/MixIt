@@ -8,10 +8,11 @@ import { trimSilence } from "../web/engine";
 
 describe("classify", () => {
   it("sorts dropped paths by what they are", () => {
-    const c = classify(["C:\\Music\\a.MP3", "/m/b.flac", "/m/set.mixit", "/m/rekordbox.xml", "/m/list.m3u8", "/m/Crates", "/m/cover.jpg", "browser:3/Folder/c.wav"]);
+    const c = classify(["C:\\Music\\a.MP3", "/m/b.flac", "/m/set.mixit", "/m/rekordbox.xml", "/m/collection.nml", "/m/list.m3u8", "/m/Crates", "/m/cover.jpg", "browser:3/Folder/c.wav"]);
     expect(c.audio).toEqual(["C:\\Music\\a.MP3", "/m/b.flac", "browser:3/Folder/c.wav"]);
     expect(c.projects).toEqual(["/m/set.mixit"]);
     expect(c.rekordbox).toEqual(["/m/rekordbox.xml"]);
+    expect(c.traktor).toEqual(["/m/collection.nml"]);
     expect(c.playlists).toEqual(["/m/list.m3u8"]);
     expect(c.folders).toEqual(["/m/Crates"]);
     expect(c.other).toEqual(["/m/cover.jpg"]);
@@ -74,6 +75,7 @@ describe("dropFiles", () => {
     importTrack: vi.fn(async (path: string) => ({ id: path.length })),
     addToLibrary: vi.fn(async (paths: string[]) => void calls.push(`library ${paths.join(",")}`)),
     importRekordbox: vi.fn(async () => undefined),
+    importTraktor: vi.fn(async () => undefined),
     importM3u: vi.fn(async () => 3),
   };
 
@@ -135,8 +137,9 @@ describe("dropFiles", () => {
 
   it("does not import playlists in a browser", async () => {
     at("nowhere");
-    await dropFiles(["/m/list.m3u", "/m/rekordbox.xml"], 1, 1);
+    await dropFiles(["/m/list.m3u", "/m/rekordbox.xml", "/m/collection.nml"], 1, 1);
     expect(backend.importM3u).not.toHaveBeenCalled();
     expect(backend.importRekordbox).not.toHaveBeenCalled();
+    expect(backend.importTraktor).not.toHaveBeenCalled();
   });
 });

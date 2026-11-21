@@ -486,6 +486,17 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "other-apps",
+    title: "Bringing your music from other DJ apps",
+    group: "Your library",
+    summary: "Move your collection over from rekordbox or Traktor without redoing your cues, grids and playlists.",
+    body: [
+      "Open the import menu beside Add music (or drop the file onto MixIt). From rekordbox, export your collection as XML (File, Export Collection in xml format). From Traktor, pick its collection.nml, which lives in your Documents folder under Native Instruments, Traktor.",
+      "MixIt brings in each track with its tempo, beat grid, key, rating, comment, hot cues, loops and playlists in their folders. Tracks MixIt already knows keep what you set up here, so importing twice is safe. Files that are not on this computer are added as missing, so playlists stay whole: Fix library finds them once you point it at the right drive.",
+      "Going the other way, Export collection for rekordbox writes an XML file rekordbox can read, and any playlist can be saved as M3U for other apps and DJ gear.",
+    ],
+  },
+  {
     id: "recording",
     title: "Recording and rendering",
     group: "Your library",

@@ -12,7 +12,7 @@ use quick_xml::events::{BytesStart, Event};
 use serde::{Deserialize, Serialize};
 
 use crate::m3u::{percent_decode, percent_encode};
-use crate::{Cue, CueKind, Library, LibraryError, NewTrack, PlaylistKind, Result};
+use crate::{Cue, CueKind, Library, LibraryError, NewTrack, PlaylistKind, Result, TrackEdit};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct RekordboxImport {
@@ -113,6 +113,52 @@ fn esc(s: &str) -> String {
 }
 
 impl Library {
+    /// The library track for a file named by another app's collection: the file itself
+    /// when it is there (added or refreshed), the track already at that path, or a
+    /// placeholder marked missing (with `tags` from the collection) so playlists stay whole.
+    pub(crate) fn track_for_import(
+        &self,
+        path: &Path,
+        tags: mixit_io::TrackTags,
+        missing: &mut Vec<PathBuf>,
+    ) -> Result<TrackId> {
+        if path.exists() {
+            let id = match self.import_file(path)? {
+                crate::scan::Imported::Added(i)
+                | crate::scan::Imported::Updated(i)
+                | crate::scan::Imported::Moved(i)
+                | crate::scan::Imported::Unchanged(i) => i,
+            };
+            // Details the file lacks but the other app knew (often typed in there) fill
+            // the gaps; anything the file or MixIt already has is kept.
+            let t = self.track(id)?;
+            let fill = |have: &str, theirs: &Option<String>| {
+                theirs.as_ref().filter(|v| have.trim().is_empty() && !v.trim().is_empty()).cloned()
+            };
+            let edit = TrackEdit {
+                title: fill(&t.title, &tags.title),
+                artist: fill(&t.artist, &tags.artist),
+                album: fill(&t.album, &tags.album),
+                genre: fill(&t.genre, &tags.genre),
+                label: fill(&t.label, &tags.label),
+                remixer: fill(&t.remixer, &tags.remixer),
+                comment: fill(&t.comment, &tags.comment),
+                ..Default::default()
+            };
+            if edit != TrackEdit::default() {
+                self.edit_track(id, &edit)?;
+            }
+            return Ok(id);
+        }
+        if let Some(existing) = self.track_by_path(path)? {
+            return Ok(existing.id);
+        }
+        let id = self.insert_track(&NewTrack { path: path.to_path_buf(), tags, ..Default::default() })?;
+        self.set_missing(id, true)?;
+        missing.push(path.to_path_buf());
+        Ok(id)
+    }
+
     pub fn import_rekordbox_xml(&self, file: &Path) -> Result<RekordboxImport> {
         let text = std::fs::read_to_string(file)?;
         let mut r = Reader::from_str(&text);
@@ -208,16 +254,7 @@ impl Library {
         for t in &tracks {
             let Some(loc) = t.a.get("Location") else { continue };
             let path = location_to_path(loc);
-            let id = if path.exists() {
-                match self.import_file(&path)? {
-                    crate::scan::Imported::Added(i)
-                    | crate::scan::Imported::Updated(i)
-                    | crate::scan::Imported::Moved(i)
-                    | crate::scan::Imported::Unchanged(i) => i,
-                }
-            } else if let Some(existing) = self.track_by_path(&path)? {
-                existing.id
-            } else {
+            let id = {
                 let s = |k: &str| t.a.get(k).cloned().filter(|v| !v.is_empty());
                 let tags = mixit_io::TrackTags {
                     title: s("Name"),
@@ -235,10 +272,7 @@ impl Library {
                     bitrate_kbps: num(&t.a, "BitRate").map(|v| v as u32),
                     ..Default::default()
                 };
-                let id = self.insert_track(&NewTrack { path: path.clone(), tags, ..Default::default() })?;
-                self.set_missing(id, true)?;
-                report.missing.push(path.clone());
-                id
+                self.track_for_import(&path, tags, &mut report.missing)?
             };
             report.tracks += 1;
             if let Some(rb) = t.a.get("TrackID") {

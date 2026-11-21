@@ -10,7 +10,7 @@
 // backend keeps under paths it can open later. Either way they go to the target under the
 // pointer: a deck loads the first track, a pad takes the sound, a playlist or the Arrange
 // timeline takes the tracks, and anywhere else adds them to the library. Mix projects,
-// rekordbox collections and playlists open or import as they would from their menus.
+// rekordbox and Traktor collections and playlists open or import as they would from their menus.
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -144,12 +144,13 @@ const isAudio = (p: string) => AUDIO.includes(ext(p));
 
 /** Sorts dropped paths into what MixIt can do with them. */
 export function classify(paths: string[]) {
-  const out = { audio: [] as string[], projects: [] as string[], rekordbox: [] as string[], playlists: [] as string[], folders: [] as string[], other: [] as string[] };
+  const out = { audio: [] as string[], projects: [] as string[], rekordbox: [] as string[], traktor: [] as string[], playlists: [] as string[], folders: [] as string[], other: [] as string[] };
   for (const p of paths) {
     const e = ext(p);
     if (isAudio(p)) out.audio.push(p);
     else if (e === "mixit") out.projects.push(p);
     else if (e === "xml") out.rekordbox.push(p);
+    else if (e === "nml") out.traktor.push(p);
     else if (e === "m3u" || e === "m3u8") out.playlists.push(p);
     else if (e === "") out.folders.push(p);
     else out.other.push(p);
@@ -193,21 +194,26 @@ export async function dropFiles(paths: string[], x: number, y: number) {
   if (c.projects.length) {
     await openProjectAt(c.projects[0]);
   }
-  if (!isTauri() && (c.rekordbox.length || c.playlists.length)) {
+  if (!isTauri() && (c.rekordbox.length || c.traktor.length || c.playlists.length)) {
     // The browser only gets the file, not the music it points to on disk.
-    done.push("Playlists and rekordbox collections can only be imported in the desktop app");
+    done.push("Playlists and DJ app collections can only be imported in the desktop app");
     c.rekordbox = [];
+    c.traktor = [];
     c.playlists = [];
   }
   for (const p of c.rekordbox) {
     await backend().importRekordbox(p);
     done.push("Importing the rekordbox collection");
   }
+  for (const p of c.traktor) {
+    await backend().importTraktor(p);
+    done.push("Importing the Traktor collection");
+  }
   for (const p of c.playlists) {
     const n = await backend().importM3u(p);
     done.push(`Imported a playlist of ${n} tracks`);
   }
-  if (c.other.length && !done.length && !c.projects.length) toast.error("MixIt cannot open that kind of file. Drop music files, folders, mix projects (.mixit), playlists (.m3u) or a rekordbox collection (.xml).");
+  if (c.other.length && !done.length && !c.projects.length) toast.error("MixIt cannot open that kind of file. Drop music files, folders, mix projects (.mixit), playlists (.m3u) or a rekordbox (.xml) or Traktor (.nml) collection.");
   if (done.length) toast.message(done.join(". "));
 }
 
