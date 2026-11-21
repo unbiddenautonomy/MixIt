@@ -360,7 +360,8 @@ impl Engine {
     }
 
     fn render_chunk(&mut self, n: usize) {
-        // 1. Master clock: follow the master deck while it plays, otherwise free-run.
+        // 1. Master clock: follow the master deck while it plays (or, with no master, the
+        //    deck being heard), otherwise free-run.
         if let Some(m) = self.master {
             let d = &self.decks[m.index()];
             if d.is_loaded() && d.is_playing() {
@@ -371,6 +372,16 @@ impl Engine {
             } else if d.is_loaded() {
                 // Master stopped: keep its tempo so followers do not drift.
                 self.clock_bpm = d.fader_bpm().clamp(20.0, 400.0);
+            }
+        } else if !self.clock_explicit {
+            // Nobody is master (no deck is synced): the clock follows the first deck that
+            // is playing and heard, so master effects and sampler loops stay in time with
+            // the music instead of a default tempo.
+            if let Some(d) =
+                self.decks.iter().find(|d| d.is_loaded() && d.is_playing() && d.is_audible() && d.effective_bpm() > 1.0)
+            {
+                self.clock_bpm = d.effective_bpm().clamp(20.0, 400.0);
+                self.clock_beat = d.beat();
             }
         }
         self.update_envs();

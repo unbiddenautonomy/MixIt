@@ -2539,7 +2539,22 @@ name = "mixit-stretch"
 version = "0.1.0"
 dependencies = [
  "mixit-dsp",
+ "realfft",
  "signalsmith-stretch",
+]
+
+[[package]]
+name = "mixit-web"
+version = "0.1.0"
+dependencies = [
+ "mixit-analysis",
+ "mixit-core",
+ "mixit-dsp",
+ "mixit-engine",
+ "mixit-generator",
+ "mixit-stretch",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

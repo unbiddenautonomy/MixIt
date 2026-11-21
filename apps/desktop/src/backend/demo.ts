@@ -6,7 +6,7 @@ import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 
-const SR = 48_000;
+export const SR = 48_000;
 const DECKS = 4;
 
 // ---------------------------------------------------------------- deterministic random
@@ -34,7 +34,7 @@ const GENRES: [string, number, number][] = [
   ["Disco", 115, 122],
 ];
 
-interface DemoTrack {
+export interface DemoTrack {
   row: T.TrackRow;
   sections: T.SectionDto[];
   firstBeat: number;
@@ -201,19 +201,19 @@ const JUMP_SIZES = [1, 2, 4, 8, 16, 32];
 const RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 
 export class DemoBackend implements Backend {
-  readonly kind = "demo" as const;
-  private tracks: DemoTrack[] = [];
-  private decks: SimDeck[] = Array.from({ length: DECKS }, deckState);
-  private master: number | null = null;
-  private crossfader = 0;
-  private masterDb = 0;
-  private recording = false;
-  private recorded = 0;
-  private pads: T.PadInfo[] = defaultPads();
+  readonly kind: Backend["kind"] = "demo";
+  protected tracks: DemoTrack[] = [];
+  protected decks: SimDeck[] = Array.from({ length: DECKS }, deckState);
+  protected master: number | null = null;
+  protected crossfader = 0;
+  protected masterDb = 0;
+  protected recording = false;
+  protected recorded = 0;
+  protected pads: T.PadInfo[] = defaultPads();
   /** Pad index to performance.now() when it stops (Infinity while looping or held). */
-  private padEnds = new Map<number, number>();
-  private listeners = new Map<string, Set<Listener<unknown>>>();
-  private settings: T.Settings = {
+  protected padEnds = new Map<number, number>();
+  protected listeners = new Map<string, Set<Listener<unknown>>>();
+  protected settings: T.Settings = {
     device: null,
     bufferFrames: 256,
     sampleRate: null,
@@ -229,12 +229,12 @@ export class DemoBackend implements Backend {
     limiter: true,
     tempoRange: 0.08,
   };
-  private playlistsData: (T.PlaylistDto & { tracks: number[] })[] = [];
-  private historyData: T.HistoryEntry[] = [];
-  private token = 1;
-  private frame = 0;
-  private last = performance.now();
-  private registry: T.ActionSpec[] = [];
+  protected playlistsData: (T.PlaylistDto & { tracks: number[] })[] = [];
+  protected historyData: T.HistoryEntry[] = [];
+  protected token = 1;
+  protected frame = 0;
+  protected last = performance.now();
+  protected registry: T.ActionSpec[] = [];
 
   constructor() {
     for (let i = 1; i <= 120; i++) this.tracks.push(makeTrack(i));
@@ -248,27 +248,27 @@ export class DemoBackend implements Backend {
     setInterval(() => this.tick(), 16);
   }
 
-  private emit<P>(event: string, payload: P) {
+  protected emit<P>(event: string, payload: P) {
     this.listeners.get(event)?.forEach((cb) => cb(payload));
   }
 
-  private on<P>(event: string, cb: Listener<P>): Unlisten {
+  protected on<P>(event: string, cb: Listener<P>): Unlisten {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
     this.listeners.get(event)!.add(cb as Listener<unknown>);
     return () => this.listeners.get(event)?.delete(cb as Listener<unknown>);
   }
 
-  private find(id: number): DemoTrack {
+  protected find(id: number): DemoTrack {
     const t = this.tracks.find((x) => x.row.id === id);
     if (!t) throw new Error(`no track ${id}`);
     return t;
   }
 
-  private baseBpm(d: SimDeck) {
+  protected baseBpm(d: SimDeck) {
     return d.track?.row.bpm ?? 120;
   }
 
-  private rate(i: number): number {
+  protected rate(i: number): number {
     const d = this.decks[i];
     const m = this.master;
     if (d.sync && m !== null && m !== i && this.decks[m].track) {
@@ -279,12 +279,12 @@ export class DemoBackend implements Backend {
     return 1 + d.tempo * d.range + d.nudge * 0.04;
   }
 
-  private beatAt(d: SimDeck, pos: number) {
+  protected beatAt(d: SimDeck, pos: number) {
     if (!d.track) return 0;
     return (pos - d.track.firstBeat) / d.track.period;
   }
 
-  private tick() {
+  protected tick() {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
@@ -374,7 +374,7 @@ export class DemoBackend implements Backend {
     });
   }
 
-  private detail(t: DemoTrack): T.TrackDetail {
+  protected detail(t: DemoTrack): T.TrackDetail {
     return {
       track: t.row,
       analysed: true,
@@ -403,8 +403,8 @@ export class DemoBackend implements Backend {
     };
   }
 
-  private saved = new Map<number, T.CueDto[]>();
-  private savedCues(t: DemoTrack): T.CueDto[] {
+  protected saved = new Map<number, T.CueDto[]>();
+  protected savedCues(t: DemoTrack): T.CueDto[] {
     return this.saved.get(t.row.id) ?? [];
   }
 
@@ -595,7 +595,7 @@ export class DemoBackend implements Backend {
     }
   }
 
-  private snap(d: SimDeck, pos: number) {
+  protected snap(d: SimDeck, pos: number) {
     if (!d.track) return pos;
     const b = Math.round((pos - d.track.firstBeat) / d.track.period);
     return d.track.firstBeat + b * d.track.period;
@@ -916,8 +916,8 @@ export class DemoBackend implements Backend {
       next_id: clips.length + 1,
     };
   }
-  async saveProject() {}
-  async openProject(): Promise<T.MixProject> {
+  async saveProject(_path: string, _project: T.MixProject) {}
+  async openProject(_path: string): Promise<T.MixProject> {
     throw new Error("Opening files needs the desktop app.");
   }
   async checkProject() {
@@ -990,7 +990,7 @@ export class DemoBackend implements Backend {
 
   // ---------------------------------------------------------------- sampler
 
-  private samplerMask(): number {
+  protected samplerMask(): number {
     const now = performance.now();
     let m = 0;
     for (const [pad, end] of this.padEnds) {
@@ -1000,7 +1000,7 @@ export class DemoBackend implements Backend {
     return m;
   }
 
-  private samplerAction(p: string[], input: T.ActionInput) {
+  protected samplerAction(p: string[], input: T.ActionInput) {
     if (p[1] === "stop_all") {
       if (input.type === "press") this.padEnds.clear();
       return;
@@ -1082,10 +1082,10 @@ export class DemoBackend implements Backend {
     return 0;
   }
 
-  async pickFolders() {
+  async pickFolders(): Promise<string[] | null> {
     return ["~/Music/New"];
   }
-  async pickFiles() {
+  async pickFiles(_extensions: string[], _title: string): Promise<string[] | null> {
     return null;
   }
   async pickSave(defaultName: string) {
@@ -1188,7 +1188,7 @@ export function demoSearch(rows: T.TrackRow[], query: string): T.TrackRow[] {
 }
 
 /** The registry as the Rust side builds it, for the demo (decks A–D, common controls). */
-const DEMO_KIT: T.KitSound[] = [
+export const DEMO_KIT: T.KitSound[] = [
   { id: "kick", name: "Kick", bpm: null, mode: 0, color: 0xef4444 },
   { id: "clap", name: "Clap", bpm: null, mode: 0, color: 0xf97316 },
   { id: "air_horn", name: "Air horn", bpm: null, mode: 0, color: 0xeab308 },
@@ -1204,16 +1204,16 @@ const DEMO_KIT: T.KitSound[] = [
 ];
 const KIT_SECONDS: Record<string, number> = { kick: 0.5, clap: 0.38, air_horn: 1.35, siren: 2.4, riser: 3.87, impact: 2.8, laser: 0.46, drum_loop: 1.94, snare_build: 3.87, scratch: 0.6, hat_loop: 1.94, sub_drop: 2 };
 
-function emptyPad(pad: number): T.PadInfo {
+export function emptyPad(pad: number): T.PadInfo {
   return { pad, name: "", source: { type: "empty" }, seconds: 0, bpm: null, mode: 0, gainDb: 0, pan: 0, sync: true, quantized: false, color: 0x52525b, error: null };
 }
 
-function kitPad(pad: number, id: string): T.PadInfo {
+export function kitPad(pad: number, id: string): T.PadInfo {
   const k = DEMO_KIT.find((x) => x.id === id) ?? DEMO_KIT[0];
   return { ...emptyPad(pad), name: k.name, source: { type: "kit", id: k.id }, seconds: KIT_SECONDS[k.id] ?? 1, bpm: k.bpm, mode: k.mode, color: k.color };
 }
 
-function defaultPads(): T.PadInfo[] {
+export function defaultPads(): T.PadInfo[] {
   return ["air_horn", "siren", "riser", "impact", "kick", "clap", "laser", "drum_loop"].map((id, i) => kitPad(i, id));
 }
 
