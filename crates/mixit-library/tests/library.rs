@@ -636,7 +636,7 @@ fn imports_a_traktor_collection() {
 #[test]
 fn imports_a_serato_library_and_writes_cues_for_serato() {
     use mixit_io::serato::*;
-    use mixit_library::serato::{Field, serato_rel, write_fields};
+    use mixit_library::serato::{Field, serato_rel, serato_root, write_fields};
     let tmp = TempDir::new("serato");
     let music = tmp.0.join("Music");
     let sdir = music.join("_Serato_");
@@ -663,7 +663,8 @@ fn imports_a_serato_library_and_writes_cues_for_serato() {
         },
     )
     .unwrap();
-    let root = Path::new("/");
+    let root = serato_root(&sdir);
+    let root = root.as_path();
     let t = |n: &str, v: &str| Field::Text(n.into(), v.into());
     let db = write_fields(&[
         t("vrsn", "2.0/Serato Scratch LIVE Database"),
