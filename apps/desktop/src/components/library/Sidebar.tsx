@@ -2,7 +2,7 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { Bot, Disc3, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
+import { BarChart3, Bot, Disc3, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -65,6 +65,7 @@ export function Sidebar() {
         dropOk
         onDrop={(ids) => enqueueIds(ids)}
       />
+      <Item icon={<BarChart3 size={14} />} label="At a glance" active={same(source, { type: "insights" })} onClick={() => select({ type: "insights" })} hint="Your collection's tempos, keys, energy, genres and plays, with tips on gaps" />
       {(problems > 0 || same(source, { type: "care" })) && (
         <Item
           icon={<Stethoscope size={14} className={problems ? "text-amber-300" : undefined} />}
