@@ -14,6 +14,7 @@ cd apps/desktop
 npm run typecheck && npm test && npm run build
 npm run wasm         # builds the engine for the browser into public/mixit.wasm
 node scripts/wasm-smoke.mjs   # checks that module: no imports, generate, analyse, play
+npm run e2e          # end-to-end browser test of the main flows on the demo backend (needs Playwright + Chromium)
 npm run dev          # UI in a browser: the real engine if public/mixit.wasm exists, else the demo (?demo forces it)
 npm run tauri dev    # the real app
 ```
