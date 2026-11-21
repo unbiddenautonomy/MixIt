@@ -13,6 +13,7 @@ mixit-dsp = { path = "../mixit-dsp" }
 mixit-stretch = { path = "../mixit-stretch" }
 mixit-project = { path = "../mixit-project" }
 cpal.workspace = true
+rtrb.workspace = true
 hound.workspace = true
 thiserror.workspace = true
 serde.workspace = true

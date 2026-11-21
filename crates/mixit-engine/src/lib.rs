@@ -14,6 +14,7 @@ pub mod arrangement;
 pub mod commands;
 pub mod deck;
 pub mod engine;
+pub mod input;
 pub mod kernels;
 pub mod mixer;
 pub mod sampler;
@@ -27,5 +28,6 @@ pub use commands::{
     SamplerCommand, SyncMode, Timed, XfAssign,
 };
 pub use engine::{Controller, Engine, EngineConfig};
-pub use telemetry::{DeckTelemetry, Event, LoopInfo, MasterTelemetry, Telemetry};
+pub use input::{InputFeed, MicCommand, push_input};
+pub use telemetry::{DeckTelemetry, Event, LoopInfo, MasterTelemetry, MicTelemetry, Telemetry};
 pub use track::{CueKind, DeckTrack, HOT_CUES, HotCue, TrackAudio};

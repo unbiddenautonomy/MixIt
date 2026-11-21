@@ -99,6 +99,10 @@ pub mod specs {
     pub const MASTER_DB: ParamSpec = ParamSpec::new(-120.0, 6.0, 0.0, Unit::Decibels, Taper::Fader).smoothing(20.0);
     pub const UNIT: ParamSpec = ParamSpec::new(0.0, 1.0, 0.5, Unit::None, Taper::Linear).smoothing(15.0);
     pub const MIX: ParamSpec = ParamSpec::new(0.0, 1.0, 0.5, Unit::None, Taper::Linear).smoothing(15.0);
+    pub const MIC_GAIN: ParamSpec = ParamSpec::new(-20.0, 30.0, 0.0, Unit::Decibels, Taper::Linear).smoothing(20.0);
+    pub const MIC_LEVEL: ParamSpec = ParamSpec::new(0.0, 1.0, 0.8, Unit::None, Taper::Linear).smoothing(10.0);
+    pub const TALKOVER_DEPTH: ParamSpec =
+        ParamSpec::new(-30.0, 0.0, -12.0, Unit::Decibels, Taper::Linear).smoothing(20.0);
 }
 
 pub const TEMPO_RANGES: [(&str, f32); 6] =
@@ -849,6 +853,115 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         false,
         None,
         None,
+    );
+
+    let mg = "Mic";
+    b.add(
+        "mic.on_air",
+        "Mic on",
+        mg,
+        ActionKind::Toggle,
+        "Lets the audience hear your mic. Wear headphones: speakers near the mic make it howl.",
+        true,
+        Some("Mod+Shift+M"),
+        Some("mic"),
+    );
+    b.add(
+        "mic.level",
+        "Mic volume",
+        mg,
+        cont(specs::MIC_LEVEL),
+        "How loud your mic is in the mix.",
+        true,
+        None,
+        Some("mic"),
+    );
+    b.add(
+        "mic.gain",
+        "Mic gain",
+        mg,
+        cont(specs::MIC_GAIN),
+        "Boosts a quiet mic. Set it so your voice moves the meter well into the green when you talk.",
+        false,
+        None,
+        Some("gain"),
+    );
+    b.add(
+        "mic.cue",
+        "Mic in headphones",
+        mg,
+        ActionKind::Toggle,
+        "Lets you hear your mic in your headphones, to check it before going on.",
+        false,
+        None,
+        Some("headphone-cue"),
+    );
+    b.add(
+        "mic.talkover",
+        "Talk-over",
+        mg,
+        ActionKind::Toggle,
+        "Turns the music down by itself while you speak, and back up when you stop.",
+        true,
+        None,
+        Some("talk-over"),
+    );
+    b.add(
+        "mic.talkover_depth",
+        "Talk-over amount",
+        mg,
+        cont(specs::TALKOVER_DEPTH),
+        "How far the music goes down while you speak.",
+        false,
+        None,
+        Some("talk-over"),
+    );
+    for (band, label, what) in [
+        ("high", "Mic high EQ", "Adds or removes brightness and hiss."),
+        ("mid", "Mic mid EQ", "Adds or removes the body of your voice. Turn it up to cut through loud music."),
+        ("low", "Mic low EQ", "Adds or removes boom. Turn it down if you sound muffled."),
+    ] {
+        b.add(format!("mic.eq.{band}"), label, mg, cont(specs::EQ_GAIN), what, false, None, Some("eq"));
+    }
+    b.add(
+        "mic.low_cut",
+        "Low cut",
+        mg,
+        ActionKind::Toggle,
+        "Removes rumble, wind and thumps from touching the mic. Leave it on for voice; off for a turntable.",
+        false,
+        None,
+        Some("mic"),
+    );
+    b.add(
+        "mic.gate",
+        "Cut background noise",
+        mg,
+        ActionKind::Toggle,
+        "Keeps the mic quiet between words, so fans and room noise stay out of the mix.",
+        false,
+        None,
+        Some("mic"),
+    );
+    b.add(
+        "mic.mono",
+        "Mono",
+        mg,
+        ActionKind::Toggle,
+        "Uses one voice on both speakers. Leave it on for a mic; turn it off for a stereo source like a turntable.",
+        false,
+        None,
+        Some("mic"),
+    );
+    b.add(
+        "mic.record",
+        "Record the mic",
+        mg,
+        ActionKind::Toggle,
+        "Records what comes in on the mic, to put on a sampler pad or keep in your library as a track.",
+        true,
+        None,
+        Some("mic"),
     );
 
     let gg = "Transport";

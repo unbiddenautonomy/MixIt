@@ -63,6 +63,30 @@ pub struct MasterTelemetry {
     pub clipped: bool,
 }
 
+/// The mic (or line-in) channel.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct MicTelemetry {
+    /// An input device is connected.
+    pub connected: bool,
+    /// Audio is arriving from it.
+    pub live: bool,
+    pub on_air: bool,
+    /// Meters after gain, low cut, gate and EQ (before the volume), linear.
+    pub peak: [f32; 2],
+    pub rms: f32,
+    /// How far talk-over turned the music down since the last snapshot (dB, ≤ 0).
+    pub duck_db: f32,
+    pub gate_open: bool,
+    /// Buffered input (the delay the mic adds on top of the output's).
+    pub latency_ms: f32,
+    /// The input clock's correction against the output (parts per million).
+    pub drift_ppm: f32,
+    /// Times the input ran dry (device stalled or unplugged).
+    pub underruns: u32,
+    pub capturing: bool,
+    pub captured_frames: u64,
+}
+
 /// A state snapshot, published several times per second.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Telemetry {
@@ -70,6 +94,7 @@ pub struct Telemetry {
     pub frame: u64,
     pub decks: [DeckTelemetry; DeckId::MAX],
     pub master: MasterTelemetry,
+    pub mic: MicTelemetry,
     pub clock_bpm: f64,
     pub clock_beat: f64,
     /// Master deck, if a deck is master (otherwise the internal clock).

@@ -8,10 +8,11 @@ use mixit_dsp::fx::FxContext;
 
 use crate::commands::{Command, DeckCommand, FxCommand, FxTarget, GlobalCommand, Timed};
 use crate::deck::{BLOCK, Deck, DeckEnv};
+use crate::input::{MicChannel, MicCommand};
 use crate::kernels::PlaybackKernels;
 use crate::mixer::{Mixer, trash_effect};
 use crate::sampler::{Sampler, SamplerEnv};
-use crate::telemetry::{Event, EventSink, MasterTelemetry, Telemetry};
+use crate::telemetry::{Event, EventSink, MasterTelemetry, MicTelemetry, Telemetry};
 use crate::trash::{Trash, TrashBin};
 
 #[derive(Clone, Debug)]
@@ -23,6 +24,9 @@ pub struct EngineConfig {
     pub event_capacity: usize,
     /// Seconds of master audio the recorder ring holds before the writer must drain it.
     pub recorder_seconds: f32,
+    /// Seconds of mic audio the capture ring holds (for sampling the mic onto a pad or
+    /// recording a take into the library).
+    pub capture_seconds: f32,
     /// Telemetry snapshots per second.
     pub telemetry_rate: f32,
 }
@@ -36,6 +40,7 @@ impl Default for EngineConfig {
             command_capacity: 4_096,
             event_capacity: 1_024,
             recorder_seconds: 8.0,
+            capture_seconds: 8.0,
             telemetry_rate: 60.0,
         }
     }
@@ -51,6 +56,7 @@ pub struct Engine {
     auto_gains: Vec<f32>,
     mixer: Mixer,
     sampler: Sampler,
+    mic: MicChannel,
     quantize: Quantize,
     master: Option<DeckId>,
     clock_explicit: bool,
@@ -78,6 +84,7 @@ pub struct Controller {
     telemetry: rtrb::Consumer<Telemetry>,
     trash: rtrb::Consumer<Trash>,
     recorder: rtrb::Consumer<f32>,
+    capture: rtrb::Consumer<f32>,
     latest: Telemetry,
 }
 
@@ -93,6 +100,7 @@ impl Engine {
         let (tel_tx, tel_rx) = rtrb::RingBuffer::new(64);
         let (trash_tx, trash_rx) = rtrb::RingBuffer::new(1_024);
         let (rec_tx, rec_rx) = rtrb::RingBuffer::new((cfg.recorder_seconds * sr) as usize * 2);
+        let (cap_tx, cap_rx) = rtrb::RingBuffer::new((cfg.capture_seconds.max(1.0) * sr) as usize * 2);
         let tel_interval = (sr / cfg.telemetry_rate.max(1.0)) as u64;
         let engine = Engine {
             sr: sr as f64,
@@ -101,6 +109,7 @@ impl Engine {
             auto_gains: vec![0.0; n],
             mixer: Mixer::new(sr, n),
             sampler: Sampler::new(sr, cfg.pads),
+            mic: MicChannel::new(sr, cap_tx),
             quantize: Quantize::Beat,
             master: None,
             clock_explicit: false,
@@ -126,6 +135,7 @@ impl Engine {
             telemetry: tel_rx,
             trash: trash_rx,
             recorder: rec_rx,
+            capture: cap_rx,
             latest: Telemetry::default(),
         };
         (engine, ctl)
@@ -316,6 +326,7 @@ impl Engine {
                 let env = self.sampler_env();
                 self.sampler.handle(sc, &env, &mut self.trash, &mut self.events);
             }
+            Command::Mic(mc) => self.mic.handle(mc, &mut self.trash),
             Command::Global(g) => match g {
                 GlobalCommand::SetQuantize(q) => self.quantize = q,
                 GlobalCommand::SetClockBpm(b) => self.clock_bpm = b.clamp(20.0, 400.0),
@@ -416,6 +427,7 @@ impl Engine {
         let senv = self.sampler_env();
         let (ml, mr) = (&mut self.mixer.master_l, &mut self.mixer.master_r);
         self.sampler.render(ml, mr, n, &senv, &mut self.events);
+        self.mic.render(n, &mut self.mixer);
         let mctx = self.master_ctx();
         self.mixer.finish(n, &mctx);
         if self.mixer.clipped {
@@ -476,6 +488,22 @@ impl Engine {
             d.rms = rms;
             t.decks[i] = d;
         }
+        let (peak, rms, duck_db) = self.mic.take_meters();
+        let r = &self.mic.reader;
+        t.mic = MicTelemetry {
+            connected: r.is_connected(),
+            live: r.is_live(),
+            on_air: self.mic.on_air(),
+            peak,
+            rms,
+            duck_db,
+            gate_open: self.mic.gate_open(),
+            latency_ms: r.latency_ms(),
+            drift_ppm: r.drift_ppm(),
+            underruns: r.underruns,
+            capturing: self.mic.capturing(),
+            captured_frames: self.mic.captured,
+        };
         let m = &mut self.mixer;
         t.master = MasterTelemetry {
             peak: m.master_peak,
@@ -528,6 +556,26 @@ impl Controller {
         while let Ok(item) = self.trash.pop() {
             drop(item);
             n += 1;
+        }
+        n
+    }
+
+    /// Sends a mic command.
+    pub fn mic(&mut self, cmd: MicCommand) -> Result<(), Command> {
+        self.send(Command::Mic(cmd))
+    }
+
+    /// Moves captured mic audio (interleaved stereo, see [`MicCommand::Capture`]) into `out`.
+    pub fn drain_capture(&mut self, out: &mut Vec<f32>) -> usize {
+        let n = self.capture.slots();
+        if n == 0 {
+            return 0;
+        }
+        if let Ok(chunk) = self.capture.read_chunk(n) {
+            let (a, b) = chunk.as_slices();
+            out.extend_from_slice(a);
+            out.extend_from_slice(b);
+            chunk.commit_all();
         }
         n
     }

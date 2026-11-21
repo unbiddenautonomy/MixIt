@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::{
     Command, DeckCommand, FxCommand, FxTarget, GlobalCommand, MixerCommand, PadMode, SamplerCommand, XfAssign,
 };
+use crate::input::MicCommand;
 
 /// What happened to the control.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -102,7 +103,10 @@ impl ActionDispatcher {
             decks: vec![d; decks.max(1)],
             quantize: true,
             quantize_size: 3,
-            toggles: Default::default(),
+            toggles: [("mic.talkover", true), ("mic.low_cut", true), ("mic.mono", true)]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
         }
     }
 
@@ -208,6 +212,7 @@ impl ActionDispatcher {
                     _ => Err(unknown()),
                 }
             }
+            ["mic", rest @ ..] => self.mic(id, rest, input),
             ["global", rest @ ..] => self.global(id, rest, input),
             ["app", ..] => Err(ActionError::NotEngine(id.to_string())),
             _ => Err(unknown()),
@@ -411,6 +416,36 @@ impl ActionDispatcher {
         })
     }
 
+    fn mic(&mut self, id: &str, rest: &[&str], input: ActionInput) -> Result<Vec<Command>, ActionError> {
+        let m = |c: MicCommand| vec![Command::Mic(c)];
+        let val = |f: &dyn Fn(f32) -> MicCommand| -> Result<Vec<Command>, ActionError> {
+            Ok(Self::value(input, id)?.map(|v| m(f(v as f32))).unwrap_or_default())
+        };
+        let band = |b: &str| ["low", "mid", "high"].iter().position(|x| *x == b);
+        match rest {
+            ["on_air"] => Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetOnAir(on))).unwrap_or_default()),
+            ["cue"] => Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetCue(on))).unwrap_or_default()),
+            ["talkover"] => {
+                Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetTalkover(on))).unwrap_or_default())
+            }
+            ["low_cut"] => {
+                Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetLowCut(on))).unwrap_or_default())
+            }
+            ["gate"] => Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetGate(on))).unwrap_or_default()),
+            ["mono"] => Ok(self.generic_toggle(id, input)?.map(|on| m(MicCommand::SetMono(on))).unwrap_or_default()),
+            ["level"] => val(&MicCommand::SetLevel),
+            ["gain"] => val(&MicCommand::SetGainDb),
+            ["talkover_depth"] => val(&MicCommand::SetTalkoverDepth),
+            ["eq", b] => {
+                let i = band(b).ok_or_else(|| ActionError::Unknown(id.into()))?;
+                val(&|v| MicCommand::SetEq(i, v))
+            }
+            // Recording needs the control side to collect the audio and decide where it goes.
+            ["record"] => Err(ActionError::NotEngine(id.into())),
+            _ => Err(ActionError::Unknown(id.into())),
+        }
+    }
+
     fn mixer(&mut self, id: &str, rest: &[&str], input: ActionInput) -> Result<Vec<Command>, ActionError> {
         let m = |c: MixerCommand| vec![Command::Mixer(c)];
         let val = |f: fn(f32) -> MixerCommand| -> Result<Vec<Command>, ActionError> {
@@ -528,7 +563,8 @@ mod tests {
                         a.id.starts_with("app.")
                             || a.id.contains(".grid.")
                             || a.id.ends_with("key_sync")
-                            || a.id.contains(".color"),
+                            || a.id.contains(".color")
+                            || a.id == "mic.record",
                         "{} should reach the engine",
                         a.id
                     );

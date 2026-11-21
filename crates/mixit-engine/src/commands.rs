@@ -32,6 +32,7 @@ pub enum Command {
     Mixer(MixerCommand),
     Fx(FxTarget, usize, FxCommand),
     Sampler(SamplerCommand),
+    Mic(crate::input::MicCommand),
     Global(GlobalCommand),
 }
 
