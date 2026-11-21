@@ -51,3 +51,15 @@ fn listing_devices_never_panics() {
         assert!(d.max_channels >= 1);
     }
 }
+
+#[test]
+fn virtual_output_runs_in_real_time() {
+    use mixit_host::AudioHost;
+    let (host, mut ctl) = AudioHost::start_virtual(48_000, 480, mixit_engine::EngineConfig::default()).unwrap();
+    assert!(host.is_virtual());
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    let frames = ctl.telemetry().frame;
+    // About 0.3 s of audio at 48 kHz, give or take scheduling.
+    assert!((9_000..=24_000).contains(&frames), "{frames} frames in 300 ms");
+    drop(host);
+}

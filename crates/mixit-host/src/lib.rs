@@ -170,9 +170,29 @@ impl HostStats {
     }
 }
 
+enum Output {
+    Device(#[allow(dead_code)] cpal::Stream),
+    /// The engine runs on a thread paced by the clock, with no sound card.
+    Virtual {
+        stop: Arc<AtomicBool>,
+        thread: Option<std::thread::JoinHandle<()>>,
+    },
+}
+
+impl Drop for Output {
+    fn drop(&mut self) {
+        if let Output::Virtual { stop, thread } = self {
+            stop.store(true, Ordering::Relaxed);
+            if let Some(t) = thread.take() {
+                let _ = t.join();
+            }
+        }
+    }
+}
+
 /// A running audio stream. Dropping it stops audio.
 pub struct AudioHost {
-    _stream: cpal::Stream,
+    _output: Output,
     pub stats: Arc<HostStats>,
     pub sample_rate: u32,
     pub channels: u16,
@@ -247,7 +267,7 @@ impl AudioHost {
         stream.play().map_err(|e| HostError::Device(e.to_string()))?;
         Ok((
             AudioHost {
-                _stream: stream,
+                _output: Output::Device(stream),
                 stats,
                 sample_rate: stream_cfg.sample_rate,
                 channels: stream_cfg.channels,
@@ -259,6 +279,66 @@ impl AudioHost {
             },
             controller,
         ))
+    }
+
+    /// Runs the engine without a device, in real time (`buffer_frames` per tick). The UI,
+    /// telemetry and recording work as with a device; nothing is heard. Used when no
+    /// device is available and by tests.
+    pub fn start_virtual(
+        sample_rate: u32,
+        buffer_frames: u32,
+        mut engine_cfg: EngineConfig,
+    ) -> Result<(AudioHost, Controller), HostError> {
+        engine_cfg.sample_rate = sample_rate;
+        let (mut engine, controller) = Engine::new(engine_cfg);
+        let stats = Arc::new(HostStats::default());
+        let stop = Arc::new(AtomicBool::new(false));
+        let frames = buffer_frames.clamp(32, MAX_CHUNK as u32) as usize;
+        let thread = {
+            let stats = stats.clone();
+            let stop = stop.clone();
+            std::thread::Builder::new()
+                .name("mixit-virtual-audio".into())
+                .spawn(move || {
+                    denormals::disable_denormals();
+                    let mut master = vec![0.0f32; frames * 2];
+                    let mut cue = vec![0.0f32; frames * 2];
+                    let period = std::time::Duration::from_secs_f64(frames as f64 / sample_rate as f64);
+                    let mut next = Instant::now();
+                    while !stop.load(Ordering::Relaxed) {
+                        let t = Instant::now();
+                        engine.process(&mut master, &mut cue);
+                        let load = (t.elapsed().as_secs_f64() / period.as_secs_f64() * 1_000.0) as u32;
+                        stats.callbacks.fetch_add(1, Ordering::Relaxed);
+                        stats.load_permille.store(load, Ordering::Relaxed);
+                        stats.max_load_permille.fetch_max(load, Ordering::Relaxed);
+                        stats.last_buffer_frames.store(frames as u32, Ordering::Relaxed);
+                        next += period;
+                        let now = Instant::now();
+                        if next > now {
+                            std::thread::sleep(next - now);
+                        } else if now - next > period * 8 {
+                            next = now; // fell far behind (suspended): do not race to catch up
+                        }
+                    }
+                })
+                .map_err(|e| HostError::Device(e.to_string()))?
+        };
+        Ok((
+            AudioHost {
+                _output: Output::Virtual { stop, thread: Some(thread) },
+                stats,
+                sample_rate,
+                channels: 2,
+                device_name: "No audio output (virtual)".into(),
+                buffer_frames: Some(frames as u32),
+            },
+            controller,
+        ))
+    }
+
+    pub fn is_virtual(&self) -> bool {
+        matches!(self._output, Output::Virtual { .. })
     }
 
     /// Output latency of one buffer in milliseconds (driver and converter latency come on top).
