@@ -247,6 +247,9 @@ impl Engine {
 
     fn set_master(&mut self, m: Option<DeckId>) {
         if self.master != m {
+            if let Some(id) = m {
+                self.decks[id.index()].hold_tempo();
+            }
             self.master = m;
             self.events.send(Event::MasterChanged { deck: m });
         }

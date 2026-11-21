@@ -380,6 +380,21 @@ impl Deck {
         self.grid().map(|g| g.beat_at(self.audible())).unwrap_or(0.0)
     }
 
+    /// Called when this deck takes the lead: a deck that was following another's tempo
+    /// puts that tempo on its own fader (widening the range if it has to), so it carries
+    /// on at the same speed instead of jumping back to its own.
+    pub fn hold_tempo(&mut self) {
+        if !self.sync || !self.is_loaded() {
+            return;
+        }
+        let rate = self.rate.abs().max(0.01);
+        let need = (rate - 1.0).abs();
+        if need > self.range {
+            self.range = [0.06, 0.08, 0.10, 0.16, 0.50, 1.0].into_iter().find(|r| *r >= need).unwrap_or(1.0);
+        }
+        self.tempo = ((rate - 1.0) / self.range).clamp(-1.0, 1.0);
+    }
+
     /// Rate the tempo fader asks for (before sync and bends).
     fn fader_rate(&self) -> f64 {
         1.0 + self.tempo * self.range
