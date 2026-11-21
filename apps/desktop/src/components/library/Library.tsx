@@ -173,6 +173,11 @@ export const DJ_APPS: Record<DjApp, { name: string; menu: string; pick: () => Pr
 /** Asks for another app's library and imports it (tracks, cues, grids, playlists). */
 export async function importFromApp(app: DjApp) {
   const a = DJ_APPS[app];
+  if (backend().kind === "web") {
+    // The browser gets the collection file but cannot reach the music it points to.
+    toast.message(`Importing from ${a.name} needs the desktop app`, { description: "A web page cannot open the music files a DJ library points to." });
+    return;
+  }
   try {
     const picked = await a.pick();
     if (!picked?.[0]) return;
