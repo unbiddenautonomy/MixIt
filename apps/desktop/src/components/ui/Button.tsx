@@ -6,7 +6,7 @@ type Tone = "default" | "accent" | "play" | "cue" | "danger" | "ghost";
 
 const tones: Record<Tone, string> = {
   default: "bg-white/[0.06] hover:bg-white/[0.10] text-zinc-200 border-white/10",
-  accent: "bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 text-[var(--accent)] border-[var(--accent)]/40",
+  accent: "bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 text-[var(--accent-ink)] border-[var(--accent)]/40",
   play: "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
   cue: "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/30",
   danger: "bg-red-500/10 hover:bg-red-500/20 text-red-300 border-red-400/30",

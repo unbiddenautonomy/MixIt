@@ -12,7 +12,7 @@ import { useApp, useNotation } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { Btn, Segmented } from "../ui/Button";
 import { rowsById } from "../library/data";
-import { beatToSeconds, projectBeats, setProject } from "./projectIo";
+import { beatToSeconds, confirmDiscard, projectBeats, setProject } from "./projectIo";
 
 export function AutomixDialog() {
   const open = useApp((s) => s.automixOpen);
@@ -51,6 +51,7 @@ export function AutomixDialog() {
       toast.error("Automix needs at least two analysed tracks.");
       return;
     }
+    if (!(await confirmDiscard("make a new mix"))) return;
     setBusy(true);
     try {
       const req = { ...o, tempo: o.tempo === "fixed" ? fixedBpm : o.tempo };

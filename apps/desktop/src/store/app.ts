@@ -82,6 +82,8 @@ interface AppState {
   jobs: Record<string, JobProgress>;
   project: MixProject | null;
   projectPath: string | null;
+  /** The project has edits that are not saved to a file. */
+  projectDirty: boolean;
   libraryHeight: number;
   kit: KitSound[];
   pads: PadInfo[];
@@ -135,6 +137,7 @@ export const useApp = create<AppState>((set) => ({
   jobs: {},
   project: null,
   projectPath: null,
+  projectDirty: false,
   libraryHeight: 320,
   kit: [],
   pads: [],

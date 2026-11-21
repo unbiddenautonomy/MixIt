@@ -15,11 +15,13 @@ import { Mixer } from "./components/mixer/Mixer";
 import { SamplerPanel } from "./components/sampler/SamplerPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
+import { DialogHost } from "./components/shell/Dialogs";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TopBar } from "./components/shell/TopBar";
 import { handleShortcut } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
+import { useTheme } from "./lib/theme";
 import { useApp } from "./store/app";
 import { useLibrary } from "./store/library";
 import { useTelemetry } from "./store/telemetry";
@@ -28,6 +30,7 @@ export function App() {
   const ready = useApp((s) => s.ready);
   const error = useApp((s) => s.error);
   const workspace = useApp((s) => s.workspace);
+  const theme = useTheme();
 
   useEffect(() => {
     let off: (() => void)[] = [];
@@ -128,7 +131,8 @@ export function App() {
       <CommandPalette />
       <SettingsDialog />
       <AutomixDialog />
-      <Toaster theme="dark" position="bottom-right" richColors closeButton />
+      <DialogHost />
+      <Toaster theme={theme} position="bottom-right" richColors closeButton />
     </Tooltip.Provider>
   );
 }

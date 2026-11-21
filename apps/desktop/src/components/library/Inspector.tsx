@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
 import type { TrackDetail, TrackEdit } from "../../backend/types";
-import { bpm as fmtBpm, clock, hex } from "../../lib/format";
+import { bpm as fmtBpm, clock, hex, inkColor } from "../../lib/format";
 import { keyColor, keyLabel } from "../../lib/keys";
 import { SECTION_COLORS } from "../../lib/waveform";
 import { DECK_LETTERS, useApp, useNotation } from "../../store/app";
@@ -80,7 +80,7 @@ export function Inspector() {
 
       <div className="grid grid-cols-3 gap-1.5">
         <Stat label="BPM" value={fmtBpm(d.bpm)} sub={d.analysed ? `${Math.round(d.tempoConfidence * 100)}% sure` : "not analysed"} />
-        <Stat label="Key" value={<span style={{ color: keyColor(d.key) }}>{keyLabel(d.key, notation)}</span>} sub={d.key ? `${d.key.name}, ${Math.round(d.keyConfidence * 100)}%` : ""} />
+        <Stat label="Key" value={<span style={{ color: inkColor(keyColor(d.key)) }}>{keyLabel(d.key, notation)}</span>} sub={d.key ? `${d.key.name}, ${Math.round(d.keyConfidence * 100)}%` : ""} />
         <Stat label="Energy" value={d.energy != null ? d.energy.toFixed(1) : "–"} sub="of 10" />
         <Stat label="Loudness" value={d.lufs != null ? d.lufs.toFixed(1) : "–"} sub="LUFS" />
         <Stat label="True peak" value={d.truePeak != null ? d.truePeak.toFixed(1) : "–"} sub="dBTP" />

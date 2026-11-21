@@ -143,7 +143,7 @@ export function WaveStack({ decks }: { decks: number[] }) {
   const seconds = ZOOMS[zoom];
   const h = decks.length > 2 ? 44 : 76;
   return (
-    <div className="relative shrink-0 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950">
+    <div className="screen relative shrink-0 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950">
       {decks.map((d, i) => (
         <div key={d} className={clsx("relative", i > 0 && "border-t border-white/[0.06]")}>
           <div className="pointer-events-none absolute left-2 top-1.5 z-10 rounded px-1.5 text-[10px] font-bold text-zinc-950" style={{ background: DECK_COLORS[d] }}>

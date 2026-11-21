@@ -969,6 +969,36 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("coach"),
     );
     b.add(
+        "app.save",
+        "Save mix project",
+        ag,
+        ActionKind::Trigger,
+        "Saves the mix project you are arranging.",
+        true,
+        Some("Mod+S"),
+        None,
+    );
+    b.add(
+        "app.save_as",
+        "Save mix project as",
+        ag,
+        ActionKind::Trigger,
+        "Saves the mix project under a new name.",
+        false,
+        Some("Mod+Shift+S"),
+        None,
+    );
+    b.add(
+        "app.open",
+        "Open mix project",
+        ag,
+        ActionKind::Trigger,
+        "Opens a saved mix project in Arrange.",
+        true,
+        Some("Mod+O"),
+        None,
+    );
+    b.add(
         "app.sampler",
         "Sampler and master FX",
         ag,

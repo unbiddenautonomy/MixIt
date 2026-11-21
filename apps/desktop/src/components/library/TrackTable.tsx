@@ -8,8 +8,9 @@ import { AlertTriangle, ArrowDown, ArrowUp, Loader2, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
+import { ask } from "../shell/Dialogs";
 import type { TrackRow } from "../../backend/types";
-import { bpm as fmtBpm, clock, hex, plural } from "../../lib/format";
+import { bpm as fmtBpm, clock, hex, plural, inkColor } from "../../lib/format";
 import { compatibility, keyColor, keyFromIndex, keyLabel, type Compat } from "../../lib/keys";
 import { DECK_LETTERS, deckCount, useApp, useNotation, usePro } from "../../store/app";
 import { sortRows, useLibrary, type SortKey } from "../../store/library";
@@ -86,7 +87,7 @@ const COLUMNS: Column[] = [
       if (!r.key) return <span className="text-zinc-600">–</span>;
       const compat = c.refKey != null ? compatibility(keyFromIndex(c.refKey), keyFromIndex(r.key.index)) : null;
       return (
-        <span className={clsx("rounded px-1 font-mono text-[11px] font-semibold", compat && COMPAT_STYLE[compat])} style={{ color: keyColor(r.key) }}>
+        <span className={clsx("rounded px-1 font-mono text-[11px] font-semibold", compat && COMPAT_STYLE[compat])} style={{ color: inkColor(keyColor(r.key)) }}>
           {keyLabel(r.key, c.notation)}
         </span>
       );
@@ -381,7 +382,13 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
             className="menu-item text-red-300"
             onSelect={async () => {
               const list = ids();
-              if (!window.confirm(`Remove ${plural(list.length, "track")} from the library? The files are not deleted.`)) return;
+              const ok = await ask({
+                title: `Remove ${plural(list.length, "track")} from the library?`,
+                body: "They disappear from MixIt, its playlists and history. The music files on your disk are not touched, and adding the folder again brings them back.",
+                confirm: "Remove",
+                danger: true,
+              });
+              if (!ok) return;
               await backend().removeTracks(list);
               useLibrary.getState().set({ selected: [] });
               refreshStats();

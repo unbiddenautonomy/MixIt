@@ -92,7 +92,7 @@ function Logo() {
         </linearGradient>
       </defs>
       <circle cx="12" cy="12" r="10.5" fill="none" stroke="url(#mx-logo)" strokeWidth="2.2" />
-      <path d="M6.5 15.5 9.5 8.5 12 13l2.5-4.5 3 7" fill="none" stroke="#f4f4f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.5 15.5 9.5 8.5 12 13l2.5-4.5 3 7" fill="none" style={{ stroke: "var(--color-zinc-100)" }} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

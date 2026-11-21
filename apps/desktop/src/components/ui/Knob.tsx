@@ -58,14 +58,14 @@ export function Knob({ value, min, max, def, onChange, label, size = 40, color =
         {...h}
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <path d={arc(c, c, r, START, START + SWEEP)} stroke="rgba(255,255,255,0.10)" strokeWidth={3} fill="none" strokeLinecap="round" />
-          {Math.abs(a - a0) > 0.5 && <path d={arc(c, c, r, Math.min(a0, a), Math.max(a0, a))} stroke={killed ? "#ef4444" : color} strokeWidth={3} fill="none" strokeLinecap="round" />}
-          <circle cx={c} cy={c} r={r - 5} fill="url(#knob-face)" stroke="rgba(255,255,255,0.08)" />
-          <line x1={c} y1={c} x2={c + (r - 8) * Math.sin((a * Math.PI) / 180)} y2={c - (r - 8) * Math.cos((a * Math.PI) / 180)} stroke={killed ? "#ef4444" : "#f4f4f5"} strokeWidth={2} strokeLinecap="round" />
+          <path d={arc(c, c, r, START, START + SWEEP)} style={{ stroke: "var(--knob-track)" }} strokeWidth={3} fill="none" strokeLinecap="round" />
+          {Math.abs(a - a0) > 0.5 && <path d={arc(c, c, r, Math.min(a0, a), Math.max(a0, a))} style={{ stroke: killed ? "#ef4444" : color }} strokeWidth={3} fill="none" strokeLinecap="round" />}
+          <circle cx={c} cy={c} r={r - 5} fill="url(#knob-face)" style={{ stroke: "var(--knob-edge)" }} />
+          <line x1={c} y1={c} x2={c + (r - 8) * Math.sin((a * Math.PI) / 180)} y2={c - (r - 8) * Math.cos((a * Math.PI) / 180)} style={{ stroke: killed ? "#ef4444" : "var(--knob-pointer)" }} strokeWidth={2} strokeLinecap="round" />
           <defs>
             <radialGradient id="knob-face" cx="40%" cy="35%" r="70%">
-              <stop offset="0%" stopColor="#3f3f46" />
-              <stop offset="100%" stopColor="#18181b" />
+              <stop offset="0%" style={{ stopColor: "var(--knob-face-a)" }} />
+              <stop offset="100%" style={{ stopColor: "var(--knob-face-b)" }} />
             </radialGradient>
           </defs>
         </svg>

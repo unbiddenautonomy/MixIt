@@ -8,7 +8,7 @@ import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
 import { refreshRows } from "../components/library/data";
-import { redoProject, undoProject } from "../components/arrange/projectIo";
+import { openProject, redoProject, saveProject, undoProject } from "../components/arrange/projectIo";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
 import { startTransition, type TransitionId } from "./transition";
@@ -64,6 +64,13 @@ export function runApp(id: string): boolean {
       return true;
     case "explain":
       s.set({ explainHeld: true });
+      return true;
+    case "save":
+    case "save_as":
+      saveProject(p[1] === "save_as");
+      return true;
+    case "open":
+      openProject();
       return true;
     case "sampler":
       s.set(s.workspace === "mix" ? { samplerOpen: !s.samplerOpen } : { workspace: "mix", samplerOpen: true });

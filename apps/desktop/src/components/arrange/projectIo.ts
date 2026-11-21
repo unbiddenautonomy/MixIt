@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { backend } from "../../backend";
 import type { Clip, MixProject } from "../../backend/types";
 import { useApp } from "../../store/app";
+import { ask } from "../shell/Dialogs";
 
 export function emptyProject(name = "Untitled mix", bpm = 124): MixProject {
   return { version: 1, name, tempo: { segments: [{ start_beat: 0, bpm, end_bpm: bpm }], time_signatures: [{ start_beat: 0, numerator: 4, denominator: 4 }] }, clips: [], markers: [], master_gain_db: 0, next_id: 1 };
@@ -63,7 +64,8 @@ export function setProject(p: MixProject | null, path?: string | null, key?: str
     undoStack.length = 0;
     redoStack.length = 0;
     lastKey = "";
-    useApp.getState().set({ project: p, projectPath: path });
+    // A project made by Automix has no file yet, so it counts as unsaved.
+    useApp.getState().set({ project: p, projectPath: path, projectDirty: !!p && !path });
     return;
   }
   const cur = useApp.getState().project;
@@ -75,7 +77,7 @@ export function setProject(p: MixProject | null, path?: string | null, key?: str
   lastKey = key ?? "";
   lastAt = now;
   redoStack.length = 0;
-  useApp.getState().set({ project: p });
+  useApp.getState().set({ project: p, projectDirty: true });
 }
 
 export function undoProject(): boolean {
@@ -84,7 +86,7 @@ export function undoProject(): boolean {
   if (!prev || !cur) return false;
   redoStack.push(cur);
   lastKey = "";
-  useApp.getState().set({ project: prev });
+  useApp.getState().set({ project: prev, projectDirty: true });
   return true;
 }
 
@@ -94,7 +96,7 @@ export function redoProject(): boolean {
   if (!next || !cur) return false;
   undoStack.push(cur);
   lastKey = "";
-  useApp.getState().set({ project: next });
+  useApp.getState().set({ project: next, projectDirty: true });
   return true;
 }
 
@@ -104,7 +106,29 @@ export function updateClip(id: number, patch: Partial<Clip>) {
   setProject({ ...p, clips: p.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) }, undefined, `clip:${id}:${Object.keys(patch).join(",")}`);
 }
 
+/**
+ * Asks before throwing away unsaved project edits. Resolves true when it is fine to
+ * replace the project (nothing unsaved, or the user chose to discard).
+ */
+export async function confirmDiscard(action = "continue"): Promise<boolean> {
+  const { project, projectDirty } = useApp.getState();
+  if (!project || !projectDirty) return true;
+  return ask({
+    title: `Discard changes to “${project.name}”?`,
+    body: `Your edits to this mix are not saved. If you ${action}, they are lost. Save first with ${navigator.platform.includes("Mac") ? "⌘S" : "Ctrl+S"} or the Save button.`,
+    confirm: "Discard changes",
+    cancel: "Keep editing",
+    danger: true,
+  });
+}
+
+/** Closes the project, after asking if it has unsaved edits. */
+export async function closeProject() {
+  if (await confirmDiscard("close it")) setProject(null, null);
+}
+
 export async function openProject() {
+  if (!(await confirmDiscard("open another project"))) return;
   const f = await backend().pickFiles(["mixit", "json"], "MixIt project");
   if (!f?.[0]) return;
   try {
@@ -129,7 +153,9 @@ export async function saveProject(saveAs: boolean) {
   if (!path) return;
   try {
     await backend().saveProject(path, project);
-    useApp.getState().set({ projectPath: path });
+    // Edits made while the save ran stay unsaved.
+    const still = useApp.getState().project === project;
+    useApp.getState().set({ projectPath: path, projectDirty: !still });
     toast.success("Project saved", { description: path });
   } catch (e) {
     toast.error(String(e));

@@ -87,7 +87,7 @@ function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: 
         {band("high", "High", 2)}
         {pro ? (
           <Ctl id={`mixer.${L}.trim`} side="right">
-            <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="#a1a1aa" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" />
+            <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="var(--color-zinc-400)" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" />
           </Ctl>
         ) : (
           <div />
@@ -119,7 +119,7 @@ function MasterSection({ pro }: { pro: boolean }) {
     <div className="ml-1 flex w-[70px] flex-col items-center gap-1.5 rounded-xl border border-white/[0.05] bg-black/30 px-1 py-1.5">
       <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Master</div>
       <Ctl id="mixer.master" side="right">
-        <Knob value={master} min={-40} max={6} def={0} size={30} color="#f4f4f5" onChange={(v) => setValue("mixer.master", v)} label="Level" />
+        <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" />
       </Ctl>
       <div className="flex items-end gap-1">
         <Meter read={(t) => t.master.peak} height={pro ? 70 : 96} width={5} />
@@ -154,7 +154,7 @@ function Crossfader() {
         A
       </span>
       <Ctl id="mixer.crossfader" className="flex-1">
-        <Fader value={x} min={-1} max={1} def={0} orientation="horizontal" length={200} color="#f4f4f5" onChange={(v) => setValue("mixer.crossfader", v)} label="Crossfader" className="w-full" />
+        <Fader value={x} min={-1} max={1} def={0} orientation="horizontal" length={200} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.crossfader", v)} label="Crossfader" className="w-full" />
       </Ctl>
       <span className="text-[10px] font-black" style={{ color: DECK_COLORS[1] }}>
         B
@@ -197,7 +197,7 @@ function MixIt({ count }: { count: number }) {
   if (running) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-1.5" style={{ ["--accent" as string]: DECK_COLORS[running.to] }}>
-        <Sparkles size={14} className="text-[var(--accent)]" />
+        <Sparkles size={14} className="text-[var(--accent-ink)]" />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium text-zinc-100">
             {transitions.find((t) => t.id === running.kind)?.name ?? running.kind}: {L(running.from)} → {L(running.to)}

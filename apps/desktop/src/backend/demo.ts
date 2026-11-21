@@ -1224,6 +1224,9 @@ function demoRegistry(): T.ActionSpec[] {
   for (let n = 1; n <= 8; n++) add(`sampler.pad.${n}`, `Pad ${n}`, "Sampler", { type: "momentary" }, "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.", `Shift+${n}`);
   add("sampler.volume", "Sampler volume", "Sampler", cont(0, 1, 0.8), "Volume of all pads.");
   add("sampler.stop_all", "Stop all pads", "Sampler", { type: "trigger" }, "Stops every pad that is playing, including loops.", null, false);
+  add("app.save", "Save mix project", "App", { type: "trigger" }, "Saves the mix project you are arranging.", "Mod+S");
+  add("app.save_as", "Save mix project as", "App", { type: "trigger" }, "Saves the mix project under a new name.", "Mod+Shift+S", false);
+  add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");

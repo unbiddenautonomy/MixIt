@@ -12,7 +12,7 @@ import { DECK_COLORS } from "../deck/useWaveform";
 import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
 import { rowsById } from "../library/data";
 import { playPreview, stopPreview, usePreview } from "./preview";
-import { beatAfter, beatToSeconds, bpmAt, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
+import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
 
 const LANE_H = 76;
 const PARAM_COLORS: Record<ProjectParam, string> = { Volume: "#f4f4f5", EqLow: "#405cff", EqMid: "#ffa630", EqHigh: "#ecf6ff", Filter: "#e879f9", FxMix: "#34d399" };
@@ -39,6 +39,7 @@ export function clipFromTrack(t: TrackRow, id: number, lane: number, start: numb
 export function Arrange() {
   const project = useApp((s) => s.project);
   const path = useApp((s) => s.projectPath);
+  const dirty = useApp((s) => s.projectDirty);
   const job = useApp((s) => s.jobs.render);
   const [zoom, setZoom] = useState<number | null>(null); // pixels per beat; null fits the mix
   const [sel, setSel] = useState<number | null>(null);
@@ -72,6 +73,11 @@ export function Arrange() {
           {project.tempo.segments.length > 1 && ` → ${fmtBpm(project.tempo.segments[project.tempo.segments.length - 1].bpm)}`} BPM
         </span>
         {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
+        {dirty && (
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title="Save with the Save button or Ctrl/⌘+S">
+            Not saved
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <div className="flex items-center gap-1 text-[11px] text-zinc-400">
             Show
@@ -116,7 +122,7 @@ export function Arrange() {
               <Music size={12} /> Render mix
             </Btn>
           )}
-          <Btn size="sm" tone="ghost" onClick={() => window.confirm("Close this project? Unsaved changes are lost.") && setProject(null, null)} aria-label="Close project">
+          <Btn size="sm" tone="ghost" onClick={closeProject} aria-label="Close project">
             <X size={12} />
           </Btn>
         </div>
@@ -174,7 +180,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
   };
 
   return (
-    <div ref={scroller} className="relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950" onPointerDown={(e) => e.target === e.currentTarget && setSel(null)}>
+    <div ref={scroller} className="screen relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950" onPointerDown={(e) => e.target === e.currentTarget && setSel(null)}>
       <div style={{ width: width + 80 }} className="relative">
         {/* Ruler */}
         <div className="sticky top-0 z-20 flex h-9 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur">

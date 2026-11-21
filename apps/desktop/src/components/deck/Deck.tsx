@@ -142,10 +142,10 @@ function Header({ deck }: { deck: number }) {
           </Ctl>
           <div className="text-right">
             <div className="font-mono text-base font-semibold leading-none tabular-nums text-zinc-50">{fmtBpm(bpm)}</div>
-            <div className={clsx("font-mono text-[10px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent)]")}>{signedPct(tempo)}</div>
+            <div className={clsx("font-mono text-[10px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent-ink)]")}>{signedPct(tempo)}</div>
           </div>
           <TimeReadout deck={deck} />
-          {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">Master</span>}
+          {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
           <EjectButton deck={deck} />
         </>
       )}

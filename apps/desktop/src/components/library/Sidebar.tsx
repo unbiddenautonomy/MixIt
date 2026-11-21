@@ -6,6 +6,7 @@ import { FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Wan
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
+import { ask, askText } from "../shell/Dialogs";
 import type { PlaylistDto } from "../../backend/types";
 import { clock, plural } from "../../lib/format";
 import { useApp } from "../../store/app";
@@ -152,7 +153,14 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
               <ContextMenu.Item
                 className="menu-item"
                 onSelect={async () => {
-                  const q = window.prompt("Smart playlist search", p.query ?? "");
+                  const q = await askText({
+                    title: `Search for “${p.name}”`,
+                    initial: p.query ?? "",
+                    placeholder: "bpm:120-128 key:~8A energy:6+",
+                    help: "The playlist always holds every track that matches. Examples: genre:house played:never, rating:4+, bpm:~124.",
+                    confirm: "Update playlist",
+                    code: true,
+                  });
                   if (q != null) {
                     await backend().setPlaylistQuery(p.id, q);
                     await refreshPlaylists();
@@ -217,7 +225,8 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
             <ContextMenu.Item
               className="menu-item text-red-300"
               onSelect={async () => {
-                if (!window.confirm(`Delete “${p.name}”? The tracks stay in your library.`)) return;
+                const ok = await ask({ title: `Delete “${p.name}”?`, body: "The playlist goes away. Its tracks stay in your library.", confirm: "Delete playlist", danger: true });
+                if (!ok) return;
                 await backend().deletePlaylist(p.id);
                 if (same(source, { type: "playlist", id: p.id })) select({ type: "all" });
                 refreshPlaylists();

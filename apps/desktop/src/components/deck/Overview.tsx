@@ -108,7 +108,7 @@ export function Overview({ deck, height = 46 }: { deck: number; height?: number 
   return (
     <canvas
       ref={ref}
-      className="w-full cursor-pointer rounded-md bg-black/40"
+      className="screen screen-bg w-full cursor-pointer rounded-md bg-black/40"
       style={{ height, touchAction: "none" }}
       onPointerDown={(e) => {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

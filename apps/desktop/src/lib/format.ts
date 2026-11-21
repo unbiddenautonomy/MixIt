@@ -39,3 +39,8 @@ export function hex(color: number | null | undefined, fallback = "#3b82f6"): str
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
+
+/** A colour made readable as text on the current theme (darkened on the light theme). */
+export function inkColor(color: string): string {
+  return `color-mix(in oklab, ${color} var(--ink), black)`;
+}

@@ -144,7 +144,7 @@ function Loops({ deck, pro }: { deck: number; pro: boolean }) {
             }}
             className={clsx(
               "h-7 min-w-9 rounded-md border px-1.5 font-mono text-[11px] transition-colors",
-              size === i ? (active ? "border-transparent bg-[var(--accent)] text-zinc-950" : "border-[var(--accent)]/50 text-[var(--accent)]") : "border-white/[0.08] text-zinc-400 hover:bg-white/[0.06]",
+              size === i ? (active ? "border-transparent bg-[var(--accent)] text-zinc-950" : "border-[var(--accent)]/50 text-[var(--accent-ink)]") : "border-white/[0.08] text-zinc-400 hover:bg-white/[0.06]",
             )}
           >
             {label}
@@ -230,7 +230,7 @@ function Jump({ deck }: { deck: number }) {
           onClick={() => choose(`deck.${L}.beatjump.size`, i)}
           className={clsx(
             "h-8 min-w-9 rounded-md border px-1.5 font-mono text-[11px]",
-            size === i ? "border-[var(--accent)]/60 text-[var(--accent)]" : "border-white/[0.08] text-zinc-400 hover:bg-white/[0.06]",
+            size === i ? "border-[var(--accent)]/60 text-[var(--accent-ink)]" : "border-white/[0.08] text-zinc-400 hover:bg-white/[0.06]",
           )}
         >
           {label}

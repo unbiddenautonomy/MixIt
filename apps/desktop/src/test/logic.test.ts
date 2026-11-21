@@ -125,3 +125,14 @@ describe("key names", () => {
     expect(keyName(ev("?", "Slash", { shiftKey: true }))).toBe("?");
   });
 });
+
+describe("theme", () => {
+  it("follows the system only when asked to", async () => {
+    const { resolveTheme } = await import("../lib/theme");
+    expect(resolveTheme("dark", true)).toBe("dark");
+    expect(resolveTheme("light", false)).toBe("light");
+    expect(resolveTheme("system", true)).toBe("light");
+    expect(resolveTheme("system", false)).toBe("dark");
+    expect(resolveTheme(undefined, true)).toBe("dark");
+  });
+});

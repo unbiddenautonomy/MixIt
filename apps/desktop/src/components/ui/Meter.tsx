@@ -57,5 +57,5 @@ export function Meter({ read, height = 120, width = 6, channels = 2 }: { read: (
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [read, height, width, channels]);
-  return <canvas ref={ref} style={{ width: channels * width + (channels - 1) * 2, height }} />;
+  return <canvas ref={ref} className="screen screen-bg rounded-[2px]" style={{ width: channels * width + (channels - 1) * 2, height }} />;
 }

@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
 import { useEffect } from "react";
-import { bpm as fmtBpm, clock, signedPct } from "../../lib/format";
+import { bpm as fmtBpm, clock, signedPct, inkColor } from "../../lib/format";
 import { keyColor, keyLabel, shiftedKey } from "../../lib/keys";
 import { deckCount, useApp, useNotation } from "../../store/app";
 import { useLibrary } from "../../store/library";
@@ -96,7 +96,7 @@ export function Suggestions() {
                   </div>
                   <div className="text-right">
                     <div className="font-mono text-xs text-zinc-200">{fmtBpm(t.bpm)}</div>
-                    <div className="font-mono text-[11px] font-semibold" style={{ color: keyColor(key) }}>
+                    <div className="font-mono text-[11px] font-semibold" style={{ color: inkColor(keyColor(key)) }}>
                       {keyLabel(key, notation)}
                     </div>
                   </div>
