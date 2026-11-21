@@ -175,10 +175,65 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Fader start" hint="Like a club mixer: raising a channel's volume fader from the bottom starts its deck, and pulling it all the way down stops the deck and takes it back to its cue point.">
         <Toggle on={!!s.faderStart} onChange={(v) => updateSettings({ faderStart: v })} label="Start and stop decks with their faders" />
       </Field>
+      <NowPlaying s={s} />
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
       </Field>
     </div>
+  );
+}
+
+const NOW_PLAYING_DEFAULT = "{artist} - {title}";
+
+/** A text file that always holds the track playing now, for streaming software to show. */
+function NowPlaying({ s }: { s: Settings }) {
+  const [format, setFormat] = useState(s.nowPlayingFormat ?? NOW_PLAYING_DEFAULT);
+  useEffect(() => setFormat(s.nowPlayingFormat ?? NOW_PLAYING_DEFAULT), [s.nowPlayingFormat]);
+  const desktop = backend().kind === "tauri";
+  const choose = async () => {
+    const p = await backend().pickSave("now-playing.txt", ["txt"]);
+    if (p) updateSettings({ nowPlayingFile: p });
+  };
+  const saveFormat = () => {
+    const f = format.trim() || NOW_PLAYING_DEFAULT;
+    setFormat(f);
+    if (f !== s.nowPlayingFormat) updateSettings({ nowPlayingFormat: f });
+  };
+  return (
+    <Field label="Now playing for streams" hint="Keeps a text file up to date with the track your audience hears. Point a text source in OBS or other streaming software at it to show the track on screen.">
+      {desktop ? (
+        <div className="flex flex-col gap-2" data-testid="now-playing">
+          <div className="flex items-center gap-2">
+            <span className={clsx("min-w-0 flex-1 truncate text-xs", s.nowPlayingFile ? "text-zinc-200" : "text-zinc-500")} title={s.nowPlayingFile ?? undefined}>
+              {s.nowPlayingFile ?? "Off"}
+            </span>
+            <button type="button" className="rounded-md bg-white/[0.06] px-2 py-1 text-xs text-zinc-200 hover:bg-white/10" onClick={() => void choose()}>
+              {s.nowPlayingFile ? "Change file…" : "Choose file…"}
+            </button>
+            {s.nowPlayingFile && (
+              <button type="button" className="rounded-md px-2 py-1 text-xs text-zinc-400 hover:bg-white/10 hover:text-zinc-100" onClick={() => updateSettings({ nowPlayingFile: null })}>
+                Turn off
+              </button>
+            )}
+          </div>
+          <label className="flex flex-col gap-1 text-xs text-zinc-400">
+            What to write
+            <input
+              className="input h-8"
+              value={format}
+              placeholder={NOW_PLAYING_DEFAULT}
+              onChange={(e) => setFormat(e.target.value)}
+              onBlur={saveFormat}
+              onKeyDown={(e) => e.key === "Enter" && saveFormat()}
+              aria-label="What to write in the now playing file"
+            />
+            <span className="text-[11px] text-zinc-500">You can use {"{artist}"}, {"{title}"}, {"{album}"}, {"{genre}"}, {"{label}"}, {"{bpm}"} and {"{key}"}.</span>
+          </label>
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">This works in the desktop app, where MixIt can write files.</p>
+      )}
+    </Field>
   );
 }
 

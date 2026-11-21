@@ -6,6 +6,7 @@
 pub mod audio;
 pub mod commands;
 pub mod dto;
+pub mod nowplaying;
 pub mod sampler;
 pub mod sound;
 pub mod state;
