@@ -1,6 +1,8 @@
-// The seven practice labs. Each step says what to do in plain words and, where the app
+// The eight practice labs. Each step says what to do in plain words and, where the app
 // can tell, checks itself off when you do it.
 import { usePreview } from "../components/arrange/preview";
+import { useAssistant } from "../components/feedback/MixAssistant";
+import { useStudio } from "../store/studio";
 import { audible, ch, deckWith, noteJump, noteStart, offBoundary, playing, tele, type Lab } from "./model";
 
 const A = 0;
@@ -380,6 +382,64 @@ export const LABS: Lab[] = [
     ],
     listen: "Smooth fades with no clicks, pops or sudden jumps in volume.",
     mistake: "Ending a volume curve above zero at the clip's edge, which makes a small pop where the clip stops.",
+  },
+  {
+    id: "studio",
+    number: 8,
+    title: "Shape a track in the studio",
+    goal: "Use the studio on a channel to shape the tone, add punch and a reverb tail, then let the mix assistant check the result.",
+    decks: ["p1"],
+    observe: (c) => {
+      // The reverb send was up while the track played, so its tail can ring on.
+      if (playing(c, A) && ch(c, A).space >= 0.3) c.m.sent = true;
+      if (c.m.sent && ch(c, A).fader < 0.05) c.m.tailed = true;
+    },
+    steps: [
+      {
+        id: "play",
+        title: "Play deck A",
+        controls: ["deck.A.play"],
+        check: (c) => playing(c, A) && audible(c, A) > 0.3,
+      },
+      {
+        id: "open",
+        title: "Open deck A's studio",
+        body: "Press the sliders button at the top of deck A's channel on the mixer. The picture shows the sound: bass on the left, cymbals on the right.",
+        check: () => useStudio.getState().open === A,
+      },
+      {
+        id: "eq",
+        title: "Change one part of the sound with an EQ band",
+        body: "Click a band dot and drag it up or down (2 dB or more). Try a small cut around 300 Hz to clear mud, or a lift above 8 kHz for shine. Drag sideways to move it, scroll to make it wider or narrower.",
+        check: () => {
+          const s = useStudio.getState().settings[A];
+          return !!s?.eqOn && s.bands.some((b) => b.enabled && (Math.abs(b.gainDb) >= 2 || b.shape === "lowCut" || b.shape === "highCut"));
+        },
+      },
+      {
+        id: "punch",
+        title: "Add Punch and watch the Compressing meter",
+        body: "Turn Punch up until the meter moves a few dB on the kicks. The drums get firmer and the level steadier. Past about 10 dB it starts to sound squashed.",
+        controls: ["mixer.A.punch"],
+        check: (c) => ch(c, A).punch >= 0.3 && (tele(c, A)?.compGrDb ?? 0) >= 1,
+      },
+      {
+        id: "tail",
+        title: "Send some to Space, then pull the fader down",
+        body: "Turn Space up so you hear the room, then bring deck A's fader all the way down. The reverb keeps ringing after the track has gone: the classic way to end a track.",
+        controls: ["mixer.A.space", "mixer.A.fader"],
+        check: (c) => !!c.m.tailed,
+      },
+      {
+        id: "assistant",
+        title: "Bring the fader back up and open the mix assistant",
+        body: "The stethoscope button in the top bar listens for a few seconds and lists anything to fix, each with a one-click fix and why it helps.",
+        controls: ["app.assistant"],
+        check: (c) => !!c.m.tailed && useAssistant.getState().open && ch(c, A).fader > 0.3,
+      },
+    ],
+    listen: "The track sounds fuller and firmer than before, with no harsh or boomy part sticking out, and the reverb tail fades smoothly.",
+    mistake: "Boosting several EQ bands a lot. Cutting what is too much usually sounds cleaner than boosting what is missing, and keeps the level out of the limiter.",
   },
 ];
 

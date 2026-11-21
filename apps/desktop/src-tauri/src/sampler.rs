@@ -150,7 +150,7 @@ fn mode(m: usize) -> PadMode {
 
 /// Decodes a pad's sound at the engine's sample rate. Returns interleaved stereo, the
 /// display name for new sounds and the tempo if known.
-fn decode(state: &AppState, src: &PadSource, sr: u32) -> Result<(Vec<f32>, String, Option<f64>), String> {
+pub fn decode(state: &AppState, src: &PadSource, sr: u32) -> Result<(Vec<f32>, String, Option<f64>), String> {
     match src {
         PadSource::Empty => Err("empty pad".into()),
         PadSource::Kit { id } => {

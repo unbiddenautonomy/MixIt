@@ -222,17 +222,45 @@ export async function saveProject(saveAs: boolean) {
   }
 }
 
-export async function renderProject() {
+export interface ExportChoice {
+  format: "wav" | "flac";
+  /** Integrated loudness to turn the finished mix to; null keeps it as mixed. */
+  targetLufs: number | null;
+}
+
+export async function renderProject(choice: ExportChoice = { format: "wav", targetLufs: null }) {
   const { project } = useApp.getState();
   if (!project || project.clips.length === 0) {
     toast.message("Nothing to render yet. Make a mix with Automix first.");
     return;
   }
-  const path = await backend().pickSave(`${project.name}.wav`, ["wav", "flac"]);
+  const path = await backend().pickSave(`${project.name}.${choice.format}`, [choice.format]);
   if (!path) return;
   try {
-    await backend().renderProject(project, path);
+    await backend().renderProject(project, path, choice.format, choice.targetLufs);
     toast.message("Rendering your mix…", { description: "Progress shows in Arrange. You can keep working." });
+  } catch (e) {
+    toast.error(String(e));
+  }
+}
+
+/** Renders one file per deck lane, for finishing the mix in another program. */
+export async function renderStems(format: "wav" | "flac") {
+  const { project } = useApp.getState();
+  if (!project || project.clips.length === 0) {
+    toast.message("Nothing to export yet. Make a mix with Automix first.");
+    return;
+  }
+  const kind = backend().kind;
+  let folder = "";
+  if (kind === "tauri") {
+    const picked = await backend().pickSave(`${project.name} - stems`, []);
+    if (!picked) return;
+    folder = picked;
+  }
+  try {
+    await backend().renderStems(project, folder, format);
+    toast.message("Exporting stems…", { description: kind === "tauri" ? `One file per deck, in ${folder}` : "One file per deck, to your downloads." });
   } catch (e) {
     toast.error(String(e));
   }

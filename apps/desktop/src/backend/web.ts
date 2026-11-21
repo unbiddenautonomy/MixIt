@@ -379,6 +379,18 @@ export class WebAudioBackend extends DemoBackend {
   private micStatus: T.MicStatus | null = null;
   private micRecording = false;
 
+  async studioGet(channel: number | null): Promise<T.StudioDto> {
+    return (await this.engine.call(channel === null ? { op: "studioGet" } : { op: "studioGet", channel })) as T.StudioDto;
+  }
+
+  async studioSet(channel: number | null, settings: T.StudioDto): Promise<void> {
+    this.engine.send(channel === null ? { op: "studioSet", settings } : { op: "studioSet", channel, settings });
+  }
+
+  async setScope(source: T.ScopeSource): Promise<void> {
+    this.engine.send({ op: "scope", source });
+  }
+
   async inputDevices(): Promise<T.DeviceInfo[]> {
     const sr = this.engine.sampleRate;
     return (await WebEngine.inputDevices()).map((d) => ({ id: d.id, name: d.name, host: "Web Audio", max_channels: 2, sample_rates: [sr], default_sample_rate: sr, buffer_range: null, is_default: d.isDefault }));
@@ -469,46 +481,67 @@ export class WebAudioBackend extends DemoBackend {
     return encodeWav(chunks, this.engine.sampleRate).arrayBuffer();
   }
 
-  /** Renders the whole mix in the worker and downloads it as a WAV file. */
-  async renderProject(project: T.MixProject, path: string) {
+  /** Renders the whole mix in the worker and downloads it as a WAV file. Loudness
+   * matching needs the whole mix in memory, so it is left to the desktop app here. */
+  async renderProject(project: T.MixProject, path: string, _format?: string, targetLufs?: number | null) {
+    const name = `${path.replace(/\.(wav|flac|mixit|json)$/i, "") || project.name}.wav`;
+    const note = targetLufs != null ? " (loudness matching needs the desktop app, so it is as mixed)" : "";
+    this.renderJobs([{ request: { project, autoGain: this.settings.autoGain }, name }], (n) => `${n}, in your downloads${note}`);
+  }
+
+  /** Renders each lane as its own WAV file (all the same length) and downloads them. */
+  async renderStems(project: T.MixProject) {
+    const lanes = [...new Set(project.clips.map((c) => c.lane))].sort();
+    if (!lanes.length) throw new Error("The mix has no clips.");
+    const base = project.name.replace(/[^\w\- ]+/g, "_").trim() || "Mix";
+    this.renderJobs(
+      lanes.map((lane) => ({ request: { project, autoGain: this.settings.autoGain, lane }, name: `${base} - Deck ${String.fromCharCode(65 + lane)}.wav` })),
+      () => `${lanes.length} stem${lanes.length === 1 ? "" : "s"}, in your downloads`,
+    );
+  }
+
+  private renderJobs(files: { request: Parameters<WebEngine["renderProject"]>[0]; name: string }[], done: (name: string) => string) {
     if (this.rendering) throw new Error("A mix is already rendering. Stop it first.");
     this.rendering = true;
     this.renderStop = false;
-    const name = `${path.replace(/\.(wav|flac|mixit|json)$/i, "") || project.name}.wav`;
     const sr = this.engine.sampleRate;
-    const job = (done: number, total: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "render", done, total, message, finished, error });
-    // 16-bit parts, folded into Blobs as they pile up so the browser can keep them out of memory.
-    const parts: BlobPart[] = [];
-    let pending: BlobPart[] = [];
-    let samples = 0;
-    let last = 0;
+    const job = (d: number, total: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "render", done: d, total, message, finished, error });
     job(0, 1, "Rendering your mix…");
     void (async () => {
       try {
-        await this.engine.renderProject(
-          { project, autoGain: this.settings.autoGain },
-          (n) => {
-            job(samples / 2, 0, `Loading “${n.title}”…`);
-            return this.renderTrack(n);
-          },
-          (a, position, total) => {
-            pending.push(toPcm16(a));
-            samples += a.length;
-            if (pending.length >= 30) {
-              parts.push(new Blob(pending));
-              pending = [];
-            }
-            const now = performance.now();
-            if (now - last > 250) {
-              last = now;
-              job(position, total, `Rendering ${Math.round((position / Math.max(1, total)) * 100)} %`);
-            }
-          },
-          () => this.renderStop,
-        );
-        parts.push(new Blob(pending));
-        download(new Blob([wavHeader(samples, sr), ...parts], { type: "audio/wav" }), name);
-        job(1, 1, `${name}, in your downloads`, true);
+        for (const [i, f] of files.entries()) {
+          const label = files.length > 1 ? `${f.name}: ` : "";
+          // 16-bit parts, folded into Blobs as they pile up so the browser can keep them out of memory.
+          const parts: BlobPart[] = [];
+          let pending: BlobPart[] = [];
+          let samples = 0;
+          let last = 0;
+          await this.engine.renderProject(
+            f.request,
+            (n) => {
+              job(samples / 2, 0, `${label}Loading “${n.title}”…`);
+              return this.renderTrack(n);
+            },
+            (a, position, total) => {
+              pending.push(toPcm16(a));
+              samples += a.length;
+              if (pending.length >= 30) {
+                parts.push(new Blob(pending));
+                pending = [];
+              }
+              const now = performance.now();
+              if (now - last > 250) {
+                last = now;
+                const frac = (i + position / Math.max(1, total)) / files.length;
+                job(Math.round(frac * 1000), 1000, `${label}Rendering ${Math.round(frac * 100)} %`);
+              }
+            },
+            () => this.renderStop,
+          );
+          parts.push(new Blob(pending));
+          download(new Blob([wavHeader(samples, sr), ...parts], { type: "audio/wav" }), f.name);
+        }
+        job(1, 1, done(files[0]?.name ?? ""), true);
       } catch (e) {
         if (e instanceof RenderCancelled) job(0, 1, "Render stopped", true);
         else job(0, 1, "", true, `Could not render the mix: ${e instanceof Error ? e.message : String(e)}`);
@@ -704,6 +737,69 @@ export class WebAudioBackend extends DemoBackend {
     this.pads[pad] = info;
     await this.engine.loadPad(pad, audio, info.bpm, this.padSettings(info));
     return { ...info };
+  }
+
+  // ---------------------------------------------------------------- sound editor
+
+  private sounds = new Map<number, { audio: Float32Array; name: string }>();
+  private nextSound = 1;
+
+  /** The audio of a pad source, decoded at the engine rate. */
+  private async sourceAudio(source: T.PadSource): Promise<{ audio: Float32Array; name: string }> {
+    const sr = this.engine.sampleRate;
+    if (source.type === "kit") return { audio: (await this.engine.kit(source.id)).audio, name: DEMO_KIT.find((k) => k.id === source.id)?.name ?? source.id };
+    if (source.type === "file") {
+      const f = this.files.get(source.path)?.[0];
+      if (!f) throw new Error("That sound is no longer available. Pick it again.");
+      return { audio: await this.engine.decode(await f.arrayBuffer()), name: stem(f.name) };
+    }
+    if (source.type === "track") {
+      const t = this.find(source.trackId);
+      const whole = await this.audioFor(t);
+      const a = Math.max(0, Math.round((source.start ?? 0) * sr));
+      const b = source.seconds != null ? Math.min(whole.length / 2, a + Math.round(source.seconds * sr)) : whole.length / 2;
+      return { audio: whole.slice(a * 2, b * 2), name: t.row.title };
+    }
+    throw new Error("The pad is empty.");
+  }
+
+  async soundOpen(source: T.PadSource, bins: number): Promise<T.SoundOpened> {
+    const s = await this.sourceAudio(source);
+    if (!s.audio.length) throw new Error("The sound is empty.");
+    const id = this.nextSound++;
+    // Keep a few open; the editor shows one at a time.
+    for (const k of [...this.sounds.keys()].slice(0, Math.max(0, this.sounds.size - 2))) this.sounds.delete(k);
+    this.sounds.set(id, s);
+    const { view } = await this.engine.soundEdit(s.audio, [], bins);
+    return { id, name: s.name, view };
+  }
+
+  private async edited(id: number, ops: T.EditOp[], bins = 16) {
+    const s = this.sounds.get(id);
+    if (!s) throw new Error("That sound is no longer open. Open it again.");
+    return this.engine.soundEdit(s.audio, ops, bins);
+  }
+
+  async soundRender(id: number, ops: T.EditOp[], bins: number): Promise<T.SoundView> {
+    return (await this.edited(id, ops, bins)).view;
+  }
+
+  async soundAudio(id: number, ops: T.EditOp[]): Promise<ArrayBuffer> {
+    const { audio } = await this.edited(id, ops);
+    return encodeWav([audio], this.engine.sampleRate).arrayBuffer();
+  }
+
+  async soundSave(id: number, ops: T.EditOp[], name: string): Promise<string> {
+    const { audio } = await this.edited(id, ops);
+    if (!audio.length) throw new Error("Nothing is left of the sound.");
+    const file = new File([encodeWav([audio], this.engine.sampleRate, true)], `${name.replace(/[^\w\- ()]+/g, "_").trim() || "Edited sound"}.wav`, { type: "audio/wav" });
+    const path = `browser:edits/${this.nextPick++}/${file.name}`;
+    this.files.set(path, [file]);
+    return path;
+  }
+
+  async soundClose(id: number) {
+    this.sounds.delete(id);
   }
 
   async samplerClear(pad: number): Promise<T.PadInfo> {

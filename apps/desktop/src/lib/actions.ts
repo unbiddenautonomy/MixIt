@@ -5,6 +5,7 @@ import { backend } from "../backend";
 import type { ActionInput, ActionSpec } from "../backend/types";
 import { MASTER_FX, useApp } from "../store/app";
 import { mirrorMic, startMicRecording, stopMicRecording, toggleMicRecording } from "../store/mic";
+import { mirrorStudio } from "../store/studio";
 
 function report(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
@@ -52,7 +53,17 @@ function mirror(id: string, input: ActionInput) {
       else if (c === "eq.low") s.setChannel(deck, { low: v });
       else if (c === "filter") s.setChannel(deck, { filter: v });
       else if (c === "fader") s.setChannel(deck, { fader: v });
+      else if (c === "pan") s.setChannel(deck, { pan: v });
+      else if (c === "punch") s.setChannel(deck, { punch: v });
+      else if (c === "warmth") s.setChannel(deck, { warmth: v });
+      else if (c === "width") s.setChannel(deck, { width: v });
+      else if (c === "space") s.setChannel(deck, { space: v });
+      else if (c === "echo") s.setChannel(deck, { echo: v });
+      else if (c === "duck_source") s.setChannel(deck, { duckSource: v });
+      else if (c === "duck") s.setChannel(deck, { duck: v });
     }
+    if (c === "gate") s.setChannel(deck, { gate: input.type === "press" ? !ch.gate : Boolean(v) });
+    mirrorStudio(deck, c, input.type === "press" ? null : v);
     if (c === "cue") s.setChannel(deck, { cue: input.type === "press" ? !ch.cue : Boolean(v) });
     if (c === "assign" && v !== null) s.setMixer({ assign: s.mixer.assign.map((x, i) => (i === deck ? v : x)) });
     if (c.startsWith("eq.kill.")) {
@@ -71,6 +82,14 @@ function mirror(id: string, input: ActionInput) {
     else if (p[1] === "eq_mode") s.setMixer({ eqMode: v });
     else if (p[1] === "split_cue") s.setMixer({ splitCue: Boolean(v) });
     else if (p[1] === "crossfader_reverse") s.setMixer({ crossfaderReverse: Boolean(v) });
+    else if (p[1] === "glue") {
+      s.setMixer({ glue: v });
+      mirrorStudio(null, "glue", v);
+    } else if (id === "mixer.space.level") s.setMixer({ spaceLevel: v });
+    else if (id === "mixer.space.size") s.setMixer({ spaceSize: v });
+    else if (id === "mixer.echo.level") s.setMixer({ echoLevel: v });
+    else if (id === "mixer.echo.feedback") s.setMixer({ echoFeedback: v });
+    else if (id === "mixer.echo.time") s.setMixer({ echoTime: v });
   } else if (p[0] === "mic") {
     mirrorMic(p.slice(1).join("."), input);
   } else if (p[0] === "sampler" && p[1] === "volume" && v !== null) {

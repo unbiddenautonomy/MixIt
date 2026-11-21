@@ -16,7 +16,7 @@ const playingOn = (...decks: number[]): Telemetry => ({
 describe("guide content", () => {
   it("has unique ids and links that resolve", () => {
     expect(new Set(LABS.map((l) => l.id)).size).toBe(LABS.length);
-    expect(LABS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(LABS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     for (const l of LABS) expect(new Set(l.steps.map((s) => s.id)).size).toBe(l.steps.length);
     const concepts = new Set(CONCEPTS.map((c) => c.id));
     expect(concepts.size).toBe(CONCEPTS.length);

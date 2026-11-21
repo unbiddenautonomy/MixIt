@@ -7,6 +7,7 @@ import { isMac } from "../../lib/actions";
 import { clock } from "../../lib/format";
 import { useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
+import { AssistantButton } from "../feedback/MixAssistant";
 import { MicButton } from "../mic/MicPanel";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
@@ -60,6 +61,7 @@ export function TopBar() {
             <Grid2x2 size={14} />
           </Btn>
         </Ctl>
+        <AssistantButton />
         <Ctl id="app.guide" side="bottom">
           <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">
             <BookOpen size={14} />

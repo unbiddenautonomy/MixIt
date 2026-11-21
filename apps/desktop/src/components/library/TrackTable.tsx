@@ -310,6 +310,9 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
           <ContextMenu.Item className="menu-item" onSelect={() => void editTrack(track.id)}>
             Edit track (beat grid, cues, start point)
           </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => void import("../editor/SoundEditor").then((m) => m.openSoundEditor({ type: "track", trackId: track.id, start: null, seconds: null }, { name: `${track.title} (edit)` }))}>
+            Edit sound (cut, fade, normalise, save a copy)
+          </ContextMenu.Item>
           <ContextMenu.Separator className="menu-sep" />
           <ContextMenu.Sub>
             <ContextMenu.SubTrigger className="menu-item">Add to playlist</ContextMenu.SubTrigger>

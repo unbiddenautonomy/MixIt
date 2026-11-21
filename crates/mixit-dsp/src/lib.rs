@@ -19,6 +19,7 @@ pub mod delay;
 pub mod djeq;
 pub mod djfilter;
 pub mod dynamics;
+pub mod edit;
 pub mod fx;
 pub mod interp;
 pub mod meters;
@@ -28,6 +29,7 @@ pub mod ramp;
 pub mod rng;
 pub mod smooth;
 pub mod stretch;
+pub mod studio;
 pub mod svf;
 pub mod util;
 

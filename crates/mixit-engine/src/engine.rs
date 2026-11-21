@@ -10,7 +10,7 @@ use crate::commands::{Command, DeckCommand, FxCommand, FxTarget, GlobalCommand, 
 use crate::deck::{BLOCK, Deck, DeckEnv};
 use crate::input::{MicChannel, MicCommand};
 use crate::kernels::PlaybackKernels;
-use crate::mixer::{Mixer, trash_effect};
+use crate::mixer::{Mixer, ScopeSource, trash_effect};
 use crate::sampler::{Sampler, SamplerEnv};
 use crate::telemetry::{Event, EventSink, MasterTelemetry, MicTelemetry, Telemetry};
 use crate::trash::{Trash, TrashBin};
@@ -71,9 +71,11 @@ pub struct Engine {
     tel_countdown: u64,
     trash: TrashBin,
     rec_tx: rtrb::Producer<f32>,
+    scope_tx: rtrb::Producer<f32>,
     recording: bool,
     recorded: u64,
     frame: u64,
+    last_snapshot: u64,
 }
 
 /// The control-side half: send commands, read telemetry and events, drain the recorder.
@@ -85,6 +87,7 @@ pub struct Controller {
     trash: rtrb::Consumer<Trash>,
     recorder: rtrb::Consumer<f32>,
     capture: rtrb::Consumer<f32>,
+    scope: rtrb::Consumer<f32>,
     latest: Telemetry,
 }
 
@@ -101,6 +104,8 @@ impl Engine {
         let (trash_tx, trash_rx) = rtrb::RingBuffer::new(1_024);
         let (rec_tx, rec_rx) = rtrb::RingBuffer::new((cfg.recorder_seconds * sr) as usize * 2);
         let (cap_tx, cap_rx) = rtrb::RingBuffer::new((cfg.capture_seconds.max(1.0) * sr) as usize * 2);
+        // A little more than a quarter second of mono for the spectrum analyser.
+        let (scope_tx, scope_rx) = rtrb::RingBuffer::new(16_384);
         let tel_interval = (sr / cfg.telemetry_rate.max(1.0)) as u64;
         let engine = Engine {
             sr: sr as f64,
@@ -124,9 +129,11 @@ impl Engine {
             tel_countdown: 0,
             trash: TrashBin::new(trash_tx),
             rec_tx,
+            scope_tx,
             recording: false,
             recorded: 0,
             frame: 0,
+            last_snapshot: 0,
         };
         let ctl = Controller {
             sample_rate: cfg.sample_rate,
@@ -136,6 +143,7 @@ impl Engine {
             trash: trash_rx,
             recorder: rec_rx,
             capture: cap_rx,
+            scope: scope_rx,
             latest: Telemetry::default(),
         };
         (engine, ctl)
@@ -181,6 +189,9 @@ impl Engine {
             }
             if self.recording {
                 self.record(n);
+            }
+            if self.mixer.scope_source != ScopeSource::Off {
+                self.push_scope(n);
             }
             self.frame += n as u64;
             done += n;
@@ -299,7 +310,7 @@ impl Engine {
                     }
                 }
             }
-            Command::Mixer(mc) => self.mixer.handle(mc, &self.auto_gains),
+            Command::Mixer(mc) => self.mixer.handle(mc, &self.auto_gains, &mut self.trash),
             Command::Fx(target, slot, fc) => {
                 let ch = match target {
                     FxTarget::Deck(d) => Some(d.index()),
@@ -424,6 +435,7 @@ impl Engine {
             let (l, r) = (&d.out_l, &d.out_r);
             self.mixer.mix_channel(i, l, r, n, active);
         }
+        self.mixer.sum(n);
         let senv = self.sampler_env();
         let (ml, mr) = (&mut self.mixer.master_l, &mut self.mixer.master_r);
         self.sampler.render(ml, mr, n, &senv, &mut self.events);
@@ -439,6 +451,22 @@ impl Engine {
         let master_playing = self.master.is_some_and(|m| self.decks[m.index()].is_playing());
         if !master_playing {
             self.clock_beat += self.clock_bpm / 60.0 / self.sr * n as f64;
+        }
+    }
+
+    /// Feeds the spectrum analyser; drops samples when the reader falls behind.
+    fn push_scope(&mut self, n: usize) {
+        let k = n.min(self.scope_tx.slots());
+        if k == 0 {
+            return;
+        }
+        if let Ok(mut chunk) = self.scope_tx.write_chunk_uninit(k) {
+            let (a, b) = chunk.as_mut_slices();
+            for (i, slot) in a.iter_mut().chain(b.iter_mut()).enumerate() {
+                slot.write(self.mixer.scope[i]);
+            }
+            // SAFETY: every slot of both slices was written above.
+            unsafe { chunk.commit_all() };
         }
     }
 
@@ -483,9 +511,16 @@ impl Engine {
         };
         for i in 0..self.decks.len() {
             let mut d = self.decks[i].telemetry(&self.envs[i]);
-            let (peak, rms) = self.mixer.strips[i].take_meters();
+            let since = self.frame.saturating_sub(self.last_snapshot);
+            let st = &mut self.mixer.strips[i];
+            let (peak, rms) = st.take_meters();
             d.peak = peak;
             d.rms = rms;
+            let (low, gr, duck) = st.take_studio_meters(since);
+            d.low_rms = low;
+            d.comp_gr_db = gr;
+            d.duck_db = duck;
+            d.gate_open = st.studio.gate_open();
             t.decks[i] = d;
         }
         let (peak, rms, duck_db) = self.mic.take_meters();
@@ -512,11 +547,13 @@ impl Engine {
             short_term_lufs: m.loudness.short_term() as f32,
             correlation: m.correlation.value(),
             limiter_gr_db: m.limiter.meter_gr_db,
+            glue_gr_db: m.master_studio.meter_gr_db,
             cue_peak: m.cue_peak,
             clipped: false,
         };
         m.master_peak = [0.0; 2];
         m.cue_peak = [0.0; 2];
+        self.last_snapshot = self.frame;
         m.true_peak.reset();
         t
     }
@@ -572,6 +609,21 @@ impl Controller {
             return 0;
         }
         if let Ok(chunk) = self.capture.read_chunk(n) {
+            let (a, b) = chunk.as_slices();
+            out.extend_from_slice(a);
+            out.extend_from_slice(b);
+            chunk.commit_all();
+        }
+        n
+    }
+
+    /// Moves spectrum-analyser samples (mono, see [`MixerCommand::SetScope`]) into `out`.
+    pub fn drain_scope(&mut self, out: &mut Vec<f32>) -> usize {
+        let n = self.scope.slots();
+        if n == 0 {
+            return 0;
+        }
+        if let Ok(chunk) = self.scope.read_chunk(n) {
             let (a, b) = chunk.as_slices();
             out.extend_from_slice(a);
             out.extend_from_slice(b);

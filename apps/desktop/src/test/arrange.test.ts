@@ -9,7 +9,9 @@ import {
   projectIssues,
   rampsInto,
   removeTempoChange,
+  rippleDelete,
   setTempoChange,
+  sourceBeat,
   snapClipStart,
   valueAt,
 } from "../lib/arrangeOps";
@@ -143,5 +145,40 @@ describe("edit history", () => {
     jumpHistory(0);
     expect(useApp.getState().project!.clips[1].start).toBe(96);
     expect(labelFor("clip:4:lanes")).toBe("Edit automation");
+  });
+});
+
+describe("ripple delete and reversed clips", () => {
+  it("closes the gap: the next clip takes the removed one's place, markers follow", () => {
+    const p: MixProject = {
+      ...emptyProject("Set", 124),
+      clips: [clip(1, 0, 128, 0), clip(2, 96, 128, 1), clip(3, 192, 128, 0)],
+      markers: [
+        { beat: 50, label: "keep" },
+        { beat: 150, label: "inside" },
+        { beat: 200, label: "after" },
+      ],
+      next_id: 4,
+    };
+    p.clips[2].lanes = [{ param: "Volume", points: [{ beat: 192, value: 0, curve: "Linear" }, { beat: 208, value: 1, curve: "Linear" }] }];
+    const out = rippleDelete(p, 2);
+    expect(out.clips.map((c) => [c.id, c.start])).toEqual([
+      [1, 0],
+      [3, 96],
+    ]);
+    expect(out.clips[1].lanes[0].points.map((x) => x.beat)).toEqual([96, 112]);
+    expect(out.markers).toEqual([
+      { beat: 50, label: "keep" },
+      { beat: 104, label: "after" },
+    ]);
+    // The last clip has nothing after it: a plain remove.
+    expect(rippleDelete(p, 3).clips.map((c) => c.start)).toEqual([0, 96]);
+  });
+
+  it("a reversed clip hears its range from the top down", () => {
+    const c = clip(1, 16, 32, 0, { source_start: 64, reverse: true });
+    expect(sourceBeat(c, 16)).toBe(96);
+    expect(sourceBeat(c, 48)).toBe(64);
+    expect(sourceBeat({ ...c, reverse: false }, 16)).toBe(64);
   });
 });

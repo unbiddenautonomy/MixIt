@@ -17,8 +17,13 @@ import type {
   MicTake,
   MixProject,
   PadInfo,
+  ScopeSource,
+  StudioDto,
   PadPatch,
   PadSource,
+  EditOp,
+  SoundOpened,
+  SoundView,
   PlaylistDto,
   Settings,
   SuggestionRow,
@@ -92,6 +97,11 @@ export interface Backend {
 
   /** Microphones and line inputs. The mic itself opens and closes with the settings. */
   inputDevices(): Promise<DeviceInfo[]>;
+  /** A channel's (0..3) or, with null, the master's studio strip. */
+  studioGet(channel: number | null): Promise<StudioDto>;
+  studioSet(channel: number | null, settings: StudioDto): Promise<void>;
+  /** Turns the spectrum analyser on for the master or a channel, or off. */
+  setScope(source: ScopeSource): Promise<void>;
   micState(): Promise<MicState>;
   /** Starts recording the mic channel. */
   micRecordStart(): Promise<void>;
@@ -102,9 +112,23 @@ export interface Backend {
   saveProject(path: string, project: MixProject): Promise<void>;
   openProject(path: string): Promise<MixProject>;
   checkProject(project: MixProject): Promise<string[]>;
-  renderProject(project: MixProject, path: string, format?: string): Promise<void>;
+  /** Bounces the mix to a file; with `targetLufs` it is turned to that loudness. */
+  renderProject(project: MixProject, path: string, format?: string, targetLufs?: number | null): Promise<void>;
+  /** Bounces each lane to its own file in `folder`, all the same length. */
+  renderStems(project: MixProject, folder: string, format?: string): Promise<void>;
   /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
   previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
+
+  /** Opens a sound for the editor (a pad source: kit sound, file, library track or a
+   * slice of one). The original is never changed. */
+  soundOpen(source: PadSource, bins: number): Promise<SoundOpened>;
+  /** The sound after the edits, for drawing. */
+  soundRender(id: number, ops: EditOp[], bins: number): Promise<SoundView>;
+  /** The sound after the edits as a WAV file, for listening. */
+  soundAudio(id: number, ops: EditOp[]): Promise<ArrayBuffer>;
+  /** Saves the edited sound as a new file and returns its path (for a pad or the library). */
+  soundSave(id: number, ops: EditOp[], name: string): Promise<string>;
+  soundClose(id: number): Promise<void>;
 
   samplerLoad(pad: number, source: PadSource): Promise<PadInfo>;
   samplerClear(pad: number): Promise<PadInfo>;

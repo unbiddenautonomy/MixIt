@@ -28,6 +28,10 @@ pub struct RenderRequest {
     pub limiter: bool,
     #[serde(default = "yes")]
     pub auto_gain: bool,
+    /// Render one lane as a stem: only its clips, no master strip or limiter, and the
+    /// whole project's length so every stem lines up.
+    #[serde(default)]
+    pub lane: Option<u8>,
 }
 
 fn default_tail() -> f64 {
@@ -86,8 +90,20 @@ impl RenderJob {
             let to = req.to.unwrap_or(project.length_beats());
             project = project.excerpt(from, to);
         }
-        let opts =
-            RenderOptions { sample_rate, tail: req.tail, block: 256, limiter: req.limiter, auto_gain: req.auto_gain };
+        let mut opts = RenderOptions {
+            sample_rate,
+            tail: req.tail,
+            block: 256,
+            limiter: req.limiter,
+            auto_gain: req.auto_gain,
+            length_seconds: None,
+        };
+        if let Some(lane) = req.lane {
+            opts.length_seconds = Some(project.length_seconds() + req.tail);
+            opts.limiter = false;
+            project = project.lane_only(lane);
+            project.master_strip = None;
+        }
         let r = ProjectRenderer::new(project, opts, Box::new(|sr| Box::new(PhaseVocoder::new(sr))));
         Ok(RenderJob { r, tracks: HashMap::new(), missing: None })
     }
@@ -191,11 +207,13 @@ mod tests {
             lanes: vec![],
             fx: None,
             name: path.into(),
+            reverse: false,
         };
         p.add_clip(clip(1, "a", 0, 0.0));
         p.add_clip(clip(2, "b", 1, 24.0));
         p.add_clip(clip(3, "a", 0, 48.0));
-        let req = RenderRequest { project: p, from: None, to: None, tail: 0.5, limiter: true, auto_gain: false };
+        let req =
+            RenderRequest { project: p, from: None, to: None, tail: 0.5, limiter: true, auto_gain: false, lane: None };
         let mut job = RenderJob::new(req, sr).unwrap();
         let total = job.total_frames();
         let mut out = Vec::new();
@@ -244,9 +262,17 @@ mod tests {
             lanes: vec![],
             fx: None,
             name: "X".into(),
+            reverse: false,
         });
-        let req =
-            RenderRequest { project: p, from: Some(64.0), to: Some(96.0), tail: 0.0, limiter: true, auto_gain: false };
+        let req = RenderRequest {
+            project: p,
+            from: Some(64.0),
+            to: Some(96.0),
+            tail: 0.0,
+            limiter: true,
+            auto_gain: false,
+            lane: None,
+        };
         let mut job = RenderJob::new(req, 22_050).unwrap();
         // 32 beats at 124 BPM.
         let secs = job.total_frames() as f64 / 22_050.0;

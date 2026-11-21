@@ -154,6 +154,7 @@ function padEntries(p: PadInfo, opts: { kit: { id: string; name: string }[]; dec
     out.push({ kind: "item", label: p.bpm ? `Follow the tempo (made at ${p.bpm.toFixed(1)} BPM)` : "Follow the tempo (no tempo known)", checked: p.sync && !!p.bpm, disabled: !p.bpm, run: () => patchPad(pad, { sync: !p.sync }) });
     out.push({ kind: "colors", pad });
     out.push({ kind: "sep" });
+    out.push({ kind: "item", label: "Edit sound… (trim, fade, normalise, reverse)", run: () => void import("../editor/SoundEditor").then((m) => m.openSoundEditor(p.source, { pad, name: p.name })) });
     out.push({ kind: "item", label: "Clear pad", run: () => clearPad(pad) });
   }
   return out;

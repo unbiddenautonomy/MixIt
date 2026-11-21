@@ -3,6 +3,7 @@
 import { backend } from "../backend";
 import type { ActionInput } from "../backend/types";
 import { DECK_LETTERS, fxUnitName, useApp } from "../store/app";
+import { pushStudio } from "../store/studio";
 
 export function engineStateActions(): [string, ActionInput][] {
   const { mixer, settings } = useApp.getState();
@@ -21,7 +22,22 @@ export function engineStateActions(): [string, ActionInput][] {
     val(`${m}.fader`, c.fader);
     on(`${m}.cue`, c.cue);
     pick(`${m}.assign`, mixer.assign[i]);
+    val(`${m}.pan`, c.pan);
+    val(`${m}.punch`, c.punch);
+    val(`${m}.warmth`, c.warmth);
+    val(`${m}.width`, c.width);
+    on(`${m}.gate`, c.gate);
+    val(`${m}.space`, c.space);
+    val(`${m}.echo`, c.echo);
+    pick(`${m}.duck_source`, c.duckSource);
+    val(`${m}.duck`, c.duck);
   });
+  val("mixer.glue", mixer.glue);
+  val("mixer.space.level", mixer.spaceLevel);
+  val("mixer.space.size", mixer.spaceSize);
+  val("mixer.echo.level", mixer.echoLevel);
+  val("mixer.echo.feedback", mixer.echoFeedback);
+  pick("mixer.echo.time", mixer.echoTime);
   val("mixer.crossfader", mixer.crossfader);
   val("mixer.master", mixer.master);
   val("mixer.headphones", mixer.headphones);
@@ -48,10 +64,12 @@ export function engineStateActions(): [string, ActionInput][] {
   return out;
 }
 
-/** Sends every UI-owned mixer and FX value to the engine. */
+/** Sends every UI-owned mixer and FX value to the engine, then the detailed studio
+ * settings (which already include the one-knob values). */
 export async function pushEngineState() {
   const b = backend();
   for (const [id, input] of engineStateActions()) {
     await b.action(id, input).catch(() => {});
   }
+  await pushStudio();
 }

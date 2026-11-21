@@ -56,6 +56,17 @@ self.onmessage = async (ev) => {
       if (code !== 0) throw new Error(out());
       const wave = outBin();
       self.postMessage({ type: "reply", id: m.id, ok: true, view: JSON.parse(out()), wave }, [wave.buffer]);
+    } else if (m.type === "soundEdit") {
+      const a = e.mx_alloc_f32(m.audio.length);
+      new Float32Array(e.memory.buffer, a, m.audio.length).set(m.audio);
+      const [p, l] = text(JSON.stringify(m.ops));
+      const code = e.mx_sound_edit(a, m.audio.length, m.sampleRate, p, l, m.bins);
+      e.mx_free_bytes(p, l);
+      e.mx_free_f32(a, m.audio.length);
+      if (code !== 0) throw new Error(out());
+      const view = JSON.parse(out());
+      const audio = outF32();
+      self.postMessage({ type: "reply", id: m.id, ok: true, view, audio }, [audio.buffer]);
     } else if (m.type === "registry") {
       e.mx_registry();
       self.postMessage({ type: "reply", id: m.id, ok: true, info: JSON.parse(out()) });

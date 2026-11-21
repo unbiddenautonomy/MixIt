@@ -91,6 +91,7 @@ pub fn automix(name: &str, tracks: &[PlanTrack], opts: &AutomixOptions) -> Resul
             lanes: vec![],
             fx: None,
             name: t.track.title.clone(),
+            reverse: false,
         };
         let mut key = t.track.key;
         if let (true, Some((_, _, Some(pk))), Some(k)) = (opts.harmonic, prev, t.track.key) {

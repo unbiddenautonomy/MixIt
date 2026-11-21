@@ -31,6 +31,10 @@ export interface DeckFrame {
   fxMix: number;
   fxKind: number;
   fxBeats: number;
+  /** Studio pan and the reverb and echo sends (missing in older captures). */
+  pan?: number;
+  space?: number;
+  echo?: number;
 }
 
 export interface CaptureFrame {
@@ -89,6 +93,9 @@ export function sampleFrame(t: number, tele: Telemetry, mixer: MixerState): Capt
         fxMix: fx.mix,
         fxKind: fx.kind,
         fxBeats: fx.beats,
+        pan: c.pan,
+        space: c.space,
+        echo: c.echo,
       };
     }),
   };
@@ -102,8 +109,8 @@ const MIN_JUMP_BEATS = 1;
 const MIN_CLIP_BEATS = 0.5;
 /** Quieter than this, a deck counts as not heard (cueing in the headphones). */
 const AUDIBLE = 0.01;
-const TOLERANCE: Record<ProjectParam, number> = { Volume: 0.02, EqLow: 0.5, EqMid: 0.5, EqHigh: 0.5, Filter: 0.02, FxMix: 0.02 };
-const DEFAULTS: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0 };
+const TOLERANCE: Record<ProjectParam, number> = { Volume: 0.02, EqLow: 0.5, EqMid: 0.5, EqHigh: 0.5, Filter: 0.02, FxMix: 0.02, Pan: 0.02, Space: 0.02, Echo: 0.02 };
+const DEFAULTS: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0, Pan: 0, Space: 0, Echo: 0 };
 
 interface Run {
   deck: number;
@@ -247,6 +254,9 @@ export function buildProject(cap: Capture): MixProject | null {
       ["EqHigh", (x) => x.high],
       ["Filter", (x) => x.filter],
       ["FxMix", (x) => x.fxMix],
+      ["Pan", (x) => x.pan ?? 0],
+      ["Space", (x) => x.space ?? 0],
+      ["Echo", (x) => x.echo ?? 0],
     ];
     for (const [param, get] of series) {
       const pts = span.map((x, j) => ({ beat: T(dr.from + j), value: x ? get(x) : DEFAULTS[param] }));

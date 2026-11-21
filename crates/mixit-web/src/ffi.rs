@@ -307,6 +307,33 @@ pub unsafe extern "C" fn mx_kit(ptr: *const u8, len: usize, sample_rate: u32) ->
     reply(r)
 }
 
+/// Applies a list of sound edits (JSON, `mixit_engine::view::EditOpDto`) to interleaved
+/// stereo (not taken over). The result is in the float buffer; replies with the sound's
+/// view (length, peaks for `bins` bins, loudness).
+///
+/// # Safety
+/// `audio..audio+count` readable floats; `ops..ops+len` written by the page.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_sound_edit(
+    audio: *const f32,
+    count: usize,
+    sample_rate: u32,
+    ops: *const u8,
+    len: usize,
+    bins: usize,
+) -> i32 {
+    let x = unsafe { std::slice::from_raw_parts(audio, count) };
+    let r = unsafe { text(ops, len) }
+        .and_then(|t| serde_json::from_str::<Vec<mixit_engine::view::EditOpDto>>(t).map_err(|e| e.to_string()))
+        .and_then(|ops| {
+            let a = mixit_dsp::edit::apply(x, sample_rate, &mixit_engine::view::edit_ops(&ops));
+            let view = mixit_engine::view::SoundViewDto::new(&a, sample_rate, bins);
+            OUT_F32.with(|o| *o.borrow_mut() = a);
+            serde_json::to_string(&view).map_err(|e| e.to_string())
+        });
+    reply(r)
+}
+
 // ------------------------------------------------------------------ arrange render (worker)
 
 /// Starts rendering a mix project (`render::RenderRequest` as JSON). Returns the job, or
