@@ -864,7 +864,18 @@ export class DemoBackend implements Backend {
   }
 
   async search(query: string, limit = 5000): Promise<T.TrackRow[]> {
-    return demoSearch(this.tracks.map((t) => t.row), query, (id) => this.tagNames(id)).slice(0, limit);
+    const alikeOf = (id: number) => {
+      const me = this.tracks.find((t) => t.row.id === id)?.row;
+      const m = new Map<number, number>();
+      if (me) for (const t of this.tracks) if (t.row.id !== id && t.row.analysis === "done") m.set(t.row.id, this.alike(me, t.row));
+      return m;
+    };
+    return demoSearch(
+      this.tracks.map((t) => t.row),
+      query,
+      (id) => this.tagNames(id),
+      alikeOf,
+    ).slice(0, limit);
   }
 
   async stats(): Promise<T.LibraryStats> {
@@ -1913,10 +1924,11 @@ export function applyDemoGrid(t: DemoTrack, e: T.GridEdit, locked: Set<number>) 
 }
 
 /** A subset of the library search language, enough for the demo. */
-export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: number) => string[] = () => []): T.TrackRow[] {
+export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: number) => string[] = () => [], alikeOf: (id: number) => Map<number, number> = () => new Map()): T.TrackRow[] {
   const terms = searchTerms(query.trim());
   let out = rows;
   let sort: ((a: T.TrackRow, b: T.TrackRow) => number) | null = null;
+  let likeSort: ((a: T.TrackRow, b: T.TrackRow) => number) | null = null;
   for (const raw of terms) {
     const neg = raw.startsWith("-");
     const term = neg ? raw.slice(1) : raw;
@@ -1971,6 +1983,14 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
       case "#":
         f = (t) => tagsOf(t.id).some((n) => n.toLowerCase() === val.toLowerCase());
         break;
+      case "like":
+      case "sounds": {
+        // Tracks that sound like track N (60 % match or more), best first.
+        const m = alikeOf(Number(val.replace(/^#/, "")));
+        f = (t) => (m.get(t.id) ?? 0) >= 0.6;
+        if (!neg && !likeSort) likeSort = (a, b) => (m.get(b.id) ?? 0) - (m.get(a.id) ?? 0);
+        break;
+      }
       case "played":
       case "added": {
         // never, <Nd (within N days), >Nd (not within N days, never included for played).
@@ -2011,6 +2031,7 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
     out = out.filter((t) => (neg ? !f(t) : f(t)));
   }
   if (sort) out = [...out].sort(sort);
+  else if (likeSort) out = [...out].sort(likeSort);
   return out;
 }
 

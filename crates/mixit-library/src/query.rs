@@ -16,7 +16,7 @@
 //!   `played:>30d`, `added:<2w` (units `h d w m y`).
 //! * A leading `-` negates any term. `sort:bpm`, `sort:-added` (descending), `sort:random`.
 
-use mixit_core::Key;
+use mixit_core::{Key, TrackId};
 use rusqlite::types::Value;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -68,12 +68,17 @@ pub enum Term {
     Phrase(String),
     Field(TextField, String),
     Num(NumField, Cmp),
-    Key { key: Key, compatible: bool },
+    Key {
+        key: Key,
+        compatible: bool,
+    },
     Tag(String),
     Played(TimeFilter),
     Added(TimeFilter),
     Missing(bool),
     Analysed(bool),
+    /// Sounds like this track (see `Library::sounds_like`); applied after the SQL.
+    Like(TrackId),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -261,6 +266,7 @@ pub fn parse(input: &str) -> Query {
             "added" => parse_time(&value).map(Term::Added),
             "missing" => parse_bool(&value).map(Term::Missing),
             "analysed" | "analyzed" => parse_bool(&value).map(Term::Analysed),
+            "like" | "sounds" => value.trim_start_matches('#').parse::<TrackId>().ok().map(Term::Like),
             "sort" | "order" => {
                 let (desc, k) = match value.strip_prefix('-') {
                     Some(r) => (true, r),
@@ -435,6 +441,8 @@ pub fn to_sql(q: &Query, now: i64) -> (String, Vec<Value>, String) {
                 }
             }
             Term::Missing(b) => format!("t.missing = {}", *b as i32),
+            // Needs the sound profiles: the library filters these after the query.
+            Term::Like(_) => continue,
             Term::Analysed(b) => {
                 if *b {
                     "t.analysis_state = 1".to_string()

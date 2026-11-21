@@ -84,6 +84,22 @@ export function showSoundsLike(row: Pick<TrackRow, "id" | "title" | "path" | "an
   refreshRows();
 }
 
+/** Keeps the "Sounds like" list on show as a smart playlist (it grows with the library). */
+export async function keepSoundsLike() {
+  const src = useLibrary.getState().source;
+  if (src.type !== "similar") return;
+  try {
+    const name = `Sounds like ${src.title}`;
+    const id = await backend().createPlaylist(name, "smart", { query: `like:${src.id}` });
+    await refreshPlaylists();
+    useLibrary.getState().set({ source: { type: "playlist", id } });
+    refreshRows();
+    toast.success(`Made “${name}”`, { description: "A smart playlist of the tracks that match 60 or more. Tracks you add later that sound alike join it too." });
+  } catch (e) {
+    fail(e);
+  }
+}
+
 export async function refreshPlaylists() {
   try {
     useLibrary.getState().set({ playlists: await backend().playlists() });
