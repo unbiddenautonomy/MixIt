@@ -32,3 +32,23 @@ describe("sounds like", () => {
     expect(matches[rows[0].id]).toBeGreaterThanOrEqual(matches[rows[rows.length - 1].id]);
   }, 30_000);
 });
+
+describe("suggestions from past sets", () => {
+  it("lift the track you played next before", async () => {
+    const b = new DemoBackend();
+    const rows = new Map((await b.search("")).map((r) => [r.id, r]));
+    let pair: [number, number] | null = null;
+    for (const set of (await b.historySessions()).sessions) {
+      const e = await b.sessionHistory(set.id);
+      for (let i = 1; i < e.length && !pair; i++) {
+        const [x, y] = [rows.get(e[i - 1].track_id!), rows.get(e[i].track_id!)];
+        if (x?.bpm && y?.bpm && x.id !== y.id && Math.abs(x.bpm / y.bpm - 1) < 0.05) pair = [x.id, y.id];
+      }
+    }
+    expect(pair).not.toBeNull();
+    const s = await b.suggestNext(pair![0], "steady", 500);
+    const hit = s.find((x) => x.track.id === pair![1])!;
+    expect(hit.tags).toContain("history");
+    expect(hit.reasons.some((r) => r.includes("past set") || r.includes("times before"))).toBe(true);
+  }, 30_000);
+});

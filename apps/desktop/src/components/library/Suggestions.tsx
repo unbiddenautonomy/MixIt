@@ -15,6 +15,8 @@ import { useTelemetry } from "../../store/telemetry";
 import { PreviewButton } from "./PreviewBar";
 
 const GENERIC_TAGS = new Set(["tempo", "key", "energy", "genre", "keyShift", "rating"]);
+/** Plain words for the reason chips. */
+const TAG_LABEL: Record<string, string> = { sound: "sounds alike", history: "played next before", half: "half-time", double: "double-time", clash: "key clash", unknown: "not analysed" };
 
 /** The deck to load a suggestion onto: the first one that is not playing. */
 export function freeDeck(): number {
@@ -112,8 +114,8 @@ export function Suggestions() {
                   {s.tempoChangePct != null && Math.abs(s.tempoChangePct) >= 0.05 && <Chip tone="zinc">{signedPct(s.tempoChangePct / 100)} tempo</Chip>}
                   {s.keyShift !== 0 && <Chip tone="sky">{s.keyShift > 0 ? `+${s.keyShift}` : s.keyShift} key</Chip>}
                   {s.tags.filter((tag) => !GENERIC_TAGS.has(tag)).map((tag) => (
-                    <Chip key={tag} tone={tag.includes("boost") || tag.includes("up") ? "emerald" : "zinc"}>
-                      {tag}
+                    <Chip key={tag} tone={tag === "history" || tag === "sound" ? "emerald" : "zinc"}>
+                      {TAG_LABEL[tag] ?? tag}
                     </Chip>
                   ))}
                   <span className="ml-auto font-mono text-[10px] text-zinc-600">{clock(t.duration)}</span>

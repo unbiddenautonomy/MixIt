@@ -409,6 +409,7 @@ export const CONCEPTS: Concept[] = [
     summary: "Tracks that fit the one playing, by tempo, key and energy.",
     body: [
       "The suggestions list ranks your library against the track that is playing: close tempo, compatible key and similar sound score highest. Choose 'up' or 'down' energy to steer where the set goes.",
+      "MixIt also remembers your past sets: a track you have played right after this one before gets a lift and says so, because you already know that change works. Tracks that sound alike get a small lift too.",
       "A set usually builds: start calm, rise to the peak, and give the room a breather now and then.",
     ],
   },

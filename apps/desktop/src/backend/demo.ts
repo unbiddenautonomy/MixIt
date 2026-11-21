@@ -1162,8 +1162,21 @@ export class DemoBackend implements Backend {
     this.emit("library-changed", null);
   }
 
+  /** How many times each track was played right after `trackId` in past sets. */
+  protected playedAfter(trackId: number): Map<number, number> {
+    const out = new Map<number, number>();
+    for (const set of [...this.demoSets().map((s) => s.entries), this.historyData]) {
+      for (let i = 1; i < set.length; i++) {
+        const next = set[i].track_id;
+        if (set[i - 1].track_id === trackId && next != null && next !== trackId) out.set(next, (out.get(next) ?? 0) + 1);
+      }
+    }
+    return out;
+  }
+
   async suggestNext(trackId: number, energy: "steady" | "up" | "down", limit = 30): Promise<T.SuggestionRow[]> {
     const cur = this.find(trackId).row;
+    const after = this.playedAfter(trackId);
     const onDecks = this.decks.map((d) => d.track?.row.id);
     const out: T.SuggestionRow[] = [];
     for (const t of this.tracks) {
@@ -1224,6 +1237,12 @@ export class DemoBackend implements Backend {
         score += 0.04;
         reasons.push("Same genre.");
         tags.push("genre");
+      }
+      const times = after.get(c.id) ?? 0;
+      if (times) {
+        score += 0.03 * Math.min(3, times);
+        reasons.push(times === 1 ? "You played it after this track in a past set." : `You played it after this track ${times} times before.`);
+        tags.push("history");
       }
       const alike = this.alike(cur, c);
       score += 0.08 * (alike - 0.5);
