@@ -5,6 +5,7 @@
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
+import { toProjectKey } from "../lib/arrangeOps";
 
 export const SR = 48_000;
 const DECKS = 4;
@@ -905,7 +906,9 @@ export class DemoBackend implements Backend {
 
   async automix(tracks: number[], options: T.AutomixRequest): Promise<T.MixProject> {
     const rows = tracks.map((i) => this.find(i));
-    const bpm = rows[0].row.bpm ?? 124;
+    // The median tempo keeps most tracks close to their own speed.
+    const tempos = rows.map((r) => r.row.bpm ?? 124).sort((a, b) => a - b);
+    const bpm = tempos[Math.floor(tempos.length / 2)];
     const clips: T.Clip[] = [];
     let start = 0;
     rows.forEach((t, i) => {
@@ -926,7 +929,7 @@ export class DemoBackend implements Backend {
       }
       clips.push({
         id: i + 1,
-        track: { hash: null, path: t.row.path, title: t.row.title, artist: t.row.artist, bpm: t.row.bpm ?? 0, key: null, duration: t.row.duration },
+        track: { hash: null, path: t.row.path, title: t.row.title, artist: t.row.artist, bpm: t.row.bpm ?? 0, key: toProjectKey(t.row.key), duration: t.row.duration },
         lane: i % 2,
         start,
         length: len,

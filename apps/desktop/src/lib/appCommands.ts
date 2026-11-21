@@ -13,6 +13,7 @@ import type { MixProject, TrackRef } from "../backend/types";
 import { buildProject, MixCapture } from "./capture";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
+import { toProjectKey } from "./arrangeOps";
 import { startTransition, type TransitionId } from "./transition";
 import { openEditor } from "../components/editor/TrackEditor";
 
@@ -44,7 +45,7 @@ function trackRefFor(deck: number): TrackRef | null {
   const info = useApp.getState().decks[deck];
   if (!info) return null;
   const t = info.detail.track;
-  return { hash: null, path: t.path, title: t.title, artist: t.artist, bpm: info.detail.bpm ?? t.bpm ?? 120, key: null, duration: t.duration };
+  return { hash: null, path: t.path, title: t.title, artist: t.artist, bpm: info.detail.bpm ?? t.bpm ?? 120, key: toProjectKey(info.detail.key ?? t.key), duration: t.duration };
 }
 
 function startCapture() {
