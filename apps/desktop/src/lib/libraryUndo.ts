@@ -160,6 +160,21 @@ export function reverseEdit(rows: TrackRow[], edit: TrackEdit): Map<number, Trac
 }
 
 /** Edits tracks and keeps what they were, so the edit can be undone. */
+/** Applies a different edit to each track as one step you can undo. */
+export async function editEachWithUndo(edits: Map<number, TrackEdit>, rows: TrackRow[], label: string, message?: string): Promise<void> {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const before = new Map<number, TrackEdit>();
+  for (const [id, e] of edits) {
+    const r = byId.get(id);
+    if (r) for (const [rid, back] of reverseEdit([r], e)) before.set(rid, back);
+  }
+  const apply = async (m: Map<number, TrackEdit>) => {
+    for (const [id, e] of m) await backend().editTrack(id, e);
+  };
+  await apply(edits);
+  remember({ label, undo: () => apply(before), redo: () => apply(edits) }, message, true);
+}
+
 export async function editTracksWithUndo(rows: TrackRow[], edit: TrackEdit, label: string, message?: string, toastIt = true): Promise<TrackRow | null> {
   const before = reverseEdit(rows, edit);
   const ids = rows.map((r) => r.id);

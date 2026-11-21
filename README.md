@@ -35,6 +35,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Daily library backups with one-click restore.
 - Brings your library from other DJ apps with cues, loops, beat grids and playlists: rekordbox (XML), Traktor (collection.nml), Serato (the _Serato_ folder and the cues in your files) and VirtualDJ (database.xml). Exports for rekordbox and Traktor, writes cues into files for Serato, and M3U both ways.
 - Duplicate detection, relocation of moved files, and writing details into the files' tags.
+- Tidy details: titles and artists from file names, stray spaces, web clutter, one way to write "feat.", SHOUTING names and one spelling per genre, each change shown first and undoable.
 
 **Arrange and render**
 - Build a set: pick a length and an energy shape (warm-up, build to the peak, peak time, journey, cool-down) and MixIt chooses the tracks from your collection, a playlist or a search, every change mixable.
