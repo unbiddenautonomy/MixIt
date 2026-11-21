@@ -113,6 +113,8 @@ export interface Backend {
   saveSettings(s: Settings): Promise<Settings>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
+  /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */
+  saveText(path: string, text: string): Promise<void>;
 
   /** Microphones and line inputs. The mic itself opens and closes with the settings. */
   inputDevices(): Promise<DeviceInfo[]>;
