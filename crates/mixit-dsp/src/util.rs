@@ -78,9 +78,51 @@ pub fn raised_cosine(t: f32) -> f32 {
     0.5 - 0.5 * (PI * t).cos()
 }
 
+/// Cuts the silence before and after a recorded take (interleaved stereo), keeping a
+/// little air around it, and fades the new edges so they do not click. Returns the
+/// trimmed copy; a take that is silent throughout comes back empty.
+pub fn trim_silence(interleaved: &[f32], sample_rate: u32, threshold_db: f32) -> Vec<f32> {
+    let frames = interleaved.len() / 2;
+    let th = db_to_gain(threshold_db);
+    let loud = |i: usize| interleaved[2 * i].abs().max(interleaved[2 * i + 1].abs()) > th;
+    let Some(first) = (0..frames).find(|&i| loud(i)) else { return Vec::new() };
+    let last = (0..frames).rev().find(|&i| loud(i)).unwrap_or(first);
+    let pre = (sample_rate as usize) / 100; // 10 ms before the first sound
+    let post = (sample_rate as usize) / 5; // 200 ms after the last, for the decay
+    let start = first.saturating_sub(pre);
+    let end = (last + 1 + post).min(frames);
+    let mut out = interleaved[start * 2..end * 2].to_vec();
+    let n = out.len() / 2;
+    let fade = ((sample_rate as usize) / 200).min(n / 2); // 5 ms
+    for i in 0..fade {
+        let g = raised_cosine(i as f32 / fade as f32);
+        out[2 * i] *= g;
+        out[2 * i + 1] *= g;
+        out[2 * (n - 1 - i)] *= g;
+        out[2 * (n - 1 - i) + 1] *= g;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trims_the_silence_around_a_take() {
+        let sr = 1_000;
+        let mut take = vec![0.0f32; 2 * 3_000];
+        for i in 1_000..1_500 {
+            take[2 * i] = 0.5;
+            take[2 * i + 1] = -0.5;
+        }
+        let t = trim_silence(&take, sr, -50.0);
+        // 10 ms before, 500 ms of sound, 200 ms after.
+        assert_eq!(t.len() / 2, 10 + 500 + 200);
+        assert_eq!(t[0], 0.0);
+        assert_eq!(t[2 * 15], 0.5);
+        assert!(trim_silence(&vec![0.0; 200], sr, -50.0).is_empty());
+    }
 
     #[test]
     fn helpers() {

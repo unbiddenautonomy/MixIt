@@ -157,6 +157,7 @@ export interface Telemetry {
   frame: number;
   decks: DeckTele[];
   master: MasterTele;
+  mic: MicTele;
   clockBpm: number;
   masterDeck: number | null;
   recording: boolean;
@@ -202,6 +203,59 @@ export interface Settings {
   autoGain: boolean;
   limiter: boolean;
   tempoRange: number;
+  /** Opens the input device for the mic channel. */
+  micEnabled: boolean;
+  /** Input device id (null = the system's default). */
+  micDevice: string | null;
+  /** First input channel (0-based); with micStereo, this one and the next. */
+  micChannel: number;
+  micStereo: boolean;
+  /** Browser only: echo cancelling and noise reduction for a voice. */
+  micVoice?: boolean;
+}
+
+/** The mic channel, as the engine reports it. */
+export interface MicTele {
+  connected: boolean;
+  /** Audio is arriving. */
+  live: boolean;
+  onAir: boolean;
+  /** After gain, low cut, gate and EQ, before the volume (linear). */
+  peak: [number, number];
+  rms: number;
+  /** How far talk-over is turning the music down (dB, 0 or below). */
+  duckDb: number;
+  gateOpen: boolean;
+  /** The delay the mic adds on top of the output's. */
+  latencyMs: number;
+  driftPpm: number;
+  underruns: number;
+  capturing: boolean;
+  capturedSeconds: number;
+}
+
+/** The input device the mic channel is connected to. */
+export interface MicStatus {
+  device: string;
+  sampleRate: number;
+  channels: number;
+  bufferFrames: number | null;
+  channel: number;
+  stereo: boolean;
+}
+
+export interface MicState {
+  status: MicStatus | null;
+  /** Why the mic could not be opened. */
+  error: string | null;
+  /** The device went away (unplugged). */
+  lost: boolean;
+}
+
+/** A finished mic recording, ready for a pad or the library. */
+export interface MicTake {
+  path: string;
+  seconds: number;
 }
 
 export interface ParamSpec {

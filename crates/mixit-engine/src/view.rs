@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::{DeckTelemetry, MasterTelemetry, Telemetry};
+use crate::{DeckTelemetry, MasterTelemetry, MicTelemetry, Telemetry};
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -111,12 +111,49 @@ impl From<&MasterTelemetry> for MasterTele {
     }
 }
 
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MicTele {
+    pub connected: bool,
+    pub live: bool,
+    pub on_air: bool,
+    pub peak: [f32; 2],
+    pub rms: f32,
+    pub duck_db: f32,
+    pub gate_open: bool,
+    pub latency_ms: f32,
+    pub drift_ppm: f32,
+    pub underruns: u32,
+    pub capturing: bool,
+    pub captured_seconds: f64,
+}
+
+impl MicTele {
+    pub fn new(m: &MicTelemetry, sr: u32) -> Self {
+        MicTele {
+            connected: m.connected,
+            live: m.live,
+            on_air: m.on_air,
+            peak: m.peak,
+            rms: m.rms,
+            duck_db: m.duck_db,
+            gate_open: m.gate_open,
+            latency_ms: m.latency_ms,
+            drift_ppm: m.drift_ppm,
+            underruns: m.underruns,
+            capturing: m.capturing,
+            captured_seconds: m.captured_frames as f64 / sr.max(1) as f64,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelemetryDto {
     pub frame: u64,
     pub decks: Vec<DeckTele>,
     pub master: MasterTele,
+    pub mic: MicTele,
     pub clock_bpm: f64,
     pub master_deck: Option<u8>,
     pub recording: bool,
@@ -133,6 +170,7 @@ impl TelemetryDto {
             frame: t.frame,
             decks: t.decks.iter().take(decks).map(|d| DeckTele::new(d, sr as f64)).collect(),
             master: (&t.master).into(),
+            mic: MicTele::new(&t.mic, sr),
             clock_bpm: t.clock_bpm,
             master_deck: t.master_deck.map(|d| d.0),
             recording: t.recording,

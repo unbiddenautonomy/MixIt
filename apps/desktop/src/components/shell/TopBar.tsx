@@ -7,6 +7,7 @@ import { isMac } from "../../lib/actions";
 import { clock } from "../../lib/format";
 import { useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
+import { MicButton } from "../mic/MicPanel";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { Meter } from "../ui/Meter";
@@ -35,6 +36,7 @@ export function TopBar() {
       <MasterClock />
       <div className="ml-auto flex items-center gap-2">
         <Health />
+        <MicButton />
         <Record />
         <div className="h-5 w-px bg-white/10" />
         <Ctl id="app.view_mode" side="bottom">

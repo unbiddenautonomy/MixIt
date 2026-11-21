@@ -316,6 +316,26 @@ pub struct AudioStatus {
     pub warning: Option<String>,
 }
 
+/// The open input device behind the mic channel.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MicStatus {
+    pub device: String,
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub buffer_frames: Option<u32>,
+    pub channel: u16,
+    pub stereo: bool,
+}
+
+/// A finished mic recording.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MicTake {
+    pub path: String,
+    pub seconds: f64,
+}
+
 /// A background job's progress, sent as the "job" event.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

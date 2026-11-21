@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { backend } from "../backend";
 import type { ActionInput, ActionSpec } from "../backend/types";
 import { MASTER_FX, useApp } from "../store/app";
+import { mirrorMic, startMicRecording, stopMicRecording, toggleMicRecording } from "../store/mic";
 
 function report(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
@@ -11,6 +12,13 @@ function report(e: unknown) {
 }
 
 export function act(id: string, input: ActionInput): Promise<void> {
+  if (id === "mic.record") {
+    // Recording the mic needs the app: it collects the take and puts it on a pad or in
+    // the library.
+    if (input.type === "press") void toggleMicRecording();
+    else if (input.type === "set") void (input.value ? startMicRecording() : stopMicRecording());
+    return Promise.resolve();
+  }
   mirror(id, input);
   return backend().action(id, input).catch(report);
 }
@@ -63,6 +71,8 @@ function mirror(id: string, input: ActionInput) {
     else if (p[1] === "eq_mode") s.setMixer({ eqMode: v });
     else if (p[1] === "split_cue") s.setMixer({ splitCue: Boolean(v) });
     else if (p[1] === "crossfader_reverse") s.setMixer({ crossfaderReverse: Boolean(v) });
+  } else if (p[0] === "mic") {
+    mirrorMic(p.slice(1).join("."), input);
   } else if (p[0] === "sampler" && p[1] === "volume" && v !== null) {
     s.setMixer({ samplerVolume: v });
   } else if (p[0] === "fx") {

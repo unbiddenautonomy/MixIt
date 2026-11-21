@@ -149,6 +149,45 @@ pub unsafe extern "C" fn mx_host_poll(h: *mut Host) -> i32 {
     reply(serde_json::to_string(&h.poll()).map_err(|e| e.to_string()))
 }
 
+/// Where the worklet writes a quantum of mic input (interleaved stereo, up to 4096
+/// frames) before [`mx_host_mic_push`].
+///
+/// # Safety
+/// `h` must come from [`mx_host_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_host_mic_in(h: *mut Host) -> *mut f32 {
+    let h = unsafe { &mut *h };
+    h.mic_buffer().as_mut_ptr()
+}
+
+/// Passes `frames` of mic input to the engine (after a `micOpen` call).
+///
+/// # Safety
+/// `h` must come from [`mx_host_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_host_mic_push(h: *mut Host, frames: usize) {
+    let h = unsafe { &mut *h };
+    h.push_mic(frames);
+}
+
+/// Moves the mic recording captured since the last call into the float output buffer and
+/// returns its length in samples (interleaved stereo).
+///
+/// # Safety
+/// `h` must come from [`mx_host_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_host_capture(h: *mut Host) -> usize {
+    let h = unsafe { &mut *h };
+    let c = h.take_capture();
+    let n = c.len();
+    OUT_F32.with(|o| {
+        let mut o = o.borrow_mut();
+        o.clear();
+        o.extend_from_slice(c);
+    });
+    n
+}
+
 /// One JSON call (see `Host::call`).
 ///
 /// # Safety

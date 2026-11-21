@@ -75,6 +75,9 @@ export class WebEngine {
   private pollListeners = new Set<(t: Telemetry, ended: number[]) => void>();
   private recChunks: Float32Array[] | null = null;
   private recDone: (() => void) | null = null;
+  private mic: { stream: MediaStream; source: MediaStreamAudioSourceNode } | null = null;
+  private micChunks: Float32Array[] | null = null;
+  private micDone: (() => void) | null = null;
 
   private constructor(ctx: AudioContext, node: AudioWorkletNode, worker: Worker) {
     this.ctx = ctx;
@@ -94,6 +97,10 @@ export class WebEngine {
         this.recChunks?.push(m.data as Float32Array);
       } else if (m.type === "recDone") {
         this.recDone?.();
+      } else if (m.type === "micData") {
+        this.micChunks?.push(m.data as Float32Array);
+      } else if (m.type === "micDone") {
+        this.micDone?.();
       }
     };
     worker.onmessage = (ev) => {
@@ -113,7 +120,7 @@ export class WebEngine {
       const module = await WebAssembly.compile(await res.arrayBuffer());
       const ctx = new AudioContext({ latencyHint: "interactive" });
       await ctx.audioWorklet.addModule("/mixit-worklet.js");
-      const node = new AudioWorkletNode(ctx, "mixit", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: { module } });
+      const node = new AudioWorkletNode(ctx, "mixit", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: "explicit", channelInterpretation: "speakers", processorOptions: { module } });
       const worker = new Worker("/mixit-worker.js");
       await new Promise<void>((resolve, reject) => {
         worker.onmessage = (ev) => (ev.data.type === "ready" ? resolve() : undefined);
@@ -232,6 +239,74 @@ export class WebEngine {
     return r.audio;
   }
 
+  /** The browser's audio inputs. Names appear once the person has allowed the mic. */
+  static async inputDevices(): Promise<{ id: string; name: string; isDefault: boolean }[]> {
+    if (!navigator.mediaDevices?.enumerateDevices) return [];
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all
+      .filter((d) => d.kind === "audioinput")
+      .map((d, i) => ({ id: d.deviceId, name: d.label || (d.deviceId === "default" ? "Default microphone" : `Microphone ${i + 1}`), isDefault: d.deviceId === "default" || i === 0 }));
+  }
+
+  /**
+   * Opens a mic (the browser asks the person first) and feeds it to the mic channel.
+   * `voice` turns on the browser's echo cancelling and noise reduction: good for talking
+   * over speakers, bad for music coming in on a line input.
+   */
+  async micOpen(opts: { device?: string | null; voice?: boolean }): Promise<{ device: string; sampleRate: number; channels: number }> {
+    this.micClose();
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("This browser cannot use a microphone.");
+    const voice = opts.voice ?? true;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        deviceId: opts.device ? { exact: opts.device } : undefined,
+        echoCancellation: voice,
+        noiseSuppression: voice,
+        autoGainControl: false,
+        channelCount: { ideal: 2 },
+      },
+    });
+    if (this.ctx.state !== "running") await this.ctx.resume().catch(() => undefined);
+    const source = this.ctx.createMediaStreamSource(stream);
+    source.connect(this.node);
+    this.mic = { stream, source };
+    await this.ask(this.node.port, { type: "mic", on: true });
+    const track = stream.getAudioTracks()[0];
+    const s = track?.getSettings() ?? {};
+    return { device: track?.label || "Microphone", sampleRate: this.ctx.sampleRate, channels: s.channelCount ?? 1 };
+  }
+
+  micClose() {
+    if (!this.mic) return;
+    this.mic.source.disconnect();
+    this.mic.stream.getTracks().forEach((t) => t.stop());
+    this.mic = null;
+    this.node.port.postMessage({ type: "mic", on: false });
+  }
+
+  get micOpenNow(): boolean {
+    return this.mic !== null;
+  }
+
+  /** Starts recording the mic channel (after its gain, low cut, gate and EQ). */
+  micRecordStart() {
+    this.micChunks = [];
+    this.node.port.postMessage({ type: "micRecord", on: true });
+  }
+
+  /** Stops the mic recording; resolves with every chunk (interleaved stereo). */
+  micRecordStop(): Promise<Float32Array[]> {
+    return new Promise((resolve) => {
+      this.micDone = () => {
+        const c = this.micChunks ?? [];
+        this.micChunks = null;
+        this.micDone = null;
+        resolve(c);
+      };
+      this.node.port.postMessage({ type: "micRecord", on: false });
+    });
+  }
+
   /** Starts copying the master output for a recording. */
   recordStart() {
     this.recChunks = [];
@@ -343,6 +418,46 @@ export function encodeWav(chunks: Float32Array[], sampleRate: number, float = fa
   const parts: BlobPart[] = [wavHeader(samples, sampleRate, float)];
   for (const c of chunks) parts.push(float ? new Float32Array(c) : toPcm16(c));
   return new Blob(parts, { type: "audio/wav" });
+}
+
+/**
+ * Cuts the silence before and after a recorded take (interleaved stereo), keeping 10 ms
+ * before the first sound and 200 ms after the last, with 5 ms fades on the new edges.
+ * Mirrors `mixit_dsp::util::trim_silence`. A silent take comes back empty.
+ */
+export function trimSilence(x: Float32Array, sampleRate: number, thresholdDb = -48): Float32Array {
+  const frames = x.length >> 1;
+  const th = Math.pow(10, thresholdDb / 20);
+  const loud = (i: number) => Math.max(Math.abs(x[2 * i]), Math.abs(x[2 * i + 1])) > th;
+  let first = -1;
+  for (let i = 0; i < frames; i++) if (loud(i)) { first = i; break; }
+  if (first < 0) return new Float32Array(0);
+  let last = first;
+  for (let i = frames - 1; i >= first; i--) if (loud(i)) { last = i; break; }
+  const start = Math.max(0, first - Math.floor(sampleRate / 100));
+  const end = Math.min(frames, last + 1 + Math.floor(sampleRate / 5));
+  const out = x.slice(start * 2, end * 2);
+  const n = out.length >> 1;
+  const fade = Math.min(Math.floor(sampleRate / 200), n >> 1);
+  for (let i = 0; i < fade; i++) {
+    const g = 0.5 - 0.5 * Math.cos((Math.PI * i) / fade);
+    out[2 * i] *= g;
+    out[2 * i + 1] *= g;
+    out[2 * (n - 1 - i)] *= g;
+    out[2 * (n - 1 - i) + 1] *= g;
+  }
+  return out;
+}
+
+/** Joins chunks of interleaved audio. */
+export function concat(chunks: Float32Array[]): Float32Array {
+  const out = new Float32Array(chunks.reduce((a, c) => a + c.length, 0));
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
 
 /** Parses the desktop's waveform layout: [u32 sample rate][u32 frames per column] then columns. */

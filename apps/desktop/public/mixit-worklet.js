@@ -58,6 +58,10 @@ class MixitProcessor extends AudioWorkletProcessor {
     // Recording: the master output is copied into chunks the page writes to a WAV file.
     this.rec = null;
     this.recAt = 0;
+    // Mic: input quanta go into the engine's mic channel; a mic recording is drained from
+    // the engine with the telemetry and sent to the page.
+    this.mic = false;
+    this.micRec = false;
     this.port.onmessage = (ev) => this.message(ev.data);
     this.port.postMessage({ type: "ready", sampleRate });
   }
@@ -91,6 +95,23 @@ class MixitProcessor extends AudioWorkletProcessor {
       const [p, l] = this.text(m.json);
       code = m.type === "load" ? this.e.mx_host_load(this.h, m.deck, a, m.audio.length, p, l) : this.e.mx_host_load_pad(this.h, m.pad, a, m.audio.length, p, l);
       this.e.mx_free_bytes(p, l);
+    } else if (m.type === "mic") {
+      this.mic = !!m.on;
+      const [p, l] = this.text(JSON.stringify({ op: m.on ? "micOpen" : "micClose" }));
+      code = this.e.mx_host_call(this.h, p, l);
+      this.e.mx_free_bytes(p, l);
+    } else if (m.type === "micRecord") {
+      const [p, l] = this.text(JSON.stringify({ op: "micCapture", on: !!m.on }));
+      this.e.mx_host_call(this.h, p, l);
+      this.e.mx_free_bytes(p, l);
+      if (m.on) {
+        this.micRec = true;
+      } else {
+        this.drainMic();
+        this.micRec = false;
+        this.port.postMessage({ type: "micDone" });
+      }
+      return;
     } else if (m.type === "record") {
       if (m.on && !this.rec) {
         this.rec = new Float32Array(REC_CHUNK * 2);
@@ -115,12 +136,31 @@ class MixitProcessor extends AudioWorkletProcessor {
     this.recAt = 0;
   }
 
-  process(_inputs, outputs) {
+  drainMic() {
+    const n = this.e.mx_host_capture(this.h);
+    if (n > 0) {
+      const data = new Float32Array(this.e.memory.buffer, this.e.mx_out_f32_ptr(), n).slice();
+      this.port.postMessage({ type: "micData", data }, [data.buffer]);
+    }
+  }
+
+  process(inputs, outputs) {
     const out = outputs[0];
     const left = out[0];
     if (!left) return true;
     const right = out[1] || left;
     const n = left.length;
+    const input = inputs[0];
+    if (this.mic && input && input.length > 0) {
+      const il = input[0];
+      const ir = input[1] || il;
+      const dst = new Float32Array(this.e.memory.buffer, this.e.mx_host_mic_in(this.h), n * 2);
+      for (let i = 0; i < n; i++) {
+        dst[i * 2] = il[i];
+        dst[i * 2 + 1] = ir[i];
+      }
+      this.e.mx_host_mic_push(this.h, n);
+    }
     const p = this.e.mx_host_process(this.h, n);
     const f = new Float32Array(this.e.memory.buffer, p, n * 2);
     for (let i = 0; i < n; i++) {
@@ -133,6 +173,7 @@ class MixitProcessor extends AudioWorkletProcessor {
       if (this.recAt + n * 2 > this.rec.length) this.flush();
     }
     if (++this.quanta % this.every === 0) {
+      if (this.micRec) this.drainMic();
       this.e.mx_host_poll(this.h);
       this.port.postMessage({ type: "poll", body: this.out() });
     }

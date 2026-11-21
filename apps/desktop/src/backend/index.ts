@@ -13,6 +13,8 @@ import type {
   HistoryEntry,
   JobProgress,
   LibraryStats,
+  MicState,
+  MicTake,
   MixProject,
   PadInfo,
   PadPatch,
@@ -80,6 +82,14 @@ export interface Backend {
   saveSettings(s: Settings): Promise<Settings>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
+
+  /** Microphones and line inputs. The mic itself opens and closes with the settings. */
+  inputDevices(): Promise<DeviceInfo[]>;
+  micState(): Promise<MicState>;
+  /** Starts recording the mic channel. */
+  micRecordStart(): Promise<void>;
+  /** Stops it and returns the file (`trim` cuts the silence around it, for a pad). */
+  micRecordStop(trim: boolean): Promise<MicTake>;
 
   automix(tracks: number[], options: AutomixRequest): Promise<MixProject>;
   saveProject(path: string, project: MixProject): Promise<void>;

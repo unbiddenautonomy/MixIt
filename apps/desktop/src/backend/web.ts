@@ -6,7 +6,7 @@
 
 import { DemoBackend, DEMO_KIT, emptyPad, kitPad, type DemoTrack } from "./demo";
 import type * as T from "./types";
-import { encodeWav, parseWave, RenderCancelled, toPcm16, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
+import { concat, encodeWav, parseWave, RenderCancelled, toPcm16, trimSilence, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
 
 const AUDIO = ["wav", "mp3", "flac", "aiff", "aif", "ogg", "m4a", "aac", "opus", "webm"];
 /** Ids for tracks the person adds (the generated library uses 1..120, practice 1001+). */
@@ -371,6 +371,80 @@ export class WebAudioBackend extends DemoBackend {
     const name = `MixIt ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}.wav`;
     download(encodeWav(chunks, this.engine.sampleRate, this.settings.recordFloat), name);
     return `${name}, in your downloads`;
+  }
+
+  // ---------------------------------------------------------------- mic
+
+  private micError: string | null = null;
+  private micStatus: T.MicStatus | null = null;
+  private micRecording = false;
+
+  async inputDevices(): Promise<T.DeviceInfo[]> {
+    const sr = this.engine.sampleRate;
+    return (await WebEngine.inputDevices()).map((d) => ({ id: d.id, name: d.name, host: "Web Audio", max_channels: 2, sample_rates: [sr], default_sample_rate: sr, buffer_range: null, is_default: d.isDefault }));
+  }
+
+  async micState(): Promise<T.MicState> {
+    return { status: this.micStatus, error: this.micError, lost: false };
+  }
+
+  /** Opens or closes the mic when its settings change (the browser asks the person first). */
+  async saveSettings(s: T.Settings) {
+    const old = this.settings;
+    await super.saveSettings(s);
+    const changed = old.micEnabled !== s.micEnabled || old.micDevice !== s.micDevice || old.micVoice !== s.micVoice || (s.micEnabled && !this.engine.micOpenNow);
+    if (changed) await this.applyMic(s);
+    return s;
+  }
+
+  private async applyMic(s: T.Settings) {
+    if (!s.micEnabled) {
+      this.engine.micClose();
+      this.micStatus = null;
+      this.micError = null;
+      return;
+    }
+    try {
+      const r = await this.engine.micOpen({ device: s.micDevice, voice: s.micVoice ?? true });
+      this.micStatus = { device: r.device, sampleRate: r.sampleRate, channels: r.channels, bufferFrames: 128, channel: 0, stereo: r.channels > 1 };
+      this.micError = null;
+    } catch (e) {
+      this.micStatus = null;
+      const name = (e as { name?: string }).name;
+      this.micError =
+        name === "NotAllowedError"
+          ? "The browser was not allowed to use the mic. Allow it in the address bar, then turn the mic on again."
+          : name === "NotFoundError"
+            ? "No microphone was found. Plug one in and try again."
+            : String((e as Error).message ?? e);
+      throw new Error(this.micError);
+    }
+  }
+
+  async micRecordStart() {
+    if (!this.engine.micOpenNow) throw new Error("Turn the mic on first.");
+    if (this.micRecording) return;
+    this.micRecording = true;
+    this.engine.micRecordStart();
+  }
+
+  /** The take becomes a file the sampler and the library can use, like a picked file. */
+  async micRecordStop(trim: boolean): Promise<T.MicTake> {
+    if (!this.micRecording) throw new Error("Not recording the mic.");
+    this.micRecording = false;
+    const sr = this.engine.sampleRate;
+    let audio = concat(await this.engine.micRecordStop());
+    if (trim && audio.length / 2 / sr <= 300) {
+      audio = trimSilence(audio, sr);
+      if (audio.length === 0) throw new Error("The recording was silent: check the mic gain and meter.");
+    }
+    const d = new Date();
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    const name = `Mic ${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}.${p2(d.getMinutes())}.${p2(d.getSeconds())}.wav`;
+    const file = new File([encodeWav([audio], sr, true)], name, { type: "audio/wav" });
+    const path = `browser:mic/${name}`;
+    this.files.set(path, [file]);
+    return { path, seconds: audio.length / 2 / sr };
   }
 
   // ---------------------------------------------------------------- Arrange preview and render
