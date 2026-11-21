@@ -1,0 +1,25 @@
+[package]
+name = "mixit-host"
+description = "Audio device I/O for the engine (cpal), denormal protection, load statistics, streaming recorder and offline rendering."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mixit-engine = { path = "../mixit-engine" }
+mixit-core = { path = "../mixit-core" }
+mixit-dsp = { path = "../mixit-dsp" }
+mixit-stretch = { path = "../mixit-stretch" }
+mixit-project = { path = "../mixit-project" }
+cpal.workspace = true
+hound.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+mixit-generator = { path = "../mixit-generator" }
+mixit-analysis = { path = "../mixit-analysis" }
+
+[lints]
+workspace = true

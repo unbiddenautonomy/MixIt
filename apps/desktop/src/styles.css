@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  --accent: #38bdf8;
+  color-scheme: dark;
+  /* Accent-coloured text: the accent itself on dark, a darker shade on light. */
+  --ink: 100%;
+  --knob-track: rgba(255, 255, 255, 0.1);
+  --knob-face-a: #3f3f46;
+  --knob-face-b: #18181b;
+  --knob-edge: rgba(255, 255, 255, 0.08);
+  --knob-pointer: #f4f4f5;
+  --scroll-thumb: rgba(255, 255, 255, 0.12);
+}
+
+/* Elements whose accent may be overridden inline recompute their ink colour. */
+* {
+  --accent-ink: color-mix(in oklab, var(--accent) var(--ink), black);
+}
+
+/*
+ * Light theme. The UI is written with Tailwind's zinc scale, white and black, so the
+ * theme swaps those (and darkens the pale accent text shades). Waveforms, meters and the
+ * Arrange timeline stay dark "screens", like the displays on DJ hardware.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --accent: #0284c7;
+  --ink: 62%;
+  --color-zinc-50: #09090b;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #27272a;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-400: #52525b;
+  --color-zinc-500: #6b6b74;
+  --color-zinc-600: #9f9fa9;
+  --color-zinc-700: #c4c4cb;
+  --color-zinc-800: #dcdce0;
+  --color-zinc-900: #fbfbfc;
+  --color-zinc-950: #ececef;
+  --color-white: #000;
+  --color-black: #fff;
+  --color-red-100: #7f1d1d;
+  --color-red-200: #991b1b;
+  --color-red-300: #c81e1e;
+  --color-red-400: #dc2626;
+  --color-amber-100: #78350f;
+  --color-amber-200: #92400e;
+  --color-amber-300: #a35a00;
+  --color-amber-400: #b45309;
+  --color-emerald-100: #064e3b;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-sky-100: #0c4a6e;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --color-orange-400: #c2410c;
+  --color-pink-300: #be185d;
+  --color-pink-400: #db2777;
+  --knob-track: rgba(0, 0, 0, 0.12);
+  --knob-face-a: #ffffff;
+  --knob-face-b: #d9d9de;
+  --knob-edge: rgba(0, 0, 0, 0.18);
+  --knob-pointer: #18181b;
+  --scroll-thumb: rgba(0, 0, 0, 0.2);
+}
+
+/* Ink on bright fills (deck badges, lit buttons) stays dark in both themes. */
+:root[data-theme="light"] .text-zinc-950 {
+  color: #09090b;
+}
+:root[data-theme="light"] .\!text-zinc-950 {
+  color: #09090b !important;
+}
+
+/* A dark display inside the light theme. */
+:root[data-theme="light"] .screen {
+  color-scheme: dark;
+  --accent: #38bdf8;
+  --ink: 100%;
+  --color-zinc-50: #fafafa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #9f9fa9;
+  --color-zinc-500: #71717b;
+  --color-zinc-600: #52525c;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #09090b;
+  --color-white: #fff;
+  --color-black: #000;
+  --knob-track: rgba(255, 255, 255, 0.1);
+  --knob-face-a: #3f3f46;
+  --knob-face-b: #18181b;
+  --knob-edge: rgba(255, 255, 255, 0.08);
+  --knob-pointer: #f4f4f5;
+  --scroll-thumb: rgba(255, 255, 255, 0.12);
+  color: var(--color-zinc-200);
+}
+:root[data-theme="light"] .screen.screen-bg {
+  background-color: #0b0b0e;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-zinc-950);
+  color: var(--color-zinc-200);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Explain mode: a soft ring around every control that has an explanation. */
+.explain-ring {
+  outline: 1px dashed rgba(56, 189, 248, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@layer components {
+  .input {
+    @apply rounded-md border border-white/10 bg-black/30 px-2 text-[12px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-500 focus:border-sky-400/60 focus:bg-black/40;
+  }
+  .menu {
+    @apply z-50 min-w-48 rounded-xl border border-white/10 bg-zinc-900/95 p-1 text-[12px] text-zinc-200 shadow-2xl backdrop-blur;
+  }
+  .menu-item {
+    @apply flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-white/10 data-[disabled]:opacity-40;
+  }
+  .menu-sep {
+    @apply my-1 h-px bg-white/[0.08];
+  }
+  .cmdk-group [cmdk-group-heading] {
+    @apply px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+  }
+  .cmdk-item {
+    @apply flex cursor-default items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-zinc-200 data-[selected=true]:bg-white/10;
+  }
+}
+
+select.input {
+  padding-right: 4px;
+}
+
+option {
+  background: #18181b;
+}

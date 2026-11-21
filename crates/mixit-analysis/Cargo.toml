@@ -1,0 +1,21 @@
+[package]
+name = "mixit-analysis"
+description = "Track analysis: tempo, beatgrid, downbeats, key, loudness, waveforms, sections and cue suggestions."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mixit-core = { path = "../mixit-core" }
+mixit-dsp = { path = "../mixit-dsp" }
+realfft.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+mixit-generator = { path = "../mixit-generator" }
+mixit-dsp = { path = "../mixit-dsp" }
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "mixit-core"
+description = "Shared types for MixIt: time, tempo maps, beatgrids, keys, parameters and the action registry. Compiles to WebAssembly."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "mixit-project"
+description = "Mix projects: a beat timeline of clips with automation, DJ transition presets, automatic set layout and undo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mixit-core = { path = "../mixit-core" }
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

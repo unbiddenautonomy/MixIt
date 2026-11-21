@@ -1,0 +1,17 @@
+[package]
+name = "mixit-stretch"
+description = "Key lock and key shift for MixIt decks, using Signalsmith Stretch."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mixit-dsp = { path = "../mixit-dsp" }
+signalsmith-stretch.workspace = true
+
+[dev-dependencies]
+mixit-dsp = { path = "../mixit-dsp", features = ["testkit"] }
+
+[lints]
+workspace = true
