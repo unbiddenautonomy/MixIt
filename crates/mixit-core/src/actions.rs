@@ -167,6 +167,75 @@ fn deck_shortcuts(d: usize) -> [Option<&'static str>; 13] {
     }
 }
 
+/// The three effect slots of one FX unit (`fx.{unit}.{slot}.*`), for a deck or the master.
+fn fx_slots(b: &mut B, unit: &str, fg: &str) {
+    let toggle = || ActionKind::Toggle;
+    let master = unit == "master";
+    for slot in 1..=3 {
+        let fid = |s: &str| format!("fx.{unit}.{slot}.{s}");
+        b.add(
+            fid("type"),
+            format!("FX {slot} type"),
+            fg,
+            choice(&FX_TYPES, if slot == 1 { 1 } else { 0 }),
+            "Which effect this slot runs.",
+            false,
+            None,
+            Some("fx"),
+        );
+        b.add(
+            fid("on"),
+            format!("FX {slot} on"),
+            fg,
+            toggle(),
+            "Switches the effect on or off. Echo and reverb tails keep ringing after you switch them off.",
+            slot == 1 && !master,
+            None,
+            Some("fx"),
+        );
+        b.add(
+            fid("mix"),
+            format!("FX {slot} amount"),
+            fg,
+            cont(specs::MIX),
+            "How much of the effect you hear.",
+            slot == 1 && !master,
+            None,
+            Some("dry-wet"),
+        );
+        b.add(
+            fid("beats"),
+            format!("FX {slot} beats"),
+            fg,
+            choice(&["1/16", "1/8", "1/4", "1/2", "3/4", "1", "2", "4", "8", "16"], 4),
+            "The effect's timing in beats, locked to the tempo.",
+            false,
+            None,
+            None,
+        );
+        b.add(
+            fid("p1"),
+            format!("FX {slot} parameter 1"),
+            fg,
+            cont(specs::UNIT),
+            "The effect's main setting (feedback, depth or size).",
+            false,
+            None,
+            None,
+        );
+        b.add(
+            fid("p2"),
+            format!("FX {slot} parameter 2"),
+            fg,
+            cont(specs::UNIT),
+            "The effect's second setting (tone or rate).",
+            false,
+            None,
+            None,
+        );
+    }
+}
+
 /// Builds the full registry for `num_decks` decks and `num_pads` sampler pads.
 pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
     let mut b = B { v: Vec::with_capacity(512) };
@@ -617,71 +686,10 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             None,
         );
 
-        let fg = format!("FX {l}");
-        for slot in 1..=3 {
-            let fid = |s: &str| format!("fx.{l}.{slot}.{s}");
-            b.add(
-                fid("type"),
-                format!("FX {slot} type"),
-                &fg,
-                choice(&FX_TYPES, if slot == 1 { 1 } else { 0 }),
-                "Which effect this slot runs.",
-                false,
-                None,
-                Some("fx"),
-            );
-            b.add(
-                fid("on"),
-                format!("FX {slot} on"),
-                &fg,
-                toggle(),
-                "Switches the effect on or off. Echo and reverb tails keep ringing after you switch them off.",
-                slot == 1,
-                None,
-                Some("fx"),
-            );
-            b.add(
-                fid("mix"),
-                format!("FX {slot} amount"),
-                &fg,
-                cont(specs::MIX),
-                "How much of the effect you hear.",
-                slot == 1,
-                None,
-                Some("dry-wet"),
-            );
-            b.add(
-                fid("beats"),
-                format!("FX {slot} beats"),
-                &fg,
-                choice(&["1/16", "1/8", "1/4", "1/2", "3/4", "1", "2", "4", "8", "16"], 4),
-                "The effect's timing in beats, locked to the tempo.",
-                false,
-                None,
-                None,
-            );
-            b.add(
-                fid("p1"),
-                format!("FX {slot} parameter 1"),
-                &fg,
-                cont(specs::UNIT),
-                "The effect's main setting (feedback, depth or size).",
-                false,
-                None,
-                None,
-            );
-            b.add(
-                fid("p2"),
-                format!("FX {slot} parameter 2"),
-                &fg,
-                cont(specs::UNIT),
-                "The effect's second setting (tone or rate).",
-                false,
-                None,
-                None,
-            );
-        }
+        fx_slots(&mut b, &l.to_string(), &format!("FX {l}"));
     }
+
+    fx_slots(&mut b, "master", "Master FX");
 
     let mg = "Mixer";
     b.add(
@@ -807,14 +815,17 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
 
     let sg = "Sampler";
     for n in 1..=num_pads {
+        // Shift plus the number keys play the first eight pads (the numbers alone are
+        // hot cues). Function keys are avoided: browsers and webviews claim several.
+        let key = format!("Shift+{n}");
         b.add(
             format!("sampler.pad.{n}"),
             format!("Pad {n}"),
             sg,
             ActionKind::Momentary,
-            "Plays this pad's sample.",
+            "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.",
             n <= 4,
-            None,
+            (n <= 8).then_some(key.as_str()),
             Some("sampler"),
         );
         b.add(
@@ -829,6 +840,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         );
     }
     b.add("sampler.volume", "Sampler volume", sg, cont(specs::FADER), "Volume of all pads.", true, None, None);
+    b.add(
+        "sampler.stop_all",
+        "Stop all pads",
+        sg,
+        ActionKind::Trigger,
+        "Stops every pad that is playing, including loops.",
+        false,
+        None,
+        None,
+    );
 
     let gg = "Transport";
     b.add(
@@ -946,6 +967,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         true,
         None,
         Some("coach"),
+    );
+    b.add(
+        "app.sampler",
+        "Sampler and master FX",
+        ag,
+        ActionKind::Toggle,
+        "Shows or hides the sampler pads and the effects on the whole mix.",
+        true,
+        Some("Mod+P"),
+        Some("sampler"),
     );
 
     b.v

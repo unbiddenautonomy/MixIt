@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { ActionInput, ActionSpec } from "../backend/types";
-import { useApp } from "../store/app";
+import { MASTER_FX, useApp } from "../store/app";
 
 function report(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
@@ -63,8 +63,10 @@ function mirror(id: string, input: ActionInput) {
     else if (p[1] === "eq_mode") s.setMixer({ eqMode: v });
     else if (p[1] === "split_cue") s.setMixer({ splitCue: Boolean(v) });
     else if (p[1] === "crossfader_reverse") s.setMixer({ crossfaderReverse: Boolean(v) });
-  } else if (p[0] === "fx" && p[1].length === 1) {
-    const deck = p[1].charCodeAt(0) - 65;
+  } else if (p[0] === "sampler" && p[1] === "volume" && v !== null) {
+    s.setMixer({ samplerVolume: v });
+  } else if (p[0] === "fx") {
+    const deck = p[1] === "master" ? MASTER_FX : p[1].charCodeAt(0) - 65;
     const slot = Number(p[2]) - 1;
     const f = s.mixer.fx[deck]?.[slot];
     if (!f) return;

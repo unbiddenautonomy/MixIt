@@ -6,15 +6,19 @@ import { act, isMac } from "./actions";
 
 type AppHandler = (id: string) => boolean;
 
-function keyName(e: KeyboardEvent): string {
+export function keyName(e: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">): string {
   const parts: string[] = [];
   const mod = isMac ? e.metaKey : e.ctrlKey;
   if (mod) parts.push("Mod");
   if (e.altKey) parts.push("Alt");
-  // Shift is part of the name for named keys and chords ("Mod+Shift+Z"), but not for
-  // characters it produces on its own ("?").
-  if (e.shiftKey && (e.key.length > 1 || mod || e.altKey)) parts.push("Shift");
-  let k = e.key;
+  // With Shift or Alt the number row types symbols that depend on the keyboard layout
+  // ("!", "\"", "¡"), so name those keys by position: Shift+1.
+  const digit = /^Digit(\d)$/.exec(e.code ?? "");
+  const byPosition = !!digit && (e.shiftKey || e.altKey);
+  // Shift is part of the name for named keys, chords ("Mod+Shift+Z") and the number
+  // row, but not for characters it produces on its own ("?").
+  if (e.shiftKey && (e.key.length > 1 || mod || e.altKey || byPosition)) parts.push("Shift");
+  let k = byPosition ? digit![1] : e.key;
   if (k === " ") k = "Space";
   else if (k.length === 1) k = k.toUpperCase();
   parts.push(k);

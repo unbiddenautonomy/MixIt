@@ -418,6 +418,8 @@ pub struct TelemetryDto {
     pub recorded_seconds: f64,
     pub load: f32,
     pub overruns: u64,
+    /// Bit n set while pad n plays.
+    pub sampler_playing: u32,
 }
 
 impl TelemetryDto {
@@ -432,6 +434,7 @@ impl TelemetryDto {
             recorded_seconds: t.recorded_frames as f64 / sr as f64,
             load,
             overruns,
+            sampler_playing: t.sampler_playing,
         }
     }
 }

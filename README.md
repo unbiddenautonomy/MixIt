@@ -15,6 +15,8 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Hot cues, beat-quantised loops, loop roll, beat jump, slip mode, reverse, brake and spin-up, censor.
 - 17 beat-synced effects per deck (echo, ping-pong, reverb, filter LFO, flanger, phaser, chorus, gater, slicer, beat repeat, bitcrusher, distortion, tape stop, pitch delay, ring modulator, noise riser, dub echo).
 - **Mix it:** one button runs a whole transition (blend, bass swap, filter fade, echo out, cut, brake) on the beat, the way a DJ's hands would.
+- The same effects on the master, for a reverb wash or echo over the whole mix.
+- Eight sampler pads (Shift+1 to Shift+8) with a built-in synthesised kit (air horn, siren, riser, impact, drum and hi-hat loops and more), any audio file, a library track, or a loop captured from a deck. Pads play once, while held or as tempo-locked loops.
 - Recording to WAV, with live loudness (LUFS) and limiter metering.
 
 **Understand your music**

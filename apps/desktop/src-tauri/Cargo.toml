@@ -24,6 +24,7 @@ mixit-engine.workspace = true
 mixit-stretch.workspace = true
 mixit-analysis.workspace = true
 mixit-io.workspace = true
+mixit-generator.workspace = true
 mixit-project.workspace = true
 mixit-library.workspace = true
 mixit-host.workspace = true

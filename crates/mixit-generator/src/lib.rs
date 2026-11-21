@@ -11,6 +11,8 @@
 //!
 //! Everything is deterministic for a given [`TrackSpec`] (seeded noise, no clocks).
 
+pub mod kit;
+
 use mixit_core::{Key, Mode};
 use mixit_dsp::rng::Rng;
 use mixit_dsp::svf::{Svf, SvfCoeffs, SvfMode};

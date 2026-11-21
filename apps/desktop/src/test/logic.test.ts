@@ -95,3 +95,33 @@ describe("formatting and layout", () => {
     expect(channelOrder(4)).toEqual([2, 0, 1, 3]);
   });
 });
+
+describe("engine state push", () => {
+  it("creates each effect before switching it on, for decks and the master", async () => {
+    const { engineStateActions } = await import("../lib/engineSync");
+    const ids = engineStateActions().map(([id]) => id);
+    for (const unit of ["A", "B", "master"]) {
+      for (const slot of [1, 2, 3]) {
+        const t = ids.indexOf(`fx.${unit}.${slot}.type`);
+        const on = ids.indexOf(`fx.${unit}.${slot}.on`);
+        expect(t).toBeGreaterThanOrEqual(0);
+        expect(on).toBeGreaterThan(t);
+      }
+    }
+    // Two-deck setups leave decks C and D alone.
+    expect(ids.some((id) => id.startsWith("fx.C."))).toBe(false);
+    expect(ids).toContain("sampler.volume");
+  });
+});
+
+describe("key names", () => {
+  const ev = (key: string, code: string, mods: Partial<Record<"shiftKey" | "altKey" | "ctrlKey" | "metaKey", boolean>> = {}) => ({ key, code, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...mods });
+  it("names the number row by position when Shift or Alt is held", async () => {
+    const { keyName } = await import("../lib/keyboard");
+    expect(keyName(ev("!", "Digit1", { shiftKey: true }))).toBe("Shift+1");
+    expect(keyName(ev("&", "Digit1", { shiftKey: true }))).toBe("Shift+1");
+    expect(keyName(ev("¡", "Digit1", { altKey: true }))).toBe("Alt+1");
+    expect(keyName(ev("1", "Digit1"))).toBe("1");
+    expect(keyName(ev("?", "Slash", { shiftKey: true }))).toBe("?");
+  });
+});

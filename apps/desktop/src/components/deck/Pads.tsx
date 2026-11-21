@@ -47,7 +47,7 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
       {current === "cues" && <HotCues deck={deck} compact={compact} />}
       {current === "loop" && <Loops deck={deck} pro={pro} />}
       {current === "jump" && <Jump deck={deck} />}
-      {current === "fx" && <FxUnit deck={deck} />}
+      {current === "fx" && <FxUnit unit={deck} />}
       {current === "grid" && <Grid deck={deck} />}
     </div>
   );

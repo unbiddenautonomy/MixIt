@@ -17,6 +17,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::audio::{Audio, DECKS};
 use crate::dto::*;
+use crate::sampler::{PadInfo, PadPatch, PadSource};
 use crate::state::{AppState, LoadedDeck, Recording, Settings};
 
 type R<T> = Result<T, String>;
@@ -44,6 +45,8 @@ pub struct AppInfo {
     pub transitions: Vec<TransitionInfo>,
     pub fx_types: Vec<&'static str>,
     pub decks: Vec<Option<DeckInfo>>,
+    pub kit: Vec<crate::sampler::KitSoundDto>,
+    pub pads: Vec<crate::sampler::PadInfo>,
 }
 
 #[derive(Serialize)]
@@ -68,7 +71,7 @@ pub fn app_info(state: State<'_, AppState>) -> AppInfo {
         projects_dir: state.paths.projects.to_string_lossy().into_owned(),
         audio: state.audio.lock().status.clone(),
         settings: state.settings.lock().clone(),
-        registry: mixit_core::actions::registry(DECKS, 8),
+        registry: mixit_core::actions::registry(DECKS, crate::sampler::PADS),
         transitions: TransitionKind::ALL
             .iter()
             .map(|&t| TransitionInfo {
@@ -80,6 +83,8 @@ pub fn app_info(state: State<'_, AppState>) -> AppInfo {
             .collect(),
         fx_types: mixit_core::actions::FX_TYPES.to_vec(),
         decks: state.decks.lock().iter().map(|d| d.as_ref().map(|d| d.info.clone())).collect(),
+        kit: crate::sampler::kit_list(),
+        pads: state.pads.lock().clone(),
     }
 }
 
@@ -736,6 +741,7 @@ fn restart_audio(app: &AppHandle) -> R<AudioStatus> {
         *a = Audio::start(&cfg);
     }
     state.apply_mixer_settings();
+    crate::sampler::load_all(&state);
     for (deck, track, pos) in reload {
         if let Ok(info) = load_track_blocking(&state, deck, track, Some(pos)) {
             let _ = app.emit("deck-loaded", &info);
@@ -1033,4 +1039,52 @@ mod tests {
         assert_eq!(transition_id(TransitionKind::BassSwap), "bassSwap");
         assert_eq!(transition_id(TransitionKind::Cut), "cut");
     }
+}
+
+// --------------------------------------------------------------------- sampler
+
+#[tauri::command]
+pub async fn sampler_load(app: AppHandle, pad: usize, source: PadSource) -> R<PadInfo> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let info = crate::sampler::load(&state, pad, source, false)?;
+        crate::sampler::save(&state);
+        Ok(info)
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn sampler_clear(state: State<'_, AppState>, pad: usize) -> R<PadInfo> {
+    let info = crate::sampler::clear(&state, pad)?;
+    crate::sampler::save(&state);
+    Ok(info)
+}
+
+#[tauri::command]
+pub fn sampler_set(state: State<'_, AppState>, pad: usize, patch: PadPatch) -> R<PadInfo> {
+    let info = crate::sampler::patch(&state, pad, patch)?;
+    crate::sampler::save(&state);
+    Ok(info)
+}
+
+/// Puts the built-in kit back on every pad.
+#[tauri::command]
+pub async fn sampler_reset(app: AppHandle) -> R<Vec<PadInfo>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        for p in crate::sampler::default_pads() {
+            crate::sampler::load(&state, p.pad, p.source, false)?;
+        }
+        crate::sampler::save(&state);
+        Ok(state.pads.lock().clone())
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn sampler_stop_all(state: State<'_, AppState>) {
+    state.audio.lock().send(Command::Sampler(mixit_engine::SamplerCommand::StopAll));
 }

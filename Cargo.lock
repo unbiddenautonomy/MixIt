@@ -2430,6 +2430,7 @@ dependencies = [
  "mixit-core",
  "mixit-dsp",
  "mixit-engine",
+ "mixit-generator",
  "mixit-host",
  "mixit-io",
  "mixit-library",

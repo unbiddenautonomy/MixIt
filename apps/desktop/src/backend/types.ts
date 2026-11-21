@@ -150,6 +150,8 @@ export interface Telemetry {
   recordedSeconds: number;
   load: number;
   overruns: number;
+  /** Bit n is set while sampler pad n plays. */
+  samplerPlaying: number;
 }
 
 export interface AudioStatus {
@@ -243,6 +245,51 @@ export interface AppInfo {
   transitions: TransitionInfo[];
   fxTypes: string[];
   decks: (DeckInfo | null)[];
+  kit: KitSound[];
+  pads: PadInfo[];
+}
+
+/** A sound in the built-in sampler kit. */
+export interface KitSound {
+  id: string;
+  name: string;
+  bpm: number | null;
+  mode: number;
+  color: number;
+}
+
+export type PadSource =
+  | { type: "empty" }
+  | { type: "kit"; id: string }
+  | { type: "file"; path: string }
+  | { type: "track"; trackId: number; start: number | null; seconds: number | null };
+
+export interface PadInfo {
+  pad: number;
+  name: string;
+  source: PadSource;
+  seconds: number;
+  bpm: number | null;
+  /** 0 one-shot, 1 gate (plays while held), 2 loop. */
+  mode: number;
+  gainDb: number;
+  pan: number;
+  sync: boolean;
+  quantized: boolean;
+  color: number;
+  error: string | null;
+}
+
+export interface PadPatch {
+  name?: string;
+  mode?: number;
+  gainDb?: number;
+  pan?: number;
+  sync?: boolean;
+  quantized?: boolean;
+  color?: number;
+  /** 0 clears the tempo. */
+  bpm?: number;
 }
 
 export interface LibraryStats {

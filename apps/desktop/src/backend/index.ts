@@ -13,6 +13,9 @@ import type {
   JobProgress,
   LibraryStats,
   MixProject,
+  PadInfo,
+  PadPatch,
+  PadSource,
   PlaylistDto,
   Settings,
   SuggestionRow,
@@ -78,6 +81,13 @@ export interface Backend {
   renderProject(project: MixProject, path: string, format?: string): Promise<void>;
   /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
   previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
+
+  samplerLoad(pad: number, source: PadSource): Promise<PadInfo>;
+  samplerClear(pad: number): Promise<PadInfo>;
+  samplerSet(pad: number, patch: PadPatch): Promise<PadInfo>;
+  /** Puts the built-in kit back on every pad. */
+  samplerReset(): Promise<PadInfo[]>;
+  samplerStopAll(): Promise<void>;
 
   importRekordbox(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;

@@ -184,6 +184,10 @@ impl ActionDispatcher {
                 let slot: usize = slot.parse().ok().filter(|s| (1..=3).contains(s)).ok_or_else(unknown)?;
                 self.fx(FxTarget::Deck(DeckId(i as u8)), slot - 1, id, control, input)
             }
+            ["sampler", "stop_all"] => Ok(match input {
+                ActionInput::Press => vec![Command::Sampler(SamplerCommand::StopAll)],
+                _ => vec![],
+            }),
             ["sampler", "volume"] => Ok(Self::value(input, id)?
                 .map(|v| vec![Command::Sampler(SamplerCommand::SetVolume(v as f32))])
                 .unwrap_or_default()),

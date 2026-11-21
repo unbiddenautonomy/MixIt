@@ -41,6 +41,7 @@ export const emptyTelemetry: Telemetry = {
   recordedSeconds: 0,
   load: 0,
   overruns: 0,
+  samplerPlaying: 0,
 };
 
 interface TeleState {

@@ -6,6 +6,7 @@
 pub mod audio;
 pub mod commands;
 pub mod dto;
+pub mod sampler;
 pub mod state;
 pub mod telemetry;
 
@@ -26,6 +27,11 @@ pub fn run() {
         .setup(|app| {
             telemetry::spawn(app.handle().clone());
             let _ = app.state::<state::AppState>().session();
+            let handle = app.handle().clone();
+            std::thread::Builder::new()
+                .name("mixit-pads".into())
+                .spawn(move || sampler::load_all(&handle.state::<state::AppState>()))
+                .map_err(|e| e.to_string())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -78,6 +84,11 @@ pub fn run() {
             commands::export_rekordbox,
             commands::export_playlist,
             commands::import_m3u,
+            commands::sampler_load,
+            commands::sampler_clear,
+            commands::sampler_set,
+            commands::sampler_reset,
+            commands::sampler_stop_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MixIt");

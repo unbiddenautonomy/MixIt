@@ -127,6 +127,7 @@ pub struct AppState {
     pub job_cancel: Arc<AtomicBool>,
     pub render_cancel: Arc<AtomicBool>,
     pub next_token: Mutex<u64>,
+    pub pads: Mutex<Vec<crate::sampler::PadInfo>>,
 }
 
 impl AppState {
@@ -136,6 +137,7 @@ impl AppState {
         }
         let library = Library::open(&paths.db).map_err(|e| format!("library {}: {e}", paths.db.display()))?;
         let settings = Settings::load(&library);
+        let pads = crate::sampler::load_saved(&library);
         let audio = Audio::start(&settings.host_config());
         let state = AppState {
             paths,
@@ -149,6 +151,7 @@ impl AppState {
             job_cancel: Arc::new(AtomicBool::new(false)),
             render_cancel: Arc::new(AtomicBool::new(false)),
             next_token: Mutex::new(1),
+            pads: Mutex::new(pads),
         };
         state.apply_mixer_settings();
         Ok(state)

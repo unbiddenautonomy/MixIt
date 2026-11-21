@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Power } from "lucide-react";
 import { choose, setOn, setValue } from "../../lib/actions";
-import { FX_BEAT_LABELS, useApp, usePro } from "../../store/app";
+import { FX_BEAT_LABELS, fxUnitName, useApp, usePro } from "../../store/app";
 import { Ctl } from "../ui/Ctl";
 import { Knob } from "../ui/Knob";
 
@@ -28,11 +28,12 @@ const PARAMS: Record<string, [string, string]> = {
   "Dub echo": ["Feedback", "Saturation"],
 };
 
-export function FxUnit({ deck }: { deck: number }) {
+/** One FX unit: `unit` 0 to 3 is a deck's, MASTER_FX the effects on the whole mix. */
+export function FxUnit({ unit, stacked }: { unit: number; stacked?: boolean }) {
   const pro = usePro();
-  const slots = useApp((s) => s.mixer.fx[deck]);
+  const slots = useApp((s) => s.mixer.fx[unit]);
   const types = useApp((s) => s.fxTypes);
-  const L = String.fromCharCode(65 + deck);
+  const L = fxUnitName(unit);
   return (
     <div className="flex flex-col gap-1">
       {slots.map((f, i) => {
@@ -40,7 +41,7 @@ export function FxUnit({ deck }: { deck: number }) {
         const name = types[f.type] ?? "None";
         const params = PARAMS[name] ?? ["Param 1", "Param 2"];
         return (
-          <div key={i} className={clsx("flex items-center gap-2 rounded-lg border px-2 py-1", f.on ? "border-[var(--accent)]/40 bg-[var(--accent)]/[0.06]" : "border-white/[0.06] bg-white/[0.02]")}>
+          <div key={i} className={clsx("flex items-center gap-2 rounded-lg border px-2 py-1", stacked && "flex-wrap", f.on ? "border-[var(--accent)]/40 bg-[var(--accent)]/[0.06]" : "border-white/[0.06] bg-white/[0.02]")}>
             <Ctl id={`${base}.on`}>
               <button
                 type="button"
@@ -81,17 +82,17 @@ export function FxUnit({ deck }: { deck: number }) {
                 </select>
               </Ctl>
             )}
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className={clsx("flex items-center gap-1.5", stacked && pro ? "w-full justify-around" : "ml-auto")}>
               <Ctl id={`${base}.mix`}>
-                <Knob value={f.mix} min={0} max={1} def={0.5} size={26} onChange={(v) => setValue(`${base}.mix`, v)} />
+                <Knob value={f.mix} min={0} max={1} def={0.5} size={26} label={stacked && pro ? "Amount" : undefined} onChange={(v) => setValue(`${base}.mix`, v)} />
               </Ctl>
               {pro && (
                 <>
                   <Ctl id={`${base}.p1`} label={params[0]}>
-                    <Knob value={f.p1} min={0} max={1} def={0.5} size={26} onChange={(v) => setValue(`${base}.p1`, v)} />
+                    <Knob value={f.p1} min={0} max={1} def={0.5} size={26} label={stacked ? params[0] : undefined} onChange={(v) => setValue(`${base}.p1`, v)} />
                   </Ctl>
                   <Ctl id={`${base}.p2`} label={params[1]}>
-                    <Knob value={f.p2} min={0} max={1} def={0.5} size={26} onChange={(v) => setValue(`${base}.p2`, v)} />
+                    <Knob value={f.p2} min={0} max={1} def={0.5} size={26} label={stacked ? params[1] : undefined} onChange={(v) => setValue(`${base}.p2`, v)} />
                   </Ctl>
                 </>
               )}

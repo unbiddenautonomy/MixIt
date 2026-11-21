@@ -186,6 +186,9 @@ export class DemoBackend implements Backend {
   private masterDb = 0;
   private recording = false;
   private recorded = 0;
+  private pads: T.PadInfo[] = defaultPads();
+  /** Pad index to performance.now() when it stops (Infinity while looping or held). */
+  private padEnds = new Map<number, number>();
   private listeners = new Map<string, Set<Listener<unknown>>>();
   private settings: T.Settings = {
     device: null,
@@ -344,6 +347,7 @@ export class DemoBackend implements Backend {
       recordedSeconds: this.recorded,
       load: 0.08 + Math.random() * 0.02,
       overruns: 0,
+      samplerPlaying: this.samplerMask(),
     });
   }
 
@@ -403,6 +407,8 @@ export class DemoBackend implements Backend {
       ],
       fxTypes: ["None", "Echo", "Ping-pong delay", "Reverb", "Filter LFO", "Flanger", "Phaser", "Chorus", "Gater", "Slicer", "Beat repeat", "Bitcrusher", "Distortion", "Tape stop", "Pitch delay", "Ring modulator", "Noise riser", "Dub echo"],
       decks: this.decks.map((d, i) => (d.track ? { deck: i, token: d.token, detail: this.detail(d.track), sampleRate: SR } : null)),
+      kit: DEMO_KIT,
+      pads: this.pads.map((p) => ({ ...p })),
     };
   }
 
@@ -546,6 +552,8 @@ export class DemoBackend implements Backend {
             }
           }
       }
+    } else if (p[0] === "sampler") {
+      this.samplerAction(p, input);
     } else if (p[0] === "mixer") {
       const i = p[1].length === 1 ? p[1].charCodeAt(0) - 65 : -1;
       const d = this.decks[i];
@@ -957,6 +965,84 @@ export class DemoBackend implements Backend {
     return buf;
   }
 
+  // ---------------------------------------------------------------- sampler
+
+  private samplerMask(): number {
+    const now = performance.now();
+    let m = 0;
+    for (const [pad, end] of this.padEnds) {
+      if (end > now) m |= 1 << pad;
+      else this.padEnds.delete(pad);
+    }
+    return m;
+  }
+
+  private samplerAction(p: string[], input: T.ActionInput) {
+    if (p[1] === "stop_all") {
+      if (input.type === "press") this.padEnds.clear();
+      return;
+    }
+    if (p[1] !== "pad") return;
+    const pad = this.pads[Number(p[2]) - 1];
+    if (!pad || pad.source.type === "empty") return;
+    if (p[3] === "mode") {
+      if (input.type === "choice") pad.mode = input.value;
+      return;
+    }
+    const playing = (this.padEnds.get(pad.pad) ?? 0) > performance.now();
+    if (input.type === "press") {
+      if (pad.mode === 2 && playing) this.padEnds.delete(pad.pad);
+      else this.padEnds.set(pad.pad, pad.mode === 0 ? performance.now() + pad.seconds * 1000 : Infinity);
+    } else if (input.type === "release" && pad.mode === 1) {
+      this.padEnds.delete(pad.pad);
+    }
+  }
+
+  async samplerLoad(pad: number, source: T.PadSource): Promise<T.PadInfo> {
+    const cur = this.pads[pad];
+    if (!cur) throw new Error(`no pad ${pad + 1}`);
+    await new Promise((r) => setTimeout(r, 150));
+    let next: T.PadInfo;
+    if (source.type === "kit") {
+      next = kitPad(pad, source.id);
+    } else if (source.type === "file") {
+      const name = source.path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? "Sound";
+      next = { ...emptyPad(pad), name, source, seconds: 1.8, color: cur.color };
+    } else if (source.type === "track") {
+      const t = this.find(source.trackId);
+      next = { ...emptyPad(pad), name: source.start != null ? `${t.row.title} (loop)` : t.row.title, source, seconds: source.seconds ?? t.row.duration, bpm: t.row.bpm, mode: source.start != null ? 2 : 0, color: cur.color };
+    } else {
+      return this.samplerClear(pad);
+    }
+    next.gainDb = cur.gainDb;
+    this.pads[pad] = next;
+    this.padEnds.delete(pad);
+    return { ...next };
+  }
+
+  async samplerClear(pad: number): Promise<T.PadInfo> {
+    this.pads[pad] = emptyPad(pad);
+    this.padEnds.delete(pad);
+    return { ...this.pads[pad] };
+  }
+
+  async samplerSet(pad: number, patch: T.PadPatch): Promise<T.PadInfo> {
+    const p = this.pads[pad];
+    if (!p) throw new Error(`no pad ${pad + 1}`);
+    Object.assign(p, { ...patch, bpm: patch.bpm === undefined ? p.bpm : patch.bpm || null });
+    return { ...p };
+  }
+
+  async samplerReset(): Promise<T.PadInfo[]> {
+    this.pads = defaultPads();
+    this.padEnds.clear();
+    return this.pads.map((p) => ({ ...p }));
+  }
+
+  async samplerStopAll() {
+    this.padEnds.clear();
+  }
+
   async importRekordbox() {}
   async exportRekordbox() {}
   async exportPlaylist() {}
@@ -1070,6 +1156,35 @@ export function demoSearch(rows: T.TrackRow[], query: string): T.TrackRow[] {
 }
 
 /** The registry as the Rust side builds it, for the demo (decks A–D, common controls). */
+const DEMO_KIT: T.KitSound[] = [
+  { id: "kick", name: "Kick", bpm: null, mode: 0, color: 0xef4444 },
+  { id: "clap", name: "Clap", bpm: null, mode: 0, color: 0xf97316 },
+  { id: "air_horn", name: "Air horn", bpm: null, mode: 0, color: 0xeab308 },
+  { id: "siren", name: "Siren", bpm: null, mode: 1, color: 0x22c55e },
+  { id: "riser", name: "Riser", bpm: 124, mode: 0, color: 0x06b6d4 },
+  { id: "impact", name: "Impact", bpm: null, mode: 0, color: 0x3b82f6 },
+  { id: "laser", name: "Laser", bpm: null, mode: 0, color: 0xa855f7 },
+  { id: "drum_loop", name: "Drum loop", bpm: 124, mode: 2, color: 0xec4899 },
+  { id: "snare_build", name: "Snare build", bpm: 124, mode: 0, color: 0x14b8a6 },
+  { id: "scratch", name: "Scratch", bpm: null, mode: 0, color: 0x84cc16 },
+  { id: "hat_loop", name: "Hi-hat loop", bpm: 124, mode: 2, color: 0x8b5cf6 },
+  { id: "sub_drop", name: "Sub drop", bpm: null, mode: 0, color: 0x64748b },
+];
+const KIT_SECONDS: Record<string, number> = { kick: 0.5, clap: 0.38, air_horn: 1.35, siren: 2.4, riser: 3.87, impact: 2.8, laser: 0.46, drum_loop: 1.94, snare_build: 3.87, scratch: 0.6, hat_loop: 1.94, sub_drop: 2 };
+
+function emptyPad(pad: number): T.PadInfo {
+  return { pad, name: "", source: { type: "empty" }, seconds: 0, bpm: null, mode: 0, gainDb: 0, pan: 0, sync: true, quantized: false, color: 0x52525b, error: null };
+}
+
+function kitPad(pad: number, id: string): T.PadInfo {
+  const k = DEMO_KIT.find((x) => x.id === id) ?? DEMO_KIT[0];
+  return { ...emptyPad(pad), name: k.name, source: { type: "kit", id: k.id }, seconds: KIT_SECONDS[k.id] ?? 1, bpm: k.bpm, mode: k.mode, color: k.color };
+}
+
+function defaultPads(): T.PadInfo[] {
+  return ["air_horn", "siren", "riser", "impact", "kick", "clap", "laser", "drum_loop"].map((id, i) => kitPad(i, id));
+}
+
 function demoRegistry(): T.ActionSpec[] {
   const out: T.ActionSpec[] = [];
   const add = (id: string, label: string, group: string, kind: T.ActionKind, explain: string, shortcut: string | null = null, easy = true) =>
@@ -1106,6 +1221,10 @@ function demoRegistry(): T.ActionSpec[] {
   });
   add("mixer.crossfader", "Crossfader", "Mixer", cont(-1, 1, 0), "Blends between the left and right decks.");
   add("mixer.master", "Master volume", "Mixer", cont(-120, 6, 0), "The level of the whole mix.");
+  for (let n = 1; n <= 8; n++) add(`sampler.pad.${n}`, `Pad ${n}`, "Sampler", { type: "momentary" }, "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.", `Shift+${n}`);
+  add("sampler.volume", "Sampler volume", "Sampler", cont(0, 1, 0.8), "Volume of all pads.");
+  add("sampler.stop_all", "Stop all pads", "Sampler", { type: "trigger" }, "Stops every pad that is playing, including loops.", null, false);
+  add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
   add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");

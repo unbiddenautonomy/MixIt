@@ -12,11 +12,13 @@ import { WaveStack } from "./components/deck/WaveStack";
 import { refreshRows, refreshStats } from "./components/library/data";
 import { Library } from "./components/library/Library";
 import { Mixer } from "./components/mixer/Mixer";
+import { SamplerPanel } from "./components/sampler/SamplerPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TopBar } from "./components/shell/TopBar";
 import { handleShortcut } from "./lib/appCommands";
+import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
 import { useApp } from "./store/app";
 import { useLibrary } from "./store/library";
@@ -44,8 +46,11 @@ export function App() {
           audio: info.audio,
           decks: [0, 1, 2, 3].map((i) => info.decks[i] ?? null),
           explain: info.settings.explain,
+          kit: info.kit,
+          pads: info.pads,
           ready: true,
         });
+        pushEngineState();
         let libTimer = 0;
         off = [
           b.onTelemetry((t) => useTelemetry.getState().set(t)),
@@ -75,6 +80,8 @@ export function App() {
           }),
           b.onAudioStatus((a) => {
             useApp.getState().set({ audio: a });
+            // A new device restarts the engine with default mixer and FX values.
+            pushEngineState();
             if (a.warning) toast.warning(a.warning);
           }),
           b.onError((m) => toast.error(m)),
@@ -129,6 +136,7 @@ export function App() {
 function MixView() {
   const count = useApp((s) => s.settings?.decks ?? 2);
   const libraryHeight = useApp((s) => s.libraryHeight);
+  const samplerOpen = useApp((s) => s.samplerOpen);
   const loaded = useApp((s) => s.decks.map((d) => (d ? 1 : 0)).join(""));
   const four = count > 2;
   // Empty C and D lanes would only take space from the library.
@@ -149,8 +157,11 @@ function MixView() {
       </div>
       <Coach />
       <Splitter />
-      <div className="flex min-h-[140px] flex-col" style={{ height: libraryHeight, flex: "1 1 auto" }}>
-        <Library />
+      <div className="flex min-h-[140px] gap-2" style={{ height: libraryHeight, flex: "1 1 auto" }}>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Library />
+        </div>
+        {samplerOpen && <SamplerPanel />}
       </div>
     </>
   );

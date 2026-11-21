@@ -65,6 +65,9 @@ export function runApp(id: string): boolean {
     case "explain":
       s.set({ explainHeld: true });
       return true;
+    case "sampler":
+      s.set(s.workspace === "mix" ? { samplerOpen: !s.samplerOpen } : { workspace: "mix", samplerOpen: true });
+      return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
       return true;
