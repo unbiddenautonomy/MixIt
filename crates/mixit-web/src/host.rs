@@ -242,11 +242,13 @@ impl Host {
 
     /// Puts `audio` (interleaved stereo at the engine rate) in the preview player and
     /// starts it at `start` seconds.
-    pub fn load_preview(&mut self, audio: Vec<f32>, start: f64) {
+    pub fn load_preview(&mut self, audio: Vec<f32>, start: f64, grid: Option<Beatgrid>) {
         let sr = self.sr as f64;
+        let grid = grid.map(|g| Arc::new(g.resampled(self.sr)));
         self.send(Command::Preview(PreviewCommand::Load(
             Arc::new(TrackAudio::new(self.sr, audio)),
             start.max(0.0) * sr,
+            grid,
         )));
         self.send(Command::Preview(PreviewCommand::Play(true)));
     }
@@ -366,6 +368,7 @@ impl Host {
                 self.send(Command::Preview(PreviewCommand::SetRoute(r)));
             }
             "previewClose" => self.send(Command::Preview(PreviewCommand::Unload)),
+            "previewSync" => self.send(Command::Preview(PreviewCommand::SetSync(v["on"].as_bool().unwrap_or(false)))),
             "record" => self.send(Command::Global(GlobalCommand::SetRecording(v["on"].as_bool().unwrap_or(false)))),
             "studioGet" => {
                 let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));

@@ -13,6 +13,8 @@ export type RouteChoice = "auto" | PreviewRoute;
 interface Saved {
   gain: number;
   route: RouteChoice;
+  /** Play in time with the decks. */
+  sync: boolean;
 }
 
 const KEY = "mixit.preview";
@@ -20,15 +22,16 @@ const KEY = "mixit.preview";
 function load(): Saved {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<Saved> | null;
-    return { gain: typeof s?.gain === "number" ? s.gain : 0.8, route: s?.route === "headphones" || s?.route === "speakers" ? s.route : "auto" };
+    return { gain: typeof s?.gain === "number" ? s.gain : 0.8, route: s?.route === "headphones" || s?.route === "speakers" ? s.route : "auto", sync: s?.sync === true };
   } catch {
-    return { gain: 0.8, route: "auto" };
+    return { gain: 0.8, route: "auto", sync: false };
   }
 }
 
-function save(s: Saved) {
+function save() {
+  const { gain, route, sync } = useTrackPreview.getState();
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(KEY, JSON.stringify({ gain, route, sync }));
   } catch {
     // Private windows: settings last for the session.
   }
@@ -51,8 +54,9 @@ export function resolveRoute(choice: RouteChoice): PreviewRoute {
 }
 
 function sendSettings() {
-  const { gain, route } = useTrackPreview.getState();
+  const { gain, route, sync } = useTrackPreview.getState();
   void backend().previewSettings(gain, resolveRoute(route)).catch(() => {});
+  void backend().previewSync(sync).catch(() => {});
 }
 
 /** Starts previewing `row` at `at` seconds (by default where the music starts). */
@@ -113,12 +117,19 @@ export function closePreview() {
 
 export function setPreviewGain(gain: number) {
   useTrackPreview.setState({ gain });
-  save({ gain, route: useTrackPreview.getState().route });
+  save();
   sendSettings();
 }
 
 export function setPreviewRoute(route: RouteChoice) {
   useTrackPreview.setState({ route });
-  save({ gain: useTrackPreview.getState().gain, route });
+  save();
   sendSettings();
+}
+
+/** Plays the preview in time with the decks (tempo matched, bars lined up), or at its own speed. */
+export function setPreviewSync(sync: boolean) {
+  useTrackPreview.setState({ sync });
+  save();
+  void backend().previewSync(sync).catch(() => {});
 }

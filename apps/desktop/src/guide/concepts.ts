@@ -430,6 +430,7 @@ export const CONCEPTS: Concept[] = [
     body: [
       "Hover a track and press its play button, or select it and press P. It plays in your headphones only, so the crowd never hears it, and it starts where the music starts rather than on silence. Click the waveform to jump around, or use the section buttons to hear the drop.",
       "Found the part you want? Press A or B in the preview bar and the track loads on that deck at the point you were listening to. Without a separate headphone output (a laptop on its own), the preview plays on the speakers instead; the headphone button switches between the two.",
+      "Turn on In time to hear the track the way it would sound mixed in: it plays at the tempo of the music that is on, with its bars lined up, so the two fit together in your ears. Like a record sped up on a turntable, its pitch moves a little with the tempo.",
     ],
     controls: ["app.preview"],
     glossary: ["preview"],

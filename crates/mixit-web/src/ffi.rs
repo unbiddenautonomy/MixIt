@@ -268,11 +268,13 @@ pub unsafe extern "C" fn mx_host_load_preview(
     struct PreviewLoad {
         #[serde(default)]
         start: f64,
+        #[serde(default)]
+        grid: Option<mixit_core::Beatgrid>,
     }
     let r = unsafe { text(opts, opts_len) }
         .and_then(|t| serde_json::from_str::<PreviewLoad>(t).map_err(|e| e.to_string()))
         .map(|o| {
-            h.load_preview(audio, o.start);
+            h.load_preview(audio, o.start, o.grid);
             "null".to_string()
         });
     reply(r)

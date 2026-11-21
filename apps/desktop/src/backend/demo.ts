@@ -423,8 +423,16 @@ export class DemoBackend implements Backend {
     this.sequencerTick(dt, this.master !== null ? tele[this.master].bpm || 124 : 124);
     const pv = this.previewState;
     let previewEnded = false;
+    // In time with the decks: speed is the clock's tempo over the track's own (double or half time when closer).
+    const own = pv ? this.find(pv.trackId).row.bpm : null;
+    const clock = this.master !== null ? tele[this.master].bpm : (tele.find((d) => d.playing && d.bpm > 0)?.bpm ?? 124);
+    const k = own ? [1, 2, 0.5].reduce((b, x) => (Math.abs(clock / (own * x) - 1) < Math.abs(clock / (own * b) - 1) ? x : b)) : 1;
+    const step = own && clock > 0 ? clock / (own * k) : 1;
+    // Like the engine: no further than a turntable's pitch range (16%).
+    const synced = !!(pv && this.previewSynced && own && Math.abs(step - 1) <= 0.16);
+    const previewRate = synced ? step : 1;
     if (pv && pv.playing) {
-      pv.position += dt;
+      pv.position += dt * previewRate;
       if (pv.position >= pv.duration) {
         pv.position = pv.duration;
         pv.playing = false;
@@ -445,7 +453,9 @@ export class DemoBackend implements Backend {
         cuePeak: [0, 0],
         clipped: false,
       },
-      preview: pv ? { loaded: true, playing: pv.playing, position: pv.position, duration: pv.duration, ended: previewEnded } : { loaded: false, playing: false, position: 0, duration: 0, ended: false },
+      preview: pv
+        ? { loaded: true, playing: pv.playing, position: pv.position, duration: pv.duration, ended: previewEnded, synced, rate: previewRate }
+        : { loaded: false, playing: false, position: 0, duration: 0, ended: false, synced: false, rate: 1 },
       mic: {
         connected: this.settings.micEnabled,
         live: this.settings.micEnabled,
@@ -953,6 +963,12 @@ export class DemoBackend implements Backend {
   }
 
   async previewSettings(_gain: number, _route: T.PreviewRoute): Promise<void> {}
+
+  protected previewSynced = false;
+
+  async previewSync(on: boolean): Promise<void> {
+    this.previewSynced = on;
+  }
 
   async previewClose(): Promise<void> {
     this.previewState = null;

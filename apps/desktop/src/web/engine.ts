@@ -197,8 +197,8 @@ export class WebEngine {
   }
 
   /** Puts audio in the preview player (the buffer is transferred) and plays it from `start` seconds. */
-  async loadPreview(audio: Float32Array, start: number) {
-    await this.ask(this.node.port, { type: "loadPreview", audio, json: JSON.stringify({ start }) }, [audio.buffer]);
+  async loadPreview(audio: Float32Array, start: number, grid: unknown = null) {
+    await this.ask(this.node.port, { type: "loadPreview", audio, json: JSON.stringify({ start, grid }) }, [audio.buffer]);
   }
 
   /**

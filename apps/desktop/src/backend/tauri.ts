@@ -62,6 +62,7 @@ export class TauriBackend implements Backend {
   previewPlay(on: boolean) { return invoke<void>("preview_play", { on }); }
   previewSeek(seconds: number) { return invoke<void>("preview_seek", { seconds }); }
   previewSettings(gain: number, route: T.PreviewRoute) { return invoke<void>("preview_settings", { gain, route }); }
+  previewSync(on: boolean) { return invoke<void>("preview_sync", { on }); }
   previewClose() { return invoke<void>("preview_close"); }
   saveText(path: string, text: string) { return invoke<void>("save_text", { path, text }); }
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number) {

@@ -169,6 +169,8 @@ pub struct PreviewTele {
     pub position: f64,
     pub duration: f64,
     pub ended: bool,
+    pub synced: bool,
+    pub rate: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -207,6 +209,8 @@ impl TelemetryDto {
                 position: t.preview.position_frames / sr.max(1) as f64,
                 duration: t.preview.frames / sr.max(1) as f64,
                 ended: t.preview.ended,
+                synced: t.preview.synced,
+                rate: t.preview.rate,
             },
             clock_bpm: t.clock_bpm,
             master_deck: t.master_deck.map(|d| d.0),

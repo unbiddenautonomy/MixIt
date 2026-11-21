@@ -97,6 +97,8 @@ export interface Backend {
   previewSeek(seconds: number): Promise<void>;
   /** Preview volume (0..2) and where it is heard. */
   previewSettings(gain: number, route: PreviewRoute): Promise<void>;
+  /** Plays the preview in time with the decks (tempo matched, bars lined up) or at its own speed. */
+  previewSync(on: boolean): Promise<void>;
   previewClose(): Promise<void>;
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number): Promise<SuggestionRow[]>;
 
