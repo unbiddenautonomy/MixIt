@@ -103,7 +103,19 @@ pub mod specs {
     pub const MIC_LEVEL: ParamSpec = ParamSpec::new(0.0, 1.0, 0.8, Unit::None, Taper::Linear).smoothing(10.0);
     pub const TALKOVER_DEPTH: ParamSpec =
         ParamSpec::new(-30.0, 0.0, -12.0, Unit::Decibels, Taper::Linear).smoothing(20.0);
+    pub const PAN: ParamSpec = ParamSpec::new(-1.0, 1.0, 0.0, Unit::None, Taper::Centered).smoothing(20.0);
+    /// One-knob amounts that start at off (punch, warmth, sends, ducking, glue).
+    pub const AMOUNT: ParamSpec = ParamSpec::new(0.0, 1.0, 0.0, Unit::None, Taper::Linear).smoothing(20.0);
+    pub const WIDTH: ParamSpec = ParamSpec::new(0.0, 2.0, 1.0, Unit::None, Taper::Centered).smoothing(30.0);
+    pub const RETURN_DB: ParamSpec = ParamSpec::new(-60.0, 6.0, -3.0, Unit::Decibels, Taper::Fader).smoothing(20.0);
+    pub const RETURN_PARAM: ParamSpec = ParamSpec::new(0.0, 1.0, 0.5, Unit::None, Taper::Linear).smoothing(20.0);
 }
+
+/// Echo return times (beats) for `mixer.echo.time`.
+pub const ECHO_TIMES: [(&str, f32); 6] =
+    [("1/4 beat", 0.25), ("1/2 beat", 0.5), ("3/4 beat", 0.75), ("1 beat", 1.0), ("2 beats", 2.0), ("4 beats", 4.0)];
+/// Which deck a channel ducks under (`mixer.X.duck_source`).
+pub const DUCK_SOURCES: [&str; 5] = ["Off", "Deck A", "Deck B", "Deck C", "Deck D"];
 
 pub const TEMPO_RANGES: [(&str, f32); 6] =
     [("±6%", 0.06), ("±8%", 0.08), ("±10%", 0.10), ("±16%", 0.16), ("±50%", 0.50), ("±100%", 1.00)];
@@ -690,6 +702,97 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             None,
         );
 
+        b.add(
+            mid("pan"),
+            "Pan",
+            &mg,
+            cont(specs::PAN),
+            "Places this channel left or right in the stereo picture. Centre is straight ahead.",
+            false,
+            None,
+            Some("pan"),
+        );
+        b.add(
+            mid("punch"),
+            "Punch",
+            &mg,
+            cont(specs::AMOUNT),
+            "Evens out loud and quiet moments so the track hits harder and sits steadier in the mix (a compressor). A little goes a long way.",
+            false,
+            None,
+            Some("compressor"),
+        );
+        b.add(
+            mid("warmth"),
+            "Warmth",
+            &mg,
+            cont(specs::AMOUNT),
+            "Adds the gentle grit of tape: fuller, denser and rounder peaks, without simply getting louder.",
+            false,
+            None,
+            Some("saturation"),
+        );
+        b.add(
+            mid("width"),
+            "Stereo width",
+            &mg,
+            cont(specs::WIDTH),
+            "Left makes the track narrower (fully left is mono), right makes it wider. Narrow tracks leave room for others.",
+            false,
+            None,
+            Some("stereo-width"),
+        );
+        b.add(
+            mid("space"),
+            "Space (reverb send)",
+            &mg,
+            cont(specs::AMOUNT),
+            "Sends some of this channel into the shared reverb, as if it were played in a bigger room.",
+            false,
+            None,
+            Some("send"),
+        );
+        b.add(
+            mid("echo"),
+            "Echo send",
+            &mg,
+            cont(specs::AMOUNT),
+            "Sends some of this channel into the shared echo, which repeats in time with the beat.",
+            false,
+            None,
+            Some("send"),
+        );
+        b.add(
+            mid("duck_source"),
+            "Duck under",
+            &mg,
+            choice(&DUCK_SOURCES, 0),
+            "Which deck this channel gets quieter for. Pick the other deck so its kick and bass come through cleanly.",
+            false,
+            None,
+            Some("ducking"),
+        );
+        b.add(
+            mid("duck"),
+            "Ducking amount",
+            &mg,
+            cont(specs::AMOUNT),
+            "How far this channel dips while the deck it ducks under plays.",
+            false,
+            None,
+            Some("ducking"),
+        );
+        b.add(
+            mid("gate"),
+            "Noise gate",
+            &mg,
+            toggle(),
+            "Silences the channel between sounds, removing hiss and hum in the quiet parts.",
+            false,
+            None,
+            Some("gate"),
+        );
+
         fx_slots(&mut b, &l.to_string(), &format!("FX {l}"));
     }
 
@@ -795,6 +898,66 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         false,
         None,
         Some("split-cue"),
+    );
+    b.add(
+        "mixer.glue",
+        "Glue",
+        mg,
+        cont(specs::AMOUNT),
+        "Gently compresses the whole mix so the tracks sound like they belong together, as mastering engineers do.",
+        false,
+        None,
+        Some("compressor"),
+    );
+    b.add(
+        "mixer.space.level",
+        "Reverb return",
+        mg,
+        cont(specs::RETURN_DB),
+        "How loud the shared reverb is in the mix.",
+        false,
+        None,
+        Some("send"),
+    );
+    b.add(
+        "mixer.space.size",
+        "Reverb size",
+        mg,
+        cont(specs::RETURN_PARAM),
+        "From a small room (left) to a huge hall (right).",
+        false,
+        None,
+        Some("reverb"),
+    );
+    b.add(
+        "mixer.echo.level",
+        "Echo return",
+        mg,
+        cont(specs::RETURN_DB),
+        "How loud the shared echo is in the mix.",
+        false,
+        None,
+        Some("send"),
+    );
+    b.add(
+        "mixer.echo.feedback",
+        "Echo repeats",
+        mg,
+        cont(specs::RETURN_PARAM),
+        "How many times the echo repeats before it fades away.",
+        false,
+        None,
+        Some("echo"),
+    );
+    b.add(
+        "mixer.echo.time",
+        "Echo time",
+        mg,
+        choice(&ECHO_TIMES.map(|(n, _)| n), 2),
+        "How far apart the echoes are, in beats.",
+        false,
+        None,
+        Some("echo"),
     );
     b.add(
         "mixer.auto_gain",

@@ -21,6 +21,9 @@ fn run(app: AppHandle) {
     let mut last = Instant::now();
     let mut buf: Vec<f32> = Vec::with_capacity(48_000);
     let mut mic_buf: Vec<f32> = Vec::with_capacity(48_000);
+    let mut scope_buf: Vec<f32> = Vec::with_capacity(16_384);
+    let mut spectrum: Option<(u32, mixit_dsp::studio::Spectrum)> = None;
+    let mut bands = [0.0f32; mixit_dsp::studio::SPECTRUM_BANDS];
     loop {
         std::thread::sleep(period);
         let now = Instant::now();
@@ -52,7 +55,23 @@ fn run(app: AppHandle) {
                 a.ctl.drain_capture(&mut mic_buf);
             }
             let s = a.stats.snapshot();
-            (TelemetryDto::new(&t, DECKS, a.sample_rate, s.load, s.overruns), ended, t)
+            let mut dto = TelemetryDto::new(&t, DECKS, a.sample_rate, s.load, s.overruns);
+            if a.scope != mixit_engine::ScopeSource::Off {
+                scope_buf.clear();
+                a.ctl.drain_scope(&mut scope_buf);
+                let sr = a.sample_rate;
+                if spectrum.as_ref().is_none_or(|(r, _)| *r != sr) {
+                    spectrum = Some((sr, mixit_dsp::studio::Spectrum::new(sr as f32)));
+                }
+                if let Some((_, sp)) = spectrum.as_mut() {
+                    sp.push(&scope_buf);
+                    sp.bands(&mut bands);
+                    dto.spectrum = Some(bands.to_vec());
+                }
+            } else if spectrum.is_some() {
+                spectrum = None;
+            }
+            (dto, ended, t)
         };
         if recording && !buf.is_empty() {
             if let Some(r) = state.recording.lock().as_mut() {

@@ -26,6 +26,8 @@ pub struct Audio {
     pub status: AudioStatus,
     keeper: Option<(Sender<()>, std::thread::JoinHandle<()>)>,
     mic: Option<Mic>,
+    /// What the spectrum analyser shows (the telemetry thread reads it).
+    pub scope: mixit_engine::ScopeSource,
 }
 
 /// An open input device. Its stream lives on its own thread, like the output's.
@@ -92,6 +94,7 @@ impl Audio {
             status: started.status,
             keeper: Some((stop_tx, thread)),
             mic: None,
+            scope: mixit_engine::ScopeSource::Off,
         };
         a.init();
         a

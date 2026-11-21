@@ -116,6 +116,38 @@ pub fn action(app: AppHandle, state: State<'_, AppState>, id: String, input: Act
     }
 }
 
+/// A channel's (`channel` 0..3) or the master's (`None`) studio strip settings.
+#[tauri::command]
+pub fn studio_get(state: State<'_, AppState>, channel: Option<u8>) -> R<mixit_engine::view::StudioDto> {
+    let a = state.audio.lock();
+    Ok((&a.dispatcher.studio(channel.map(usize::from))).into())
+}
+
+/// Replaces a channel's or the master's studio strip settings (detailed editor, presets).
+#[tauri::command]
+pub fn studio_set(state: State<'_, AppState>, channel: Option<u8>, settings: mixit_engine::view::StudioDto) -> R<()> {
+    let s = mixit_dsp::studio::StudioSettings::from(&settings);
+    let mut a = state.audio.lock();
+    let c = a.dispatcher.set_studio(channel.map(usize::from), s);
+    a.send(c);
+    Ok(())
+}
+
+/// Chooses what the spectrum analyser shows: "off", "master" or a channel number.
+#[tauri::command]
+pub fn scope_set(state: State<'_, AppState>, source: String) -> R<()> {
+    use mixit_engine::ScopeSource;
+    let src = match source.as_str() {
+        "off" => ScopeSource::Off,
+        "master" => ScopeSource::Master,
+        n => ScopeSource::Channel(n.parse::<usize>().map_err(|_| "bad scope source")?.min(DECKS - 1)),
+    };
+    let mut a = state.audio.lock();
+    a.scope = src;
+    a.send(Command::Mixer(mixit_engine::MixerCommand::SetScope(src)));
+    Ok(())
+}
+
 fn deck_letter(d: &str) -> R<usize> {
     let c = d.chars().next().ok_or("bad deck")?;
     let i = (c as u8).wrapping_sub(b'A') as usize;

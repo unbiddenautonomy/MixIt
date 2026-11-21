@@ -10,6 +10,9 @@ use mixit_dsp::curves::{CrossfaderCurve, FaderCurve};
 use mixit_dsp::djeq::EqMode;
 use mixit_dsp::fx::Effect;
 use mixit_dsp::stretch::TimeStretch;
+use mixit_dsp::studio::StudioSettings;
+
+use crate::mixer::{ReturnParam, ScopeSource};
 
 use crate::track::{CueKind, DeckTrack, TrackAudio};
 
@@ -177,6 +180,15 @@ pub enum MixerCommand {
     SetLimiter(bool),
     /// Puts the deck FX rack before (false) or after (true, default) the channel fader.
     SetFxPostFader(DeckId, bool),
+    /// A channel's (or, with `None`, the master's) studio insert chain.
+    SetStudio(Option<DeckId>, Box<StudioSettings>),
+    /// How much of a channel goes to return `k` (0 = reverb, 1 = echo), 0 … 1.
+    SetSend(DeckId, usize, f32),
+    /// Turns a channel down by up to `depth_db` while another channel plays (None = off).
+    SetDuck(DeckId, Option<DeckId>, f32),
+    SetReturn(usize, ReturnParam),
+    /// What feeds the spectrum analyser.
+    SetScope(ScopeSource),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -29,5 +29,6 @@ pub use commands::{
 };
 pub use engine::{Controller, Engine, EngineConfig};
 pub use input::{InputFeed, MicCommand, push_input};
+pub use mixer::{RETURNS, ReturnParam, ScopeSource};
 pub use telemetry::{DeckTelemetry, Event, LoopInfo, MasterTelemetry, MicTelemetry, Telemetry};
 pub use track::{CueKind, DeckTrack, HOT_CUES, HotCue, TrackAudio};

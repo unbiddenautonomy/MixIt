@@ -20,6 +20,7 @@ pub enum Trash {
     Effect(Box<dyn Effect>),
     Stretch(Box<dyn TimeStretch>),
     Input(Box<crate::input::InputFeed>),
+    Studio(Box<mixit_dsp::studio::StudioSettings>),
 }
 
 const OVERFLOW: usize = 64;

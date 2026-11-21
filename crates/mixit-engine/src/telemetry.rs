@@ -49,6 +49,13 @@ pub struct DeckTelemetry {
     /// Channel meters (post-EQ, pre-fader), linear peak.
     pub peak: [f32; 2],
     pub rms: f32,
+    /// Bass below about 150 Hz after the fader (RMS), for spotting clashing basslines.
+    pub low_rms: f32,
+    /// Studio compressor gain reduction (positive dB).
+    pub comp_gr_db: f32,
+    /// How far ducking turned this channel down (positive dB).
+    pub duck_db: f32,
+    pub gate_open: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -59,6 +66,8 @@ pub struct MasterTelemetry {
     pub short_term_lufs: f32,
     pub correlation: f32,
     pub limiter_gr_db: f32,
+    /// Master glue compressor gain reduction (positive dB).
+    pub glue_gr_db: f32,
     pub cue_peak: [f32; 2],
     pub clipped: bool,
 }
