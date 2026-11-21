@@ -26,6 +26,7 @@ import { mixReport, type MixReport } from "./feedback";
 import { showReport, useReport } from "../components/feedback/MixReport";
 import { startTour } from "../guide/tour";
 import { openEditor } from "../components/editor/TrackEditor";
+import { redoLibrary, undoLibrary } from "./libraryUndo";
 
 export async function updateSettings(patch: Partial<Settings>) {
   const cur = useApp.getState().settings;
@@ -196,6 +197,10 @@ export function runApp(id: string): boolean {
       return true;
     case "undo":
     case "redo": {
+      if (s.workspace === "library") {
+        void (p[1] === "undo" ? undoLibrary() : redoLibrary()).then((ok) => ok || toast.message(p[1] === "undo" ? "Nothing to undo" : "Nothing to redo"));
+        return true;
+      }
       const ok = s.workspace === "arrange" && (p[1] === "undo" ? undoProject() : redoProject());
       if (!ok) toast.message(p[1] === "undo" ? "Nothing to undo" : "Nothing to redo");
       return true;

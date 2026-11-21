@@ -3,13 +3,13 @@
 import { FileDown, Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { backend } from "../../backend";
 import type { TrackEdit, TrackRow } from "../../backend/types";
 import { clock, hex, plural } from "../../lib/format";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { refreshRows, writeTagsToFiles } from "./data";
 import { TagEditor } from "./TagEditor";
+import { editTracksWithUndo } from "../../lib/libraryUndo";
 
 const COLORS = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899];
 
@@ -27,9 +27,8 @@ export function BatchInspector({ ids }: { ids: number[] }) {
   const rows = all.filter((r) => ids.includes(r.id));
   const apply = async (edit: TrackEdit, what: string) => {
     try {
-      await backend().editTracks(ids, edit);
+      await editTracksWithUndo(rows, edit, `Set ${what.toLowerCase()} on ${plural(ids.length, "track")}`, `${what} set on ${plural(ids.length, "track")}`);
       await refreshRows();
-      toast.success(`${what} set on ${plural(ids.length, "track")}`);
     } catch (e) {
       toast.error(String(e));
     }

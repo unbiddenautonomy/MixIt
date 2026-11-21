@@ -14,6 +14,7 @@ import { keyColor } from "../../lib/keys";
 import { bridges, flow, summary, type Bridge, type Grade, type Transition } from "../../lib/setFlow";
 import { useLibrary } from "../../store/library";
 import { refreshPlaylists, refreshRows } from "./data";
+import { withPlaylistUndo } from "../../lib/libraryUndo";
 
 const KEY = "mixit.setFlow";
 
@@ -83,9 +84,8 @@ function Flow({ rows, playlistId, editable }: { rows: TrackRow[]; playlistId: nu
   const order = async (energy: "steady" | "up") => {
     setBusy(true);
     try {
-      await backend().orderPlaylist(playlistId, energy);
+      await withPlaylistUndo(playlistId, "Order the set", () => backend().orderPlaylist(playlistId, energy), energy === "up" ? "Ordered to build the energy" : "Ordered for smooth changes");
       await refreshRows();
-      toast.success(energy === "up" ? "Ordered to build the energy" : "Ordered for smooth changes");
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -174,11 +174,17 @@ function Dot({ t, a, b, index, rows, playlistId, editable }: { t: Transition; a:
   };
   const insert = async (c: TrackRow) => {
     try {
-      await backend().addToPlaylist(playlistId, [c.id]);
-      await backend().reorderPlaylist(playlistId, [rows.length], index + 1);
+      await withPlaylistUndo(
+        playlistId,
+        `Add ${c.title}`,
+        async () => {
+          await backend().addToPlaylist(playlistId, [c.id]);
+          await backend().reorderPlaylist(playlistId, [rows.length], index + 1);
+        },
+        `Added ${c.title} between ${a.title} and ${b.title}`,
+      );
       await refreshRows();
       void refreshPlaylists();
-      toast.success(`Added ${c.title} between ${a.title} and ${b.title}`);
     } catch (e) {
       toast.error(String(e));
     }

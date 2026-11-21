@@ -1259,8 +1259,14 @@ export class DemoBackend implements Backend {
     const p = this.playlistsData.find((x) => x.id === id);
     if (p) p.query = query;
   }
+  /** Like the library, a folder takes everything inside it along. */
   async deletePlaylist(id: number) {
-    this.playlistsData = this.playlistsData.filter((p) => p.id !== id);
+    const gone = new Set([id]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const p of this.playlistsData) if (p.parent != null && gone.has(p.parent) && !gone.has(p.id)) (gone.add(p.id), (grew = true));
+    }
+    this.playlistsData = this.playlistsData.filter((p) => !gone.has(p.id));
   }
   async addToPlaylist(id: number, tracks: number[]) {
     this.playlistsData.find((x) => x.id === id)?.tracks.push(...tracks);

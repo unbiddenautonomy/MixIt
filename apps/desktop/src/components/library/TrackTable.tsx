@@ -25,6 +25,7 @@ import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
 import { tagStyle } from "../../lib/tags";
 import { isShown, resetColumns, setShown, setWidth, track, useColumns, type ColumnLevel } from "../../lib/columns";
+import { editTracksWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
 
 interface Column {
   key: string;
@@ -245,8 +246,8 @@ function Stars({ track }: { track: TrackRow }) {
           onClick={async (e) => {
             e.stopPropagation();
             const rating = track.rating === n ? 0 : n;
-            const row = await backend().editTrack(track.id, { rating });
-            useLibrary.setState((s) => ({ rows: s.rows.map((r) => (r.id === row.id ? row : r)) }));
+            const row = await editTracksWithUndo([track], { rating }, rating ? `Rate ${track.title} ${rating} stars` : `Clear the rating of ${track.title}`, undefined, false);
+            if (row) useLibrary.setState((s) => ({ rows: s.rows.map((r) => (r.id === row.id ? row : r)) }));
           }}
           className="p-px"
           aria-label={`${n} stars`}
@@ -533,10 +534,10 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
                     className="size-4 cursor-pointer rounded-full border border-white/20 outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-white"
                     style={{ background: c == null ? "transparent" : hex(c) }}
                     onSelect={async () => {
-                      const list = ids();
-                      const updated = await Promise.all(list.map((id) => backend().editTrack(id, { color: c })));
-                      const by = new Map(updated.map((r) => [r.id, r]));
-                      useLibrary.setState((s) => ({ rows: s.rows.map((r) => by.get(r.id) ?? r) }));
+                      const sel = new Set(ids());
+                      const rows = useLibrary.getState().rows.filter((r) => sel.has(r.id));
+                      await editTracksWithUndo(rows, { color: c }, c == null ? "Clear the colour" : `Colour ${plural(rows.length, "track")}`, undefined, false);
+                      await refreshRows();
                     }}
                   />
                 ))}
@@ -551,7 +552,7 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
                 const sel = new Set(ids());
                 const rows = useLibrary.getState().rows;
                 const idx = rows.map((r, i) => (sel.has(r.id) ? i : -1)).filter((i) => i >= 0);
-                await backend().removeFromPlaylist(source.id, idx);
+                await withPlaylistUndo(source.id, `Remove ${plural(idx.length, "track")} from the playlist`, () => backend().removeFromPlaylist(source.id, idx), `Removed ${plural(idx.length, "track")} from the playlist`);
                 refreshPlaylists();
                 refreshRows();
               }}

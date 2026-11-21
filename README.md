@@ -25,8 +25,14 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - A coach that explains what is happening while you mix and offers one-click fixes, explain mode on every control, and Easy and Pro views.
 
 **Organise**
-- SQLite library with folder scanning, a search language (`bpm:120-128 key:~8A energy:6+ -genre:trance played:never sort:-energy`), smart playlists, folders, ratings, colours, history and tracklists.
-- rekordbox XML import and export, M3U import and export, duplicate detection and relocation of moved files.
+- SQLite library with folder scanning, a search language (`bpm:120-128 key:~8A energy:6+ -genre:trance played:never tag:"peak time" sort:-energy`), smart playlists built from rules, folders, ratings, colours and your own tags.
+- Past sets: every session's tracklist, renamed, saved as a playlist or copied as text.
+- Choose, resize and sort the columns; preview a track in your headphones in time with the decks.
+- Playlist tools: move between folders, duplicate, shuffle, take out repeats and missing files, and copy a set's music to a USB stick with a playlist beside it.
+- Undo and redo for library changes (Ctrl+Z in the Library).
+- Daily library backups with one-click restore.
+- Brings your library from other DJ apps with cues, loops, beat grids and playlists: rekordbox (XML), Traktor (collection.nml), Serato (the _Serato_ folder and the cues in your files) and VirtualDJ (database.xml). Exports for rekordbox and Traktor, writes cues into files for Serato, and M3U both ways.
+- Duplicate detection, relocation of moved files, and writing details into the files' tags.
 
 **Arrange and render**
 - Automix turns a playlist into a finished mix project: smooth order for keys and energy, phrase-aligned transitions, tempo ramps and key matching.
