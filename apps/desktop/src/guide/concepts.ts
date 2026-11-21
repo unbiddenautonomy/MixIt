@@ -140,7 +140,7 @@ export const CONCEPTS: Concept[] = [
   },
   {
     id: "quantise",
-    title: "Quantise",
+    title: "Snap to beat (quantise)",
     group: "Beat and tempo",
     summary: "Snaps cues, loops and jumps to the nearest beat so they stay in time.",
     body: [

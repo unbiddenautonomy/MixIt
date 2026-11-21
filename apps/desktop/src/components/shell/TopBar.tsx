@@ -114,7 +114,7 @@ function MasterClock() {
     return Math.floor(d.beat) % (d.beatsPerBar || 4);
   });
   return (
-    <Ctl label="Master tempo" explain="The tempo everything synced follows. It comes from the master deck.">
+    <Ctl label="Master tempo" explain="The tempo every deck with Sync on follows. It comes from the leading deck.">
       <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/30 px-2 py-1">
         <span className="font-mono text-sm font-semibold tabular-nums text-zinc-100">{bpm.toFixed(1)}</span>
         <span className="text-[9px] font-semibold uppercase text-zinc-500">BPM</span>

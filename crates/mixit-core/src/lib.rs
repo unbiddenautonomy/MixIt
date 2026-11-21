@@ -22,7 +22,7 @@ pub mod quantize;
 pub mod tempo_map;
 pub mod time;
 
-pub use beatgrid::{Beatgrid, GridAnchor};
+pub use beatgrid::{Beatgrid, GridAnchor, GridEdit, GridEditError};
 pub use ids::{ContentHash, DeckId, TrackId};
 pub use key::{Key, Mode};
 pub use params::{ParamSpec, Taper, Unit};

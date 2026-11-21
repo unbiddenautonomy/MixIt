@@ -327,7 +327,7 @@ function PadEditor() {
               <Knob value={p.gainDb} min={-24} max={12} def={0} size={24} bipolar onChange={(v) => patchPad(pad, { gainDb: Math.round(v * 2) / 2 })} format={(v) => `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`} />
             </Ctl>
             {pro && (
-              <Ctl label="Pan" explain="Places the pad left or right in the stereo field.">
+              <Ctl label="Pan" explain="Moves the pad's sound towards the left or right speaker.">
                 <Knob value={p.pan} min={-1} max={1} def={0} size={24} bipolar onChange={(v) => patchPad(pad, { pan: v })} />
               </Ctl>
             )}

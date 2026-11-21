@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { choose, setOn, setValue } from "../../lib/actions";
 import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
 import { useApp, usePro } from "../../store/app";
-import { useTelemetry } from "../../store/telemetry";
+import { useDeckTele, useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { Fader } from "../ui/Fader";
@@ -124,7 +124,7 @@ function MasterSection({ pro }: { pro: boolean }) {
       <div className="flex items-end gap-1">
         <Meter read={(t) => t.master.peak} height={pro ? 70 : 96} width={5} />
       </div>
-      <Ctl label="Loudness" explain="Short-term loudness (LUFS). Clubs and streaming sit around −14 to −8. The orange number is how much the limiter is holding back.">
+      <Ctl label="Loudness" explain="How loud the whole mix is right now (in LUFS). Clubs and streaming sit around −14 to −8; louder only squashes the sound. The orange number is how much MixIt is turning it down to stop distortion.">
         <div className="text-center font-mono leading-tight">
           <div className={clsx("text-[11px]", lufs > -6 ? "text-orange-400" : "text-zinc-200")}>{lufs <= -69 ? "–" : lufs}</div>
           <div className="text-[9px] text-zinc-500">LUFS</div>
@@ -201,6 +201,7 @@ function MixIt({ count }: { count: number }) {
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium text-zinc-100">
             {transitions.find((t) => t.id === running.kind)?.name ?? running.kind}: {L(running.from)} → {L(running.to)}
+            <WaitBars deck={running.from} startBeat={running.startBeat} />
           </div>
           <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
             <div className="h-full bg-[var(--accent)] transition-[width] duration-100" style={{ width: `${Math.round(running.progress * 100)}%` }} />
@@ -233,7 +234,7 @@ function MixIt({ count }: { count: number }) {
           ))}
         </select>
       )}
-      <Ctl label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it on the next bar, and moves the faders and EQs like a DJ would. Touch any control to take over.">
+      <Ctl label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it at the top of the next 8-bar phrase so both tracks line up, and moves the faders and EQs like a DJ would. Touch any control to take over.">
         <Btn tone="accent" className="whitespace-nowrap" style={{ ["--accent" as string]: pair ? DECK_COLORS[pair[1]] : "#a1a1aa" }} disabled={!pair} onClick={() => pair && startTransition(pair[0], pair[1], kind, kind === "cut" ? 0 : len)}>
           <Sparkles size={13} />
           {pair ? (pair[0] === pair[1] ? `Start ${L(pair[0])}` : `Mix ${L(pair[0])}→${L(pair[1])}`) : "Mix it"}
@@ -303,4 +304,11 @@ function MixerOptions({ count }: { count: number }) {
       </Popover.Portal>
     </Popover.Root>
   );
+}
+
+/** "starts in 3 bars" while a transition waits for the top of the next phrase. */
+function WaitBars({ deck, startBeat }: { deck: number; startBeat: number }) {
+  const bars = useDeckTele(deck, (d) => Math.ceil((startBeat - d.beat) / 4));
+  if (bars <= 0) return null;
+  return <span className="ml-1.5 font-normal text-zinc-400">starts in {bars} bar{bars === 1 ? "" : "s"}</span>;
 }

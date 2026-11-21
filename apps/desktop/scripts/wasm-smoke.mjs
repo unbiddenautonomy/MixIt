@@ -1,6 +1,6 @@
 // Smoke test of the browser engine module (public/mixit.wasm, from `npm run wasm`): it must
 // have no imports (it is instantiated inside an AudioWorklet), generate and analyse a track,
-// and play it through the engine host with key lock on.
+// play it through the engine host with key lock on, and render an Arrange project.
 //
 //   node scripts/wasm-smoke.mjs [path/to/mixit.wasm]
 
@@ -82,7 +82,54 @@ const rms = Math.sqrt(energy / (quanta * 256));
 if (!tele.decks[0].playing || rms < 0.05) fail(`deck A is not playing (rms ${rms.toFixed(3)})`);
 if (Math.abs(tele.decks[0].position - view.firstBeat - 10 * tele.decks[0].rate) > 0.2) fail(`deck A is at ${tele.decks[0].position.toFixed(2)} s`);
 
+// Arrange: two clips of the track, the second coming in over the first's last 8 bars.
+const clip = (id, lane, start) => ({ id, track: { hash: null, path: "smoke", title: "Smoke", artist: "", bpm: 124, key: null, duration: view.duration }, lane, start, length: 64, source_start: 0, key_shift: 0, keylock: true, gain_db: 0, lanes: [], fx: null, name: "Smoke" });
+const project = {
+  version: 1,
+  name: "Smoke",
+  tempo: { segments: [{ start_beat: 0, bpm: 126, end_bpm: 126 }], time_signatures: [{ start_beat: 0, numerator: 4, denominator: 4 }] },
+  clips: [clip(1, 0, 0), clip(2, 1, 32)],
+  markers: [],
+  master_gain_db: 0,
+  next_id: 3,
+};
+t = performance.now();
+const [rp, rl] = text(JSON.stringify({ project, tail: 0.5 }));
+const job = e.mx_render_new(rp, rl, sr);
+e.mx_free_bytes(rp, rl);
+if (!job) fail(out());
+const total = JSON.parse(out()).frames;
+let got = 0;
+let asked = 0;
+let renergy = 0;
+for (let guard = 0; guard < 1000; guard++) {
+  if (e.mx_render_next(job, sr) !== 0) fail(out());
+  const pr = JSON.parse(out());
+  const o = new Float32Array(e.memory.buffer, e.mx_out_f32_ptr(), e.mx_out_f32_len());
+  for (let k = 0; k < o.length; k++) renergy += o[k] * o[k];
+  got += pr.frames;
+  if (pr.need) {
+    asked++;
+    const q = e.mx_alloc_f32(audio.length);
+    new Float32Array(e.memory.buffer, q, audio.length).set(audio);
+    const [pp, pl] = text(pr.need.path);
+    const [tp, tl] = text(JSON.stringify({ grid: view.grid, autoGainDb: 0 }));
+    if (e.mx_render_track(job, pp, pl, q, audio.length, tp, tl) !== 0) fail(out());
+    e.mx_free_bytes(pp, pl);
+    e.mx_free_bytes(tp, tl);
+  }
+  if (pr.done) break;
+}
+e.mx_render_free(job);
+const arranged = performance.now() - t;
+const expected = Math.round(((96 * 60) / 126 + 0.5) * sr);
+if (Math.abs(got - total) > 0 || Math.abs(total - expected) > sr * 0.05) fail(`rendered ${got} of ${total} frames, expected about ${expected}`);
+if (asked < 1) fail("the render never asked for the track");
+const arms = Math.sqrt(renergy / (got * 2));
+if (arms < 0.05) fail(`the arranged mix is silent (rms ${arms.toFixed(3)})`);
+
 console.log(
   `wasm ok: ${(readFileSync(path).length / 1e6).toFixed(2)} MB, generate ${generated.toFixed(0)} ms, analyse ${analysed.toFixed(0)} ms, ` +
-    `10 s with key lock rendered in ${rendered.toFixed(0)} ms (rms ${rms.toFixed(2)})`,
+    `10 s with key lock rendered in ${rendered.toFixed(0)} ms (rms ${rms.toFixed(2)}), ` +
+    `${(got / sr).toFixed(0)} s arrangement rendered in ${arranged.toFixed(0)} ms (rms ${arms.toFixed(2)})`,
 );

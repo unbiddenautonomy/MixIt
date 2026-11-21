@@ -9,6 +9,7 @@ import type {
   AutomixRequest,
   DeckInfo,
   DeviceInfo,
+  GridEdit,
   HistoryEntry,
   JobProgress,
   LibraryStats,
@@ -37,7 +38,12 @@ export interface Backend {
   loadTrack(deck: number, trackId: number): Promise<DeckInfo>;
   seek(deck: number, seconds: number): Promise<void>;
   scratch(deck: number, phase: "start" | "move" | "end", velocity: number): Promise<void>;
-  setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number): Promise<void>;
+  setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number, label?: string): Promise<void>;
+  /** Adds or replaces a named marker (not on a pad) at `seconds`. */
+  setMemoryCue(deck: number, seconds: number, label: string, color?: number | null): Promise<void>;
+  deleteMemoryCue(deck: number, seconds: number): Promise<void>;
+  /** Edits the beat grid of the deck's track and saves it (the deck is reloaded in place). */
+  setGrid(deck: number, edit: GridEdit): Promise<void>;
   deleteHotCue(deck: number, slot: number): Promise<void>;
   setMainCue(deck: number, seconds: number): Promise<void>;
   setLoop(deck: number, start: number, end: number, active: boolean): Promise<void>;

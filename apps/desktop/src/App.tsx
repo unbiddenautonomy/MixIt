@@ -18,8 +18,12 @@ import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
+import { TrackEditor } from "./components/editor/TrackEditor";
+import { MixReportDialog } from "./components/feedback/MixReport";
+import { Tour } from "./components/guide/Tour";
+import { maybeWelcome } from "./guide/tour";
 import { TopBar } from "./components/shell/TopBar";
-import { handleShortcut } from "./lib/appCommands";
+import { handleShortcut, openCapturedMix } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
 import { useTheme } from "./lib/theme";
@@ -56,6 +60,7 @@ export function App() {
           ready: true,
         });
         pushEngineState();
+        maybeWelcome();
         let libTimer = 0;
         off = [
           b.onTelemetry((t) => useTelemetry.getState().set(t)),
@@ -135,6 +140,9 @@ export function App() {
       </div>
       <CommandPalette />
       <SettingsDialog />
+      <TrackEditor />
+      <MixReportDialog onEdit={(p) => void openCapturedMix(p)} />
+      <Tour />
       <AutomixDialog />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />

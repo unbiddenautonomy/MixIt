@@ -59,6 +59,8 @@ export interface TrackDetail {
   tempoConfidence: number;
   driftMs: number;
   constantGrid: boolean;
+  /** A locked grid is kept by re-analysis and refuses edits until unlocked. */
+  gridLocked: boolean;
   beatsPerBar: number;
   firstBeat: number;
   beatPeriod: number;
@@ -85,6 +87,17 @@ export interface SuggestionRow {
   keyShift: number;
   reasons: string[];
   tags: string[];
+}
+
+/** A precise beat grid edit from the track editor. */
+export interface GridEdit {
+  /** A constant tempo. */
+  bpm?: number;
+  /** Seconds where a bar should start (the nearest beat moves there). */
+  downbeatAt?: number;
+  /** Moves the whole grid, in milliseconds (positive = later). */
+  nudgeMs?: number;
+  locked?: boolean;
 }
 
 export interface DeckInfo {

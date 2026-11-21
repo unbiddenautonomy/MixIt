@@ -14,6 +14,8 @@ import { rowsById } from "../library/data";
 import { playPreview, stopPreview, usePreview } from "./preview";
 import { AutomationEditor, PARAM_COLORS, PARAM_DEFAULT, PARAM_LABEL, PARAM_RANGE, setLane, setLaneCurve, useAutoEdit } from "./AutomationEditor";
 import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
+import { EffectRow, HistoryButtons, IssuesButton, KeyRow, SnapPicker, TempoLane, TempoPanel, TransitionSection, useArrangeUi } from "./ArrangeParts";
+import { moveClip, PHRASE_BEATS, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
 
 const LANE_H = 76;
 
@@ -21,7 +23,7 @@ export function clipFromTrack(t: TrackRow, id: number, lane: number, start: numb
   const bpm = t.bpm ?? 120;
   return {
     id,
-    track: { hash: null, path: t.path, title: t.title, artist: t.artist, bpm, key: null, duration: t.duration },
+    track: { hash: null, path: t.path, title: t.title, artist: t.artist, bpm, key: toProjectKey(t.key), duration: t.duration },
     lane,
     start,
     length: Math.max(4, Math.floor((t.duration * bpm) / 60 / 4) * 4),
@@ -41,7 +43,12 @@ export function Arrange() {
   const dirty = useApp((s) => s.projectDirty);
   const job = useApp((s) => s.jobs.render);
   const [zoom, setZoom] = useState<number | null>(null); // pixels per beat; null fits the mix
-  const [sel, setSel] = useState<number | null>(null);
+  const [sel, setSelRaw] = useState<number | null>(null);
+  const tempoSel = useArrangeUi((s) => s.tempoSel);
+  const setSel = (id: number | null) => {
+    setSelRaw(id);
+    if (id != null) useArrangeUi.getState().set({ tempoSel: null });
+  };
   const [show, setShow] = useState<ProjectParam[]>(["Volume", "EqLow"]);
   const [width, setWidth] = useState(1200);
   const area = useRef<HTMLDivElement>(null);
@@ -72,12 +79,17 @@ export function Arrange() {
           {project.tempo.segments.length > 1 && ` → ${fmtBpm(project.tempo.segments[project.tempo.segments.length - 1].bpm)}`} BPM
         </span>
         {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
+        <IssuesButton project={project} select={setSel} />
         {dirty && (
           <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title="Save with the Save button or Ctrl/⌘+S">
             Not saved
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <HistoryButtons />
+          <div className="h-5 w-px bg-white/10" />
+          <SnapPicker />
+          <div className="h-5 w-px bg-white/10" />
           <div className="flex items-center gap-1 text-[11px] text-zinc-400">
             Show
             {(Object.keys(PARAM_COLORS) as ProjectParam[]).map((p) => (
@@ -128,7 +140,7 @@ export function Arrange() {
       </div>
       <div ref={area} className="flex min-h-0 flex-1 gap-2">
         <Timeline project={project} ppb={ppb} beats={beats} sel={sel} setSel={setSel} show={show} />
-        {clip && <ClipPanel clip={clip} project={project} close={() => setSel(null)} />}
+        {tempoSel != null && project.tempo.segments[tempoSel] ? <TempoPanel project={project} index={tempoSel} /> : clip && <ClipPanel clip={clip} project={project} close={() => setSel(null)} />}
       </div>
     </div>
   );
@@ -175,7 +187,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
       start += c.length;
     }
     p = { ...p, clips, next_id: next };
-    setProject(p);
+    setProject(p, undefined, undefined, rows.length === 1 ? `Add “${rows[0].title}”` : `Add ${rows.length} tracks`);
   };
 
   return (
@@ -201,12 +213,6 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
                 </div>
               ) : null,
             )}
-            {project.tempo.segments.map((s, i) => (
-              <div key={i} className="absolute bottom-0 rounded-t bg-amber-400/15 px-1 font-mono text-[9px] text-amber-300" style={{ left: s.start_beat * ppb }}>
-                {s.bpm.toFixed(1)}
-                {s.end_bpm !== s.bpm && `→${s.end_bpm.toFixed(1)}`}
-              </div>
-            ))}
             {project.markers.map((m, i) => (
               <div key={i} className="absolute top-0 h-full border-l border-pink-400/60 pl-1 text-[9px] text-pink-300" style={{ left: m.beat * ppb }}>
                 {m.label}
@@ -214,6 +220,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
             ))}
           </div>
         </div>
+        <TempoLane project={project} ppb={ppb} beats={beats} />
         {/* Lanes */}
         {Array.from({ length: lanes }, (_, lane) => (
           <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: LANE_H }}>
@@ -247,7 +254,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
           </div>
         ))}
         <Playhead project={project} ppb={ppb} />
-        <div className="px-24 py-3 text-[11px] text-zinc-600">Drag tracks from the library onto a lane. Drag clips to move them (on bars; hold Shift for beats), drag the right edge to trim.</div>
+        <div className="px-24 py-3 text-[11px] text-zinc-600">Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim.</div>
       </div>
     </div>
   );
@@ -255,7 +262,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
 
 function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: number; selected: boolean; onSelect: () => void; show: ProjectParam[] }) {
   const editing = useAutoEdit((s) => s.param);
-  const drag = useRef<{ x: number; start: number; length: number; mode: "move" | "trim" } | null>(null);
+  const drag = useRef<{ x: number; y: number; start: number; length: number; lane: number; mode: "move" | "trim" } | null>(null);
   const color = DECK_COLORS[clip.lane] ?? "#a1a1aa";
   const w = clip.length * ppb;
   return (
@@ -266,16 +273,25 @@ function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: num
         e.stopPropagation();
         onSelect();
         const trim = (e.target as HTMLElement).dataset.trim === "1";
-        drag.current = { x: e.clientX, start: clip.start, length: clip.length, mode: trim ? "trim" : "move" };
+        drag.current = { x: e.clientX, y: e.clientY, start: clip.start, length: clip.length, lane: clip.lane, mode: trim ? "trim" : "move" };
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
         const d = drag.current;
         if (!d) return;
-        const snap = e.shiftKey ? 1 : 4;
-        const db = Math.round((e.clientX - d.x) / ppb / snap) * snap;
-        if (d.mode === "move") updateClip(clip.id, { start: Math.max(0, d.start + db) });
-        else updateClip(clip.id, { length: Math.max(snap, d.length + db) });
+        const mode = e.shiftKey ? "beat" : useArrangeUi.getState().snap;
+        const cur = useApp.getState().project;
+        const me = cur?.clips.find((c) => c.id === clip.id);
+        if (!cur || !me) return;
+        if (d.mode === "move") {
+          const start = snapClipStart(cur, me, d.start + (e.clientX - d.x) / ppb, mode);
+          const lane = Math.max(0, Math.min(3, d.lane + Math.round((e.clientY - d.y) / LANE_H)));
+          if (start !== me.start || lane !== me.lane) setProject(moveClip(cur, clip.id, start, lane), undefined, `clip:${clip.id}:start`);
+        } else {
+          const step = mode === "beat" ? 1 : mode === "bar" ? 4 : PHRASE_BEATS;
+          const length = Math.max(step, d.length + Math.round((e.clientX - d.x) / ppb / step) * step);
+          if (length !== me.length) updateClip(clip.id, { length });
+        }
       }}
       onPointerUp={() => (drag.current = null)}
     >
@@ -349,19 +365,13 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
         <input type="range" min={-12} max={12} step={0.5} value={clip.gain_db} onChange={(e) => updateClip(clip.id, { gain_db: Number(e.target.value) })} className="flex-1 accent-sky-400" />
         <span className="w-12 text-right font-mono text-zinc-300">{clip.gain_db.toFixed(1)} dB</span>
       </Row>
-      <Row label="Key">
-        <button type="button" className="rounded bg-white/[0.06] px-2 py-0.5" onClick={() => updateClip(clip.id, { key_shift: Math.max(-12, clip.key_shift - 1) })}>
-          −
-        </button>
-        <span className="w-12 text-center font-mono text-zinc-300">{clip.key_shift > 0 ? `+${clip.key_shift}` : clip.key_shift} st</span>
-        <button type="button" className="rounded bg-white/[0.06] px-2 py-0.5" onClick={() => updateClip(clip.id, { key_shift: Math.min(12, clip.key_shift + 1) })}>
-          +
-        </button>
-      </Row>
+      <KeyRow clip={clip} project={project} />
       <label className="flex items-center gap-2 text-zinc-300">
         <input type="checkbox" checked={clip.keylock} onChange={(e) => updateClip(clip.id, { keylock: e.target.checked })} />
         Key lock (tempo changes keep the pitch)
       </label>
+      <EffectRow clip={clip} />
+      <TransitionSection key={clip.id} clip={clip} project={project} />
       <AutomationSection clip={clip} />
       <div className="flex gap-1">
         <Btn size="sm" className="flex-1" onClick={() => playPreview(project, Math.max(0, clip.start - 16), clip.start + 48)}>
@@ -378,7 +388,7 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
         size="sm"
         tone="danger"
         onClick={() => {
-          setProject({ ...project, clips: project.clips.filter((c) => c.id !== clip.id) });
+          setProject({ ...project, clips: project.clips.filter((c) => c.id !== clip.id) }, undefined, undefined, `Remove “${clip.name || clip.track.title}”`);
           close();
         }}
       >

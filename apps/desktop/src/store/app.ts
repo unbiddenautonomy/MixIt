@@ -74,6 +74,8 @@ interface AppState {
   workspace: Workspace;
   paletteOpen: boolean;
   settingsOpen: boolean;
+  /** The deck whose track the track editor shows (null when closed). */
+  editorDeck: number | null;
   automixOpen: boolean;
   explain: boolean;
   explainHeld: boolean;
@@ -133,6 +135,7 @@ export const useApp = create<AppState>((set) => ({
   workspace: "mix",
   paletteOpen: false,
   settingsOpen: false,
+  editorDeck: null,
   automixOpen: false,
   explain: false,
   explainHeld: false,

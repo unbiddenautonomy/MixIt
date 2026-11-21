@@ -1,6 +1,7 @@
 // Opening, saving and rendering mix projects, and small project helpers shared by the
 // Arrange view.
 import { toast } from "sonner";
+import { create } from "zustand";
 import { backend } from "../../backend";
 import type { Clip, MixProject } from "../../backend/types";
 import { useApp } from "../../store/app";
@@ -49,21 +50,58 @@ export function projectBeats(p: MixProject): number {
 }
 
 // Undo history for project edits. Edits with the same key in quick succession (one
-// drag, typing a name) count as one step.
-const undoStack: MixProject[] = [];
-const redoStack: MixProject[] = [];
+// drag, typing a name) count as one step. Each step keeps a plain-language label so the
+// history can be shown and jumped through.
+interface Step {
+  project: MixProject;
+  label: string;
+}
+const undoStack: Step[] = [];
+const redoStack: Step[] = [];
 let lastKey = "";
 let lastAt = 0;
 
+/** What the History list shows: labels of the edits that can be undone and redone. */
+export const useHistory = create<{ undo: string[]; redo: string[]; base: string }>(() => ({ undo: [], redo: [], base: "Opened" }));
+const publish = () => useHistory.setState({ undo: undoStack.map((s) => s.label), redo: redoStack.map((s) => s.label).reverse() });
+
+const CLIP_LABELS: Record<string, string> = {
+  start: "Move clip",
+  lane: "Move clip to another deck",
+  length: "Trim clip",
+  source_start: "Change where the clip starts in its track",
+  gain_db: "Change clip gain",
+  key_shift: "Change clip key",
+  keylock: "Turn key lock on or off",
+  lanes: "Edit automation",
+  fx: "Change clip effect",
+  name: "Rename clip",
+};
+
+/** A label for an edit key from `updateClip` and friends. */
+export function labelFor(key?: string): string {
+  if (!key) return "Edit";
+  if (key === "name") return "Rename mix";
+  const m = /^clip:\d+:(.+)$/.exec(key);
+  if (m) {
+    const fields = m[1].split(",");
+    return CLIP_LABELS[fields[0]] ?? "Edit clip";
+  }
+  return key;
+}
+
 /**
  * With a path (or null), replaces the project (open, new, close) and clears the
- * history. Without one, records an edit that can be undone.
+ * history. Without one, records an edit that can be undone, under `label` (or a label
+ * made from `key`).
  */
-export function setProject(p: MixProject | null, path?: string | null, key?: string) {
+export function setProject(p: MixProject | null, path?: string | null, key?: string, label?: string) {
   if (path !== undefined) {
     undoStack.length = 0;
     redoStack.length = 0;
     lastKey = "";
+    useHistory.setState({ base: !p ? "Opened" : path ? "Opened" : p.name.startsWith("Live mix") ? "Recorded" : "Started" });
+    publish();
     // A project made by Automix has no file yet, so it counts as unsaved.
     useApp.getState().set({ project: p, projectPath: path, projectDirty: !!p && !path });
     return;
@@ -71,12 +109,13 @@ export function setProject(p: MixProject | null, path?: string | null, key?: str
   const cur = useApp.getState().project;
   const now = performance.now();
   if (cur && !(key && key === lastKey && now - lastAt < 1500)) {
-    undoStack.push(cur);
+    undoStack.push({ project: cur, label: label ?? labelFor(key) });
     if (undoStack.length > 200) undoStack.shift();
   }
   lastKey = key ?? "";
   lastAt = now;
   redoStack.length = 0;
+  publish();
   useApp.getState().set({ project: p, projectDirty: true });
 }
 
@@ -84,9 +123,10 @@ export function undoProject(): boolean {
   const cur = useApp.getState().project;
   const prev = undoStack.pop();
   if (!prev || !cur) return false;
-  redoStack.push(cur);
+  redoStack.push({ project: cur, label: prev.label });
   lastKey = "";
-  useApp.getState().set({ project: prev, projectDirty: true });
+  publish();
+  useApp.getState().set({ project: prev.project, projectDirty: true });
   return true;
 }
 
@@ -94,16 +134,26 @@ export function redoProject(): boolean {
   const cur = useApp.getState().project;
   const next = redoStack.pop();
   if (!next || !cur) return false;
-  undoStack.push(cur);
+  undoStack.push({ project: cur, label: next.label });
   lastKey = "";
-  useApp.getState().set({ project: next, projectDirty: true });
+  publish();
+  useApp.getState().set({ project: next.project, projectDirty: true });
   return true;
 }
 
-export function updateClip(id: number, patch: Partial<Clip>) {
+/**
+ * Goes to a point in the history: `done` edits applied (0 is how the project started,
+ * the undo list's length is now). Edits after it can be redone.
+ */
+export function jumpHistory(done: number) {
+  while (undoStack.length > done && undoProject());
+  while (undoStack.length < done && redoProject());
+}
+
+export function updateClip(id: number, patch: Partial<Clip>, label?: string) {
   const p = useApp.getState().project;
   if (!p) return;
-  setProject({ ...p, clips: p.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) }, undefined, `clip:${id}:${Object.keys(patch).join(",")}`);
+  setProject({ ...p, clips: p.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) }, undefined, `clip:${id}:${Object.keys(patch).join(",")}`, label);
 }
 
 /**

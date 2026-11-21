@@ -7,6 +7,7 @@ import type { Telemetry } from "../backend/types";
 export interface GridView {
   bpm: number;
   constantGrid: boolean;
+  gridLocked: boolean;
   beatsPerBar: number;
   firstBeat: number;
   beatPeriod: number;
@@ -69,6 +70,7 @@ export class WebEngine {
   readonly tap: MediaStreamAudioDestinationNode;
   private worker: Worker;
   private nextId = 1;
+  private nextJob = 1;
   private pending = new Map<number, (r: Reply) => void>();
   private pollListeners = new Set<(t: Telemetry, ended: number[]) => void>();
   private recChunks: Float32Array[] | null = null;
@@ -187,6 +189,37 @@ export class WebEngine {
     await this.ask(this.node.port, { type: "loadPad", pad, audio, json: JSON.stringify({ bpm, settings }) }, [audio.buffer]);
   }
 
+  /**
+   * Renders an Arrange project (or the beats `from..to` of it) in the worker, about a
+   * second at a time. `need` supplies each track when its first clip is about to play
+   * (null when it cannot be found); `chunk` receives the interleaved stereo as it comes.
+   */
+  async renderProject(
+    request: { project: unknown; from?: number; to?: number; tail?: number; limiter?: boolean; autoGain?: boolean },
+    need: (n: RenderNeed) => Promise<RenderTrack | null>,
+    chunk: (audio: Float32Array, position: number, total: number) => void,
+    cancelled: () => boolean = () => false,
+  ): Promise<void> {
+    const job = this.nextJob++;
+    await this.ask(this.worker, { type: "renderStart", job, request, sampleRate: this.sampleRate });
+    try {
+      for (;;) {
+        if (cancelled()) throw new RenderCancelled();
+        const r = await this.ask<Reply & { progress: RenderProgress; audio: Float32Array }>(this.worker, { type: "renderNext", job, frames: this.sampleRate });
+        if (r.audio.length) chunk(r.audio, r.progress.position, r.progress.total);
+        const n = r.progress.need;
+        if (n) {
+          const t = await need(n);
+          if (t) await this.ask(this.worker, { type: "renderTrack", job, path: n.path, audio: t.audio, options: { grid: t.grid, autoGainDb: t.autoGainDb } }, [t.audio.buffer]);
+          else await this.ask(this.worker, { type: "renderMissing", job, path: n.path });
+        }
+        if (r.progress.done) return;
+      }
+    } finally {
+      await this.ask(this.worker, { type: "renderFree", job }).catch(() => undefined);
+    }
+  }
+
   /** The action registry and FX names, as the desktop app reports them. */
   async registry(): Promise<{ registry: unknown[]; fxTypes: string[] }> {
     const r = await this.ask<Reply & { info: { registry: unknown[]; fxTypes: string[] } }>(this.worker, { type: "registry" });
@@ -250,8 +283,34 @@ export class WebEngine {
 }
 
 /** Encodes interleaved stereo chunks as a WAV file (16-bit PCM, or 32-bit float). */
-export function encodeWav(chunks: Float32Array[], sampleRate: number, float = false): Blob {
-  const samples = chunks.reduce((a, c) => a + c.length, 0);
+export interface RenderNeed {
+  clip: number;
+  path: string;
+  title: string;
+}
+
+export interface RenderTrack {
+  audio: Float32Array;
+  grid: unknown;
+  autoGainDb: number;
+}
+
+interface RenderProgress {
+  frames: number;
+  position: number;
+  total: number;
+  need: RenderNeed | null;
+  done: boolean;
+}
+
+export class RenderCancelled extends Error {
+  constructor() {
+    super("Render stopped");
+  }
+}
+
+/** A 44-byte WAV header for interleaved stereo. */
+export function wavHeader(samples: number, sampleRate: number, float = false): ArrayBuffer {
   const bytes = float ? 4 : 2;
   const header = new ArrayBuffer(44);
   const h = new DataView(header);
@@ -269,15 +328,20 @@ export function encodeWav(chunks: Float32Array[], sampleRate: number, float = fa
   h.setUint16(34, bytes * 8, true);
   str(36, "data");
   h.setUint32(40, samples * bytes, true);
-  const parts: BlobPart[] = [header];
-  for (const c of chunks) {
-    if (float) parts.push(new Float32Array(c));
-    else {
-      const pcm = new Int16Array(c.length);
-      for (let i = 0; i < c.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(c[i] * 32767)));
-      parts.push(pcm);
-    }
-  }
+  return header;
+}
+
+/** Floats to 16-bit samples. */
+export function toPcm16(c: Float32Array): Int16Array<ArrayBuffer> {
+  const pcm = new Int16Array(c.length);
+  for (let i = 0; i < c.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(c[i] * 32767)));
+  return pcm;
+}
+
+export function encodeWav(chunks: Float32Array[], sampleRate: number, float = false): Blob {
+  const samples = chunks.reduce((a, c) => a + c.length, 0);
+  const parts: BlobPart[] = [wavHeader(samples, sampleRate, float)];
+  for (const c of chunks) parts.push(float ? new Float32Array(c) : toPcm16(c));
   return new Blob(parts, { type: "audio/wav" });
 }
 

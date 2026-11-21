@@ -8,10 +8,17 @@ import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
 import { refreshRows } from "../components/library/data";
-import { openProject, redoProject, saveProject, undoProject } from "../components/arrange/projectIo";
+import { confirmDiscard, openProject, redoProject, saveProject, setProject, undoProject } from "../components/arrange/projectIo";
+import type { MixProject, TrackRef } from "../backend/types";
+import { buildProject, MixCapture } from "./capture";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
+import { toProjectKey } from "./arrangeOps";
 import { startTransition, type TransitionId } from "./transition";
+import { mixReport, type MixReport } from "./feedback";
+import { showReport, useReport } from "../components/feedback/MixReport";
+import { startTour } from "../guide/tour";
+import { openEditor } from "../components/editor/TrackEditor";
 
 export async function updateSettings(patch: Partial<Settings>) {
   const cur = useApp.getState().settings;
@@ -32,15 +39,61 @@ export async function updateSettings(patch: Partial<Settings>) {
 
 const WORKSPACES: Record<string, Workspace> = { library: "library", decks: "mix", mix: "mix", arrange: "arrange", edit: "arrange" };
 
+// While recording, every deck and mixer move is captured too, so the mix can be opened
+// in Arrange and fixed afterwards (see lib/capture.ts).
+let capture: MixCapture | null = null;
+let captureOff: (() => void) | null = null;
+
+function trackRefFor(deck: number): TrackRef | null {
+  const info = useApp.getState().decks[deck];
+  if (!info) return null;
+  const t = info.detail.track;
+  return { hash: null, path: t.path, title: t.title, artist: t.artist, bpm: info.detail.bpm ?? t.bpm ?? 120, key: toProjectKey(info.detail.key ?? t.key), duration: t.duration };
+}
+
+function startCapture() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const name = `Live mix ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}`;
+  const c = new MixCapture(name, useApp.getState().audio?.sampleRate ?? 48_000);
+  capture = c;
+  captureOff?.();
+  captureOff = useTelemetry.subscribe((s) => c.add(s.t, useApp.getState().mixer, trackRefFor));
+}
+
+function stopCapture(): { project: MixProject | null; report: MixReport | null } {
+  captureOff?.();
+  captureOff = null;
+  const c = capture;
+  capture = null;
+  if (!c) return { project: null, report: null };
+  const cap = c.capture();
+  return { project: buildProject(cap), report: mixReport(cap) };
+}
+
+/** Opens a captured live mix in Arrange (asking first if the open project has unsaved edits). */
+export async function openCapturedMix(p: MixProject) {
+  if (!(await confirmDiscard("open the recorded mix"))) return;
+  setProject(p, null);
+  useApp.getState().set({ workspace: "arrange" });
+}
+
 export async function toggleRecording() {
   const rec = useTelemetry.getState().t.recording;
   try {
     if (rec) {
       const path = await backend().recordStop();
-      toast.success("Recording saved", { description: path });
+      const { project, report } = stopCapture();
+      if (report) showReport(report, project, path);
+      toast.success("Recording saved", {
+        description: project ? `${path}. Every move you made was captured too: open it in Arrange to fix a transition or a fade.` : path,
+        action: project ? { label: "Edit in Arrange", onClick: () => void openCapturedMix(project) } : undefined,
+        duration: project ? 15_000 : undefined,
+      });
     } else {
       await backend().recordStart();
-      toast.message("Recording", { description: "Everything on the master output is being saved." });
+      startCapture();
+      toast.message("Recording", { description: "Everything on the master output is being saved, and every move you make, so you can edit the mix afterwards." });
     }
   } catch (e) {
     toast.error(String(e));
@@ -80,6 +133,16 @@ export function runApp(id: string): boolean {
       return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
+      return true;
+    case "tour":
+      startTour();
+      return true;
+    case "feedback":
+      if (useReport.getState().report) useReport.setState({ open: true });
+      else toast.message("No feedback yet", { description: "Press Rec, mix two or more tracks, then stop recording. MixIt then tells you how the mix went." });
+      return true;
+    case "edit_track":
+      openEditor(s.targetDeck);
       return true;
     case "workspace":
       s.set({ workspace: WORKSPACES[p[2]] ?? "mix" });

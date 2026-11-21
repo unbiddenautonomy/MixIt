@@ -258,22 +258,22 @@ function Grid({ deck }: { deck: number }) {
             Downbeat here
           </Btn>
         </Ctl>
-        <Ctl id={`deck.${L}.grid.halve`} label="Half tempo" explain="The analysed tempo is double what it should be.">
+        <Ctl id={`deck.${L}.grid.halve`} label="Half tempo" explain="Halves the tempo, for when MixIt counted twice as many beats as the music has.">
           <Btn size="sm" onClick={() => tap(`deck.${L}.grid.halve`)}>
             ½ BPM
           </Btn>
         </Ctl>
-        <Ctl id={`deck.${L}.grid.double`} label="Double tempo" explain="The analysed tempo is half what it should be.">
+        <Ctl id={`deck.${L}.grid.double`} label="Double tempo" explain="Doubles the tempo, for when MixIt counted only every other beat.">
           <Btn size="sm" onClick={() => tap(`deck.${L}.grid.double`)}>
             ×2 BPM
           </Btn>
         </Ctl>
-        <Ctl id={`deck.${L}.grid.nudge_back`} label="Grid earlier" explain="Moves the whole grid 5 ms earlier.">
+        <Ctl id={`deck.${L}.grid.nudge_back`} label="Grid earlier" explain="Moves the beat lines a little earlier, so they sit exactly on the kicks.">
           <Btn size="sm" onClick={() => tap(`deck.${L}.grid.nudge_back`)} aria-label="Grid earlier">
             <ChevronLeft size={12} />
           </Btn>
         </Ctl>
-        <Ctl id={`deck.${L}.grid.nudge_fwd`} label="Grid later" explain="Moves the whole grid 5 ms later.">
+        <Ctl id={`deck.${L}.grid.nudge_fwd`} label="Grid later" explain="Moves the beat lines a little later, so they sit exactly on the kicks.">
           <Btn size="sm" onClick={() => tap(`deck.${L}.grid.nudge_fwd`)} aria-label="Grid later">
             <ChevronRight size={12} />
           </Btn>

@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 mixit-core = { path = "../mixit-core" }
 mixit-dsp = { path = "../mixit-dsp" }
 mixit-engine = { path = "../mixit-engine" }
+mixit-project = { path = "../mixit-project" }
 mixit-stretch = { path = "../mixit-stretch", default-features = false }
 mixit-analysis = { path = "../mixit-analysis" }
 mixit-generator = { path = "../mixit-generator" }

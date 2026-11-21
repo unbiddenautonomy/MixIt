@@ -152,6 +152,9 @@ fn grid_edit(app: &AppHandle, state: &AppState, deck: usize, op: &str) -> R<()> 
         let d = decks[deck].as_mut().ok_or("no track on this deck")?;
         let engine_sr = d.sample_rate as f64;
         let g = &mut d.grid;
+        if g.locked {
+            return Err("The beat grid is locked. Unlock it in the track editor first.".into());
+        }
         let gsr = g.sample_rate as f64;
         let at = pos_frames / engine_sr * gsr;
         match op {
@@ -169,6 +172,51 @@ fn grid_edit(app: &AppHandle, state: &AppState, deck: usize, op: &str) -> R<()> 
     state.audio.lock().send(Command::Deck(DeckId(deck as u8), DeckCommand::SetGrid(Arc::new(grid.resampled(sr)))));
     // Refresh the deck view (beat lines, BPM).
     let info = refresh_detail(state, deck)?;
+    let _ = app.emit("deck-loaded", &info);
+    Ok(())
+}
+
+/// Edits the beat grid of the track on a deck and saves it to the library.
+#[tauri::command]
+pub fn grid_set(app: AppHandle, state: State<'_, AppState>, deck: u8, edit: mixit_core::GridEdit) -> R<()> {
+    let deck = deck as usize;
+    let (track_id, grid) = {
+        let mut decks = state.decks.lock();
+        let d = decks.get_mut(deck).and_then(|d| d.as_mut()).ok_or("no track on this deck")?;
+        d.grid.apply_edit(&edit).map_err(|e| e.to_string())?;
+        (d.track_id, d.grid.clone())
+    };
+    state.library.lock().save_grid(track_id, &grid).map_err(err)?;
+    let sr = state.audio.lock().sample_rate;
+    state.audio.lock().send(Command::Deck(DeckId(deck as u8), DeckCommand::SetGrid(Arc::new(grid.resampled(sr)))));
+    let info = refresh_detail(&state, deck)?;
+    let _ = app.emit("deck-loaded", &info);
+    Ok(())
+}
+
+/// Adds or replaces a memory cue (a named marker, not on a pad) at `seconds`.
+#[tauri::command]
+pub fn set_memory_cue(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    deck: u8,
+    seconds: f64,
+    label: String,
+    color: Option<u32>,
+) -> R<()> {
+    save_cue(&state, deck, |cues| {
+        cues.retain(|c| !(c.kind == CueKind::Memory && (c.seconds - seconds).abs() < 0.01));
+        cues.push(Cue { kind: CueKind::Memory, slot: None, seconds, loop_seconds: None, color, label });
+    })?;
+    let info = refresh_detail(&state, deck as usize)?;
+    let _ = app.emit("deck-loaded", &info);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_memory_cue(app: AppHandle, state: State<'_, AppState>, deck: u8, seconds: f64) -> R<()> {
+    save_cue(&state, deck, |cues| cues.retain(|c| !(c.kind == CueKind::Memory && (c.seconds - seconds).abs() < 0.01)))?;
+    let info = refresh_detail(&state, deck as usize)?;
     let _ = app.emit("deck-loaded", &info);
     Ok(())
 }

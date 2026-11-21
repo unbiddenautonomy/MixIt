@@ -10,6 +10,7 @@ publish.workspace = true
 serde.workspace = true
 mixit-core = { path = "../mixit-core" }
 mixit-dsp = { path = "../mixit-dsp" }
+mixit-project = { path = "../mixit-project" }
 rtrb.workspace = true
 
 [dev-dependencies]

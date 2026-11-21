@@ -259,6 +259,15 @@ impl Host {
                 self.decks.get_mut(deck).ok_or("no deck")?.take();
                 self.deck_cmd(deck, DeckCommand::Eject)?
             }
+            "gridSet" => {
+                let edit: mixit_core::GridEdit =
+                    serde_json::from_value(v["edit"].clone()).map_err(|e| e.to_string())?;
+                let slot = self.decks.get_mut(deck).and_then(|s| s.as_mut()).ok_or("no track on this deck")?;
+                slot.grid.apply_edit(&edit).map_err(|e| e.to_string())?;
+                let view = GridView::new(&slot.grid, slot.duration);
+                self.deck_cmd(deck, DeckCommand::SetGrid(Arc::new(view.grid.clone())))?;
+                return Ok(json!(view));
+            }
             "padSettings" => {
                 let pad = v["pad"].as_u64().unwrap_or(0) as usize;
                 let s: PadSettings = serde_json::from_value(v["settings"].clone()).map_err(|e| e.to_string())?;
@@ -320,6 +329,9 @@ impl Host {
         let pos = self.ctl.telemetry().decks[deck].position;
         let slot = self.decks[deck].as_mut().ok_or("no track on this deck")?;
         let g = &mut slot.grid;
+        if g.locked {
+            return Err("The beat grid is locked. Unlock it in the track editor first.".into());
+        }
         let sr = g.sample_rate as f64;
         match op {
             "set_downbeat" => g.set_downbeat(pos),
@@ -425,6 +437,11 @@ mod tests {
         let shift = r["keyShift"].as_i64().unwrap();
         let fits = parse_camelot("3B").unwrap().transposed(shift as i32).camelot_distance(parse_camelot("8A").unwrap());
         assert!(fits <= 1, "shift {shift} leaves distance {fits}");
+        let r = h.call(r#"{"op":"gridSet","deck":1,"edit":{"bpm":126,"locked":true}}"#).unwrap();
+        assert_eq!(r["bpm"].as_f64(), Some(126.0));
+        assert_eq!(r["gridLocked"].as_bool(), Some(true));
+        assert!(h.call(r#"{"op":"action","id":"deck.B.grid.halve","input":{"type":"press"}}"#).is_err());
+        assert!(h.call(r#"{"op":"gridSet","deck":1,"edit":{"nudgeMs":5}}"#).is_err());
         assert!(h.call(r#"{"op":"nope"}"#).is_err());
     }
 }

@@ -26,9 +26,12 @@ export class TauriBackend implements Backend {
   loadTrack(deck: number, trackId: number) { return invoke<T.DeckInfo>("load_track", { deck, trackId }); }
   seek(deck: number, seconds: number) { return invoke<void>("seek", { deck, seconds }); }
   scratch(deck: number, phase: "start" | "move" | "end", velocity: number) { return invoke<void>("scratch", { deck, phase, velocity }); }
-  setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number) {
-    return invoke<void>("set_hot_cue", { deck, slot, seconds, loopSeconds: loopSeconds ?? null, color: color ?? null, label: null });
+  setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number, label?: string) {
+    return invoke<void>("set_hot_cue", { deck, slot, seconds, loopSeconds: loopSeconds ?? null, color: color ?? null, label: label ?? null });
   }
+  setMemoryCue(deck: number, seconds: number, label: string, color?: number | null) { return invoke<void>("set_memory_cue", { deck, seconds, label, color: color ?? null }); }
+  deleteMemoryCue(deck: number, seconds: number) { return invoke<void>("delete_memory_cue", { deck, seconds }); }
+  setGrid(deck: number, edit: T.GridEdit) { return invoke<void>("grid_set", { deck, edit }); }
   deleteHotCue(deck: number, slot: number) { return invoke<void>("delete_hot_cue", { deck, slot }); }
   setMainCue(deck: number, seconds: number) { return invoke<void>("set_main_cue", { deck, seconds }); }
   setLoop(deck: number, start: number, end: number, active: boolean) { return invoke<void>("set_loop", { deck, start, end, active }); }
