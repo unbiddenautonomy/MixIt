@@ -1278,6 +1278,34 @@ export class DemoBackend implements Backend {
     rest.splice(at, 0, ...moving);
     p.tracks = rest;
   }
+  async movePlaylist(id: number, parent: number | null, position: number) {
+    const p = this.playlistsData.find((x) => x.id === id);
+    if (!p) return;
+    if (parent != null) {
+      const target = this.playlistsData.find((x) => x.id === parent);
+      if (!target || target.kind !== "folder") throw new Error("playlists go into folders, not into other playlists");
+      for (let at: number | null = parent; at != null; at = this.playlistsData.find((x) => x.id === at)?.parent ?? null) {
+        if (at === id) throw new Error("a folder cannot go inside itself");
+      }
+    }
+    // Position among the new siblings, kept by order in the list.
+    this.playlistsData = this.playlistsData.filter((x) => x !== p);
+    p.parent = parent;
+    const siblings = this.playlistsData.filter((x) => x.parent === parent);
+    const before = siblings[Math.max(0, position)];
+    const at = before ? this.playlistsData.indexOf(before) : this.playlistsData.length;
+    this.playlistsData.splice(at, 0, p);
+  }
+  async setPlaylistTracks(id: number, tracks: number[]) {
+    const p = this.playlistsData.find((x) => x.id === id);
+    if (p) p.tracks = [...tracks];
+  }
+  /** The demo has no files: it reports the copy as a job, like the desktop app. */
+  async copyFiles(ids: number[], dest: string, name: string) {
+    const missing = ids.filter((id) => this.find(id).row.missing).length;
+    this.emit<T.JobProgress>("job", { kind: "copy", done: 0, total: ids.length, message: "Copying", finished: false, error: null });
+    setTimeout(() => this.emit<T.JobProgress>("job", { kind: "copy", done: 0, total: 0, message: `Copied ${ids.length - missing} of ${ids.length} tracks to ${dest}/${name}`, finished: true, error: null }), 400);
+  }
   /** A greedy path: each next track is the easiest to mix into, rising in energy for "up". */
   async orderPlaylist(id: number, energy: "steady" | "up" | "down" = "steady") {
     const p = this.playlistsData.find((x) => x.id === id);

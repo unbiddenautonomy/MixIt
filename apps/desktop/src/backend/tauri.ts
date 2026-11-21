@@ -90,6 +90,9 @@ export class TauriBackend implements Backend {
   addToPlaylist(id: number, tracks: number[]) { return invoke<void>("playlist_add", { id, tracks }); }
   removeFromPlaylist(id: number, indices: number[]) { return invoke<void>("playlist_remove", { id, indices }); }
   reorderPlaylist(id: number, from: number[], to: number) { return invoke<void>("playlist_reorder", { id, from, to }); }
+  movePlaylist(id: number, parent: number | null, position: number) { return invoke<void>("playlist_move", { id, parent, position }); }
+  setPlaylistTracks(id: number, tracks: number[]) { return invoke<void>("playlist_set_tracks", { id, tracks }); }
+  copyFiles(ids: number[], dest: string, name: string, numbered: boolean) { return invoke<void>("tracks_copy_files", { ids, dest, name, numbered }); }
   orderPlaylist(id: number, energy: "steady" | "up" | "down") { return invoke<void>("playlist_order_set", { id, energy, start: null }); }
   history() { return invoke<T.HistoryEntry[]>("history"); }
   async historySessions() {

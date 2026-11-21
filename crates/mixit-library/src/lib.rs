@@ -906,9 +906,35 @@ impl Library {
         Ok(())
     }
 
+    /// Moves a playlist or folder into a folder (or to the top with `None`), at
+    /// `position` among what is there (past the end puts it last). A folder cannot go
+    /// inside itself, and only folders hold playlists.
     pub fn move_playlist(&self, id: i64, parent: Option<i64>, position: i64) -> Result<()> {
-        self.conn
-            .execute("UPDATE playlists SET parent_id = ?, position = ? WHERE id = ?", params![parent, position, id])?;
+        let all = self.playlists()?;
+        if let Some(p) = parent {
+            let target =
+                all.iter().find(|x| x.id == p).ok_or_else(|| LibraryError::Invalid("no such folder".into()))?;
+            if target.kind != PlaylistKind::Folder {
+                return Err(LibraryError::Invalid("playlists go into folders, not into other playlists".into()));
+            }
+            // Walk up from the target: meeting `id` means it would go inside itself.
+            let mut at = Some(p);
+            while let Some(a) = at {
+                if a == id {
+                    return Err(LibraryError::Invalid("a folder cannot go inside itself".into()));
+                }
+                at = all.iter().find(|x| x.id == a).and_then(|x| x.parent);
+            }
+        }
+        let mut siblings: Vec<i64> = all.iter().filter(|x| x.parent == parent && x.id != id).map(|x| x.id).collect();
+        let at = (position.max(0) as usize).min(siblings.len());
+        siblings.insert(at, id);
+        let tx = self.begin()?;
+        self.conn.execute("UPDATE playlists SET parent_id = ? WHERE id = ?", params![parent, id])?;
+        for (i, sid) in siblings.iter().enumerate() {
+            self.conn.execute("UPDATE playlists SET position = ? WHERE id = ?", params![i as i64, sid])?;
+        }
+        tx.commit()?;
         Ok(())
     }
 

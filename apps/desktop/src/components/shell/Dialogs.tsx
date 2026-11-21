@@ -7,7 +7,7 @@ import { create } from "zustand";
 import { Btn } from "../ui/Button";
 
 interface Request {
-  kind: "confirm" | "text";
+  kind: "confirm" | "text" | "choose";
   title: string;
   body?: ReactNode;
   confirm: string;
@@ -18,12 +18,14 @@ interface Request {
   help?: ReactNode;
   /** Monospaced input, for searches and paths. */
   code?: boolean;
-  resolve: (v: string | boolean | null) => void;
+  /** For "choose": one button per option, the last one the main one. */
+  options?: string[];
+  resolve: (v: string | boolean | number | null) => void;
 }
 
 const useDialogs = create<{ queue: Request[] }>(() => ({ queue: [] }));
 
-function open(r: Omit<Request, "resolve">): Promise<string | boolean | null> {
+function open(r: Omit<Request, "resolve">): Promise<string | boolean | number | null> {
   return new Promise((resolve) => useDialogs.setState((s) => ({ queue: [...s.queue, { ...r, resolve }] })));
 }
 
@@ -36,6 +38,12 @@ export async function ask(opts: { title: string; body?: ReactNode; confirm?: str
 export async function askText(opts: { title: string; body?: ReactNode; initial?: string; placeholder?: string; help?: ReactNode; confirm?: string; code?: boolean }): Promise<string | null> {
   const v = await open({ kind: "text", confirm: opts.confirm ?? "Save", cancel: "Cancel", ...opts });
   return typeof v === "string" ? v : null;
+}
+
+/** Asks which of a few ways to go. Resolves the option's index, or null when cancelled. */
+export async function choose(opts: { title: string; body?: ReactNode; options: string[] }): Promise<number | null> {
+  const v = await open({ kind: "choose", confirm: "", cancel: "Cancel", ...opts });
+  return typeof v === "number" ? v : null;
 }
 
 /** Answers every open dialog with "cancel" (tests, workspace changes). */
@@ -52,13 +60,13 @@ export function DialogHost() {
   useEffect(() => {
     if (req?.kind === "text") setText(req.initial ?? "");
   }, [req]);
-  const finish = (v: string | boolean | null) => {
+  const finish = (v: string | boolean | number | null) => {
     if (!req) return;
     useDialogs.setState((s) => ({ queue: s.queue.slice(1) }));
     req.resolve(v);
   };
   const ok = () => finish(req?.kind === "text" ? text : true);
-  const cancel = () => finish(req?.kind === "text" ? null : false);
+  const cancel = () => finish(req?.kind === "confirm" ? false : null);
   return (
     <Dialog.Root open={!!req} onOpenChange={(o) => !o && cancel()}>
       <Dialog.Portal>
@@ -86,11 +94,19 @@ export function DialogHost() {
               {req.help && <div className="text-xs leading-snug text-zinc-500">{req.help}</div>}
             </form>
           )}
-          <div className="mt-1 flex justify-end gap-2">
+          <div className="mt-1 flex flex-wrap justify-end gap-2">
             <Btn onClick={cancel}>{req?.cancel}</Btn>
-            <Btn tone={req?.danger ? "danger" : "accent"} onClick={ok} autoFocus={req?.kind === "confirm"}>
-              {req?.confirm}
-            </Btn>
+            {req?.kind === "choose" ? (
+              req.options?.map((o, i) => (
+                <Btn key={o} tone={i === (req.options?.length ?? 0) - 1 ? "accent" : undefined} onClick={() => finish(i)} autoFocus={i === (req.options?.length ?? 0) - 1}>
+                  {o}
+                </Btn>
+              ))
+            ) : (
+              <Btn tone={req?.danger ? "danger" : "accent"} onClick={ok} autoFocus={req?.kind === "confirm"}>
+                {req?.confirm}
+              </Btn>
+            )}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
