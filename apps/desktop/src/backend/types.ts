@@ -104,6 +104,22 @@ export interface TrackDetail {
   audible: [number, number];
 }
 
+/** How a built set's energy moves. */
+export type SetShape = "warmUp" | "build" | "peak" | "journey" | "coolDown" | "steady";
+
+export interface BuildSetRequest {
+  /** Search for the tracks to choose from ("" for the whole library). */
+  query: string;
+  /** Only tracks in this playlist. */
+  playlist?: number | null;
+  minutes: number;
+  shape: SetShape;
+  /** The opening track. */
+  seed?: number | null;
+  /** 0 for the best set; another number for a different one from the same tracks. */
+  variety?: number;
+}
+
 /** A track that sounds like another: `score` 0..1. */
 export interface SoundMatch {
   track: TrackRow;

@@ -2,7 +2,7 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { BarChart3, Bot, Disc3, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
+import { BarChart3, Bot, Disc3, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, TrendingUp, Wand2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -16,6 +16,7 @@ import { copyPlaylistFiles, copySetTracklist, duplicatePlaylist, refreshPlaylist
 import { setLabel } from "../../lib/history";
 import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { editSmartPlaylist } from "./SmartPlaylistDialog";
+import { openBuildSet } from "./BuildSetDialog";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 import { deletePlaylistWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
@@ -88,6 +89,9 @@ export function Sidebar() {
           </IconBtn>
           <IconBtn title="New folder" onClick={() => setCreating("folder")}>
             <FolderPlus size={12} />
+          </IconBtn>
+          <IconBtn title="Build a set: MixIt picks tracks for the time you have, with the energy moving the way you choose" onClick={() => openBuildSet()}>
+            <TrendingUp size={12} />
           </IconBtn>
         </div>
       </div>
@@ -214,6 +218,11 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
             <ContextMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
               Rename
             </ContextMenu.Item>
+            {p.kind !== "folder" && (
+              <ContextMenu.Item className="menu-item" onSelect={() => openBuildSet({ playlist: p.id })}>
+                Build a set from this…
+              </ContextMenu.Item>
+            )}
             {p.kind === "smart" && (
               <ContextMenu.Item
                 className="menu-item"

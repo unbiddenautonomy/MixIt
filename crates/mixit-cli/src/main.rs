@@ -453,6 +453,31 @@ enum LibCmd {
         #[arg(long)]
         start: Option<i64>,
     },
+    /// Pick tracks for a set of a given length whose energy follows a shape (warm-up,
+    /// build, peak, journey, cool-down, steady), every change mixable.
+    BuildSet {
+        /// Minutes the set should last when mixed.
+        #[arg(long, default_value_t = 60.0)]
+        minutes: f64,
+        /// warm-up | build | peak | journey | cool-down | steady
+        #[arg(long, default_value = "build")]
+        shape: String,
+        /// Only tracks this search finds (e.g. "genre:house").
+        #[arg(long, default_value = "")]
+        from: String,
+        /// Only tracks in this playlist.
+        #[arg(long)]
+        playlist: Option<String>,
+        /// Track to open with.
+        #[arg(long)]
+        start: Option<i64>,
+        /// Another set from the same choices (any number but 0).
+        #[arg(long, default_value_t = 0)]
+        variety: u64,
+        /// Save the set as a playlist with this name.
+        #[arg(long)]
+        save: Option<String>,
+    },
     /// Build a mix project from a playlist.
     Automix {
         playlist: String,
@@ -1232,6 +1257,30 @@ fn library(ctx: &Ctx, c: LibCmd) -> Result<()> {
             let tracks: Vec<_> = order.iter().filter_map(|&id| lib.track(id).ok()).collect();
             println!("Reordered {}:", p.name);
             print!("{}", track_table(&tracks, n));
+            Ok(())
+        }
+        LibCmd::BuildSet { minutes, shape, from, playlist, start, variety, save } => {
+            let shape = mixit_library::setbuild::SetShape::parse(&shape)
+                .ok_or_else(|| anyhow!("unknown shape {shape}: warm-up, build, peak, journey, cool-down or steady"))?;
+            let within = playlist.map(|p| find_playlist(&lib, &p)).transpose()?.map(|p| p.id);
+            let opts =
+                mixit_library::setbuild::BuildOptions { minutes, shape, seed: start, variety, ..Default::default() };
+            let ids = lib.build_set(&from, within, &opts)?;
+            if ids.is_empty() {
+                bail!("nothing to build from: analyse your tracks first, or widen the search");
+            }
+            let tracks: Vec<_> = ids.iter().filter_map(|&id| lib.track(id).ok()).collect();
+            if ctx.json {
+                return ctx.print_json(&ids);
+            }
+            let heard: f64 = tracks.iter().map(|t| t.duration * opts.heard).sum();
+            println!("{} tracks, about {} min when mixed:", tracks.len(), (heard / 60.0).round());
+            print!("{}", track_table(&tracks, n));
+            if let Some(name) = save {
+                let id = lib.create_playlist(&name, PlaylistKind::List, None, None)?;
+                lib.set_playlist_tracks(id, &ids)?;
+                println!("Saved as playlist {name}.");
+            }
             Ok(())
         }
         LibCmd::Automix { playlist, output, mix, render, render_flags } => {

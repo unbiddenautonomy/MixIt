@@ -1063,6 +1063,32 @@ pub fn sounds_like(state: State<'_, AppState>, track_id: i64, limit: Option<usiz
         .collect())
 }
 
+/// Builds a set from the tracks `query` finds (within `playlist` if given): `minutes` long, its energy following
+/// `shape` ("warmUp" | "build" | "peak" | "journey" | "coolDown" | "steady"), opening
+/// with `seed` when given. `variety` other than 0 gives another set from the same tracks.
+#[tauri::command]
+pub fn build_set(
+    state: State<'_, AppState>,
+    query: String,
+    playlist: Option<i64>,
+    minutes: f64,
+    shape: String,
+    seed: Option<i64>,
+    variety: Option<u64>,
+) -> R<Vec<TrackRow>> {
+    let shape = mixit_library::setbuild::SetShape::parse(&shape).ok_or_else(|| format!("unknown set shape {shape}"))?;
+    let opts = mixit_library::setbuild::BuildOptions {
+        minutes,
+        shape,
+        seed,
+        variety: variety.unwrap_or(0),
+        ..Default::default()
+    };
+    let lib = state.library.lock();
+    let ids = lib.build_set(&query, playlist, &opts).map_err(err)?;
+    Ok(ids.into_iter().filter_map(|id| lib.track(id).ok().map(|t| TrackRow::from(&t))).collect())
+}
+
 // ------------------------------------------------------------------------- playlists
 
 #[derive(Serialize)]

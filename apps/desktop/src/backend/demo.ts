@@ -5,6 +5,7 @@
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
 import { transition } from "../lib/setFlow";
+import { shapeTarget } from "../lib/setShapes";
 import { searchTerms } from "../lib/search";
 export { searchTerms };
 import { applyEdits, DEMO_SR, demoSound, viewOf } from "./demoSound";
@@ -1253,6 +1254,52 @@ export class DemoBackend implements Backend {
       out.push({ track: c, score: Math.min(1, score), tempoChangePct: best.pct, keyShift: shift, reasons, tags });
     }
     return out.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  /** A greedy version of the desktop's set builder (setbuild.rs): every change mixable, the energy on the shape. */
+  async buildSet(req: T.BuildSetRequest): Promise<T.TrackRow[]> {
+    let pool = (await this.search(req.query)).filter((r) => r.bpm && !r.missing && r.duration > 0);
+    if (req.playlist != null) {
+      const keep = new Set((await this.playlistTracks(req.playlist)).map((r) => r.id));
+      pool = pool.filter((r) => keep.has(r.id));
+    }
+    const seed = req.seed != null ? this.tracks.find((t) => t.row.id === req.seed)?.row : undefined;
+    if (seed && !pool.some((r) => r.id === seed.id)) pool = [seed, ...pool];
+    if (!pool.length) return [];
+    const goal = Math.max(60, req.minutes * 60);
+    const shake = (id: number) => (req.variety ? ((((id + 1) * 2654435761 * (req.variety + 7)) >>> 0) % 1000) / 1000 - 0.5 : 0) * 0.1;
+    const energies = pool.filter((r) => r.energy != null).map((r) => r.energy!);
+    const steady = seed?.energy ?? (energies.length ? energies.reduce((a, b) => a + b, 0) / energies.length : 6);
+    const fit = (r: T.TrackRow, target: number) => (r.energy == null ? 0.4 : Math.max(0, 1 - Math.abs(r.energy - target) / 4));
+    const bpms = pool.map((r) => r.bpm!).sort((a, b) => a - b);
+    const usual = bpms[Math.floor(bpms.length / 2)];
+    const first =
+      seed ??
+      pool.slice().sort((a, b) => {
+        const s = (r: T.TrackRow) => fit(r, shapeTarget(req.shape, 0, steady)) + 0.5 * Math.max(0, 1 - Math.abs(r.bpm! / usual - 1) * 10) + 0.02 * r.rating + 3 * shake(r.id);
+        return s(b) - s(a) || a.id - b.id;
+      })[0];
+    const set = [first];
+    let heard = first.duration * 0.8;
+    while (heard < goal) {
+      const last = set[set.length - 1];
+      const target = shapeTarget(req.shape, heard / goal, steady);
+      let best: { r: T.TrackRow; v: number } | null = null;
+      for (const r of pool) {
+        if (set.includes(r)) continue;
+        const tr = transition(last, r);
+        const tempo = Math.abs(r.bpm! / last.bpm! - 1);
+        if (tempo > 0.06 && Math.abs(r.bpm! / (last.bpm! * 2) - 1) > 0.06 && Math.abs(r.bpm! / (last.bpm! / 2) - 1) > 0.06) continue;
+        const smooth = tr.grade === "smooth" ? 1 : tr.grade === "ok" ? 0.6 : 0.15;
+        let v = 0.6 * smooth + 0.4 * fit(r, target) + shake(r.id);
+        if (r.artist && r.artist === last.artist) v -= 0.1;
+        if (!best || v > best.v) best = { r, v };
+      }
+      if (!best) break;
+      set.push(best.r);
+      heard += best.r.duration * 0.8;
+    }
+    return set;
   }
 
   /** How alike two demo tracks sound: mostly their genre, then energy and tempo, with a little of their own. */

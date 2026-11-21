@@ -16,6 +16,7 @@ pub mod rekordbox;
 pub mod scan;
 mod schema;
 pub mod serato;
+pub mod setbuild;
 pub mod suggest;
 pub mod traktor;
 pub mod virtualdj;
@@ -687,6 +688,33 @@ impl Library {
         let cur = with_sound(&self.track(current)?);
         let pool: Vec<suggest::Candidate> = self.search("missing:no", None)?.iter().map(with_sound).collect();
         Ok(suggest::suggest(&cur, &pool, opts))
+    }
+
+    /// Builds a set from the tracks a search finds (empty: the whole library), within a
+    /// playlist when `within` is given, to fill `opts.minutes` along `opts.shape` (see
+    /// [`setbuild`]). Only tracks with a known tempo whose files are there take part.
+    /// Returns track ids in playing order.
+    pub fn build_set(&self, query: &str, within: Option<i64>, opts: &setbuild::BuildOptions) -> Result<Vec<TrackId>> {
+        let sounds = self.standard_sounds()?;
+        let mut tracks = self.search(&format!("{query} missing:no"), None)?;
+        if let Some(list) = within {
+            let keep: std::collections::HashSet<TrackId> = self.playlist_tracks(list)?.into_iter().collect();
+            tracks.retain(|t| keep.contains(&t.id));
+        }
+        if let Some(seed) = opts.seed.filter(|s| !tracks.iter().any(|t| t.id == *s)) {
+            // The opener may come from outside the search.
+            tracks.push(self.track(seed)?);
+        }
+        let pool: Vec<setbuild::PoolTrack> = tracks
+            .iter()
+            .filter(|t| t.best_bpm().is_some() && t.duration > 0.0)
+            .map(|t| {
+                let mut c = t.candidate();
+                c.sound = sounds.get(&t.id).cloned().unwrap_or_default();
+                setbuild::PoolTrack { candidate: c, duration: t.duration, artist: t.artist.clone() }
+            })
+            .collect();
+        Ok(setbuild::build_set(&pool, opts).into_iter().map(|i| pool[i].candidate.id).collect())
     }
 
     // ---------------------------------------------------------------- sounds like

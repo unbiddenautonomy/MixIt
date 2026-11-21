@@ -16,6 +16,7 @@ import { loadOnDeck } from "../deck/Deck";
 import { useLibrary } from "../../store/library";
 import { addMusicFolder, DJ_APPS, importFromApp, type DjApp } from "../library/Library";
 import { showSoundsLike } from "../library/data";
+import { openBuildSet } from "../library/BuildSetDialog";
 import { toast } from "sonner";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
@@ -41,6 +42,7 @@ function extras(): Extra[] {
     { id: "x.add", label: "Add music folder…", group: "Library", run: addMusicFolder, keywords: ["import", "scan"] },
     ...(Object.keys(DJ_APPS) as DjApp[]).map((app) => ({ id: `x.import.${app}`, label: DJ_APPS[app].menu, group: "Library", run: () => importFromApp(app), keywords: ["import", "collection", "library", "dj", app] })),
     { id: "x.insights", label: "Collection at a glance", group: "Library", run: () => (s.set({ workspace: "library" }), useLibrary.getState().set({ source: { type: "insights" } })), keywords: ["stats", "insights", "overview", "keys", "tempo", "genres"] },
+    { id: "x.build_set", label: "Build a set…", group: "Library", run: () => (s.set({ workspace: "library" }), openBuildSet()), keywords: ["set", "plan", "warm-up", "peak", "energy", "playlist", "generate"] },
     {
       id: "x.sounds_like",
       label: "Find tracks that sound like the selected one",

@@ -106,6 +106,7 @@ pub fn run() {
             commands::tracks_remove,
             commands::suggest_next,
             commands::sounds_like,
+            commands::build_set,
             commands::playlists,
             commands::playlist_tracks,
             commands::playlist_create,
