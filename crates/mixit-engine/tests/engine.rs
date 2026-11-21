@@ -421,3 +421,39 @@ fn every_deck_feature_runs_without_allocating() {
     let t = r.tel();
     assert_eq!(t.leaked, 0);
 }
+
+#[test]
+fn mic_goes_on_air_without_allocating_and_its_feed_is_freed_off_the_audio_thread() {
+    let mut rig = Rig::new();
+    let (mut tx, feed) = InputFeed::new(SR, SR, 256);
+    rig.send(Command::Mic(MicCommand::SetFeed(Some(Box::new(feed)))));
+    let mut d = mixit_engine::actions::ActionDispatcher::new(SR, 4);
+    for (id, input) in [
+        ("mic.on_air", mixit_engine::actions::ActionInput::Set(true)),
+        ("mic.level", mixit_engine::actions::ActionInput::Value(1.0)),
+        ("mic.talkover", mixit_engine::actions::ActionInput::Set(false)),
+    ] {
+        for c in d.dispatch(id, input).unwrap() {
+            rig.send(c);
+        }
+    }
+    assert!(d.dispatch("mic.record", mixit_engine::actions::ActionInput::Press).is_err());
+    let tone: Vec<f32> =
+        (0..512).flat_map(|i| [0.25 * (i as f32 * 0.05).sin(), 0.25 * (i as f32 * 0.05).sin()]).collect();
+    let mut peak = 0.0f32;
+    for k in 0..200 {
+        push_input(&mut tx, &tone);
+        let out = rig.run(512);
+        if k > 100 {
+            peak = peak.max(out.iter().fold(0.0f32, |m, x| m.max(x.abs())));
+        }
+    }
+    assert!((peak - 0.25).abs() < 0.03, "mic peak on master {peak}");
+    let t = rig.tel();
+    assert!(t.mic.connected && t.mic.live && t.mic.on_air);
+    assert_eq!(t.mic.underruns, 0);
+    // Disconnecting hands the feed back to be freed here, not on the audio thread.
+    rig.send(Command::Mic(MicCommand::SetFeed(None)));
+    rig.run(512);
+    assert!(!rig.tel().mic.connected);
+}

@@ -15,6 +15,7 @@ import { Fader } from "../ui/Fader";
 import { Knob } from "../ui/Knob";
 import { Meter } from "../ui/Meter";
 import { DECK_COLORS } from "../deck/useWaveform";
+import { MicStrip } from "../mic/MicPanel";
 
 /** Channel order on the mixer: 2 decks A B; 4 decks C A B D, like a club mixer. */
 export function channelOrder(count: number): number[] {
@@ -27,6 +28,7 @@ export function Mixer({ count }: { count: number }) {
   return (
     <section className="flex shrink-0 flex-col gap-2 rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-3">
       <div className="flex items-stretch gap-1">
+        <MicStrip compact={count > 2} />
         {order.map((d) => (
           <Channel key={d} deck={d} pro={pro} compact={count > 2} />
         ))}

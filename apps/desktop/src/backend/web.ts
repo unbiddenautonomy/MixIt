@@ -6,7 +6,7 @@
 
 import { DemoBackend, DEMO_KIT, emptyPad, kitPad, type DemoTrack } from "./demo";
 import type * as T from "./types";
-import { encodeWav, parseWave, RenderCancelled, toPcm16, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
+import { concat, encodeWav, parseWave, RenderCancelled, toPcm16, trimSilence, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
 
 const AUDIO = ["wav", "mp3", "flac", "aiff", "aif", "ogg", "m4a", "aac", "opus", "webm"];
 /** Ids for tracks the person adds (the generated library uses 1..120, practice 1001+). */
@@ -373,6 +373,80 @@ export class WebAudioBackend extends DemoBackend {
     return `${name}, in your downloads`;
   }
 
+  // ---------------------------------------------------------------- mic
+
+  private micError: string | null = null;
+  private micStatus: T.MicStatus | null = null;
+  private micRecording = false;
+
+  async inputDevices(): Promise<T.DeviceInfo[]> {
+    const sr = this.engine.sampleRate;
+    return (await WebEngine.inputDevices()).map((d) => ({ id: d.id, name: d.name, host: "Web Audio", max_channels: 2, sample_rates: [sr], default_sample_rate: sr, buffer_range: null, is_default: d.isDefault }));
+  }
+
+  async micState(): Promise<T.MicState> {
+    return { status: this.micStatus, error: this.micError, lost: false };
+  }
+
+  /** Opens or closes the mic when its settings change (the browser asks the person first). */
+  async saveSettings(s: T.Settings) {
+    const old = this.settings;
+    await super.saveSettings(s);
+    const changed = old.micEnabled !== s.micEnabled || old.micDevice !== s.micDevice || old.micVoice !== s.micVoice || (s.micEnabled && !this.engine.micOpenNow);
+    if (changed) await this.applyMic(s);
+    return s;
+  }
+
+  private async applyMic(s: T.Settings) {
+    if (!s.micEnabled) {
+      this.engine.micClose();
+      this.micStatus = null;
+      this.micError = null;
+      return;
+    }
+    try {
+      const r = await this.engine.micOpen({ device: s.micDevice, voice: s.micVoice ?? true });
+      this.micStatus = { device: r.device, sampleRate: r.sampleRate, channels: r.channels, bufferFrames: 128, channel: 0, stereo: r.channels > 1 };
+      this.micError = null;
+    } catch (e) {
+      this.micStatus = null;
+      const name = (e as { name?: string }).name;
+      this.micError =
+        name === "NotAllowedError"
+          ? "The browser was not allowed to use the mic. Allow it in the address bar, then turn the mic on again."
+          : name === "NotFoundError"
+            ? "No microphone was found. Plug one in and try again."
+            : String((e as Error).message ?? e);
+      throw new Error(this.micError);
+    }
+  }
+
+  async micRecordStart() {
+    if (!this.engine.micOpenNow) throw new Error("Turn the mic on first.");
+    if (this.micRecording) return;
+    this.micRecording = true;
+    this.engine.micRecordStart();
+  }
+
+  /** The take becomes a file the sampler and the library can use, like a picked file. */
+  async micRecordStop(trim: boolean): Promise<T.MicTake> {
+    if (!this.micRecording) throw new Error("Not recording the mic.");
+    this.micRecording = false;
+    const sr = this.engine.sampleRate;
+    let audio = concat(await this.engine.micRecordStop());
+    if (trim && audio.length / 2 / sr <= 300) {
+      audio = trimSilence(audio, sr);
+      if (audio.length === 0) throw new Error("The recording was silent: check the mic gain and meter.");
+    }
+    const d = new Date();
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    const name = `Mic ${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}.${p2(d.getMinutes())}.${p2(d.getSeconds())}.wav`;
+    const file = new File([encodeWav([audio], sr, true)], name, { type: "audio/wav" });
+    const path = `browser:mic/${name}`;
+    this.files.set(path, [file]);
+    return { path, seconds: audio.length / 2 / sr };
+  }
+
   // ---------------------------------------------------------------- Arrange preview and render
 
   private rendering = false;
@@ -480,6 +554,74 @@ export class WebAudioBackend extends DemoBackend {
     void this.importFiles(files);
   }
 
+  registerFiles(files: File[]): string[] {
+    return files.map((f) => {
+      const path = `browser:${this.nextPick++}/${f.webkitRelativePath || f.name}`;
+      this.files.set(path, [f]);
+      return path;
+    });
+  }
+
+  /** Decodes and analyses one dropped or picked file and adds it to the library. */
+  async importTrack(path: string): Promise<T.TrackRow> {
+    const f = this.files.get(path)?.[0];
+    if (!f) throw new Error("That file is no longer available. Drop it again.");
+    const known = this.tracks.find((t) => t.row.path === `browser:/${f.webkitRelativePath || f.name}`);
+    if (known) return known.row;
+    const job = (message: string, finished: boolean, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "analyze", done: finished ? 1 : 0, total: 1, message, finished, error });
+    job(`Analysing ${f.name}`, false);
+    try {
+      const t = await this.importOne(f);
+      job(`Added ${t.row.title}`, true);
+      this.emit("library-changed", null);
+      return t.row;
+    } catch (e) {
+      job("", true, `Could not read ${f.name}`);
+      throw e;
+    }
+  }
+
+  private async importOne(f: File): Promise<DemoTrack> {
+    const audio = await this.engine.decode(await f.arrayBuffer());
+    const a = await this.engine.analyse(audio);
+    const id = this.nextFileId++;
+    const path = `browser:/${f.webkitRelativePath || f.name}`;
+    this.files.set(path, [f]);
+    const t: DemoTrack = {
+      row: {
+        id,
+        path,
+        title: stem(f.name),
+        artist: "",
+        album: f.webkitRelativePath.split("/").slice(-2, -1)[0] ?? "",
+        genre: "",
+        label: "",
+        year: null,
+        duration: a.view.duration,
+        bpm: null,
+        key: null,
+        energy: null,
+        lufs: null,
+        rating: 0,
+        color: null,
+        playCount: 0,
+        lastPlayed: null,
+        addedAt: Math.floor(Date.now() / 1000),
+        missing: false,
+        analysis: "done",
+        comment: "",
+      },
+      sections: [],
+      firstBeat: 0,
+      period: 0.5,
+      wave: new Uint8Array(0),
+      cues: [],
+    };
+    this.tracks.push(t);
+    this.absorb(t, a);
+    return t;
+  }
+
   private async importFiles(files: File[]) {
     const total = files.length;
     const job = (done: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "analyze", done, total, message, finished, error });
@@ -488,43 +630,7 @@ export class WebAudioBackend extends DemoBackend {
       const f = files[i];
       job(i, `Analysing ${i + 1} of ${total}: ${f.name}`);
       try {
-        const audio = await this.engine.decode(await f.arrayBuffer());
-        const a = await this.engine.analyse(audio);
-        const id = this.nextFileId++;
-        const path = `browser:/${f.webkitRelativePath || f.name}`;
-        this.files.set(path, [f]);
-        const t: DemoTrack = {
-          row: {
-            id,
-            path,
-            title: stem(f.name),
-            artist: "",
-            album: f.webkitRelativePath.split("/").slice(-2, -1)[0] ?? "",
-            genre: "",
-            label: "",
-            year: null,
-            duration: a.view.duration,
-            bpm: null,
-            key: null,
-            energy: null,
-            lufs: null,
-            rating: 0,
-            color: null,
-            playCount: 0,
-            lastPlayed: null,
-            addedAt: Math.floor(Date.now() / 1000),
-            missing: false,
-            analysis: "done",
-            comment: "",
-          },
-          sections: [],
-          firstBeat: 0,
-          period: 0.5,
-          wave: new Uint8Array(0),
-          cues: [],
-        };
-        this.tracks.push(t);
-        this.absorb(t, a);
+        await this.importOne(f);
       } catch {
         failed++;
       }

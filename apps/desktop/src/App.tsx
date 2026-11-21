@@ -22,6 +22,8 @@ import { TrackEditor } from "./components/editor/TrackEditor";
 import { MixReportDialog } from "./components/feedback/MixReport";
 import { Tour } from "./components/guide/Tour";
 import { maybeWelcome } from "./guide/tour";
+import { DragLayer } from "./components/ui/DragLayer";
+import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
 import { handleShortcut, openCapturedMix } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
@@ -60,6 +62,9 @@ export function App() {
           ready: true,
         });
         pushEngineState();
+        void refreshMic()
+          .then((m) => (m.status ? syncMic() : undefined))
+          .catch(() => undefined);
         maybeWelcome();
         let libTimer = 0;
         off = [
@@ -92,6 +97,9 @@ export function App() {
             useApp.getState().set({ audio: a });
             // A new device restarts the engine with default mixer and FX values.
             pushEngineState();
+            void refreshMic()
+              .then((m) => (m.status ? syncMic() : undefined))
+              .catch(() => undefined);
             if (a.warning) toast.warning(a.warning);
           }),
           b.onError((m) => toast.error(m)),
@@ -143,6 +151,7 @@ export function App() {
       <TrackEditor />
       <MixReportDialog onEdit={(p) => void openCapturedMix(p)} />
       <Tour />
+      <DragLayer />
       <AutomixDialog />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />

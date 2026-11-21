@@ -54,6 +54,11 @@ pub struct Recording {
     pub started: std::time::Instant,
 }
 
+/// A mic recording in progress.
+pub struct MicRecording {
+    pub writer: StreamingWav,
+}
+
 /// User preferences kept in the library's settings table.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -74,6 +79,13 @@ pub struct Settings {
     pub auto_gain: bool,
     pub limiter: bool,
     pub tempo_range: f64,
+    /// Opens the input device for the mic channel at start (off until the person asks:
+    /// opening a mic shows the system's recording indicator).
+    pub mic_enabled: bool,
+    /// Input device id; `None` = the system's default input.
+    pub mic_device: Option<String>,
+    pub mic_channel: u16,
+    pub mic_stereo: bool,
 }
 
 impl Default for Settings {
@@ -93,6 +105,10 @@ impl Default for Settings {
             auto_gain: true,
             limiter: true,
             tempo_range: 0.08,
+            mic_enabled: false,
+            mic_device: None,
+            mic_channel: 0,
+            mic_stereo: false,
         }
     }
 }
@@ -104,6 +120,15 @@ impl Settings {
 
     pub fn save(&self, lib: &Library) -> Result<(), String> {
         lib.set_setting("app", &serde_json::to_string(self).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+    }
+
+    pub fn input_config(&self) -> mixit_host::input::InputConfig {
+        mixit_host::input::InputConfig {
+            device: self.mic_device.clone(),
+            channel: self.mic_channel,
+            stereo: self.mic_stereo,
+            buffer_frames: Some(self.buffer_frames.clamp(32, 4096)),
+        }
     }
 
     pub fn host_config(&self) -> HostConfig {
@@ -124,6 +149,9 @@ pub struct AppState {
     pub decks: Mutex<Vec<Option<LoadedDeck>>>,
     pub settings: Mutex<Settings>,
     pub recording: Mutex<Option<Recording>>,
+    pub mic_recording: Mutex<Option<MicRecording>>,
+    /// Why the mic could not be opened, for the UI.
+    pub mic_error: Mutex<Option<String>>,
     pub session: Mutex<Option<i64>>,
     /// Set while a library job (scan, analysis) runs; setting `cancel` stops it.
     pub job_running: Arc<AtomicBool>,
@@ -149,6 +177,8 @@ impl AppState {
             decks: Mutex::new((0..DECKS).map(|_| None).collect()),
             settings: Mutex::new(settings),
             recording: Mutex::new(None),
+            mic_recording: Mutex::new(None),
+            mic_error: Mutex::new(None),
             session: Mutex::new(None),
             job_running: Arc::new(AtomicBool::new(false)),
             job_cancel: Arc::new(AtomicBool::new(false)),
@@ -157,6 +187,7 @@ impl AppState {
             pads: Mutex::new(pads),
         };
         state.apply_mixer_settings();
+        state.apply_mic_settings();
         Ok(state)
     }
 
@@ -169,6 +200,19 @@ impl AppState {
         for d in 0..DECKS {
             a.send(Command::Deck(mixit_core::DeckId(d as u8), DeckCommand::SetTempoRange(s.tempo_range)));
         }
+    }
+
+    /// Opens or closes the input device as the settings say.
+    pub fn apply_mic_settings(&self) {
+        let s = self.settings.lock().clone();
+        let mut a = self.audio.lock();
+        let err = if s.mic_enabled {
+            a.open_mic(&s.input_config()).err()
+        } else {
+            a.close_mic();
+            None
+        };
+        *self.mic_error.lock() = err;
     }
 
     /// A second connection for background jobs (SQLite WAL allows concurrent readers and

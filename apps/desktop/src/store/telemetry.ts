@@ -35,6 +35,7 @@ export const emptyTelemetry: Telemetry = {
   frame: 0,
   decks: [emptyDeck, emptyDeck, emptyDeck, emptyDeck],
   master: { peak: [0, 0], truePeakDb: -120, momentaryLufs: -70, shortTermLufs: -70, correlation: 1, limiterGrDb: 0, cuePeak: [0, 0], clipped: false },
+  mic: { connected: false, live: false, onAir: false, peak: [0, 0], rms: 0, duckDb: 0, gateOpen: false, latencyMs: 0, driftPpm: 0, underruns: 0, capturing: false, capturedSeconds: 0 },
   clockBpm: 120,
   masterDeck: null,
   recording: false,

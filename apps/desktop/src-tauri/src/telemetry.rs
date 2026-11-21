@@ -20,6 +20,7 @@ fn run(app: AppHandle) {
     let period = Duration::from_millis(16);
     let mut last = Instant::now();
     let mut buf: Vec<f32> = Vec::with_capacity(48_000);
+    let mut mic_buf: Vec<f32> = Vec::with_capacity(48_000);
     loop {
         std::thread::sleep(period);
         let now = Instant::now();
@@ -27,6 +28,7 @@ fn run(app: AppHandle) {
         last = now;
         let state = app.state::<AppState>();
         let recording = state.recording.lock().is_some();
+        let mic_recording = state.mic_recording.lock().is_some();
         let (dto, ended, tele) = {
             let mut a = state.audio.lock();
             a.ctl.collect_trash();
@@ -46,6 +48,9 @@ fn run(app: AppHandle) {
             if recording {
                 a.ctl.drain_recorder(&mut buf);
             }
+            if mic_recording {
+                a.ctl.drain_capture(&mut mic_buf);
+            }
             let s = a.stats.snapshot();
             (TelemetryDto::new(&t, DECKS, a.sample_rate, s.load, s.overruns), ended, t)
         };
@@ -56,6 +61,14 @@ fn run(app: AppHandle) {
                 }
             }
             buf.clear();
+        }
+        if mic_recording && !mic_buf.is_empty() {
+            if let Some(r) = state.mic_recording.lock().as_mut() {
+                if let Err(e) = r.writer.write(&mic_buf) {
+                    let _ = app.emit("error", format!("mic recording: {e}"));
+                }
+            }
+            mic_buf.clear();
         }
         let _ = app.emit("telemetry", &dto);
         for d in ended {

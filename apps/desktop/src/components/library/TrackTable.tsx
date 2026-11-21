@@ -15,7 +15,8 @@ import { compatibility, keyColor, keyFromIndex, keyLabel, type Compat } from "..
 import { DECK_LETTERS, deckCount, useApp, useNotation, usePro } from "../../store/app";
 import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
-import { loadOnDeck, TRACK_MIME } from "../deck/Deck";
+import { beginTrackDrag } from "../../lib/dnd";
+import { loadOnDeck } from "../deck/Deck";
 import { refreshPlaylists, refreshRows, refreshStats } from "./data";
 import { editTrack } from "../editor/TrackEditor";
 
@@ -239,12 +240,9 @@ export function TrackTable() {
             return (
               <RowMenu key={r.id} track={r}>
                 <div
-                  draggable
-                  onDragStart={(e) => {
+                  onPointerDown={(e) => {
                     const ids = sel ? selected : [r.id];
-                    e.dataTransfer.setData(TRACK_MIME, JSON.stringify(ids));
-                    e.dataTransfer.setData("text/plain", ids.length === 1 ? `${r.artist} – ${r.title}` : plural(ids.length, "track"));
-                    e.dataTransfer.effectAllowed = "copy";
+                    beginTrackDrag(e, ids, ids.length === 1 ? `${r.artist} – ${r.title}` : plural(ids.length, "track"));
                   }}
                   onClick={(e) => clickRow(e, it.index)}
                   onDoubleClick={() => loadOnDeck(useApp.getState().targetDeck, r.id)}

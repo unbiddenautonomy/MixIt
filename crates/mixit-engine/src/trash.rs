@@ -19,6 +19,7 @@ pub enum Trash {
     Grid(Arc<Beatgrid>),
     Effect(Box<dyn Effect>),
     Stretch(Box<dyn TimeStretch>),
+    Input(Box<crate::input::InputFeed>),
 }
 
 const OVERFLOW: usize = 64;

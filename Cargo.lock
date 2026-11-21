@@ -2487,6 +2487,7 @@ dependencies = [
  "mixit-generator",
  "mixit-project",
  "mixit-stretch",
+ "rtrb",
  "serde",
  "thiserror 2.0.21",
 ]
@@ -2555,6 +2556,7 @@ dependencies = [
  "mixit-generator",
  "mixit-project",
  "mixit-stretch",
+ "rtrb",
  "serde",
  "serde_json",
 ]

@@ -9,11 +9,12 @@ use std::sync::Arc;
 use crossbeam_channel::{Sender, bounded};
 use mixit_core::DeckId;
 use mixit_engine::actions::ActionDispatcher;
-use mixit_engine::{Command, Controller, DeckCommand, EngineConfig, GlobalCommand, MixerCommand};
+use mixit_engine::{Command, Controller, DeckCommand, EngineConfig, GlobalCommand, MicCommand, MixerCommand};
+use mixit_host::input::{InputConfig, InputHost, InputStats};
 use mixit_host::{AudioHost, HostConfig, HostStats};
 use mixit_stretch::{SignalsmithStretch, StretchQuality};
 
-use crate::dto::AudioStatus;
+use crate::dto::{AudioStatus, MicStatus};
 
 pub const DECKS: usize = 4;
 
@@ -24,6 +25,14 @@ pub struct Audio {
     pub stats: Arc<HostStats>,
     pub status: AudioStatus,
     keeper: Option<(Sender<()>, std::thread::JoinHandle<()>)>,
+    mic: Option<Mic>,
+}
+
+/// An open input device. Its stream lives on its own thread, like the output's.
+struct Mic {
+    status: MicStatus,
+    stats: Arc<InputStats>,
+    keeper: (Sender<()>, std::thread::JoinHandle<()>),
 }
 
 struct Started {
@@ -82,6 +91,7 @@ impl Audio {
             stats: started.stats,
             status: started.status,
             keeper: Some((stop_tx, thread)),
+            mic: None,
         };
         a.init();
         a
@@ -107,7 +117,67 @@ impl Audio {
         let _ = self.ctl.send(c);
     }
 
+    /// Opens an input device for the mic channel (closing any other first).
+    pub fn open_mic(&mut self, cfg: &InputConfig) -> Result<MicStatus, String> {
+        self.close_mic();
+        let (tx, rx) = bounded::<Result<(mixit_engine::InputFeed, MicStatus, Arc<InputStats>), String>>(1);
+        let (stop_tx, stop_rx) = bounded::<()>(1);
+        let cfg2 = cfg.clone();
+        let out_rate = self.sample_rate;
+        let thread = std::thread::Builder::new()
+            .name("mixit-audio-input".into())
+            .spawn(move || match InputHost::start(&cfg2, out_rate) {
+                Ok((host, feed)) => {
+                    let status = MicStatus {
+                        device: host.device_name.clone(),
+                        sample_rate: host.sample_rate,
+                        channels: host.channels,
+                        buffer_frames: host.buffer_frames,
+                        channel: cfg2.channel,
+                        stereo: cfg2.stereo,
+                    };
+                    let _ = tx.send(Ok((feed, status, host.stats.clone())));
+                    let _ = stop_rx.recv();
+                    drop(host);
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(e.to_string()));
+                }
+            })
+            .map_err(|e| e.to_string())?;
+        let (feed, status, stats) = match rx.recv() {
+            Ok(Ok(v)) => v,
+            Ok(Err(e)) => {
+                let _ = thread.join();
+                return Err(e);
+            }
+            Err(_) => return Err("the input device thread stopped".into()),
+        };
+        self.send(Command::Mic(MicCommand::SetFeed(Some(Box::new(feed)))));
+        self.mic = Some(Mic { status: status.clone(), stats, keeper: (stop_tx, thread) });
+        Ok(status)
+    }
+
+    /// Disconnects and closes the input device.
+    pub fn close_mic(&mut self) {
+        if let Some(m) = self.mic.take() {
+            self.send(Command::Mic(MicCommand::SetFeed(None)));
+            let _ = m.keeper.0.send(());
+            let _ = m.keeper.1.join();
+        }
+    }
+
+    pub fn mic_status(&self) -> Option<MicStatus> {
+        self.mic.as_ref().map(|m| m.status.clone())
+    }
+
+    /// True when the input device reported that it went away (unplugged).
+    pub fn mic_lost(&self) -> bool {
+        self.mic.as_ref().is_some_and(|m| m.stats.device_lost.load(std::sync::atomic::Ordering::Relaxed))
+    }
+
     pub fn stop(&mut self) {
+        self.close_mic();
         if let Some((tx, t)) = self.keeper.take() {
             let _ = tx.send(());
             let _ = t.join();

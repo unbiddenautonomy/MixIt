@@ -328,6 +328,31 @@ export const CONCEPTS: Concept[] = [
     controls: ["app.sampler", "sampler.volume", "sampler.stop_all"],
     glossary: ["sampler"],
   },
+  {
+    id: "mic",
+    title: "Using a mic",
+    group: "Effects and tricks",
+    summary: "Talk to the crowd, record your own sounds, or bring in a turntable or phone.",
+    body: [
+      "Turn the mic on from the mic button at the top. It gets its own channel on the left of the mixer. Speak and watch the level bar: turn the gain up until your voice reaches about two thirds of the bar, and never into the red.",
+      "Press Go on air when you want the audience to hear you. Wear headphones, or keep the mic away from the speakers: a mic that hears the speakers feeds back into itself and howls.",
+      "You can also record from the mic: a short shout or tag goes onto a sampler pad with the silence cut off, and a longer take (a turntable, a phone, a jam) goes into your library as a track you can mix like any other.",
+    ],
+    controls: ["mic.on_air", "mic.level", "mic.talkover", "mic.record"],
+    glossary: ["mic"],
+  },
+  {
+    id: "talk-over",
+    title: "Talk-over",
+    group: "Effects and tricks",
+    summary: "The music dips by itself while you speak, so the crowd hears every word.",
+    body: [
+      "With talk-over on, MixIt listens to the mic. When you start speaking it turns the music down (12 dB at first, about a quarter as loud), and a moment after you stop it brings the music back up smoothly.",
+      "Keep announcements short and on the phrase: say it in the last bars before a drop, and let the drop answer you.",
+    ],
+    controls: ["mic.talkover", "mic.talkover_depth"],
+    glossary: ["talk-over"],
+  },
   // ---------------------------------------------------------------- library
   {
     id: "analysis",

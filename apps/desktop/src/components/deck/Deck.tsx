@@ -3,7 +3,7 @@
 // master, key shift, nudge, tempo range, slip, reverse and the grid tools.
 import clsx from "clsx";
 import { ChevronDown, ChevronUp, Disc3, KeyRound, Lock, Minus, Music2, Pause, PencilLine, Play, Plus, RotateCcw, Undo2 } from "lucide-react";
-import { useState, type DragEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
 import { act, choose, press, release, setOn, setValue, tap } from "../../lib/actions";
@@ -17,10 +17,9 @@ import { Ctl } from "../ui/Ctl";
 import { Fader } from "../ui/Fader";
 import { Overview } from "./Overview";
 import { EjectButton, Pads } from "./Pads";
+import { useDropTarget } from "../../lib/dnd";
 import { DECK_COLORS } from "./useWaveform";
 import { openEditor } from "../editor/TrackEditor";
-
-export const TRACK_MIME = "application/x-mixit-tracks";
 
 export const TEMPO_RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 export const TEMPO_RANGE_LABELS = ["±6%", "±8%", "±10%", "±16%", "±50%", "±100%"];
@@ -41,22 +40,13 @@ export async function loadOnDeck(deck: number, trackId: number) {
   }
 }
 
-export function dropTrackIds(e: DragEvent): number[] {
-  const raw = e.dataTransfer.getData(TRACK_MIME);
-  if (!raw) return [];
-  try {
-    return (JSON.parse(raw) as number[]).filter((x) => Number.isFinite(x));
-  } catch {
-    return [];
-  }
-}
-
 export function Deck({ deck, compact = false }: { deck: number; compact?: boolean }) {
   const L = String.fromCharCode(65 + deck);
   const info = useApp((s) => s.decks[deck]);
   const pro = usePro();
   const target = useApp((s) => s.targetDeck === deck);
-  const [over, setOver] = useState(false);
+  const drop = useDropTarget(`deck-${deck}`, { label: `Load on deck ${L}`, tracks: (ids) => loadOnDeck(deck, ids[0]) });
+  const over = drop.over;
   const color = DECK_COLORS[deck];
 
   return (
@@ -67,22 +57,7 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
         over ? "border-[var(--accent)] bg-[var(--accent)]/5" : target ? "border-white/[0.12]" : "border-white/[0.06]",
       )}
       onPointerDown={() => useApp.getState().set({ targetDeck: deck })}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(TRACK_MIME)) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          setOver(true);
-        }
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        setOver(false);
-        const ids = dropTrackIds(e);
-        if (ids[0] != null) {
-          e.preventDefault();
-          loadOnDeck(deck, ids[0]);
-        }
-      }}
+      {...drop.props}
       data-deck={L}
     >
       <Header deck={deck} />

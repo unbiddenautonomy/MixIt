@@ -11,7 +11,7 @@ import type { PlaylistDto } from "../../backend/types";
 import { clock, plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
-import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
+import { useDropTarget } from "../../lib/dnd";
 import { refreshPlaylists, refreshRows } from "./data";
 
 const same = (a: Source, b: Source) => a.type === b.type && (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id));
@@ -68,27 +68,14 @@ function IconBtn({ title, onClick, children }: { title: string; onClick: () => v
 }
 
 function Item({ icon, label, count, active, onClick, hint, depth = 0, onDrop, dropOk }: { icon: ReactNode; label: string; count?: number; active: boolean; onClick: () => void; hint?: string; depth?: number; onDrop?: (ids: number[]) => void; dropOk?: boolean }) {
-  const [over, setOver] = useState(false);
+  const drop = useDropTarget(`sidebar-${label}-${depth}`, { label: `Add to ${label}`, tracks: dropOk && onDrop ? (ids) => onDrop(ids) : undefined });
+  const over = drop.over && !!dropOk;
   return (
     <button
       type="button"
       title={hint}
       onClick={onClick}
-      onDragOver={(e) => {
-        if (dropOk && e.dataTransfer.types.includes(TRACK_MIME)) {
-          e.preventDefault();
-          setOver(true);
-        }
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        setOver(false);
-        const ids = dropTrackIds(e);
-        if (ids.length && onDrop) {
-          e.preventDefault();
-          onDrop(ids);
-        }
-      }}
+      {...(dropOk ? drop.props : {})}
       style={{ paddingLeft: 8 + depth * 14 }}
       className={clsx(
         "flex h-7 w-full items-center gap-2 rounded-md pr-2 text-left transition-colors",

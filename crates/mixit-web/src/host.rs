@@ -11,7 +11,10 @@ use mixit_core::{Beatgrid, DeckId, Key};
 use mixit_engine::actions::{ActionDispatcher, ActionError, ActionInput};
 use mixit_engine::commands::{Command, DeckCommand, GlobalCommand, PadMode, SamplerCommand};
 use mixit_engine::view::TelemetryDto;
-use mixit_engine::{Controller, CueKind, DeckTrack, Engine, EngineConfig, Event, HOT_CUES, HotCue, TrackAudio};
+use mixit_engine::{
+    Controller, CueKind, DeckTrack, Engine, EngineConfig, Event, HOT_CUES, HotCue, InputFeed, MicCommand, TrackAudio,
+    push_input,
+};
 use mixit_stretch::PhaseVocoder;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -40,6 +43,11 @@ pub struct Host {
     decks: [Option<Slot>; DECKS],
     next_token: u64,
     ended: Vec<u8>,
+    /// The mic's ring, written from the worklet's input (same clock as the output).
+    mic_tx: Option<rtrb::Producer<f32>>,
+    /// Where the worklet writes each quantum of mic input (interleaved stereo).
+    mic_in: Vec<f32>,
+    capture: Vec<f32>,
 }
 
 /// What the page sends with a track: where it starts and its saved cues.
@@ -107,6 +115,9 @@ impl Host {
             decks: Default::default(),
             next_token: 1,
             ended: Vec::with_capacity(DECKS),
+            mic_tx: None,
+            mic_in: vec![0.0; MAX_BLOCK * 2],
+            capture: Vec::with_capacity(sample_rate as usize),
         }
     }
 
@@ -119,6 +130,26 @@ impl Host {
         let n = frames.min(MAX_BLOCK);
         self.engine.process(&mut self.master[..n * 2], &mut self.cue[..n * 2]);
         (&self.master[..n * 2], &self.cue[..n * 2])
+    }
+
+    /// The buffer the worklet writes mic input into before [`Host::push_mic`].
+    pub fn mic_buffer(&mut self) -> &mut [f32] {
+        &mut self.mic_in
+    }
+
+    /// Hands `frames` of [`Host::mic_buffer`] to the mic channel.
+    pub fn push_mic(&mut self, frames: usize) {
+        let n = frames.min(MAX_BLOCK);
+        if let Some(tx) = self.mic_tx.as_mut() {
+            push_input(tx, &self.mic_in[..n * 2]);
+        }
+    }
+
+    /// Takes the mic recording captured since the last call (interleaved stereo).
+    pub fn take_capture(&mut self) -> &[f32] {
+        self.capture.clear();
+        self.ctl.drain_capture(&mut self.capture);
+        &self.capture
     }
 
     /// The headphone cue of the last [`Host::process`] call (interleaved).
@@ -279,6 +310,17 @@ impl Host {
                 let pad = v["pad"].as_u64().unwrap_or(0) as usize;
                 self.send(Command::Sampler(SamplerCommand::Unload(pad)));
             }
+            "micOpen" => {
+                // The input arrives on the output's own clock, one quantum at a time.
+                let (tx, feed) = InputFeed::new(self.sr, self.sr, 128);
+                self.mic_tx = Some(tx);
+                self.send(Command::Mic(MicCommand::SetFeed(Some(Box::new(feed)))));
+            }
+            "micClose" => {
+                self.mic_tx = None;
+                self.send(Command::Mic(MicCommand::SetFeed(None)));
+            }
+            "micCapture" => self.send(Command::Mic(MicCommand::Capture(v["on"].as_bool().unwrap_or(false)))),
             "record" => self.send(Command::Global(GlobalCommand::SetRecording(v["on"].as_bool().unwrap_or(false)))),
             _ => return Err(format!("unknown call {op}")),
         }
@@ -395,6 +437,44 @@ mod tests {
         h.call(r#"{"op":"action","id":"mixer.A.fader","input":{"type":"value","value":0.0}}"#).unwrap();
         let quiet = render(&mut h, sr as usize / 2);
         assert!(testkit::rms(&quiet[sr as usize / 2..]) < 1e-3);
+    }
+
+    #[test]
+    fn mic_input_goes_on_air_and_can_be_recorded() {
+        let sr = 48_000;
+        let mut h = Host::new(sr);
+        h.call(r#"{"op":"micOpen"}"#).unwrap();
+        for c in [
+            r#"{"op":"action","id":"mic.on_air","input":{"type":"set","value":true}}"#,
+            r#"{"op":"action","id":"mic.level","input":{"type":"value","value":1.0}}"#,
+            r#"{"op":"action","id":"mic.talkover","input":{"type":"set","value":false}}"#,
+            r#"{"op":"micCapture","on":true}"#,
+        ] {
+            h.call(c).unwrap();
+        }
+        let mut out = Vec::new();
+        let mut captured = 0;
+        for q in 0..400 {
+            let buf = h.mic_buffer();
+            for k in 0..128 {
+                let s = 0.3 * (2.0 * std::f32::consts::PI * 500.0 * (q * 128 + k) as f32 / sr as f32).sin();
+                buf[2 * k] = s;
+                buf[2 * k + 1] = s;
+            }
+            h.push_mic(128);
+            out.extend_from_slice(h.process(128).0);
+            if q % 13 == 0 {
+                captured += h.take_capture().len();
+            }
+        }
+        let tail = &out[out.len() - 20_000..];
+        assert!((mixit_dsp::util::peak(tail) - 0.3).abs() < 0.03, "{}", mixit_dsp::util::peak(tail));
+        let p = h.poll();
+        assert!(p.t.mic.connected && p.t.mic.live && p.t.mic.capturing);
+        assert!(captured > sr as usize, "{captured}");
+        h.call(r#"{"op":"micClose"}"#).unwrap();
+        render(&mut h, 4_096);
+        assert!(!h.poll().t.mic.connected);
     }
 
     #[test]

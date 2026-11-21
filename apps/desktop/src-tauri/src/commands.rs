@@ -550,6 +550,29 @@ pub fn library_add(app: AppHandle, paths: Vec<String>) -> R<()> {
     })
 }
 
+/// Adds one audio file to the library now and returns it (dropped on a deck, for
+/// example). It is analysed when it is first loaded.
+#[tauri::command]
+pub fn library_import(app: AppHandle, state: State<'_, AppState>, path: String) -> R<TrackRow> {
+    let p = PathBuf::from(&path);
+    if !mixit_io::is_audio_file(&p) {
+        return Err(format!(
+            "{} is not a music file MixIt can read",
+            p.file_name().unwrap_or_default().to_string_lossy()
+        ));
+    }
+    let lib = state.library.lock();
+    let id = match lib.import_file(&p).map_err(err)? {
+        mixit_library::scan::Imported::Added(id)
+        | mixit_library::scan::Imported::Updated(id)
+        | mixit_library::scan::Imported::Moved(id)
+        | mixit_library::scan::Imported::Unchanged(id) => id,
+    };
+    let t = lib.track(id).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(TrackRow::from(&t))
+}
+
 /// Generates the practice tracks the guide's labs use (once) and adds them to the
 /// library, analysed.
 #[tauri::command]
@@ -794,6 +817,76 @@ pub fn audio_devices() -> Vec<mixit_host::DeviceInfo> {
 }
 
 #[tauri::command]
+pub fn input_devices() -> Vec<mixit_host::DeviceInfo> {
+    mixit_host::input::list_inputs()
+}
+
+/// What the mic channel is connected to, or why it is not.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MicState {
+    pub status: Option<crate::dto::MicStatus>,
+    pub error: Option<String>,
+    pub lost: bool,
+}
+
+#[tauri::command]
+pub fn mic_status(state: State<'_, AppState>) -> MicState {
+    let a = state.audio.lock();
+    MicState { status: a.mic_status(), error: state.mic_error.lock().clone(), lost: a.mic_lost() }
+}
+
+/// Starts recording the mic channel (after its gain, low cut, gate and EQ).
+#[tauri::command]
+pub fn mic_record_start(state: State<'_, AppState>) -> R<String> {
+    let mut rec = state.mic_recording.lock();
+    if rec.is_some() {
+        return Err("already recording the mic".into());
+    }
+    if state.audio.lock().mic_status().is_none() {
+        return Err("turn the mic on first".into());
+    }
+    let dir = state.paths.recordings.join("Mic");
+    std::fs::create_dir_all(&dir).map_err(err)?;
+    let name = format!("Mic {}.wav", crate::state::chrono_like_now().replace(':', "-"));
+    let path = dir.join(name);
+    let sr = state.audio.lock().sample_rate;
+    let writer = mixit_host::recorder::StreamingWav::create(&path, sr, true).map_err(err)?;
+    *rec = Some(crate::state::MicRecording { writer });
+    state.audio.lock().send(Command::Mic(mixit_engine::MicCommand::Capture(true)));
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Stops the mic recording and returns the file. With `trim`, the silence before and
+/// after is cut (for a pad sound).
+#[tauri::command]
+pub fn mic_record_stop(state: State<'_, AppState>, trim: bool) -> R<crate::dto::MicTake> {
+    state.audio.lock().send(Command::Mic(mixit_engine::MicCommand::Capture(false)));
+    std::thread::sleep(std::time::Duration::from_millis(60));
+    let rec = state.mic_recording.lock().take().ok_or("not recording the mic")?;
+    let mut w = rec.writer;
+    let mut buf = Vec::new();
+    state.audio.lock().ctl.drain_capture(&mut buf);
+    w.write(&buf).map_err(err)?;
+    let path = w.finish().map_err(err)?;
+    let mut seconds = 0.0;
+    if let Ok(d) = mixit_io::decode_file(&path) {
+        seconds = d.frames() as f64 / d.sample_rate as f64;
+        // Trim takes up to five minutes (pads); longer ones are kept as they are.
+        if trim && seconds <= 300.0 {
+            let t = mixit_dsp::util::trim_silence(&d.data, d.sample_rate, -48.0);
+            if t.is_empty() {
+                let _ = std::fs::remove_file(&path);
+                return Err("the recording was silent: check the mic gain and meter".into());
+            }
+            seconds = t.len() as f64 / 2.0 / d.sample_rate as f64;
+            mixit_io::write_wav(&path, &t, 2, d.sample_rate, mixit_io::WavDepth::Float32).map_err(err)?;
+        }
+    }
+    Ok(crate::dto::MicTake { path: path.to_string_lossy().into_owned(), seconds })
+}
+
+#[tauri::command]
 pub fn audio_status(state: State<'_, AppState>) -> AudioStatus {
     let a = state.audio.lock();
     let mut s = a.status.clone();
@@ -819,6 +912,7 @@ fn restart_audio(app: &AppHandle) -> R<AudioStatus> {
         *a = Audio::start(&cfg);
     }
     state.apply_mixer_settings();
+    state.apply_mic_settings();
     crate::sampler::load_all(&state);
     for (deck, track, pos) in reload {
         if let Ok(info) = load_track_blocking(&state, deck, track, Some(pos)) {
@@ -839,10 +933,17 @@ pub fn settings_set(app: AppHandle, state: State<'_, AppState>, settings: Settin
         || old.buffer_frames != settings.buffer_frames
         || old.sample_rate != settings.sample_rate
         || old.cue_channel != settings.cue_channel;
+    let mic_changed = old.mic_enabled != settings.mic_enabled
+        || old.mic_device != settings.mic_device
+        || old.mic_channel != settings.mic_channel
+        || old.mic_stereo != settings.mic_stereo;
     if audio_changed {
         restart_audio(&app)?;
     } else {
         state.apply_mixer_settings();
+        if mic_changed {
+            state.apply_mic_settings();
+        }
     }
     Ok(settings)
 }

@@ -229,7 +229,14 @@ export class DemoBackend implements Backend {
     autoGain: true,
     limiter: true,
     tempoRange: 0.08,
+    micEnabled: false,
+    micDevice: null,
+    micChannel: 0,
+    micStereo: false,
+    micVoice: true,
   };
+  /** The simulated mic channel. */
+  protected mic = { onAir: false, level: 0.8, gain: 0, talkover: true, depth: -12, recordingSince: null as number | null };
   protected playlistsData: (T.PlaylistDto & { tracks: number[] })[] = [];
   protected historyData: T.HistoryEntry[] = [];
   protected token = 1;
@@ -350,7 +357,12 @@ export class DemoBackend implements Backend {
       const side = i % 2 === 0 ? Math.min(1, 1 - x) : Math.min(1, 1 + x);
       return a + d.peak[0] * this.decks[i].fader * this.decks[i].fader * side;
     }, 0);
-    const m = Math.min(1.2, mix) * Math.pow(10, this.masterDb / 20);
+    // A simulated voice: phrases of a few seconds with pauses between them.
+    const secs = performance.now() / 1000;
+    const speaking = this.settings.micEnabled && Math.sin(secs * 0.9) > 0.1;
+    const voice = speaking ? (0.18 + 0.12 * Math.abs(Math.sin(secs * 7.3)) * Math.abs(Math.sin(secs * 3.1))) * Math.pow(10, this.mic.gain / 20) : 0.004;
+    const duckDb = this.mic.onAir && this.mic.talkover && speaking ? this.mic.depth : 0;
+    const m = (Math.min(1.2, mix) * Math.pow(10, duckDb / 20) + (this.mic.onAir ? voice * this.mic.level : 0)) * Math.pow(10, this.masterDb / 20);
     const limited = Math.min(m, 0.98);
     this.emit<T.Telemetry>("telemetry", {
       frame: this.frame,
@@ -364,6 +376,20 @@ export class DemoBackend implements Backend {
         limiterGrDb: m > 0.98 ? -20 * Math.log10(m / 0.98) : 0,
         cuePeak: [0, 0],
         clipped: false,
+      },
+      mic: {
+        connected: this.settings.micEnabled,
+        live: this.settings.micEnabled,
+        onAir: this.mic.onAir,
+        peak: this.settings.micEnabled ? [voice, voice] : [0, 0],
+        rms: this.settings.micEnabled ? voice * 0.5 : 0,
+        duckDb,
+        gateOpen: speaking,
+        latencyMs: 12,
+        driftPpm: 0,
+        underruns: 0,
+        capturing: this.mic.recordingSince !== null,
+        capturedSeconds: this.mic.recordingSince !== null ? secs - this.mic.recordingSince : 0,
       },
       clockBpm: this.master !== null ? tele[this.master].bpm : 124,
       masterDeck: this.master,
@@ -594,6 +620,13 @@ export class DemoBackend implements Backend {
         else if (c === "eq.high") d.eq[2] = value;
       } else if (p[1] === "crossfader") this.crossfader = value;
       else if (p[1] === "master") this.masterDb = value;
+    } else if (p[0] === "mic") {
+      const c = p.slice(1).join(".");
+      if (c === "on_air") this.mic.onAir = toggle(this.mic.onAir);
+      else if (c === "talkover") this.mic.talkover = toggle(this.mic.talkover);
+      else if (c === "level" && !Number.isNaN(value)) this.mic.level = value;
+      else if (c === "gain" && !Number.isNaN(value)) this.mic.gain = value;
+      else if (c === "talkover_depth" && !Number.isNaN(value)) this.mic.depth = value;
     } else if (id === "global.record" && press) {
       this.recording = !this.recording;
     }
@@ -719,6 +752,23 @@ export class DemoBackend implements Backend {
     return ["~/Music"];
   }
   async removeFolder() {}
+
+  async importTrack(path: string): Promise<T.TrackRow> {
+    const base = this.tracks[this.tracks.length % Math.max(1, this.tracks.length) || 0] ?? this.tracks[0];
+    if (!base) throw new Error("The demo library is not ready yet.");
+    const existing = this.tracks.find((t) => t.row.path === path);
+    if (existing) return existing.row;
+    const id = Math.max(...this.tracks.map((t) => t.row.id)) + 1;
+    const title = path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? "Dropped track";
+    const t: DemoTrack = { ...base, row: { ...base.row, id, path, title, artist: "", album: "", playCount: 0, lastPlayed: null, addedAt: Math.floor(Date.now() / 1000), rating: 0, color: null, comment: "" } };
+    this.tracks.push(t);
+    this.emit("library-changed", null);
+    return t.row;
+  }
+
+  registerFiles(files: File[]): string[] {
+    return files.map((f) => `demo-drop:/${f.webkitRelativePath || f.name}`);
+  }
 
   async addToLibrary(paths: string[]) {
     let done = 0;
@@ -893,6 +943,28 @@ export class DemoBackend implements Backend {
   async saveSettings(s: T.Settings) {
     this.settings = s;
     return s;
+  }
+  async inputDevices(): Promise<T.DeviceInfo[]> {
+    return [
+      { id: "demo:mic", name: "Built-in microphone (simulated)", host: "Demo", max_channels: 2, sample_rates: [48000], default_sample_rate: 48000, buffer_range: null, is_default: true },
+      { id: "demo:line", name: "USB audio interface, line in (simulated)", host: "Demo", max_channels: 4, sample_rates: [44100, 48000], default_sample_rate: 48000, buffer_range: [64, 1024], is_default: false },
+    ];
+  }
+  async micState(): Promise<T.MicState> {
+    if (!this.settings.micEnabled) return { status: null, error: null, lost: false };
+    const d = (await this.inputDevices()).find((x) => x.id === this.settings.micDevice) ?? (await this.inputDevices())[0];
+    return { status: { device: d.name, sampleRate: 48000, channels: d.max_channels, bufferFrames: 256, channel: this.settings.micChannel, stereo: this.settings.micStereo }, error: null, lost: false };
+  }
+  async micRecordStart() {
+    if (!this.settings.micEnabled) throw new Error("Turn the mic on first.");
+    this.mic.recordingSince = performance.now() / 1000;
+  }
+  async micRecordStop(_trim: boolean): Promise<T.MicTake> {
+    const since = this.mic.recordingSince;
+    if (since === null) throw new Error("Not recording the mic.");
+    this.mic.recordingSince = null;
+    const d = new Date();
+    return { path: `~/Music/MixIt/Recordings/Mic/Mic ${d.getHours()}.${String(d.getMinutes()).padStart(2, "0")}.wav`, seconds: Math.max(0.5, performance.now() / 1000 - since) };
   }
   async recordStart() {
     this.recording = true;
@@ -1315,6 +1387,19 @@ function demoRegistry(): T.ActionSpec[] {
   add("mixer.master", "Master volume", "Mixer", cont(-120, 6, 0), "The level of the whole mix.");
   for (let n = 1; n <= 8; n++) add(`sampler.pad.${n}`, `Pad ${n}`, "Sampler", { type: "momentary" }, "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.", `Shift+${n}`);
   add("sampler.volume", "Sampler volume", "Sampler", cont(0, 1, 0.8), "Volume of all pads.");
+  add("mic.on_air", "Mic on", "Mic", { type: "toggle" }, "Lets the audience hear your mic. Wear headphones: speakers near the mic make it howl.", "Mod+Shift+M");
+  add("mic.level", "Mic volume", "Mic", cont(0, 1, 0.8), "How loud your mic is in the mix.");
+  add("mic.gain", "Mic gain", "Mic", cont(-20, 30, 0), "Boosts a quiet mic. Set it so your voice moves the meter well into the green when you talk.", null, false);
+  add("mic.cue", "Mic in headphones", "Mic", { type: "toggle" }, "Lets you hear your mic in your headphones, to check it before going on.", null, false);
+  add("mic.talkover", "Talk-over", "Mic", { type: "toggle" }, "Turns the music down by itself while you speak, and back up when you stop.");
+  add("mic.talkover_depth", "Talk-over amount", "Mic", cont(-30, 0, -12), "How far the music goes down while you speak.", null, false);
+  add("mic.eq.high", "Mic high EQ", "Mic", cont(-26, 6, 0), "Adds or removes brightness and hiss.", null, false);
+  add("mic.eq.mid", "Mic mid EQ", "Mic", cont(-26, 6, 0), "Adds or removes the body of your voice. Turn it up to cut through loud music.", null, false);
+  add("mic.eq.low", "Mic low EQ", "Mic", cont(-26, 6, 0), "Adds or removes boom. Turn it down if you sound muffled.", null, false);
+  add("mic.low_cut", "Low cut", "Mic", { type: "toggle" }, "Removes rumble, wind and thumps from touching the mic. Leave it on for voice; off for a turntable.", null, false);
+  add("mic.gate", "Cut background noise", "Mic", { type: "toggle" }, "Keeps the mic quiet between words, so fans and room noise stay out of the mix.", null, false);
+  add("mic.mono", "Mono", "Mic", { type: "toggle" }, "Uses one voice on both speakers. Leave it on for a mic; turn it off for a stereo source like a turntable.", null, false);
+  add("mic.record", "Record the mic", "Mic", { type: "toggle" }, "Records what comes in on the mic, to put on a sampler pad or keep in your library as a track.");
   add("sampler.stop_all", "Stop all pads", "Sampler", { type: "trigger" }, "Stops every pad that is playing, including loops.", null, false);
   add("app.save", "Save mix project", "App", { type: "trigger" }, "Saves the mix project you are arranging.", "Mod+S");
   add("app.save_as", "Save mix project as", "App", { type: "trigger" }, "Saves the mix project under a new name.", "Mod+Shift+S", false);

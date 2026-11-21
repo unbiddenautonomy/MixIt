@@ -8,8 +8,11 @@
 //! * Measures callback load and counts likely dropouts so the UI can warn before the
 //!   audience hears them.
 //! * Switches off denormals on the audio thread.
+//! * Opens an input device (a mic or line-in) on its own stream and feeds it to the
+//!   engine's mic channel, which follows the input's clock (see [`input`]).
 
 pub mod denormals;
+pub mod input;
 pub mod offline;
 pub mod project;
 pub mod recorder;
@@ -27,6 +30,8 @@ use serde::{Deserialize, Serialize};
 pub enum HostError {
     #[error("no audio output device found")]
     NoDevice,
+    #[error("no microphone or audio input found")]
+    NoInput,
     #[error("audio device \"{0}\" not found")]
     DeviceNotFound(String),
     #[error("audio device error: {0}")]
@@ -53,14 +58,28 @@ pub struct DeviceInfo {
 
 const COMMON_RATES: [u32; 6] = [44_100, 48_000, 88_200, 96_000, 176_400, 192_000];
 
-fn describe(device: &cpal::Device, host: &cpal::Host, is_default: bool) -> Option<DeviceInfo> {
+pub(crate) fn describe(device: &cpal::Device, host: &cpal::Host, is_default: bool) -> Option<DeviceInfo> {
+    describe_dir(device, host, is_default, false)
+}
+
+pub(crate) fn describe_dir(
+    device: &cpal::Device,
+    host: &cpal::Host,
+    is_default: bool,
+    input: bool,
+) -> Option<DeviceInfo> {
     let id = device.id().ok()?.to_string();
     let name = device.to_string();
-    let default = device.default_output_config().ok()?;
+    let default = if input { device.default_input_config().ok()? } else { device.default_output_config().ok()? };
     let mut rates = Vec::new();
     let mut max_ch = default.channels();
     let mut buf: Option<(u32, u32)> = None;
-    if let Ok(cfgs) = device.supported_output_configs() {
+    let cfgs: Vec<cpal::SupportedStreamConfigRange> = if input {
+        device.supported_input_configs().map(|c| c.collect()).unwrap_or_default()
+    } else {
+        device.supported_output_configs().map(|c| c.collect()).unwrap_or_default()
+    };
+    {
         for c in cfgs {
             max_ch = max_ch.max(c.channels());
             for r in COMMON_RATES {

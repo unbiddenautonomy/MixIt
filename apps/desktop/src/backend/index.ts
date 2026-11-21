@@ -13,6 +13,8 @@ import type {
   HistoryEntry,
   JobProgress,
   LibraryStats,
+  MicState,
+  MicTake,
   MixProject,
   PadInfo,
   PadPatch,
@@ -54,6 +56,13 @@ export interface Backend {
   folders(): Promise<string[]>;
   removeFolder(path: string): Promise<void>;
   addToLibrary(paths: string[]): Promise<void>;
+  /** Adds one audio file to the library now (it is analysed when first loaded) and returns it. */
+  importTrack(path: string): Promise<TrackRow>;
+  /**
+   * Keeps files dropped from outside the browser under paths the other calls accept.
+   * The desktop app gets real paths from the system instead and returns none.
+   */
+  registerFiles(files: File[]): string[];
   rescan(): Promise<void>;
   analyzePending(): Promise<void>;
   cancelJob(): Promise<void>;
@@ -80,6 +89,14 @@ export interface Backend {
   saveSettings(s: Settings): Promise<Settings>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
+
+  /** Microphones and line inputs. The mic itself opens and closes with the settings. */
+  inputDevices(): Promise<DeviceInfo[]>;
+  micState(): Promise<MicState>;
+  /** Starts recording the mic channel. */
+  micRecordStart(): Promise<void>;
+  /** Stops it and returns the file (`trim` cuts the silence around it, for a pad). */
+  micRecordStop(trim: boolean): Promise<MicTake>;
 
   automix(tracks: number[], options: AutomixRequest): Promise<MixProject>;
   saveProject(path: string, project: MixProject): Promise<void>;

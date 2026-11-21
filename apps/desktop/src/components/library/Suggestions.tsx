@@ -8,7 +8,8 @@ import { keyColor, keyLabel, shiftedKey } from "../../lib/keys";
 import { deckCount, useApp, useNotation } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { Segmented } from "../ui/Button";
-import { loadOnDeck, TRACK_MIME } from "../deck/Deck";
+import { beginTrackDrag } from "../../lib/dnd";
+import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, suggestionSeed } from "./data";
 import { useTelemetry } from "../../store/telemetry";
 
@@ -79,11 +80,7 @@ export function Suggestions() {
             return (
               <div
                 key={t.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(TRACK_MIME, JSON.stringify([t.id]));
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
+                onPointerDown={(e) => beginTrackDrag(e, [t.id], `${t.artist} – ${t.title}`)}
                 onDoubleClick={() => loadOnDeck(freeDeck(), t.id)}
                 onClick={() => useLibrary.getState().set({ inspect: t.id, selected: [t.id] })}
                 className="group flex cursor-default flex-col gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 hover:border-white/[0.12] hover:bg-white/[0.05]"

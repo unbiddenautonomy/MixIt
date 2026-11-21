@@ -213,3 +213,10 @@ option {
     animation: none;
   }
 }
+
+/* A track drag in progress (see lib/dnd.ts). */
+body.dragging-tracks,
+body.dragging-tracks * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
