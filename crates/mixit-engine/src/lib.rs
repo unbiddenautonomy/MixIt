@@ -9,6 +9,7 @@
 //! The same engine renders offline (exports, tests) by calling [`Engine::process`] in a
 //! loop, so live and offline output are identical.
 
+pub mod actions;
 pub mod commands;
 pub mod deck;
 pub mod engine;
