@@ -680,6 +680,52 @@ pub fn track_edit(app: AppHandle, state: State<'_, AppState>, id: i64, edit: Tra
     Ok(row)
 }
 
+/// Applies the same edit to several tracks (only the fields given change).
+#[tauri::command]
+pub fn tracks_edit(app: AppHandle, state: State<'_, AppState>, ids: Vec<i64>, edit: TrackEdit) -> R<()> {
+    {
+        let lib = state.library.lock();
+        for id in &ids {
+            lib.edit_track(*id, &edit).map_err(err)?;
+        }
+    }
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+#[derive(Serialize)]
+pub struct WriteTagsResult {
+    pub written: usize,
+    /// (track id, why) for files that could not be written.
+    pub failed: Vec<(i64, String)>,
+}
+
+/// Writes the library's details into the tracks' files. `notation` is how the key is
+/// written: "camelot" (8A), "openKey" (1m) or "standard" (Am).
+#[tauri::command]
+pub async fn library_write_tags(app: AppHandle, ids: Vec<i64>, notation: String) -> R<WriteTagsResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let n = match notation.as_str() {
+            "openKey" => mixit_core::key::KeyNotation::OpenKey,
+            "standard" => mixit_core::key::KeyNotation::Standard,
+            _ => mixit_core::key::KeyNotation::Camelot,
+        };
+        let mut out = WriteTagsResult { written: 0, failed: vec![] };
+        for id in ids {
+            // One track at a time, so the library stays usable while files are written.
+            match state.library.lock().write_file_tags(id, n) {
+                Ok(()) => out.written += 1,
+                Err(e) => out.failed.push((id, e.to_string())),
+            }
+        }
+        let _ = app.emit("library-changed", ());
+        Ok(out)
+    })
+    .await
+    .map_err(err)?
+}
+
 #[tauri::command]
 pub fn tracks_remove(app: AppHandle, state: State<'_, AppState>, ids: Vec<i64>) -> R<()> {
     state.library.lock().remove_tracks(&ids).map_err(err)?;

@@ -26,7 +26,7 @@ pub use decode::{Decoded, decode_file};
 pub use export::{ExportFormat, WavDepth, write_flac, write_wav};
 pub use hash::hash_file;
 pub use resample::resample_interleaved;
-pub use tags::{TrackTags, read_tags};
+pub use tags::{TagUpdate, TrackTags, read_tags, write_tags};
 
 #[derive(Debug, thiserror::Error)]
 pub enum IoError {

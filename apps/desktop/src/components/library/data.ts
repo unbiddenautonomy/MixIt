@@ -5,6 +5,7 @@ import type { TrackRow } from "../../backend/types";
 import { useApp } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
+import { ask } from "../shell/Dialogs";
 
 let seq = 0;
 
@@ -119,4 +120,35 @@ export async function rowsById(ids: number[]): Promise<TrackRow[]> {
   if (ids.every((id) => have.has(id))) return ids.map((id) => have.get(id)!);
   const all = new Map((await backend().search("")).map((r) => [r.id, r]));
   return ids.map((id) => all.get(id)).filter((r): r is TrackRow => !!r);
+}
+
+/**
+ * Writes the library's details into the tracks' files (title, artist, genre, label, year,
+ * tempo and key in the chosen notation), after asking: it changes the files.
+ */
+export async function writeTagsToFiles(ids: number[]) {
+  const b = backend;
+  if (!ids.length) return;
+  if (b().kind === "web") {
+    toast.message("Writing tags needs the desktop app", { description: "A web page cannot change files on your computer. Your edits are kept in MixIt's library." });
+    return;
+  }
+  const notation = useApp.getState().settings?.keyNotation ?? "camelot";
+  const n = ids.length === 1 ? "this track's file" : `${ids.length} files`;
+  const example = notation === "camelot" ? "8A" : notation === "openKey" ? "1m" : "Am";
+  if (
+    !(await ask({
+      title: `Write tags to ${n}?`,
+      body: `Title, artist, album, genre, label, comment, year, tempo and key (as ${example}) go into the file, so other apps and DJ gear show them too. The audio is not touched.`,
+      confirm: "Write tags",
+    }))
+  )
+    return;
+  try {
+    const r = await b().writeTags(ids, notation);
+    if (r.failed.length === 0) toast.success(r.written === 1 ? "Tags written to the file" : `Tags written to ${r.written} files`);
+    else toast.warning(`Tags written to ${r.written} of ${ids.length} files`, { description: r.failed.slice(0, 3).map(([, why]) => why).join("\n") + (r.failed.length > 3 ? `\n…and ${r.failed.length - 3} more` : "") });
+  } catch (e) {
+    toast.error(String(e));
+  }
 }

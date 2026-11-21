@@ -43,7 +43,9 @@ pub fn read_tags(path: &Path) -> Result<TrackTags> {
         bit_depth: props.bit_depth(),
         ..Default::default()
     };
-    if let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) {
+    // ID3v2 first: in WAV and AIFF it carries more than the RIFF or AIFF text chunks.
+    let id3 = tagged.tag(lofty::tag::TagType::Id3v2).filter(|t| t.item_count() > 0);
+    if let Some(tag) = id3.or_else(|| tagged.primary_tag()).or_else(|| tagged.first_tag()) {
         let s = |k: ItemKey| tag.get_string(k).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
         t.title = tag.title().map(|v| v.to_string());
         t.artist = tag.artist().map(|v| v.to_string());
@@ -52,7 +54,7 @@ pub fn read_tags(path: &Path) -> Result<TrackTags> {
         t.comment = tag.comment().map(|v| v.to_string());
         t.track_number = tag.track();
         t.album_artist = s(ItemKey::AlbumArtist);
-        t.label = s(ItemKey::Label);
+        t.label = s(ItemKey::Label).or_else(|| s(ItemKey::Publisher));
         t.remixer = s(ItemKey::Remixer);
         t.key = s(ItemKey::InitialKey);
         t.year = s(ItemKey::Year).or_else(|| s(ItemKey::RecordingDate)).and_then(|y| y.get(..4)?.parse().ok());
@@ -73,4 +75,75 @@ pub fn read_artwork(path: &Path) -> Option<(Vec<u8>, String)> {
     let pic = pics.iter().find(|p| p.pic_type() == lofty::picture::PictureType::CoverFront).or_else(|| pics.first())?;
     let mime = pic.mime_type().map(|m| m.as_str().to_string()).unwrap_or_else(|| "image/jpeg".into());
     Some((pic.data().to_vec(), mime))
+}
+
+/// Tags to write: only the fields that are `Some` change; an empty string removes one.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TagUpdate {
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub genre: Option<String>,
+    pub comment: Option<String>,
+    pub label: Option<String>,
+    pub year: Option<u32>,
+    pub bpm: Option<f64>,
+    pub key: Option<String>,
+}
+
+/// Writes tags into the file, in its main tag format (ID3v2 for MP3, AIFF and WAV,
+/// Vorbis comments for FLAC and Ogg, MP4 atoms for M4A). Other tags in the file stay.
+pub fn write_tags(path: &Path, u: &TagUpdate) -> Result<()> {
+    use lofty::config::WriteOptions;
+    use lofty::file::FileType;
+    use lofty::tag::{Tag, TagType};
+
+    let mut tagged = lofty::read_from_path(path).map_err(|e| IoError::Unsupported(e.to_string()))?;
+    // WAV and AIFF get ID3v2 (what DJ software reads there; RIFF INFO has no BPM, key or label).
+    let target = match tagged.file_type() {
+        FileType::Wav | FileType::Aiff | FileType::Mpeg => TagType::Id3v2,
+        _ => tagged.primary_tag_type(),
+    };
+    if tagged.tag(target).is_none() {
+        tagged.insert_tag(Tag::new(target));
+    }
+    let tag = tagged.tag_mut(target).ok_or_else(|| IoError::Unsupported("this file cannot hold tags".into()))?;
+    let text = |tag: &mut Tag, key: ItemKey, v: &str| {
+        if v.trim().is_empty() {
+            tag.remove_key(key);
+        } else {
+            tag.insert_text(key, v.trim().to_string());
+        }
+    };
+    if let Some(v) = &u.title {
+        text(tag, ItemKey::TrackTitle, v);
+    }
+    if let Some(v) = &u.artist {
+        text(tag, ItemKey::TrackArtist, v);
+    }
+    if let Some(v) = &u.album {
+        text(tag, ItemKey::AlbumTitle, v);
+    }
+    if let Some(v) = &u.genre {
+        text(tag, ItemKey::Genre, v);
+    }
+    if let Some(v) = &u.comment {
+        text(tag, ItemKey::Comment, v);
+    }
+    if let Some(v) = &u.label {
+        text(tag, ItemKey::Label, v);
+    }
+    if let Some(y) = u.year {
+        text(tag, ItemKey::RecordingDate, &y.to_string());
+    }
+    if let Some(b) = u.bpm.filter(|b| (20.0..=400.0).contains(b)) {
+        // Whole BPMs in the common field, the exact value where the format has one.
+        text(tag, ItemKey::IntegerBpm, &format!("{}", b.round() as u32));
+        text(tag, ItemKey::Bpm, &format!("{:.2}", b));
+    }
+    if let Some(k) = &u.key {
+        text(tag, ItemKey::InitialKey, k);
+    }
+    tagged.save_to_path(path, WriteOptions::default()).map_err(|e| IoError::Unsupported(e.to_string()))?;
+    Ok(())
 }
