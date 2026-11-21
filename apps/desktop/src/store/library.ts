@@ -3,7 +3,7 @@ import type { HistoryEntry, LibraryStats, PlaylistDto, SessionDto, SuggestionRow
 
 export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history"; session?: number } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "tag"; name: string };
 
-export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | null;
+export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | "album" | "label" | "comment" | "year" | "lastPlayed" | "lufs" | null;
 
 interface LibraryState {
   source: Source;
@@ -71,7 +71,14 @@ export function sortRows(rows: TrackRow[], key: SortKey, dir: 1 | -1): TrackRow[
       case "title":
       case "artist":
       case "genre":
+      case "album":
+      case "label":
+      case "comment":
         return t[key].toLowerCase();
+      case "year":
+      case "lastPlayed":
+      case "lufs":
+        return t[key] ?? -Infinity;
       default:
         return t[key] as number;
     }
