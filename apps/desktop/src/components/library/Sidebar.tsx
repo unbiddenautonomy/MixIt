@@ -281,6 +281,18 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
             >
               Export for rekordbox…
             </ContextMenu.Item>
+            <ContextMenu.Item
+              className="menu-item"
+              onSelect={async () => {
+                const path = await backend().pickSave(`${p.name}.nml`, ["nml"]);
+                if (path) {
+                  await backend().exportTraktor(path, p.id);
+                  toast.success(`Exported ${p.name} for Traktor`);
+                }
+              }}
+            >
+              Export for Traktor…
+            </ContextMenu.Item>
             {p.kind !== "folder" && (
               <ContextMenu.Item
                 className="menu-item"

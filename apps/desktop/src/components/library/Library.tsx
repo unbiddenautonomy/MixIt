@@ -230,6 +230,18 @@ function ImportExport() {
           >
             <Upload size={12} /> Export collection for rekordbox…
           </Dropdown.Item>
+          <Dropdown.Item
+            className="menu-item"
+            onSelect={() =>
+              run(async () => {
+                const p = await backend().pickSave("MixIt collection.nml", ["nml"]);
+                if (!p) return false;
+                await backend().exportTraktor(p, null);
+              }, "Exported for Traktor")
+            }
+          >
+            <Upload size={12} /> Export collection for Traktor…
+          </Dropdown.Item>
           <Dropdown.Separator className="menu-sep" />
           <Dropdown.Item
             className="menu-item"

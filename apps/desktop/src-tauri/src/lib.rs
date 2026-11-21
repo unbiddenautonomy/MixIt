@@ -139,6 +139,7 @@ pub fn run() {
             commands::import_rekordbox,
             commands::import_traktor,
             commands::export_rekordbox,
+            commands::export_traktor,
             commands::export_playlist,
             commands::import_m3u,
             commands::sampler_load,

@@ -600,4 +600,29 @@ fn imports_a_traktor_collection() {
     assert_eq!(again.grids, 0);
     assert_eq!(again.cues, 0);
     assert_eq!(lib.cues(one.id).unwrap().len(), 3);
+    assert_eq!(lib.playlists().unwrap().len(), 2, "the folder and list are refreshed, not copied");
+
+    // Out to Traktor and back into a fresh library: nothing is lost on the way.
+    let out = tmp.0.join("export.nml");
+    lib.export_traktor_nml(None, &out).unwrap();
+    let other = Library::open_in_memory().unwrap();
+    let back = other.import_traktor_nml(&out).unwrap();
+    assert_eq!((back.tracks, back.playlists, back.grids, back.cues), (2, 1, 1, 3), "{back:?}");
+    let one2 = other.track_by_path(&music.join("one.wav")).unwrap().unwrap();
+    assert_eq!((one2.title.as_str(), one2.album.as_str(), one2.rating), ("One & Only", "Night Drives", 4));
+    assert_eq!(one2.best_key(), one.best_key());
+    let g2 = other.grid(one2.id).unwrap().unwrap();
+    assert!((g2.bpm - g.bpm).abs() < 1e-6 && (g2.frame_at(0.0) - g.frame_at(0.0)).abs() < 1.0);
+    let mut c1 = lib.cues(one.id).unwrap();
+    let mut c2 = other.cues(one2.id).unwrap();
+    c1.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
+    c2.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
+    for (a, b) in c1.iter().zip(&c2) {
+        assert_eq!((a.kind, a.slot, &a.label), (b.kind, b.slot, &b.label));
+        assert!((a.seconds - b.seconds).abs() < 1e-6);
+        assert_eq!(a.loop_seconds.map(|l| (l * 1e6).round()), b.loop_seconds.map(|l| (l * 1e6).round()));
+    }
+    let fri2 = other.playlists().unwrap().into_iter().find(|p| p.name == "Friday").unwrap();
+    assert!(fri2.parent.is_some(), "still inside its folder");
+    assert_eq!(other.playlist_tracks(fri2.id).unwrap().len(), 2);
 }
