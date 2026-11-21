@@ -377,7 +377,7 @@ export class DemoBackend implements Backend {
     const speaking = this.settings.micEnabled && Math.sin(secs * 0.9) > 0.1;
     const voice = speaking ? (0.18 + 0.12 * Math.abs(Math.sin(secs * 7.3)) * Math.abs(Math.sin(secs * 3.1))) * Math.pow(10, this.mic.gain / 20) : 0.004;
     const duckDb = this.mic.onAir && this.mic.talkover && speaking ? this.mic.depth : 0;
-    const m = (Math.min(1.2, mix) * Math.pow(10, duckDb / 20) + (this.mic.onAir ? voice * this.mic.level : 0)) * Math.pow(10, this.masterDb / 20);
+    const m = (Math.min(1.2, mix) * Math.pow(10, duckDb / 20) + (this.mic.onAir ? voice * this.mic.level : 0)) * Math.pow(10, (this.masterDb + this.studio[4].outputDb) / 20);
     const limited = Math.min(m, 0.98);
     this.emit<T.Telemetry>("telemetry", {
       frame: this.frame,
@@ -1527,6 +1527,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.assistant", "Mix assistant", "App", { type: "toggle" }, "Listens to your mix and tells you what to fix (clashing bass, clipping, loudness, harsh or muddy tone), with a button that fixes it.", null);
   add("app.tour", "Take the 2-minute tour", "App", { type: "trigger" }, "Walks you through your first mix: play two tracks in time and blend from one into the other.", null);
   add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);
   add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");

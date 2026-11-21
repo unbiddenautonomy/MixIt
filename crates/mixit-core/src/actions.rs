@@ -1295,6 +1295,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("guide"),
     );
     b.add(
+        "app.assistant",
+        "Mix assistant",
+        ag,
+        ActionKind::Toggle,
+        "Listens to your mix and tells you what to fix (clashing bass, clipping, loudness, harsh or muddy tone), with a button that fixes it.",
+        true,
+        None,
+        Some("studio"),
+    );
+    b.add(
         "app.tour",
         "Take the 2-minute tour",
         ag,

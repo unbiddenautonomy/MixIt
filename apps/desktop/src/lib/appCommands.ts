@@ -1,5 +1,6 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
+import { setAssistantOpen, useAssistant } from "../components/feedback/MixAssistant";
 import { withLiveSound } from "../store/studio";
 import { toast } from "sonner";
 import { backend } from "../backend";
@@ -133,6 +134,9 @@ export function runApp(id: string): boolean {
       return true;
     case "guide":
       s.set({ guideOpen: !s.guideOpen });
+      return true;
+    case "assistant":
+      setAssistantOpen(!useAssistant.getState().open);
       return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
