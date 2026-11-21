@@ -208,6 +208,19 @@ function ImportExport() {
             className="menu-item"
             onSelect={() =>
               run(async () => {
+                const d = await backend().pickFolders("Choose the _Serato_ folder");
+                if (!d?.[0]) return false;
+                await backend().importSerato(d[0]);
+                await refreshAll();
+              }, "Importing from Serato")
+            }
+          >
+            <Import size={12} /> Import Serato library (the _Serato_ folder)…
+          </Dropdown.Item>
+          <Dropdown.Item
+            className="menu-item"
+            onSelect={() =>
+              run(async () => {
                 const f = await backend().pickFiles(["m3u", "m3u8"], "Playlist (M3U)");
                 if (!f?.[0]) return false;
                 await backend().importM3u(f[0]);

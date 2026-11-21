@@ -15,6 +15,7 @@ pub mod query;
 pub mod rekordbox;
 pub mod scan;
 mod schema;
+pub mod serato;
 pub mod suggest;
 pub mod traktor;
 

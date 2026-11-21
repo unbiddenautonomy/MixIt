@@ -15,6 +15,7 @@ pub mod decode;
 pub mod export;
 pub mod hash;
 pub mod resample;
+pub mod serato;
 pub mod tags;
 
 use std::path::{Path, PathBuf};

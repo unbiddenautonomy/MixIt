@@ -726,6 +726,26 @@ pub async fn library_write_tags(app: AppHandle, ids: Vec<i64>, notation: String)
     .map_err(err)?
 }
 
+/// Writes the tracks' hot cues, loops and beat grids into their files the way Serato DJ
+/// keeps them.
+#[tauri::command]
+pub async fn library_write_serato(app: AppHandle, ids: Vec<i64>) -> R<WriteTagsResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut out = WriteTagsResult { written: 0, failed: vec![] };
+        for id in ids {
+            match state.library.lock().write_serato_file(id) {
+                Ok(()) => out.written += 1,
+                Err(e) => out.failed.push((id, e.to_string())),
+            }
+        }
+        let _ = app.emit("library-changed", ());
+        Ok(out)
+    })
+    .await
+    .map_err(err)?
+}
+
 #[tauri::command]
 pub fn tracks_remove(app: AppHandle, state: State<'_, AppState>, ids: Vec<i64>) -> R<()> {
     state.library.lock().remove_tracks(&ids).map_err(err)?;
@@ -1627,6 +1647,23 @@ pub fn import_rekordbox(app: AppHandle, path: String) -> R<()> {
             r.tracks,
             r.playlists,
             r.cues,
+            r.missing.len()
+        ))
+    })
+}
+
+#[tauri::command]
+pub fn import_serato(app: AppHandle, path: String) -> R<()> {
+    spawn_library_job(app, "import", move |app, lib, progress| {
+        progress(0, 0, "Reading Serato library".into());
+        let r = lib.import_serato(Path::new(&path)).map_err(err)?;
+        let a = analyse_all(app, lib, progress)?;
+        Ok(format!(
+            "Imported {} tracks, {} crates, {} cues, {} beat grids ({} files not found). {a}",
+            r.tracks,
+            r.playlists,
+            r.cues,
+            r.grids,
             r.missing.len()
         ))
     })
