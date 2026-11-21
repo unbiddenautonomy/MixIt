@@ -51,6 +51,11 @@ export class TauriBackend implements Backend {
   trackDetail(id: number) { return invoke<T.TrackDetail>("track_detail", { id }); }
   editTrack(id: number, edit: T.TrackEdit) { return invoke<T.TrackRow>("track_edit", { id, edit }); }
   removeTracks(ids: number[]) { return invoke<void>("tracks_remove", { ids }); }
+  missingTracks() { return invoke<T.TrackRow[]>("library_missing"); }
+  findMissing(folder: string) { return invoke<number>("library_find_missing", { folder }); }
+  relocateTrack(id: number, path: string) { return invoke<T.TrackRow>("library_relocate", { id, path }); }
+  duplicates() { return invoke<T.TrackRow[][]>("library_duplicates"); }
+  mergeTracks(keep: number, others: number[]) { return invoke<void>("library_merge", { keep, others }); }
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number) {
     return invoke<T.SuggestionRow[]>("suggest_next", { trackId, energy, limit: limit ?? null, tolerance: null });
   }

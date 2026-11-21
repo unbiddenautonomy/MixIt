@@ -901,6 +901,58 @@ export class DemoBackend implements Backend {
     this.emit("library-changed", null);
   }
 
+  async missingTracks(): Promise<T.TrackRow[]> {
+    return this.tracks.filter((t) => t.row.missing).map((t) => ({ ...t.row }));
+  }
+
+  /** The demo has no files: a missing track is "found" when the folder path holds its file name. */
+  async findMissing(folder: string): Promise<number> {
+    let n = 0;
+    for (const t of this.tracks.filter((x) => x.row.missing)) {
+      const name = t.row.path.split(/[\\/]/).pop() ?? "";
+      if (folder && name) {
+        t.row = { ...t.row, path: `${folder.replace(/[\\/]$/, "")}/${name}`, missing: false };
+        n++;
+      }
+    }
+    if (n) this.emit("library-changed", null);
+    return n;
+  }
+
+  async relocateTrack(id: number, path: string): Promise<T.TrackRow> {
+    const t = this.find(id);
+    t.row = { ...t.row, path, missing: false };
+    this.emit("library-changed", null);
+    return { ...t.row };
+  }
+
+  /** Same audio, as the demo knows it: the same title, artist and length. */
+  async duplicates(): Promise<T.TrackRow[][]> {
+    const groups = new Map<string, T.TrackRow[]>();
+    for (const t of this.tracks) {
+      const k = `${t.row.title}\u0000${t.row.artist}\u0000${Math.round(t.row.duration)}`;
+      groups.set(k, [...(groups.get(k) ?? []), { ...t.row }]);
+    }
+    return [...groups.values()].filter((g) => g.length > 1);
+  }
+
+  async mergeTracks(keep: number, others: number[]): Promise<void> {
+    const k = this.find(keep);
+    const olds = this.tracks.filter((t) => others.includes(t.row.id) && t.row.id !== keep);
+    for (const o of olds) {
+      for (const pl of this.playlistsData) pl.tracks = pl.tracks.map((id) => (id === o.row.id ? keep : id));
+      if (!k.cues.some((c) => c.role === "hot") && o.cues.some((c) => c.role === "hot")) k.cues = o.cues.map((c) => ({ ...c }));
+    }
+    k.row = {
+      ...k.row,
+      rating: Math.max(k.row.rating, ...olds.map((o) => o.row.rating)),
+      playCount: k.row.playCount + olds.reduce((a, o) => a + o.row.playCount, 0),
+      comment: k.row.comment || olds.find((o) => o.row.comment)?.row.comment || "",
+    };
+    this.tracks = this.tracks.filter((t) => !olds.includes(t));
+    this.emit("library-changed", null);
+  }
+
   async suggestNext(trackId: number, energy: "steady" | "up" | "down", limit = 30): Promise<T.SuggestionRow[]> {
     const cur = this.find(trackId).row;
     const onDecks = this.decks.map((d) => d.track?.row.id);

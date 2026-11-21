@@ -25,8 +25,8 @@ export function localFilter(rows: TrackRow[], query: string): TrackRow[] {
 export async function refreshRows() {
   const my = ++seq;
   const { source, query, set } = useLibrary.getState();
-  // The Auto DJ page shows its own queue.
-  if (source.type === "autodj") return;
+  // The Auto DJ and Fix library pages show their own lists.
+  if (source.type === "autodj" || source.type === "care") return;
   set({ loading: true });
   try {
     let rows: TrackRow[] = [];
@@ -99,8 +99,18 @@ export async function refreshSuggestions() {
 }
 
 export async function refreshAll() {
-  await Promise.all([refreshPlaylists(), refreshStats()]);
+  await Promise.all([refreshPlaylists(), refreshStats(), refreshCare()]);
   await refreshRows();
+}
+
+/** Checks for missing files and duplicates (shown under Fix library). */
+export async function refreshCare() {
+  try {
+    const [missing, duplicates] = await Promise.all([backend().missingTracks(), backend().duplicates()]);
+    useLibrary.getState().set({ missing, duplicates });
+  } catch {
+    /* not available: leave as is */
+  }
 }
 
 /** Library tracks by id (from the rows on screen, else a search). */

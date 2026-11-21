@@ -566,6 +566,59 @@ impl Library {
         Ok(out)
     }
 
+    /// Folds duplicate tracks into one: the others' playlist places, tags, play history
+    /// and (when `keep` has none) cues move to `keep`, which also takes the highest
+    /// rating, the summed play count and any colour or comment it lacks. The others are
+    /// then removed from the library (their files are left alone).
+    pub fn merge_tracks(&self, keep: TrackId, others: &[TrackId]) -> Result<()> {
+        let others: Vec<TrackId> = others.iter().copied().filter(|&o| o != keep).collect();
+        if others.is_empty() {
+            return Ok(());
+        }
+        let kept = self.track(keep)?;
+        let olds = others.iter().map(|&o| self.track(o)).collect::<Result<Vec<_>>>()?;
+        let mut kept_cues = self.cues(keep)?;
+        let tx = self.begin()?;
+        for o in &olds {
+            self.conn.execute("UPDATE playlist_entries SET track_id = ?1 WHERE track_id = ?2", params![keep, o.id])?;
+            self.conn.execute(
+                "INSERT OR IGNORE INTO track_tags (track_id, tag_id) SELECT ?1, tag_id FROM track_tags WHERE track_id = ?2",
+                params![keep, o.id],
+            )?;
+            self.conn.execute("UPDATE history SET track_id = ?1 WHERE track_id = ?2", params![keep, o.id])?;
+            if kept_cues.is_empty() {
+                let cues = self.cues(o.id)?;
+                if !cues.is_empty() {
+                    self.set_cues(keep, &cues)?;
+                    kept_cues = cues;
+                }
+            }
+        }
+        let rating = olds.iter().map(|t| t.rating).chain([kept.rating]).max().unwrap_or(0);
+        let plays: u32 = olds.iter().map(|t| t.play_count).sum::<u32>() + kept.play_count;
+        let last = olds.iter().filter_map(|t| t.last_played).chain(kept.last_played).max();
+        let color = kept.color.or_else(|| olds.iter().find_map(|t| t.color));
+        let comment = if kept.comment.is_empty() {
+            olds.iter().map(|t| t.comment.clone()).find(|c| !c.is_empty()).unwrap_or_default()
+        } else {
+            kept.comment.clone()
+        };
+        self.conn.execute(
+            "UPDATE tracks SET rating = ?2, play_count = ?3, last_played = ?4, color = ?5, comment = ?6 WHERE id = ?1",
+            params![keep, rating, plays, last, color, comment],
+        )?;
+        for o in &olds {
+            self.conn.execute("DELETE FROM tracks WHERE id = ?", [o.id])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Tracks whose files are gone (flagged by a scan, or not there now).
+    pub fn missing_tracks(&self) -> Result<Vec<Track>> {
+        Ok(self.all_tracks()?.into_iter().filter(|t| t.missing || !t.path.exists()).collect())
+    }
+
     // ---------------------------------------------------------------- search
 
     /// Runs a search in the [`query`] language.

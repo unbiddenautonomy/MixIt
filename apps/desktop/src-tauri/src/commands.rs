@@ -685,6 +685,57 @@ pub fn tracks_remove(app: AppHandle, state: State<'_, AppState>, ids: Vec<i64>) 
     Ok(())
 }
 
+/// Tracks whose files cannot be found.
+#[tauri::command]
+pub fn library_missing(state: State<'_, AppState>) -> R<Vec<TrackRow>> {
+    Ok(state.library.lock().missing_tracks().map_err(err)?.iter().map(TrackRow::from).collect())
+}
+
+/// Looks through a folder for missing tracks' files. Returns how many were found.
+#[tauri::command]
+pub async fn library_find_missing(app: AppHandle, folder: String) -> R<usize> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let found = state.library.lock().find_missing_in(Path::new(&folder)).map_err(err)?;
+        let _ = app.emit("library-changed", ());
+        Ok(found.len())
+    })
+    .await
+    .map_err(err)?
+}
+
+/// Points one track at a file the user picked.
+#[tauri::command]
+pub fn library_relocate(app: AppHandle, state: State<'_, AppState>, id: i64, path: String) -> R<TrackRow> {
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Err(format!("{path} is not a file"));
+    }
+    let lib = state.library.lock();
+    lib.relocate(id, &p).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(TrackRow::from(&lib.track(id).map_err(err)?))
+}
+
+/// Groups of tracks with the same audio.
+#[tauri::command]
+pub fn library_duplicates(state: State<'_, AppState>) -> R<Vec<Vec<TrackRow>>> {
+    let lib = state.library.lock();
+    let groups = lib.duplicates().map_err(err)?;
+    Ok(groups
+        .iter()
+        .map(|g| g.iter().filter_map(|&id| lib.track(id).ok()).map(|t| TrackRow::from(&t)).collect())
+        .collect())
+}
+
+/// Folds duplicates into the one to keep (playlists, tags, history and cues move over).
+#[tauri::command]
+pub fn library_merge(app: AppHandle, state: State<'_, AppState>, keep: i64, others: Vec<i64>) -> R<()> {
+    state.library.lock().merge_tracks(keep, &others).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
 fn energy_dir(s: &str) -> EnergyDirection {
     match s {
         "up" => EnergyDirection::Up,
