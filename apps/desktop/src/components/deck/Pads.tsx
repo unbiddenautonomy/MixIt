@@ -2,7 +2,6 @@
 // beat grid tools.
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, X } from "lucide-react";
-import { useState } from "react";
 import { backend } from "../../backend";
 import type { CueDto } from "../../backend/types";
 import { choose, press, release, setOn, tap } from "../../lib/actions";
@@ -18,7 +17,8 @@ type Tab = "cues" | "loop" | "jump" | "fx" | "grid";
 
 export function Pads({ deck, compact = false }: { deck: number; compact?: boolean }) {
   const pro = usePro();
-  const [tab, setTab] = useState<Tab>("cues");
+  const tab = useApp((s) => s.padTabs[deck]) as Tab;
+  const setTab = (t: Tab) => useApp.getState().set({ padTabs: useApp.getState().padTabs.map((x, i) => (i === deck ? t : x)) });
   const tabs: { id: Tab; label: string }[] = [
     { id: "cues", label: "Hot cues" },
     { id: "loop", label: "Loop" },

@@ -19,6 +19,8 @@ pub struct Paths {
     pub cache: PathBuf,
     pub recordings: PathBuf,
     pub projects: PathBuf,
+    /// Generated practice tracks for the guide's labs.
+    pub practice: PathBuf,
 }
 
 impl Paths {
@@ -30,6 +32,7 @@ impl Paths {
             cache: dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("MixIt").join("decoded"),
             recordings: music.join("Recordings"),
             projects: music.join("Mixes"),
+            practice: music.join("Practice"),
         }
     }
 }

@@ -85,6 +85,7 @@ export class TauriBackend implements Backend {
   samplerSet(pad: number, patch: T.PadPatch) { return invoke<T.PadInfo>("sampler_set", { pad, patch }); }
   samplerReset() { return invoke<T.PadInfo[]>("sampler_reset"); }
   samplerStopAll() { return invoke<void>("sampler_stop_all"); }
+  addPracticeTracks() { return invoke<void>("practice_add"); }
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   exportRekordbox(path: string, playlist?: number | null) { return invoke<void>("export_rekordbox", { path, playlist: playlist ?? null }); }
   exportPlaylist(playlist: number, path: string) { return invoke<void>("export_playlist", { playlist, path }); }

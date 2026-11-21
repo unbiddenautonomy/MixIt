@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { FolderOpen, Loader2, Minus, Music, Play, Plus, Save, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend } from "../../backend";
-import type { AutomationLane, Clip, MixProject, ProjectParam, TrackRow } from "../../backend/types";
+import type { AutomationLane, AutomationPoint, Clip, CurveShape, MixProject, ProjectParam, TrackRow } from "../../backend/types";
 import { bpm as fmtBpm, clock } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
@@ -12,11 +12,10 @@ import { DECK_COLORS } from "../deck/useWaveform";
 import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
 import { rowsById } from "../library/data";
 import { playPreview, stopPreview, usePreview } from "./preview";
+import { AutomationEditor, PARAM_COLORS, PARAM_DEFAULT, PARAM_LABEL, PARAM_RANGE, setLane, setLaneCurve, useAutoEdit } from "./AutomationEditor";
 import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
 
 const LANE_H = 76;
-const PARAM_COLORS: Record<ProjectParam, string> = { Volume: "#f4f4f5", EqLow: "#405cff", EqMid: "#ffa630", EqHigh: "#ecf6ff", Filter: "#e879f9", FxMix: "#34d399" };
-const PARAM_RANGE: Record<ProjectParam, [number, number]> = { Volume: [0, 1], EqLow: [-26, 6], EqMid: [-26, 6], EqHigh: [-26, 6], Filter: [-1, 1], FxMix: [0, 1] };
 
 export function clipFromTrack(t: TrackRow, id: number, lane: number, start: number): Clip {
   const bpm = t.bpm ?? 120;
@@ -255,6 +254,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
 }
 
 function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: number; selected: boolean; onSelect: () => void; show: ProjectParam[] }) {
+  const editing = useAutoEdit((s) => s.param);
   const drag = useRef<{ x: number; start: number; length: number; mode: "move" | "trim" } | null>(null);
   const color = DECK_COLORS[clip.lane] ?? "#a1a1aa";
   const w = clip.length * ppb;
@@ -293,6 +293,7 @@ function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: num
         {clip.gain_db !== 0 && ` · ${clip.gain_db > 0 ? "+" : ""}${clip.gain_db.toFixed(1)} dB`}
       </div>
       <div data-trim="1" className="absolute right-0 top-0 h-full w-2 cursor-ew-resize opacity-0 group-hover:opacity-100" style={{ background: `${color}66` }} />
+      {selected && editing && <AutomationEditor clip={clip} ppb={ppb} height={LANE_H - 12} param={editing} />}
     </div>
   );
 }
@@ -361,26 +362,7 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
         <input type="checkbox" checked={clip.keylock} onChange={(e) => updateClip(clip.id, { keylock: e.target.checked })} />
         Key lock (tempo changes keep the pitch)
       </label>
-      {clip.lanes.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Automation</div>
-          {clip.lanes.map((l) => (
-            <div key={l.param} className="flex items-center gap-2">
-              <span className="size-2 rounded-full" style={{ background: PARAM_COLORS[l.param] }} />
-              <span className="flex-1 text-zinc-300">{l.param.replace("Eq", "EQ ")}</span>
-              <span className="font-mono text-zinc-500">{l.points.length} pts</span>
-              <button
-                type="button"
-                className="text-zinc-600 hover:text-red-300"
-                onClick={() => updateClip(clip.id, { lanes: clip.lanes.filter((x) => x.param !== l.param) })}
-                aria-label={`Clear ${l.param}`}
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <AutomationSection clip={clip} />
       <div className="flex gap-1">
         <Btn size="sm" className="flex-1" onClick={() => playPreview(project, Math.max(0, clip.start - 16), clip.start + 48)}>
           <Play size={11} /> Hear the mix in
@@ -404,6 +386,79 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
       </Btn>
     </aside>
   );
+}
+
+function AutomationSection({ clip }: { clip: Clip }) {
+  const editing = useAutoEdit((s) => s.param);
+  const lane = editing ? clip.lanes.find((l) => l.param === editing) : undefined;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Automation</div>
+      <div className="flex flex-wrap gap-1">
+        {(Object.keys(PARAM_LABEL) as ProjectParam[]).map((p) => {
+          const n = clip.lanes.find((l) => l.param === p)?.points.length ?? 0;
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => useAutoEdit.setState({ param: editing === p ? null : p })}
+              className={clsx("flex items-center gap-1 rounded-md border px-1.5 py-0.5", editing === p ? "border-[var(--accent)] bg-[var(--accent)]/15 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200")}
+              title={`Draw ${PARAM_LABEL[p]} on this clip`}
+            >
+              <span className="size-1.5 rounded-full" style={{ background: PARAM_COLORS[p] }} />
+              {PARAM_LABEL[p]}
+              {n > 0 && <span className="font-mono text-[10px] text-zinc-500">{n}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {editing ? (
+        <>
+          <p className="leading-snug text-zinc-500">Click in the clip to add a point, drag to move it, double-click to delete. Points snap to beats; hold Shift for finer steps.</p>
+          <div className="flex items-center gap-1.5">
+            <select className="input h-7 min-w-0 flex-1" value={lane?.points[0]?.curve ?? "Linear"} disabled={!lane?.points.length} onChange={(e) => setLaneCurve(clip, editing, e.target.value as CurveShape)} aria-label="Curve shape">
+              <option value="Linear">Straight lines</option>
+              <option value="Smooth">Smooth curves</option>
+              <option value="Power">Equal-power (smooth volume crossfades)</option>
+              <option value="Hold">Steps (jump at each point)</option>
+            </select>
+            <Btn size="sm" tone="ghost" disabled={!lane?.points.length} onClick={() => setLane(clip, editing, [])} aria-label={`Clear ${PARAM_LABEL[editing]}`}>
+              <Trash2 size={11} />
+            </Btn>
+          </div>
+          <div className="flex gap-1">
+            <Btn size="sm" className="flex-1" onClick={() => setLane(clip, editing, rampPoints(clip, editing, "in"))} title="Rises from the start of the clip over 16 beats">
+              Ramp in
+            </Btn>
+            <Btn size="sm" className="flex-1" onClick={() => setLane(clip, editing, rampPoints(clip, editing, "out"))} title="Falls over the last 16 beats of the clip">
+              Ramp out
+            </Btn>
+          </div>
+        </>
+      ) : (
+        <p className="leading-snug text-zinc-500">Pick a control to draw how it moves during this clip, like a fade or a bass swap.</p>
+      )}
+    </div>
+  );
+}
+
+/** A 16-beat ramp between the control's "away" value and its resting value. */
+function rampPoints(clip: Clip, param: ProjectParam, dir: "in" | "out"): AutomationPoint[] {
+  const [lo] = PARAM_RANGE[param];
+  const away = param === "Filter" ? (dir === "in" ? -1 : 1) : lo;
+  const rest = PARAM_DEFAULT[param] === lo ? PARAM_RANGE[param][1] : PARAM_DEFAULT[param];
+  const len = Math.min(16, clip.length);
+  const a = dir === "in" ? clip.start : clip.start + clip.length - len;
+  const curve: CurveShape = param === "Volume" ? "Power" : "Smooth";
+  return dir === "in"
+    ? [
+        { beat: a, value: away, curve },
+        { beat: a + len, value: rest, curve },
+      ]
+    : [
+        { beat: a, value: rest, curve },
+        { beat: a + len, value: away, curve },
+      ];
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

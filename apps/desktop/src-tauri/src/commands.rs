@@ -502,6 +502,36 @@ pub fn library_add(app: AppHandle, paths: Vec<String>) -> R<()> {
     })
 }
 
+/// Generates the practice tracks the guide's labs use (once) and adds them to the
+/// library, analysed.
+#[tauri::command]
+pub fn practice_add(app: AppHandle) -> R<()> {
+    let dir = app.state::<AppState>().paths.practice.clone();
+    spawn_library_job(app, "scan", move |app, lib, progress| {
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let list = mixit_generator::practice::PRACTICE;
+        let mut added = 0;
+        for (i, p) in list.iter().enumerate() {
+            if app.state::<AppState>().job_cancel.load(Ordering::Relaxed) {
+                return Err("cancelled".into());
+            }
+            progress(i, list.len(), format!("Making {}", p.title));
+            let path = dir.join(format!("{}.wav", p.title));
+            if !path.is_file() {
+                let g = mixit_generator::generate(&p.spec(44_100));
+                mixit_io::write_wav(&path, &g.audio, 2, g.sample_rate, mixit_io::WavDepth::Pcm16).map_err(err)?;
+            }
+            if lib.track_by_path(&path).map_err(err)?.is_none() {
+                lib.import_file(&path).map_err(err)?;
+                added += 1;
+            }
+        }
+        let _ = app.emit("library-changed", ());
+        let a = analyse_all(app, lib, progress)?;
+        Ok(format!("Added {added} practice tracks. {a}"))
+    })
+}
+
 #[tauri::command]
 pub fn library_rescan(app: AppHandle) -> R<()> {
     spawn_library_job(app, "scan", |app, lib, progress| {
