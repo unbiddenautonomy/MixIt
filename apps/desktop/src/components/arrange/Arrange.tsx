@@ -19,7 +19,7 @@ import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProjec
 import { LOUDNESS_TARGETS } from "../../lib/studio";
 import { MASTER_STRIP, openLaneStudio, useStudio } from "../../store/studio";
 import { EffectRow, HistoryButtons, IssuesButton, KeyRow, SnapPicker, TempoLane, TempoPanel, TransitionSection, useArrangeUi } from "./ArrangeParts";
-import { fadeOf, moveClips, moveMarker, PHRASE_BEATS, removeMarker, renameMarker, rippleDelete, setFade, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
+import { fadeOf, laneHeard, moveClips, setLaneState, moveMarker, PHRASE_BEATS, removeMarker, renameMarker, rippleDelete, setFade, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
 import { addMarkerAtCursor, copySelection, cutSelection, deleteSelection, duplicateSelection, paste, select, selectBox, splitAt, toggleLoop, togglePlay } from "./editing";
 import { shortcutLabel } from "../../lib/actions";
 
@@ -56,6 +56,16 @@ export function Arrange() {
   const [show, setShow] = useState<ProjectParam[]>(["Volume", "EqLow"]);
   const [width, setWidth] = useState(1200);
   const area = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  /** Where to scroll once the new zoom is drawn (a beat at the left edge, or one to keep under a point). */
+  const pendingScroll = useRef<{ beat: number; x: number } | null>(null);
+  useEffect(() => {
+    const s = pendingScroll.current;
+    const el = scroller.current;
+    if (!s || !el || zoom == null) return;
+    pendingScroll.current = null;
+    el.scrollLeft = Math.max(0, 80 + s.beat * zoom - s.x);
+  }, [zoom]);
   useEffect(() => () => stopPreview(), []);
   useEffect(() => {
     const el = area.current;
@@ -69,6 +79,19 @@ export function Arrange() {
   const fit = Math.max(0.08, Math.min(40, (width - 110) / Math.max(16, projectBeats(project) + 8)));
   const ppb = zoom ?? fit;
   const setPpb = (f: (p: number) => number) => setZoom(f(ppb));
+  /** Zooms keeping `beat` at `x` pixels from the timeline's left edge. */
+  const zoomAround = (next: number, beat: number, x: number) => {
+    pendingScroll.current = { beat, x };
+    setZoom(Math.max(0.08, Math.min(40, next)));
+  };
+  const zoomToSelection = () => {
+    const sel = project.clips.filter((c) => selected.includes(c.id));
+    if (!sel.length) return;
+    const from = Math.min(...sel.map((c) => c.start));
+    const to = Math.max(...sel.map((c) => c.start + c.length));
+    const visible = (scroller.current?.clientWidth ?? width) - 100;
+    zoomAround(visible / Math.max(8, to - from + 8), Math.max(0, from - 4), 80);
+  };
   const beats = Math.max(64, projectBeats(project) + 32);
   const total = beatToSeconds(project, projectBeats(project));
   const clip = project.clips.find((c) => c.id === sel) ?? null;
@@ -118,8 +141,11 @@ export function Arrange() {
           <Btn size="sm" tone="ghost" onClick={() => setPpb((p) => Math.min(40, p * 1.5))} aria-label="Zoom in">
             <Plus size={12} />
           </Btn>
-          <Btn size="sm" tone="ghost" active={zoom == null} onClick={() => setZoom(null)}>
+          <Btn size="sm" tone="ghost" active={zoom == null} onClick={() => setZoom(null)} title="Show the whole mix">
             Fit
+          </Btn>
+          <Btn size="sm" tone="ghost" disabled={!many.length} onClick={zoomToSelection} title="Zoom in on the selected clips">
+            Selection
           </Btn>
           <PlayButton project={project} />
           <Btn size="sm" onClick={() => openLaneStudio(MASTER_STRIP)} title="EQ, glue and loudness for the whole mix, and its reverb and echo">
@@ -147,7 +173,7 @@ export function Arrange() {
         </div>
       </div>
       <div ref={area} className="flex min-h-0 flex-1 gap-2">
-        <Timeline project={project} ppb={ppb} beats={beats} selected={selected} show={show} />
+        <Timeline project={project} ppb={ppb} beats={beats} selected={selected} show={show} scroller={scroller} zoomAround={zoomAround} />
         {tempoSel != null && project.tempo.segments[tempoSel] ? (
           <TempoPanel project={project} index={tempoSel} />
         ) : many.length > 1 ? (
@@ -181,10 +207,43 @@ function EmptyArrange() {
   );
 }
 
-function Timeline({ project, ppb, beats, selected, show }: { project: MixProject; ppb: number; beats: number; selected: number[]; show: ProjectParam[] }) {
+function Timeline({
+  project,
+  ppb,
+  beats,
+  selected,
+  show,
+  scroller,
+  zoomAround,
+}: {
+  project: MixProject;
+  ppb: number;
+  beats: number;
+  selected: number[];
+  show: ProjectParam[];
+  scroller: React.RefObject<HTMLDivElement | null>;
+  zoomAround: (ppb: number, beat: number, x: number) => void;
+}) {
   const width = beats * ppb;
-  const scroller = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
+  // Ctrl/⌘ + wheel (or a trackpad pinch) zooms around the pointer. A native listener,
+  // because React's wheel listeners cannot stop the page from zooming.
+  const zoomRef = useRef({ ppb, zoomAround });
+  zoomRef.current = { ppb, zoomAround };
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const { ppb: p, zoomAround: z } = zoomRef.current;
+      const r = el.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      z(p * Math.exp(-e.deltaY * 0.0025), Math.max(0, (el.scrollLeft + x - 80) / p), x);
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, [scroller]);
   const lanesRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const loop = useArrangeUi((s) => s.loop);
@@ -250,7 +309,11 @@ function Timeline({ project, ppb, beats, selected, show }: { project: MixProject
   };
 
   return (
-    <div ref={scroller} className="screen relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950" onPointerDown={(e) => e.target === e.currentTarget && select([])}>
+    <div
+      ref={scroller}
+      className="screen relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950"
+      onPointerDown={(e) => e.target === e.currentTarget && select([])}
+    >
       <div ref={inner} style={{ width: width + 80 }} className="relative">
         <Ruler project={project} ppb={ppb} beats={beats} barEvery={barEvery} />
         <TempoLane project={project} ppb={ppb} beats={beats} />
@@ -258,11 +321,12 @@ function Timeline({ project, ppb, beats, selected, show }: { project: MixProject
         <div ref={lanesRef}>
           {Array.from({ length: lanes }, (_, lane) => (
             <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: LANE_H }}>
-              <div className="sticky left-0 z-10 flex w-20 shrink-0 items-center gap-2 border-r border-white/[0.06] bg-zinc-950 px-2">
+              <div className="sticky left-0 z-10 flex w-20 shrink-0 items-center gap-1 border-r border-white/[0.06] bg-zinc-950 px-1.5">
                 <span className="flex size-6 items-center justify-center rounded-md text-xs font-black text-zinc-950" style={{ background: DECK_COLORS[lane] }}>
                   {String.fromCharCode(65 + lane)}
                 </span>
                 <LaneStudioButton project={project} lane={lane} />
+                <LaneMuteSolo project={project} lane={lane} />
               </div>
               <LaneDrop
                 lane={lane}
@@ -273,7 +337,7 @@ function Timeline({ project, ppb, beats, selected, show }: { project: MixProject
                 {project.clips
                   .filter((c) => c.lane === lane)
                   .map((c) => (
-                    <ClipBox key={c.id} clip={c} ppb={ppb} selected={selSet.has(c.id)} only={selected.length === 1} show={show} />
+                    <ClipBox key={c.id} clip={c} ppb={ppb} selected={selSet.has(c.id)} only={selected.length === 1} show={show} silent={!laneHeard(project, lane)} />
                   ))}
               </LaneDrop>
             </div>
@@ -294,7 +358,7 @@ function Timeline({ project, ppb, beats, selected, show }: { project: MixProject
             style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }}
           />
         )}
-        <Playhead project={project} ppb={ppb} />
+        <Playhead project={project} ppb={ppb} scroller={scroller} />
         <div className="px-24 py-3 text-[11px] text-zinc-600">
           Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim and the top corners to fade. Ctrl/⌘-click or drag a box to select several clips; Alt-click a clip to cut it there. Right-click a clip for more.
         </div>
@@ -436,7 +500,7 @@ type Drag =
   | { mode: "trim"; x: number; length: number }
   | { mode: "fade"; side: "in" | "out"; x: number; beats: number };
 
-function ClipBox({ clip, ppb, selected, only, show }: { clip: Clip; ppb: number; selected: boolean; only: boolean; show: ProjectParam[] }) {
+function ClipBox({ clip, ppb, selected, only, show, silent }: { clip: Clip; ppb: number; selected: boolean; only: boolean; show: ProjectParam[]; silent: boolean }) {
   const editing = useAutoEdit((s) => s.param);
   const drag = useRef<Drag | null>(null);
   const menuAt = useRef(clip.start);
@@ -455,7 +519,7 @@ function ClipBox({ clip, ppb, selected, only, show }: { clip: Clip; ppb: number;
       <ContextMenu.Trigger asChild>
         <div
           data-clip={clip.id}
-          className={clsx("group absolute top-1.5 overflow-hidden rounded-lg border text-[11px]", selected ? "border-white shadow-[0_0_0_1px_white]" : "border-transparent")}
+          className={clsx("group absolute top-1.5 overflow-hidden rounded-lg border text-[11px]", selected ? "border-white shadow-[0_0_0_1px_white]" : "border-transparent", silent && "opacity-35 grayscale")}
           style={{ left: clip.start * ppb, width: w, height: h, background: `${color}${selected ? "38" : "26"}`, borderLeft: `3px solid ${color}` }}
           onContextMenu={(e) => {
             menuAt.current = beatAtX(e.clientX, e.currentTarget, false);
@@ -907,7 +971,7 @@ function MultiPanel({ ids, project }: { ids: number[]; project: MixProject }) {
 }
 
 /** The start marker, and the moving play head while a preview plays. */
-function Playhead({ project, ppb }: { project: MixProject; ppb: number }) {
+function Playhead({ project, ppb, scroller }: { project: MixProject; ppb: number; scroller: React.RefObject<HTMLDivElement | null> }) {
   const cursor = usePreview((s) => s.cursor);
   const status = usePreview((s) => s.status);
   const line = useRef<HTMLDivElement>(null);
@@ -916,7 +980,13 @@ function Playhead({ project, ppb }: { project: MixProject; ppb: number }) {
     let raf = 0;
     const tick = () => {
       const { audio, from } = usePreview.getState();
-      if (audio && line.current) line.current.style.transform = `translateX(${beatAfter(project, from, audio.currentTime) * ppb}px)`;
+      if (audio && line.current) {
+        const x = beatAfter(project, from, audio.currentTime) * ppb;
+        line.current.style.transform = `translateX(${x}px)`;
+        // Keep the play head in view: turn the page when it reaches the right edge.
+        const el = scroller.current;
+        if (el && (80 + x > el.scrollLeft + el.clientWidth - 40 || 80 + x < el.scrollLeft + 80)) el.scrollLeft = Math.max(0, x - 40);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -945,6 +1015,37 @@ function LaneDrop({ lane, onTracks, children, ...rest }: { lane: number; onTrack
   );
 }
 
+/** Mute (leave the lane out of the mix) and solo (hear only this lane) buttons. */
+function LaneMuteSolo({ project, lane }: { project: MixProject; lane: number }) {
+  const st = project.lane_states?.[lane];
+  const L = String.fromCharCode(65 + lane);
+  const set = (patch: { muted?: boolean; solo?: boolean }, label: string) => setProject(setLaneState(project, lane, patch), undefined, undefined, label);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        aria-label={`Mute deck ${L} lane`}
+        aria-pressed={!!st?.muted}
+        title={`Mute: leave deck ${L} out of the mix (also when you play and render)`}
+        onClick={() => set({ muted: !st?.muted }, st?.muted ? `Unmute deck ${L}` : `Mute deck ${L}`)}
+        className={clsx("h-[14px] w-4 rounded-sm text-[9px] font-bold leading-none", st?.muted ? "bg-red-500 text-white" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
+      >
+        M
+      </button>
+      <button
+        type="button"
+        aria-label={`Solo deck ${L} lane`}
+        aria-pressed={!!st?.solo}
+        title={`Solo: hear only deck ${L} (and other soloed lanes)`}
+        onClick={() => set({ solo: !st?.solo }, st?.solo ? `Unsolo deck ${L}` : `Solo deck ${L}`)}
+        className={clsx("h-[14px] w-4 rounded-sm text-[9px] font-bold leading-none", st?.solo ? "bg-amber-400 text-zinc-950" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
+      >
+        S
+      </button>
+    </div>
+  );
+}
+
 /** Opens a lane's studio (EQ, compressor and more for every clip on it). */
 function LaneStudioButton({ project, lane }: { project: MixProject; lane: number }) {
   const open = useStudio((s) => s.lane === lane);
@@ -954,7 +1055,7 @@ function LaneStudioButton({ project, lane }: { project: MixProject; lane: number
     <button
       type="button"
       onClick={() => openLaneStudio(open ? null : lane)}
-      className={clsx("relative flex h-6 items-center gap-1 rounded-md border px-1.5 text-[10px]", open ? "border-transparent bg-white/15 text-zinc-50" : "border-white/10 text-zinc-500 hover:text-zinc-200")}
+      className={clsx("relative flex h-6 items-center gap-1 rounded-md border px-1 text-[10px]", open ? "border-transparent bg-white/15 text-zinc-50" : "border-white/10 text-zinc-500 hover:text-zinc-200")}
       title={`Studio for deck ${String.fromCharCode(65 + lane)}: EQ, compression and warmth for every clip on this lane`}
       aria-label={`Deck ${String.fromCharCode(65 + lane)} lane studio`}
     >

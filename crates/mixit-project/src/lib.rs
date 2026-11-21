@@ -297,7 +297,18 @@ pub struct MixProject {
     /// The shared reverb and echo the lanes send to.
     #[serde(default)]
     pub returns: Returns,
+    /// Mute and solo per lane (deck); missing entries are heard.
+    #[serde(default)]
+    pub lane_states: Vec<LaneState>,
     next_id: u64,
+}
+
+/// Whether a lane is muted or soloed in the mix.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LaneState {
+    pub muted: bool,
+    pub solo: bool,
 }
 
 /// Settings of the shared reverb ("space") and echo returns.
@@ -349,6 +360,7 @@ impl MixProject {
             strips: vec![],
             master_strip: None,
             returns: Returns::default(),
+            lane_states: vec![],
             next_id: 1,
         }
     }
@@ -434,14 +446,24 @@ impl MixProject {
             strips: self.strips.clone(),
             master_strip: self.master_strip.clone(),
             returns: self.returns,
+            lane_states: self.lane_states.clone(),
             next_id: self.next_id,
         }
+    }
+
+    /// Whether a lane is heard: not muted, and soloed when any lane is.
+    pub fn lane_heard(&self, lane: u8) -> bool {
+        let st = self.lane_states.get(lane as usize).copied().unwrap_or_default();
+        let any_solo = self.lane_states.iter().any(|s| s.solo);
+        !st.muted && (!any_solo || st.solo)
     }
 
     /// The project with only the clips on one lane (for rendering stems).
     pub fn lane_only(&self, lane: u8) -> MixProject {
         let mut p = self.clone();
         p.clips.retain(|c| c.lane == lane);
+        // A stem is the lane itself, whatever is muted or soloed in the mix.
+        p.lane_states.clear();
         p
     }
 

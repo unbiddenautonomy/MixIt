@@ -579,3 +579,21 @@ export function markerNear(p: MixProject, beat: number, dir: 1 | -1): Marker | n
   const m = sortMarkers(p.markers);
   return dir > 0 ? (m.find((x) => x.beat > beat + 1e-6) ?? null) : ([...m].reverse().find((x) => x.beat < beat - 1e-6) ?? null);
 }
+
+// ---------------------------------------------------------------- lanes
+
+export type LaneState = NonNullable<MixProject["lane_states"]>[number];
+
+/** Whether a lane is heard: not muted, and soloed when any lane is (like `MixProject::lane_heard`). */
+export function laneHeard(p: MixProject, lane: number): boolean {
+  const st = p.lane_states ?? [];
+  const anySolo = st.some((s) => s?.solo);
+  return !st[lane]?.muted && (!anySolo || !!st[lane]?.solo);
+}
+
+/** Turns a lane's mute or solo on or off. */
+export function setLaneState(p: MixProject, lane: number, patch: Partial<LaneState>): MixProject {
+  const st: LaneState[] = Array.from({ length: Math.max(4, p.lane_states?.length ?? 0) }, (_, i) => ({ muted: false, solo: false, ...p.lane_states?.[i] }));
+  st[lane] = { ...st[lane], ...patch };
+  return { ...p, lane_states: st };
+}

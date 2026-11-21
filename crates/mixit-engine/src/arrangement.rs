@@ -152,7 +152,9 @@ impl ProjectRenderer {
         }
         let seconds = opts.length_seconds.unwrap_or(project.length_seconds() + opts.tail);
         let total = (seconds.max(0.0) * sr as f64).ceil() as usize;
-        let mut order: Vec<usize> = (0..project.clips.len()).collect();
+        // Muted lanes (and the others while a lane is soloed) are left out.
+        let mut order: Vec<usize> =
+            (0..project.clips.len()).filter(|&i| project.lane_heard(project.clips[i].lane)).collect();
         order.sort_by(|&a, &b| project.clips[a].start.total_cmp(&project.clips[b].start));
         let cue = vec![0.0; opts.block * 2];
         ProjectRenderer {
@@ -405,6 +407,7 @@ pub fn normalize_loudness(audio: &mut [f32], sample_rate: u32, target_lufs: f64,
 mod tests {
     use super::*;
     use mixit_dsp::stretch::ResampleStretch;
+    use mixit_project::LaneState;
     use mixit_project::{Curve, Point, StudioDto};
 
     const SR: u32 = 22_050;
@@ -517,6 +520,37 @@ mod tests {
         let sum: Vec<f32> = a.iter().zip(&b).map(|(x, y)| x + y).collect();
         let err = rms(&sum.iter().zip(&full).map(|(x, y)| x - y).collect::<Vec<_>>(), 1.0, 10.0).0;
         assert!(err < 0.01 * rms(&full, 1.0, 10.0).0.max(1e-3), "stems differ from the mix by {err}");
+    }
+
+    #[test]
+    fn muted_and_soloed_lanes() {
+        let mut p = project(|_, _| {});
+        let mut c2 = p.clips[0].clone();
+        c2.lane = 1;
+        c2.start = 8.0;
+        p.add_clip(c2);
+        let opts = RenderOptions {
+            sample_rate: SR,
+            tail: 1.0,
+            limiter: false,
+            auto_gain: false,
+            length_seconds: Some(12.0),
+            ..Default::default()
+        };
+        let go = |p: &MixProject| {
+            render_all(p, &opts, Box::new(|_| Box::new(ResampleStretch::new())), |_| Some(ramp()), || false, |_| {})
+                .unwrap()
+        };
+        let only_b = go(&p.lane_only(1));
+        // Muting A leaves B; soloing B does the same; muting both is silence.
+        p.lane_states = vec![LaneState { muted: true, solo: false }];
+        assert_eq!(go(&p), only_b);
+        p.lane_states = vec![LaneState::default(), LaneState { muted: false, solo: true }];
+        assert_eq!(go(&p), only_b);
+        // The stem of a lane ignores what is muted in the mix.
+        assert!(rms(&go(&p.lane_only(0)), 1.0, 3.0).0 > 0.05);
+        p.lane_states = vec![LaneState { muted: true, solo: false }, LaneState { muted: true, solo: false }];
+        assert!(rms(&go(&p), 0.5, 11.0).0 < 1e-6);
     }
 
     #[test]

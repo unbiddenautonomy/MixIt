@@ -735,3 +735,36 @@ fn sequencer_retriggers_a_long_sound_without_clicks() {
     // A 220 Hz sine at this level moves at most ~0.01 per frame; a hard cut would jump ~0.2.
     assert!(biggest < 0.03, "click of {biggest} at frame {at}");
 }
+
+#[test]
+fn key_pads_play_the_cue_in_another_key() {
+    use mixit_engine::actions::{ActionDispatcher, ActionInput};
+    let mut r = Rig::new();
+    let mut d = ActionDispatcher::new(SR, 4);
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(A, DeckCommand::SetHotCue { index: 2, frame: Some(96_000.0), kind: CueKind::Point, color: 0 });
+    r.deck(A, DeckCommand::Play);
+    r.run(240_000); // beat 10
+    let mut go = |r: &mut Rig, id: &str, input: ActionInput| {
+        for c in d.dispatch(id, input).unwrap() {
+            r.send(c);
+        }
+    };
+    // Pressing hot cue 3 picks it for the key pads (and jumps there).
+    go(&mut r, "deck.A.hotcue.3", ActionInput::Press);
+    go(&mut r, "deck.A.hotcue.3", ActionInput::Release);
+    r.run(48_000);
+    // Middle range: pad 1 is 3 semitones down, so pad 6 is +2.
+    go(&mut r, "deck.A.keypad.6", ActionInput::Press);
+    r.run(4_800);
+    let t = r.tel().decks[0];
+    assert!(t.keylock, "key lock comes on");
+    assert!((t.key_shift - 2.0).abs() < 1e-6, "shifted {}", t.key_shift);
+    assert!((t.beat - 4.2).abs() < 0.1, "played from the cue: beat {}", t.beat);
+    go(&mut r, "deck.A.keypad.6", ActionInput::Release);
+    // The high range starts at the track's own key.
+    go(&mut r, "deck.A.keypad.range", ActionInput::Choice(2));
+    go(&mut r, "deck.A.keypad.1", ActionInput::Press);
+    r.run(4_800);
+    assert_eq!(r.tel().decks[0].key_shift, 0.0);
+}

@@ -172,6 +172,8 @@ interface SimDeck {
   /** Slicer pad or roll held: where the track would be, and when that was. */
   held: { pos: number; at: number; pad: string } | null;
   sliceBeats: number;
+  keypadCue: number;
+  keypadRange: number;
 }
 
 function deckState(): SimDeck {
@@ -199,6 +201,8 @@ function deckState(): SimDeck {
     slip: false,
     held: null,
     sliceBeats: 8,
+    keypadCue: 0,
+    keypadRange: 1,
   };
 }
 
@@ -537,6 +541,21 @@ export class DemoBackend implements Backend {
       if (!d) return;
       const t = d.track;
       const beat = t?.period ?? 0.5;
+      if (p[2] === "keypad") {
+        if (p[3] === "cue" && !Number.isNaN(value)) d.keypadCue = value;
+        else if (p[3] === "range" && !Number.isNaN(value)) d.keypadRange = value;
+        else if (t && press && /^[1-8]$/.test(p[3] ?? "")) {
+          d.keylock = true;
+          d.keyShift = [-7, -3, 0][d.keypadRange] + Number(p[3]) - 1;
+          const h = d.hot[d.keypadCue];
+          if (h) {
+            d.position = h.seconds;
+            d.playing = true;
+          } else await this.setHotCue(i, d.keypadCue, this.snap(d, d.position));
+        }
+        return;
+      }
+      if (p[2] === "hotcue" && press && p.length === 4) d.keypadCue = Number(p[3]) - 1;
       if (t && (p[2] === "slice" || p[2] === "roll") && /^[1-8]$/.test(p[3] ?? "")) {
         this.padHold(d, p[2], Number(p[3]) - 1, press, release);
         return;
@@ -1214,8 +1233,11 @@ export class DemoBackend implements Backend {
       let v = Math.sin(2 * Math.PI * 55 * Math.exp(-ph * 6) * ph * spb) * Math.exp(-ph * 10) * 0.6;
       const off = (ph + 0.5) % 1;
       v += (Math.random() * 2 - 1) * Math.exp(-off * 40) * 0.12;
+      const st = project.lane_states ?? [];
+      const anySolo = st.some((s) => s?.solo);
       for (const c of project.clips) {
         if (beat < c.start || beat >= c.start + c.length) continue;
+        if (st[c.lane]?.muted || (anySolo && !st[c.lane]?.solo)) continue;
         const f = 220 * Math.pow(2, ((c.id * 5) % 12) / 12);
         const vol = c.lanes.find((l) => l.param === "Volume");
         let g = 1;
@@ -1563,6 +1585,9 @@ function demoRegistry(): T.ActionSpec[] {
       add(`deck.${l}.slice.${h}`, `Slicer pad ${h}`, g, { type: "momentary" }, "Cuts the bar the track is in into 8 slices and plays this one while held, in time. Let go and the track carries on where it would have been.", null, false);
       add(`deck.${l}.roll.${h}`, `Roll ${["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4"][h - 1]}`, g, { type: "momentary" }, "Repeats a short slice while held (a stutter); on release the track carries on as if it never stopped.", null, false);
     }
+    for (let h = 1; h <= 8; h++) add(`deck.${l}.keypad.${h}`, `Key pad ${h}`, g, { type: "momentary" }, "Plays from the chosen hot cue in another key, one semitone per pad, so you can play a melody with it.", null, false);
+    add(`deck.${l}.keypad.cue`, "Key pad cue", g, { type: "choice", options: ["1", "2", "3", "4", "5", "6", "7", "8"], default: 0 }, "The hot cue the key pads play from. Pressing a hot cue also picks it.", null, false);
+    add(`deck.${l}.keypad.range`, "Key pad range", g, { type: "choice", options: ["Low", "Middle", "High"], default: 1 }, "Which keys the 8 pads cover: lower, around the track's own key, or higher.", null, false);
     add(`deck.${l}.slice.size`, "Slicer length", g, { type: "choice", options: ["1 bar", "2 bars", "4 bars"], default: 1 }, "How much music the 8 slicer pads cover: 1, 2 or 4 bars.", null, false);
     add(`deck.${l}.eject`, "Eject", g, { type: "trigger" }, "Unloads the track (only when paused).");
     const m = `Mixer ${l}`;

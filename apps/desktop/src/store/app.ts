@@ -49,6 +49,9 @@ export interface MixerState {
   jumpSize: number[];
   /** Index into SLICE_BARS per deck. */
   sliceSize: number[];
+  /** Key pads per deck: the hot cue they play (0-based) and their range (index into KEYPAD_RANGES). */
+  keypadCue: number[];
+  keypadRange: number[];
   quantize: boolean;
   /** Indices into the registry's option lists. */
   crossfaderCurve: number;
@@ -73,6 +76,12 @@ export const LOOP_LABELS = ["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4", 
 export const LOOP_BEATS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32];
 /** Slicer lengths, in the order of the registry's `deck.X.slice.size` choices. */
 export const SLICE_BARS = [1, 2, 4];
+/** Key pad ranges: the name and the semitone shift of pad 1 (`deck.X.keypad.range`). */
+export const KEYPAD_RANGES: [string, number][] = [
+  ["Low", -7],
+  ["Middle", -3],
+  ["High", 0],
+];
 /** Roll pad lengths in beats (`deck.X.roll.1` … `roll.8`). */
 export const ROLL_BEATS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4];
 export const JUMP_LABELS = ["1", "2", "4", "8", "16", "32"];
@@ -171,6 +180,8 @@ export const useApp = create<AppState>((set) => ({
     loopSize: [7, 7, 7, 7],
     jumpSize: [2, 2, 2, 2],
     sliceSize: [1, 1, 1, 1],
+    keypadCue: [0, 0, 0, 0],
+    keypadRange: [1, 1, 1, 1],
     quantize: true,
     crossfaderCurve: 1,
     faderCurve: 1,

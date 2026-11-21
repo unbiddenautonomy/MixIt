@@ -142,3 +142,18 @@ describe("Arrange keys", () => {
     off();
   });
 });
+
+describe("lane mute and solo", () => {
+  it("hears lanes like the renderer does", async () => {
+    const { laneHeard, setLaneState } = await import("../lib/arrangeOps");
+    let p = set();
+    expect([0, 1, 2, 3].map((l) => laneHeard(p, l))).toEqual([true, true, true, true]);
+    p = setLaneState(p, 1, { muted: true });
+    expect([0, 1, 2, 3].map((l) => laneHeard(p, l))).toEqual([true, false, true, true]);
+    p = setLaneState(p, 2, { solo: true });
+    expect([0, 1, 2, 3].map((l) => laneHeard(p, l))).toEqual([false, false, true, false]);
+    p = setLaneState(p, 1, { solo: true });
+    expect(laneHeard(p, 1)).toBe(false); // muted wins over solo
+    expect(p.lane_states!.length).toBe(4);
+  });
+});

@@ -7,7 +7,7 @@
 //! not engine actions (`app.*`, grid edits, key sync) come back as [`ActionError::NotEngine`]
 //! for the app to handle.
 
-use mixit_core::actions::{ECHO_TIMES, ROLL_SIZES, SLICE_SIZES, TEMPO_RANGES};
+use mixit_core::actions::{ECHO_TIMES, KEYPAD_RANGES, ROLL_SIZES, SLICE_SIZES, TEMPO_RANGES};
 use mixit_core::{DeckId, Quantize};
 use mixit_dsp::curves::{CrossfaderCurve, FaderCurve};
 use mixit_dsp::djeq::EqMode;
@@ -78,6 +78,9 @@ struct DeckState {
     loop_size: usize,
     jump_size: usize,
     slice_size: usize,
+    /// Hot cue the key pads play (0-based) and the range of keys they cover.
+    keypad_cue: u8,
+    keypad_range: usize,
     sync: bool,
     keylock: bool,
     loop_on: bool,
@@ -110,7 +113,7 @@ fn deck_index(letter: &str) -> Option<usize> {
 
 impl ActionDispatcher {
     pub fn new(sample_rate: u32, decks: usize) -> ActionDispatcher {
-        let d = DeckState { loop_size: 7, jump_size: 2, slice_size: 1, ..Default::default() }; // 4-beat loops, 4-beat jumps
+        let d = DeckState { loop_size: 7, jump_size: 2, slice_size: 1, keypad_range: 1, ..Default::default() }; // 4-beat loops, 4-beat jumps
         ActionDispatcher {
             sample_rate: sample_rate as f32,
             decks: vec![d; decks.max(1)],
@@ -316,6 +319,7 @@ impl ActionDispatcher {
                     .ok_or_else(|| ActionError::Unknown(id.into()))?
                     - 1;
                 if press {
+                    self.decks[i].keypad_cue = n;
                     dc(DeckCommand::HotCueDown(n))
                 } else if release {
                     dc(DeckCommand::HotCueUp(n))
@@ -343,6 +347,39 @@ impl ActionDispatcher {
                 }
                 None => vec![],
             },
+            ["keypad", "cue"] => {
+                if let Some(c) = Self::choice(input, 8, id)? {
+                    self.decks[i].keypad_cue = c as u8;
+                }
+                vec![]
+            }
+            ["keypad", "range"] => {
+                if let Some(c) = Self::choice(input, KEYPAD_RANGES.len(), id)? {
+                    self.decks[i].keypad_range = c;
+                }
+                vec![]
+            }
+            ["keypad", n] => {
+                let n: i8 = n
+                    .parse::<i8>()
+                    .ok()
+                    .filter(|&n| (1..=8).contains(&n))
+                    .ok_or_else(|| ActionError::Unknown(id.into()))?
+                    - 1;
+                let shift = (KEYPAD_RANGES[st.keypad_range].1 + n) as f32;
+                if press {
+                    // Key lock keeps the tempo while the key moves.
+                    self.decks[i].keylock = true;
+                    let mut v = dc(DeckCommand::SetKeylock(true));
+                    v.extend(dc(DeckCommand::SetKeyShift(shift)));
+                    v.extend(dc(DeckCommand::HotCueDown(st.keypad_cue)));
+                    v
+                } else if release {
+                    dc(DeckCommand::HotCueUp(st.keypad_cue))
+                } else {
+                    vec![]
+                }
+            }
             ["slice", "size"] => {
                 if let Some(c) = Self::choice(input, SLICE_SIZES.len(), id)? {
                     self.decks[i].slice_size = c;

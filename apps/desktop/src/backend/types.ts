@@ -547,6 +547,8 @@ export interface MixProject {
   strips?: StudioDto[];
   master_strip?: StudioDto | null;
   returns?: ProjectReturns;
+  /** Mute and solo per lane (deck); missing entries are heard. */
+  lane_states?: { muted: boolean; solo: boolean }[];
   next_id: number;
 }
 
