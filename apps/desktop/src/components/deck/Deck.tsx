@@ -16,6 +16,7 @@ import { ActionBtn, Btn } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { Fader } from "../ui/Fader";
 import { Overview } from "./Overview";
+import { BeatCounter } from "./BeatCounter";
 import { EjectButton, Pads } from "./Pads";
 import { useDropTarget } from "../../lib/dnd";
 import { DECK_COLORS } from "./useWaveform";
@@ -120,6 +121,7 @@ function Header({ deck }: { deck: number }) {
             <div className="font-mono text-base font-semibold leading-none tabular-nums text-zinc-50">{fmtBpm(bpm)}</div>
             <div className={clsx("font-mono text-[10px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent-ink)]")}>{signedPct(tempo)}</div>
           </div>
+          <BeatCounter deck={deck} />
           <TimeReadout deck={deck} />
           {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
           <Ctl label="Edit track" explain="Open the track editor: fix the beat grid, name and colour cues, choose where the track starts and turn a passage into a loop or a sampler pad.">

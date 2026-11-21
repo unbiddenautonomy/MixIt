@@ -156,6 +156,7 @@ export function setupCanvas(c: HTMLCanvasElement): CanvasRenderingContext2D {
 export const SECTION_COLORS: Record<string, string> = {
   Intro: "#64748b",
   Build: "#a855f7",
+  "Build-up": "#a855f7",
   Drop: "#f43f5e",
   Breakdown: "#0ea5e9",
   Main: "#10b981",
