@@ -12,6 +12,7 @@ members = [
     "crates/mixit-library",
     "crates/mixit-host",
     "crates/mixit-cli",
+    "crates/mixit-web",
     "apps/desktop/src-tauri",
 ]
 # The desktop app needs the webview toolchain; everything else builds headless.
@@ -27,6 +28,7 @@ default-members = [
     "crates/mixit-library",
     "crates/mixit-host",
     "crates/mixit-cli",
+    "crates/mixit-web",
 ]
 
 [workspace.package]
@@ -92,6 +94,13 @@ opt-level = 2
 lto = "thin"
 codegen-units = 1
 debug = 1
+
+# The browser build (`npm run wasm`): small and fast, no debug info.
+[profile.wasm]
+inherits = "release"
+lto = "fat"
+debug = 0
+strip = true
 
 [workspace.lints.clippy]
 # DSP loops index several parallel buffers at once; iterator rewrites hurt clarity.

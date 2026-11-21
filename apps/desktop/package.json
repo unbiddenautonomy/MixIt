@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "wasm": "cargo build --profile wasm --target wasm32-unknown-unknown -p mixit-web && node -e \"require('fs').copyFileSync('../../target/wasm32-unknown-unknown/wasm/mixit_web.wasm', 'public/mixit.wasm')\""
   },
   "dependencies": {
     "@radix-ui/react-context-menu": "^2.4.1",

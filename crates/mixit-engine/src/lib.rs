@@ -19,6 +19,7 @@ pub mod sampler;
 pub mod telemetry;
 pub mod track;
 pub mod trash;
+pub mod view;
 
 pub use commands::{
     Command, DeckCommand, EndBehaviour, FxCommand, FxTarget, GlobalCommand, HotCueMode, MixerCommand, PadMode,

@@ -6,3 +6,4 @@ dist/
 /apps/desktop/src-tauri/gen/
 /.mixit-cache/
 *.mixit-tmp
+/apps/desktop/public/mixit.wasm

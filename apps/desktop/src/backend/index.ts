@@ -29,7 +29,8 @@ import type {
 export type Unlisten = () => void;
 
 export interface Backend {
-  readonly kind: "tauri" | "demo";
+  /** "web" is the real engine running in the browser; "demo" simulates it. */
+  readonly kind: "tauri" | "demo" | "web";
   appInfo(): Promise<AppInfo>;
   action(id: string, input: ActionInput): Promise<void>;
 
@@ -126,11 +127,30 @@ let creating: Promise<Backend> | null = null;
 export function getBackend(): Promise<Backend> {
   if (instance) return Promise.resolve(instance);
   creating ??= (async () => {
-    const b: Backend = isTauri() ? new (await import("./tauri")).TauriBackend() : new (await import("./demo")).DemoBackend();
+    const b: Backend = isTauri() ? new (await import("./tauri")).TauriBackend() : await browserBackend();
     instance ??= b;
     return instance;
   })();
   return creating;
+}
+
+/**
+ * In a browser: the real engine in WebAssembly when it is built and the browser supports
+ * it, otherwise the silent simulation. `?demo` in the address forces the simulation.
+ */
+async function browserBackend(): Promise<Backend> {
+  const forceDemo = typeof location !== "undefined" && new URLSearchParams(location.search).has("demo");
+  if (!forceDemo) {
+    const engine = await (await import("../web/engine")).WebEngine.start();
+    if (engine) {
+      try {
+        return await (await import("./web")).WebAudioBackend.create(engine);
+      } catch (e) {
+        console.warn("MixIt web engine failed to start, using the simulated demo:", e);
+      }
+    }
+  }
+  return new (await import("./demo")).DemoBackend();
 }
 
 /** Synchronous access after start-up. */
