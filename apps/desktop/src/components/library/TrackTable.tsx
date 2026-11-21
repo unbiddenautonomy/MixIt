@@ -17,6 +17,7 @@ import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { loadOnDeck, TRACK_MIME } from "../deck/Deck";
 import { refreshPlaylists, refreshRows, refreshStats } from "./data";
+import { editTrack } from "../editor/TrackEditor";
 
 interface Column {
   key: string;
@@ -307,6 +308,9 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
             }}
           >
             What mixes well after this?
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => void editTrack(track.id)}>
+            Edit track (beat grid, cues, start point)
           </ContextMenu.Item>
           <ContextMenu.Separator className="menu-sep" />
           <ContextMenu.Sub>

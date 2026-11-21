@@ -130,6 +130,7 @@ pub struct CueView {
 pub struct GridView {
     pub bpm: f64,
     pub constant_grid: bool,
+    pub grid_locked: bool,
     pub beats_per_bar: u32,
     pub first_beat: f64,
     pub beat_period: f64,
@@ -152,6 +153,7 @@ impl GridView {
         GridView {
             bpm: g.bpm,
             constant_grid: g.is_constant(),
+            grid_locked: g.locked,
             beats_per_bar: g.beats_per_bar,
             first_beat: g.frame_at(0.0) / sr,
             beat_period: g.frames_per_beat_at(g.frame_at(0.0)) / sr,

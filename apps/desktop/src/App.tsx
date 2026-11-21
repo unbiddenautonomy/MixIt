@@ -18,6 +18,7 @@ import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
+import { TrackEditor } from "./components/editor/TrackEditor";
 import { TopBar } from "./components/shell/TopBar";
 import { handleShortcut } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
@@ -135,6 +136,7 @@ export function App() {
       </div>
       <CommandPalette />
       <SettingsDialog />
+      <TrackEditor />
       <AutomixDialog />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />

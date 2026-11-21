@@ -383,6 +383,7 @@ export class DemoBackend implements Backend {
       tempoConfidence: 0.92,
       driftMs: 0.8,
       constantGrid: true,
+      gridLocked: this.locked.has(t.row.id),
       beatsPerBar: 4,
       firstBeat: t.firstBeat,
       beatPeriod: t.period,
@@ -404,6 +405,8 @@ export class DemoBackend implements Backend {
   }
 
   protected saved = new Map<number, T.CueDto[]>();
+  /** Tracks whose grid the person locked. */
+  protected locked = new Set<number>();
   protected savedCues(t: DemoTrack): T.CueDto[] {
     return this.saved.get(t.row.id) ?? [];
   }
@@ -627,11 +630,11 @@ export class DemoBackend implements Backend {
     if (phase === "move" && d.track) d.position = Math.max(0, d.position + velocity * 0.016);
   }
 
-  async setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number) {
+  async setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number, label?: string) {
     const d = this.decks[deck];
     if (!d.track) return;
     const palette = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899];
-    const cue: T.CueDto = { role: "hot", slot, seconds, loopSeconds: loopSeconds ?? null, label: "", color: color ?? palette[slot % 8] };
+    const cue: T.CueDto = { role: "hot", slot, seconds, loopSeconds: loopSeconds ?? null, label: label ?? "", color: color ?? palette[slot % 8] };
     d.hot[slot] = cue;
     const list = (this.saved.get(d.track.row.id) ?? []).filter((c) => c.slot !== slot);
     list.push(cue);
@@ -645,6 +648,40 @@ export class DemoBackend implements Backend {
     d.hot[slot] = null;
     this.saved.set(d.track.row.id, (this.saved.get(d.track.row.id) ?? []).filter((c) => c.slot !== slot));
     this.emit("deck-loaded", { deck, token: d.token, detail: this.detail(d.track), sampleRate: SR });
+  }
+
+  /** The track on a deck, for editing (the demo's simulated decks). */
+  protected deckTrack(deck: number): DemoTrack | null {
+    return this.decks[deck]?.track ?? null;
+  }
+
+  protected deckLoaded(deck: number) {
+    const d = this.decks[deck];
+    if (d.track) this.emit("deck-loaded", { deck, token: d.token, detail: this.detail(d.track), sampleRate: SR });
+  }
+
+  async setMemoryCue(deck: number, seconds: number, label: string, color?: number | null) {
+    const t = this.deckTrack(deck);
+    if (!t) return;
+    const list = (this.saved.get(t.row.id) ?? []).filter((c) => !(c.role === "memory" && Math.abs(c.seconds - seconds) < 0.01));
+    list.push({ role: "memory", slot: null, seconds, loopSeconds: null, label, color: color ?? null });
+    this.saved.set(t.row.id, list);
+    this.deckLoaded(deck);
+  }
+
+  async deleteMemoryCue(deck: number, seconds: number) {
+    const t = this.deckTrack(deck);
+    if (!t) return;
+    this.saved.set(t.row.id, (this.saved.get(t.row.id) ?? []).filter((c) => !(c.role === "memory" && Math.abs(c.seconds - seconds) < 0.01)));
+    this.deckLoaded(deck);
+  }
+
+  async setGrid(deck: number, edit: T.GridEdit) {
+    const t = this.deckTrack(deck);
+    if (!t) throw new Error("no track on this deck");
+    applyDemoGrid(t, edit, this.locked);
+    this.deckLoaded(deck);
+    this.emit("library-changed", null);
   }
 
   async setMainCue(deck: number, seconds: number) {
@@ -1102,6 +1139,26 @@ export class DemoBackend implements Backend {
   onError(cb: (m: string) => void) { return this.on("error", cb); }
 }
 
+/** The demo's version of the engine's grid edit (mixit_core::Beatgrid::apply_edit). */
+export function applyDemoGrid(t: DemoTrack, e: T.GridEdit, locked: Set<number>) {
+  const changes = e.bpm !== undefined || e.downbeatAt !== undefined || e.nudgeMs !== undefined;
+  if (locked.has(t.row.id) && changes && e.locked !== false) throw new Error("The beat grid is locked. Unlock it first.");
+  if (e.bpm !== undefined) {
+    if (!(e.bpm >= 20 && e.bpm <= 400)) throw new Error("That tempo is outside the 20 to 400 BPM MixIt supports.");
+    t.period = 60 / e.bpm;
+    t.row.bpm = Math.round(e.bpm * 100) / 100;
+  }
+  if (e.downbeatAt !== undefined) {
+    // The spot becomes the start of a bar; beat 0 is the earliest bar start in the track.
+    t.firstBeat = e.downbeatAt - Math.floor(e.downbeatAt / (4 * t.period)) * 4 * t.period;
+  }
+  if (e.nudgeMs !== undefined) t.firstBeat += e.nudgeMs / 1000;
+  if (e.locked !== undefined) {
+    if (e.locked) locked.add(t.row.id);
+    else locked.delete(t.row.id);
+  }
+}
+
 /** A subset of the library search language, enough for the demo. */
 export function demoSearch(rows: T.TrackRow[], query: string): T.TrackRow[] {
   const terms = query.trim().split(/\s+/).filter(Boolean);
@@ -1261,6 +1318,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
   add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");

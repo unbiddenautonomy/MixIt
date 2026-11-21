@@ -14,6 +14,7 @@ import { buildProject, MixCapture } from "./capture";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
 import { startTransition, type TransitionId } from "./transition";
+import { openEditor } from "../components/editor/TrackEditor";
 
 export async function updateSettings(patch: Partial<Settings>) {
   const cur = useApp.getState().settings;
@@ -125,6 +126,9 @@ export function runApp(id: string): boolean {
       return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
+      return true;
+    case "edit_track":
+      openEditor(s.targetDeck);
       return true;
     case "workspace":
       s.set({ workspace: WORKSPACES[p[2]] ?? "mix" });

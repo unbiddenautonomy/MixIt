@@ -121,6 +121,8 @@ pub struct TrackDetail {
     pub tempo_confidence: f32,
     pub drift_ms: f64,
     pub constant_grid: bool,
+    /// A locked grid is kept by re-analysis and refuses edits until unlocked.
+    pub grid_locked: bool,
     pub beats_per_bar: u32,
     /// Seconds of grid beat 0, and seconds per beat at the start (for drawing beat lines
     /// when the grid is constant; warped grids send `beats`).
@@ -159,6 +161,7 @@ impl TrackDetail {
             tempo_confidence: 0.0,
             drift_ms: 0.0,
             constant_grid: true,
+            grid_locked: false,
             beats_per_bar: 4,
             first_beat: 0.0,
             beat_period: 0.5,
@@ -184,6 +187,7 @@ impl TrackDetail {
             d.tempo_confidence = a.tempo_confidence;
             d.drift_ms = a.drift_ms;
             d.constant_grid = g.is_constant();
+            d.grid_locked = g.locked;
             d.beats_per_bar = g.beats_per_bar;
             d.first_beat = g.frame_at(0.0) / sr;
             d.beat_period = g.frames_per_beat_at(g.frame_at(0.0)) / sr;

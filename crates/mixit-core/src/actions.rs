@@ -1018,6 +1018,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("Mod+G"),
         Some("guide"),
     );
+    b.add(
+        "app.edit_track",
+        "Edit track",
+        ag,
+        ActionKind::Trigger,
+        "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.",
+        true,
+        Some("Mod+Shift+E"),
+        None,
+    );
 
     b.v
 }

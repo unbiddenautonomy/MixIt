@@ -2,7 +2,7 @@
 // Easy view keeps the essentials (play, cue, sync, tempo, hot cues, loop); Pro adds
 // master, key shift, nudge, tempo range, slip, reverse and the grid tools.
 import clsx from "clsx";
-import { ChevronDown, ChevronUp, Disc3, KeyRound, Lock, Minus, Music2, Pause, Play, Plus, RotateCcw, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Disc3, KeyRound, Lock, Minus, Music2, Pause, PencilLine, Play, Plus, RotateCcw, Undo2 } from "lucide-react";
 import { useState, type DragEvent } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -18,6 +18,7 @@ import { Fader } from "../ui/Fader";
 import { Overview } from "./Overview";
 import { EjectButton, Pads } from "./Pads";
 import { DECK_COLORS } from "./useWaveform";
+import { openEditor } from "../editor/TrackEditor";
 
 export const TRACK_MIME = "application/x-mixit-tracks";
 
@@ -146,6 +147,11 @@ function Header({ deck }: { deck: number }) {
           </div>
           <TimeReadout deck={deck} />
           {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
+          <Ctl label="Edit track" explain="Open the track editor: fix the beat grid, name and colour cues, choose where the track starts and turn a passage into a loop or a sampler pad.">
+            <Btn size="sm" tone="ghost" onClick={() => openEditor(deck)} aria-label="Edit track">
+              <PencilLine size={12} />
+            </Btn>
+          </Ctl>
           <EjectButton deck={deck} />
         </>
       )}

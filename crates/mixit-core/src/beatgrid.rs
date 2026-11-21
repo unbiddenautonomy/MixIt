@@ -300,6 +300,65 @@ impl Beatgrid {
     }
 }
 
+/// A precise grid edit from the track editor, applied with [`Beatgrid::apply_edit`].
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GridEdit {
+    /// A constant tempo (drops warp anchors).
+    pub bpm: Option<f64>,
+    /// Seconds where a bar should start (the nearest beat moves there).
+    pub downbeat_at: Option<f64>,
+    /// Moves the whole grid, in milliseconds (positive = later).
+    pub nudge_ms: Option<f64>,
+    pub locked: Option<bool>,
+}
+
+/// Why a [`GridEdit`] was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GridEditError {
+    Locked,
+    TempoOutOfRange,
+}
+
+impl std::fmt::Display for GridEditError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            GridEditError::Locked => "The beat grid is locked. Unlock it first.",
+            GridEditError::TempoOutOfRange => "That tempo is outside the 20 to 400 BPM MixIt supports.",
+        })
+    }
+}
+
+impl Beatgrid {
+    /// Applies an editor edit. A locked grid refuses changes unless the same edit unlocks
+    /// it. Any change marks the grid as checked by a person (confidence 1).
+    pub fn apply_edit(&mut self, e: &GridEdit) -> Result<(), GridEditError> {
+        let changes = e.bpm.is_some() || e.downbeat_at.is_some() || e.nudge_ms.is_some();
+        if self.locked && changes && e.locked != Some(false) {
+            return Err(GridEditError::Locked);
+        }
+        let mut next = self.clone();
+        let sr = next.sample_rate as f64;
+        if let Some(b) = e.bpm {
+            next.set_bpm(b).map_err(|_| GridEditError::TempoOutOfRange)?;
+        }
+        if let Some(t) = e.downbeat_at {
+            next.set_downbeat(t * sr);
+        }
+        if let Some(ms) = e.nudge_ms {
+            next.nudge(ms / 1000.0 * sr);
+        }
+        if changes {
+            next.confidence = 1.0;
+        }
+        if let Some(l) = e.locked {
+            next.locked = l;
+        }
+        *self = next;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -401,5 +460,24 @@ mod tests {
             let f = g.frame_at(beat);
             prop_assert!((g.beat_at(f) - beat).abs() < 1e-6);
         }
+    }
+
+    #[test]
+    fn editor_edits_respect_the_lock() {
+        let mut g = Beatgrid::constant(48_000, 120.0, 0.0);
+        g.apply_edit(&GridEdit { bpm: Some(124.0), downbeat_at: Some(0.25), ..Default::default() }).unwrap();
+        assert_eq!(g.bpm, 124.0);
+        assert!(g.is_downbeat(g.beat_at(0.25 * 48_000.0).round() as i64));
+        assert!((g.frame_at(g.beat_at(12_000.0).round()) - 12_000.0).abs() < 1e-6);
+        g.apply_edit(&GridEdit { locked: Some(true), ..Default::default() }).unwrap();
+        let before = g.clone();
+        assert_eq!(g.apply_edit(&GridEdit { nudge_ms: Some(5.0), ..Default::default() }), Err(GridEditError::Locked));
+        assert_eq!(g, before);
+        g.apply_edit(&GridEdit { nudge_ms: Some(5.0), locked: Some(false), ..Default::default() }).unwrap();
+        assert!((g.frame_at(g.beat_at(12_240.0).round()) - 12_240.0).abs() < 1e-6, "nudged 5 ms later");
+        assert_eq!(
+            g.apply_edit(&GridEdit { bpm: Some(1_000.0), ..Default::default() }),
+            Err(GridEditError::TempoOutOfRange)
+        );
     }
 }

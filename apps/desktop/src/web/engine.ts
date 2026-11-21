@@ -7,6 +7,7 @@ import type { Telemetry } from "../backend/types";
 export interface GridView {
   bpm: number;
   constantGrid: boolean;
+  gridLocked: boolean;
   beatsPerBar: number;
   firstBeat: number;
   beatPeriod: number;
