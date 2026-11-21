@@ -19,6 +19,7 @@ pub mod delay;
 pub mod djeq;
 pub mod djfilter;
 pub mod dynamics;
+pub mod edit;
 pub mod fx;
 pub mod interp;
 pub mod meters;

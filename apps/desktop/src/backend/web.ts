@@ -739,6 +739,69 @@ export class WebAudioBackend extends DemoBackend {
     return { ...info };
   }
 
+  // ---------------------------------------------------------------- sound editor
+
+  private sounds = new Map<number, { audio: Float32Array; name: string }>();
+  private nextSound = 1;
+
+  /** The audio of a pad source, decoded at the engine rate. */
+  private async sourceAudio(source: T.PadSource): Promise<{ audio: Float32Array; name: string }> {
+    const sr = this.engine.sampleRate;
+    if (source.type === "kit") return { audio: (await this.engine.kit(source.id)).audio, name: DEMO_KIT.find((k) => k.id === source.id)?.name ?? source.id };
+    if (source.type === "file") {
+      const f = this.files.get(source.path)?.[0];
+      if (!f) throw new Error("That sound is no longer available. Pick it again.");
+      return { audio: await this.engine.decode(await f.arrayBuffer()), name: stem(f.name) };
+    }
+    if (source.type === "track") {
+      const t = this.find(source.trackId);
+      const whole = await this.audioFor(t);
+      const a = Math.max(0, Math.round((source.start ?? 0) * sr));
+      const b = source.seconds != null ? Math.min(whole.length / 2, a + Math.round(source.seconds * sr)) : whole.length / 2;
+      return { audio: whole.slice(a * 2, b * 2), name: t.row.title };
+    }
+    throw new Error("The pad is empty.");
+  }
+
+  async soundOpen(source: T.PadSource, bins: number): Promise<T.SoundOpened> {
+    const s = await this.sourceAudio(source);
+    if (!s.audio.length) throw new Error("The sound is empty.");
+    const id = this.nextSound++;
+    // Keep a few open; the editor shows one at a time.
+    for (const k of [...this.sounds.keys()].slice(0, Math.max(0, this.sounds.size - 2))) this.sounds.delete(k);
+    this.sounds.set(id, s);
+    const { view } = await this.engine.soundEdit(s.audio, [], bins);
+    return { id, name: s.name, view };
+  }
+
+  private async edited(id: number, ops: T.EditOp[], bins = 16) {
+    const s = this.sounds.get(id);
+    if (!s) throw new Error("That sound is no longer open. Open it again.");
+    return this.engine.soundEdit(s.audio, ops, bins);
+  }
+
+  async soundRender(id: number, ops: T.EditOp[], bins: number): Promise<T.SoundView> {
+    return (await this.edited(id, ops, bins)).view;
+  }
+
+  async soundAudio(id: number, ops: T.EditOp[]): Promise<ArrayBuffer> {
+    const { audio } = await this.edited(id, ops);
+    return encodeWav([audio], this.engine.sampleRate).arrayBuffer();
+  }
+
+  async soundSave(id: number, ops: T.EditOp[], name: string): Promise<string> {
+    const { audio } = await this.edited(id, ops);
+    if (!audio.length) throw new Error("Nothing is left of the sound.");
+    const file = new File([encodeWav([audio], this.engine.sampleRate, true)], `${name.replace(/[^\w\- ()]+/g, "_").trim() || "Edited sound"}.wav`, { type: "audio/wav" });
+    const path = `browser:edits/${this.nextPick++}/${file.name}`;
+    this.files.set(path, [file]);
+    return path;
+  }
+
+  async soundClose(id: number) {
+    this.sounds.delete(id);
+  }
+
   async samplerClear(pad: number): Promise<T.PadInfo> {
     this.engine.send({ op: "padClear", pad });
     return super.samplerClear(pad);

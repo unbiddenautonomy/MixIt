@@ -4,6 +4,7 @@
 
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
+import { applyEdits, DEMO_SR, demoSound, viewOf } from "./demoSound";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 import { toProjectKey } from "../lib/arrangeOps";
 import { DUCK_MAX_DB, WARMTH_MAX_DB, defaultStudio, eqDb, glueComp, punchComp } from "../lib/studio";
@@ -1088,6 +1089,55 @@ export class DemoBackend implements Backend {
   async checkProject() {
     return [];
   }
+  // ---------------------------------------------------------------- sound editor (simulated)
+
+  private demoSounds = new Map<number, { audio: Float32Array; name: string }>();
+  private nextDemoSound = 1;
+
+  async soundOpen(source: T.PadSource, bins: number): Promise<T.SoundOpened> {
+    if (source.type === "empty") throw new Error("The pad is empty.");
+    const name = source.type === "kit" ? (DEMO_KIT.find((k) => k.id === source.id)?.name ?? "Sound") : source.type === "track" ? this.find(source.trackId).row.title : "Recording";
+    const audio = demoSound(source.type === "track" ? 8 : 4);
+    const id = this.nextDemoSound++;
+    this.demoSounds.set(id, { audio, name });
+    return { id, name, view: viewOf(audio, bins) };
+  }
+  private demoEdited(id: number, ops: T.EditOp[]) {
+    const s = this.demoSounds.get(id);
+    if (!s) throw new Error("That sound is no longer open.");
+    return applyEdits(s.audio, ops);
+  }
+  async soundRender(id: number, ops: T.EditOp[], bins: number): Promise<T.SoundView> {
+    return viewOf(this.demoEdited(id, ops), bins);
+  }
+  async soundAudio(id: number, ops: T.EditOp[]): Promise<ArrayBuffer> {
+    const a = this.demoEdited(id, ops);
+    const pcm = new Int16Array(a.length);
+    for (let i = 0; i < a.length; i++) pcm[i] = Math.max(-1, Math.min(1, a[i])) * 32767;
+    const h = new DataView(new ArrayBuffer(44));
+    const w = (o: number, t: string) => [...t].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
+    w(0, "RIFF");
+    h.setUint32(4, 36 + pcm.byteLength, true);
+    w(8, "WAVEfmt ");
+    h.setUint32(16, 16, true);
+    h.setUint16(20, 1, true);
+    h.setUint16(22, 2, true);
+    h.setUint32(24, DEMO_SR, true);
+    h.setUint32(28, DEMO_SR * 4, true);
+    h.setUint16(32, 4, true);
+    h.setUint16(34, 16, true);
+    w(36, "data");
+    h.setUint32(40, pcm.byteLength, true);
+    return new Blob([h.buffer, pcm.buffer]).arrayBuffer();
+  }
+  async soundSave(id: number, ops: T.EditOp[], name: string): Promise<string> {
+    this.demoEdited(id, ops);
+    return `/Music/MixIt/Recordings/Edits/${name || "Edited sound"}.wav`;
+  }
+  async soundClose(id: number) {
+    this.demoSounds.delete(id);
+  }
+
   async renderStems(project: T.MixProject, _folder: string, format?: string) {
     return this.renderProject(project, `stems.${format ?? "flac"}`);
   }

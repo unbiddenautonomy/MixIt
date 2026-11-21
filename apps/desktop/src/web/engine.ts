@@ -338,6 +338,12 @@ export class WebEngine {
     return { view: r.view, wave: r.wave };
   }
 
+  /** Applies sound-editor steps to interleaved stereo (the original is not changed). */
+  async soundEdit(audio: Float32Array, ops: unknown[], bins: number): Promise<{ audio: Float32Array; view: SoundView }> {
+    const r = await this.ask<Reply & { audio: Float32Array; view: SoundView }>(this.worker, { type: "soundEdit", audio, ops, bins, sampleRate: this.sampleRate });
+    return { audio: r.audio, view: r.view };
+  }
+
   async kit(sound: string): Promise<{ audio: Float32Array; bpm: number | null; mode: number }> {
     const r = await this.ask<Reply & { audio: Float32Array; bpm: number | null; mode: number }>(this.worker, { type: "kit", sound, sampleRate: this.sampleRate });
     return { audio: r.audio, bpm: r.bpm, mode: r.mode };
@@ -376,6 +382,14 @@ interface RenderProgress {
   total: number;
   need: RenderNeed | null;
   done: boolean;
+}
+
+export interface SoundView {
+  seconds: number;
+  sampleRate: number;
+  peaks: [number, number][];
+  lufs: number;
+  peakDb: number;
 }
 
 export class RenderCancelled extends Error {

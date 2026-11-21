@@ -4,7 +4,7 @@
 use mixit_dsp::dynamics::{CompressorSettings, GateSettings};
 use mixit_dsp::peq::{BandSettings, BandShape, MAX_BANDS};
 use mixit_dsp::studio::StudioSettings;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{DeckTelemetry, MasterTelemetry, MicTelemetry, Telemetry};
 
@@ -325,6 +325,136 @@ pub fn studio_settings(d: &StudioDto) -> StudioSettings {
     }
 }
 
+// ------------------------------------------------------------------ sound editing
+
+/// One step of a non-destructive sound edit, as the UI sends it (`{"op": "fade", ...}`).
+/// Times are seconds in the sound as it is at that step.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum EditOpDto {
+    Trim {
+        start: f64,
+        end: f64,
+    },
+    Delete {
+        start: f64,
+        end: f64,
+    },
+    Copy {
+        start: f64,
+        end: f64,
+    },
+    Paste {
+        at: f64,
+    },
+    Silence {
+        start: f64,
+        end: f64,
+    },
+    InsertSilence {
+        at: f64,
+        seconds: f64,
+    },
+    Fade {
+        start: f64,
+        end: f64,
+        fade_in: bool,
+        shape: FadeShapeDto,
+    },
+    Gain {
+        start: f64,
+        end: f64,
+        db: f32,
+    },
+    /// `to`: "peak" (level in dBFS) or "loudness" (level in LUFS).
+    Normalize {
+        to: NormalizeKind,
+        level: f32,
+    },
+    Reverse {
+        start: f64,
+        end: f64,
+    },
+    TrimSilence {
+        threshold_db: f32,
+    },
+    RemoveDc,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FadeShapeDto {
+    Linear,
+    Smooth,
+    Power,
+    Exponential,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NormalizeKind {
+    Peak,
+    Loudness,
+}
+
+/// The engine form of an edit list.
+pub fn edit_ops(ops: &[EditOpDto]) -> Vec<mixit_dsp::edit::EditOp> {
+    use mixit_dsp::edit::{EditOp as E, FadeShape, NormalizeTo};
+    ops.iter()
+        .map(|o| match *o {
+            EditOpDto::Trim { start, end } => E::Trim { start, end },
+            EditOpDto::Delete { start, end } => E::Delete { start, end },
+            EditOpDto::Copy { start, end } => E::Copy { start, end },
+            EditOpDto::Paste { at } => E::Paste { at },
+            EditOpDto::Silence { start, end } => E::Silence { start, end },
+            EditOpDto::InsertSilence { at, seconds } => E::InsertSilence { at, seconds },
+            EditOpDto::Fade { start, end, fade_in, shape } => E::Fade {
+                start,
+                end,
+                fade_in,
+                shape: match shape {
+                    FadeShapeDto::Linear => FadeShape::Linear,
+                    FadeShapeDto::Smooth => FadeShape::Smooth,
+                    FadeShapeDto::Power => FadeShape::Power,
+                    FadeShapeDto::Exponential => FadeShape::Exponential,
+                },
+            },
+            EditOpDto::Gain { start, end, db } => E::Gain { start, end, db },
+            EditOpDto::Normalize { to: NormalizeKind::Peak, level } => E::Normalize(NormalizeTo::Peak(level.min(0.0))),
+            EditOpDto::Normalize { to: NormalizeKind::Loudness, level } => E::Normalize(NormalizeTo::Loudness(level)),
+            EditOpDto::Reverse { start, end } => E::Reverse { start, end },
+            EditOpDto::TrimSilence { threshold_db } => E::TrimSilence { threshold_db },
+            EditOpDto::RemoveDc => E::RemoveDc,
+        })
+        .collect()
+}
+
+/// An edited sound summarised for drawing: its length and min/max pairs per bin.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoundViewDto {
+    pub seconds: f64,
+    pub sample_rate: u32,
+    /// `[min, max]` per bin, over the whole sound.
+    pub peaks: Vec<[f32; 2]>,
+    /// Integrated loudness (LUFS; very low when too short to measure) and peak (dBFS).
+    pub lufs: f64,
+    pub peak_db: f32,
+}
+
+impl SoundViewDto {
+    pub fn new(audio: &[f32], sample_rate: u32, bins: usize) -> SoundViewDto {
+        let (lufs, peak_db) = mixit_dsp::edit::measure(audio, sample_rate);
+        SoundViewDto {
+            seconds: audio.len() as f64 / 2.0 / sample_rate as f64,
+            sample_rate,
+            peaks: mixit_dsp::edit::peaks(audio, bins.clamp(16, 20_000)),
+            lufs: if lufs.is_finite() { lufs } else { -99.0 },
+            peak_db: if peak_db.is_finite() { peak_db } else { -99.0 },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,5 +467,21 @@ mod tests {
             CompDto::punch(0.3),
             studio_dto(&StudioSettings { comp: CompressorSettings::punch(0.3), ..Default::default() }).comp
         );
+    }
+
+    #[test]
+    fn edit_steps_parse_from_the_ui() {
+        let ops: Vec<EditOpDto> = serde_json::from_str(
+            r#"[{"op":"fade","start":0,"end":1,"fadeIn":true,"shape":"power"},
+                {"op":"normalize","to":"loudness","level":-14},
+                {"op":"insertSilence","at":1,"seconds":0.5},
+                {"op":"trimSilence","thresholdDb":-48},
+                {"op":"removeDc"}]"#,
+        )
+        .unwrap();
+        assert_eq!(edit_ops(&ops).len(), 5);
+        assert_eq!(ops[2], EditOpDto::InsertSilence { at: 1.0, seconds: 0.5 });
+        let v = SoundViewDto::new(&[0.5, -0.5, -0.25, 0.25], 48_000, 2);
+        assert_eq!(v.peaks.len(), 16);
     }
 }

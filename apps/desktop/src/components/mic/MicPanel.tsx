@@ -329,6 +329,14 @@ function MicRecorder() {
         <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
           {last.target === "pad" ? <Settings2 size={11} /> : <LibraryIcon size={11} />}
           Last take: {last.seconds.toFixed(1)} s {last.target === "pad" ? `on pad ${last.pad + 1}` : "in the library"}
+          <button
+            type="button"
+            className="ml-auto rounded px-1.5 py-0.5 text-sky-300 hover:bg-white/10"
+            onClick={() => void import("../editor/SoundEditor").then((m) => m.openSoundEditor({ type: "file", path: last.path }, { pad: last.target === "pad" ? last.pad : null, name: "Mic take" }))}
+            title="Trim, fade, normalise or clean up the take"
+          >
+            Edit
+          </button>
         </div>
       )}
     </div>

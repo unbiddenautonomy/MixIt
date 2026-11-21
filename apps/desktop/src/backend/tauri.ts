@@ -90,6 +90,11 @@ export class TauriBackend implements Backend {
   openProject(path: string) { return invoke<T.MixProject>("project_open", { path }); }
   checkProject(project: T.MixProject) { return invoke<string[]>("project_check", { project }); }
   renderProject(project: T.MixProject, path: string, format?: string, targetLufs?: number | null) { return invoke<void>("project_render", { project, path, format: format ?? null, targetLufs: targetLufs ?? null }); }
+  soundOpen(source: T.PadSource, bins: number) { return invoke<T.SoundOpened>("sound_open", { source, bins }); }
+  soundRender(id: number, ops: T.EditOp[], bins: number) { return invoke<T.SoundView>("sound_render", { id, ops, bins }); }
+  soundAudio(id: number, ops: T.EditOp[]) { return invoke<ArrayBuffer>("sound_audio", { id, ops }); }
+  soundSave(id: number, ops: T.EditOp[], name: string) { return invoke<string>("sound_save", { id, ops, name }); }
+  soundClose(id: number) { return invoke<void>("sound_close", { id }); }
   renderStems(project: T.MixProject, folder: string, format?: string) { return invoke<void>("project_render_stems", { project, folder, format: format ?? null }); }
   previewProject(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<ArrayBuffer>("project_preview", { project, fromBeat, toBeat }); }
 

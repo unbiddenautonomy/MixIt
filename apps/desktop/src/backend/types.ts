@@ -560,3 +560,40 @@ export interface WaveformData {
   /** 5 bytes per column: peak, rms, low, mid, high. */
   columns: Uint8Array;
 }
+
+// ------------------------------------------------------------------ sound editor
+
+/** One step of a non-destructive sound edit. Times are seconds in the sound as it is at
+ * that step. */
+export type EditOp =
+  | { op: "trim"; start: number; end: number }
+  | { op: "delete"; start: number; end: number }
+  | { op: "copy"; start: number; end: number }
+  | { op: "paste"; at: number }
+  | { op: "silence"; start: number; end: number }
+  | { op: "insertSilence"; at: number; seconds: number }
+  | { op: "fade"; start: number; end: number; fadeIn: boolean; shape: FadeShape }
+  | { op: "gain"; start: number; end: number; db: number }
+  | { op: "normalize"; to: "peak" | "loudness"; level: number }
+  | { op: "reverse"; start: number; end: number }
+  | { op: "trimSilence"; thresholdDb: number }
+  | { op: "removeDc" };
+
+export type FadeShape = "linear" | "smooth" | "power" | "exponential";
+
+/** An edited sound, summarised for drawing. */
+export interface SoundView {
+  seconds: number;
+  sampleRate: number;
+  /** [min, max] per bin over the whole sound. */
+  peaks: [number, number][];
+  /** Integrated loudness (LUFS; −99 when too short to measure) and peak (dBFS). */
+  lufs: number;
+  peakDb: number;
+}
+
+export interface SoundOpened {
+  id: number;
+  name: string;
+  view: SoundView;
+}

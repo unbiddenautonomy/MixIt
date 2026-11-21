@@ -21,6 +21,9 @@ import type {
   StudioDto,
   PadPatch,
   PadSource,
+  EditOp,
+  SoundOpened,
+  SoundView,
   PlaylistDto,
   Settings,
   SuggestionRow,
@@ -115,6 +118,17 @@ export interface Backend {
   renderStems(project: MixProject, folder: string, format?: string): Promise<void>;
   /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
   previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
+
+  /** Opens a sound for the editor (a pad source: kit sound, file, library track or a
+   * slice of one). The original is never changed. */
+  soundOpen(source: PadSource, bins: number): Promise<SoundOpened>;
+  /** The sound after the edits, for drawing. */
+  soundRender(id: number, ops: EditOp[], bins: number): Promise<SoundView>;
+  /** The sound after the edits as a WAV file, for listening. */
+  soundAudio(id: number, ops: EditOp[]): Promise<ArrayBuffer>;
+  /** Saves the edited sound as a new file and returns its path (for a pad or the library). */
+  soundSave(id: number, ops: EditOp[], name: string): Promise<string>;
+  soundClose(id: number): Promise<void>;
 
   samplerLoad(pad: number, source: PadSource): Promise<PadInfo>;
   samplerClear(pad: number): Promise<PadInfo>;
