@@ -6,7 +6,7 @@
 
 import { DemoBackend, DEMO_KIT, emptyPad, kitPad, type DemoTrack } from "./demo";
 import type * as T from "./types";
-import { encodeWav, parseWave, WebEngine, type AnalysisView, type GenerateRequest, type GridView } from "../web/engine";
+import { encodeWav, parseWave, RenderCancelled, toPcm16, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
 
 const AUDIO = ["wav", "mp3", "flac", "aiff", "aif", "ogg", "m4a", "aac", "opus", "webm"];
 /** Ids for tracks the person adds (the generated library uses 1..120, practice 1001+). */
@@ -371,6 +371,82 @@ export class WebAudioBackend extends DemoBackend {
     const name = `MixIt ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}.wav`;
     download(encodeWav(chunks, this.engine.sampleRate, this.settings.recordFloat), name);
     return `${name}, in your downloads`;
+  }
+
+  // ---------------------------------------------------------------- Arrange preview and render
+
+  private rendering = false;
+  private renderStop = false;
+
+  /** A clip's track for the renderer: the library track at its path (or with its title). */
+  private async renderTrack(n: RenderNeed): Promise<RenderTrack | null> {
+    const t = this.tracks.find((x) => x.row.path === n.path) ?? this.tracks.find((x) => x.row.title === n.title);
+    if (!t) return null;
+    const audio = await this.audioFor(t);
+    const v = this.analysed.get(t.row.id)?.view;
+    if (!v) return null;
+    return { audio, grid: v.grid, autoGainDb: v.autoGainDb ?? 0 };
+  }
+
+  /** Renders the passage through the real engine (in the worker), as a WAV file. */
+  async previewProject(project: T.MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer> {
+    const chunks: Float32Array[] = [];
+    await this.engine.renderProject({ project, from: fromBeat, to: toBeat, tail: 0.5, autoGain: this.settings.autoGain }, (n) => this.renderTrack(n), (a) => chunks.push(a));
+    return encodeWav(chunks, this.engine.sampleRate).arrayBuffer();
+  }
+
+  /** Renders the whole mix in the worker and downloads it as a WAV file. */
+  async renderProject(project: T.MixProject, path: string) {
+    if (this.rendering) throw new Error("A mix is already rendering. Stop it first.");
+    this.rendering = true;
+    this.renderStop = false;
+    const name = `${path.replace(/\.(wav|flac|mixit|json)$/i, "") || project.name}.wav`;
+    const sr = this.engine.sampleRate;
+    const job = (done: number, total: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "render", done, total, message, finished, error });
+    // 16-bit parts, folded into Blobs as they pile up so the browser can keep them out of memory.
+    const parts: BlobPart[] = [];
+    let pending: BlobPart[] = [];
+    let samples = 0;
+    let last = 0;
+    job(0, 1, "Rendering your mix…");
+    void (async () => {
+      try {
+        await this.engine.renderProject(
+          { project, autoGain: this.settings.autoGain },
+          (n) => {
+            job(samples / 2, 0, `Loading “${n.title}”…`);
+            return this.renderTrack(n);
+          },
+          (a, position, total) => {
+            pending.push(toPcm16(a));
+            samples += a.length;
+            if (pending.length >= 30) {
+              parts.push(new Blob(pending));
+              pending = [];
+            }
+            const now = performance.now();
+            if (now - last > 250) {
+              last = now;
+              job(position, total, `Rendering ${Math.round((position / Math.max(1, total)) * 100)} %`);
+            }
+          },
+          () => this.renderStop,
+        );
+        parts.push(new Blob(pending));
+        download(new Blob([wavHeader(samples, sr), ...parts], { type: "audio/wav" }), name);
+        job(1, 1, `${name}, in your downloads`, true);
+      } catch (e) {
+        if (e instanceof RenderCancelled) job(0, 1, "Render stopped", true);
+        else job(0, 1, "", true, `Could not render the mix: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        this.rendering = false;
+      }
+    })();
+  }
+
+  async cancelJob() {
+    this.renderStop = true;
+    await super.cancelJob();
   }
 
   // ---------------------------------------------------------------- the person's own files

@@ -10,6 +10,7 @@
 //! loop, so live and offline output are identical.
 
 pub mod actions;
+pub mod arrangement;
 pub mod commands;
 pub mod deck;
 pub mod engine;

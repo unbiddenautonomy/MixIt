@@ -963,7 +963,7 @@ export class DemoBackend implements Backend {
   async checkProject() {
     return [];
   }
-  async renderProject() {
+  async renderProject(_project: T.MixProject, _path: string, _format?: string) {
     let done = 0;
     const timer = setInterval(() => {
       done += 50;

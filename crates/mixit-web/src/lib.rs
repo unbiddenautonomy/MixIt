@@ -12,4 +12,5 @@
 
 pub mod ffi;
 pub mod host;
+pub mod render;
 pub mod tools;

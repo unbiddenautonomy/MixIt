@@ -15,6 +15,7 @@
 use std::cell::RefCell;
 
 use crate::host::{Host, LoadOptions, PadSettings};
+use crate::render::{RenderJob, RenderRequest, TrackOptions};
 use crate::tools;
 
 thread_local! {
@@ -265,6 +266,95 @@ pub unsafe extern "C" fn mx_kit(ptr: *const u8, len: usize, sample_rate: u32) ->
         serde_json::json!({ "bpm": bpm, "mode": mode }).to_string()
     });
     reply(r)
+}
+
+// ------------------------------------------------------------------ arrange render (worker)
+
+/// Starts rendering a mix project (`render::RenderRequest` as JSON). Returns the job, or
+/// null with the error in the output; on success the reply is `{"frames": total}`.
+///
+/// # Safety
+/// `ptr..ptr+len` written by the page.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_render_new(ptr: *const u8, len: usize, sample_rate: u32) -> *mut RenderJob {
+    let r = unsafe { text(ptr, len) }
+        .and_then(|t| serde_json::from_str::<RenderRequest>(t).map_err(|e| e.to_string()))
+        .and_then(|req| RenderJob::new(req, sample_rate));
+    match r {
+        Ok(job) => {
+            reply(Ok(format!("{{\"frames\":{}}}", job.total_frames())));
+            Box::into_raw(Box::new(job))
+        }
+        Err(e) => {
+            reply(Err(e));
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Gives the job a track's audio (taken over), for every clip whose track path is
+/// `path`. Options: `{"grid": Beatgrid, "autoGainDb": n}`.
+///
+/// # Safety
+/// `job` from [`mx_render_new`]; `audio` from `mx_alloc_f32(count)`; text as above.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_render_track(
+    job: *mut RenderJob,
+    path: *const u8,
+    path_len: usize,
+    audio: *mut f32,
+    count: usize,
+    opts: *const u8,
+    opts_len: usize,
+) -> i32 {
+    let job = unsafe { &mut *job };
+    let audio = unsafe { take_f32(audio, count) };
+    let r = unsafe { text(path, path_len) }.and_then(|p| {
+        let o = unsafe { text(opts, opts_len) }
+            .and_then(|t| serde_json::from_str::<TrackOptions>(t).map_err(|e| e.to_string()))?;
+        job.provide(p, audio, o);
+        Ok("null".to_string())
+    });
+    reply(r)
+}
+
+/// Tells the job a track cannot be found; the render then fails with its name.
+///
+/// # Safety
+/// `job` from [`mx_render_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_render_missing(job: *mut RenderJob, path: *const u8, path_len: usize) -> i32 {
+    let job = unsafe { &mut *job };
+    let r = unsafe { text(path, path_len) }.map(|p| {
+        job.missing(p);
+        "null".to_string()
+    });
+    reply(r)
+}
+
+/// Renders up to `frames` frames. The audio is in the float buffer; the reply is
+/// `{"frames", "position", "total", "need": {"clip", "path", "title"} | null, "done"}`.
+///
+/// # Safety
+/// `job` from [`mx_render_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_render_next(job: *mut RenderJob, frames: usize) -> i32 {
+    let job = unsafe { &mut *job };
+    let r = OUT_F32
+        .with(|o| job.next(frames, &mut o.borrow_mut()))
+        .and_then(|p| serde_json::to_string(&p).map_err(|e| e.to_string()));
+    reply(r)
+}
+
+/// Frees a render job.
+///
+/// # Safety
+/// `job` from [`mx_render_new`], not used again.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_render_free(job: *mut RenderJob) {
+    if !job.is_null() {
+        drop(unsafe { Box::from_raw(job) });
+    }
 }
 
 #[cfg(test)]

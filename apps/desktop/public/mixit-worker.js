@@ -1,9 +1,16 @@
-// MixIt's heavy one-off work in a Web Worker: generating tracks and kit sounds, and
-// analysing audio. Same wasm module as the worklet.
+// MixIt's heavy one-off work in a Web Worker: generating tracks and kit sounds,
+// analysing audio, and rendering Arrange projects. Same wasm module as the worklet.
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 let e = null;
+/** Arrange render jobs by the page's job number. */
+const jobs = new Map();
+const jobOf = (n) => {
+  const j = jobs.get(n);
+  if (!j) throw new Error("That render was stopped.");
+  return j;
+};
 
 function text(s) {
   const b = enc.encode(s);
@@ -52,6 +59,39 @@ self.onmessage = async (ev) => {
     } else if (m.type === "registry") {
       e.mx_registry();
       self.postMessage({ type: "reply", id: m.id, ok: true, info: JSON.parse(out()) });
+    } else if (m.type === "renderStart") {
+      const [p, l] = text(JSON.stringify(m.request));
+      const job = e.mx_render_new(p, l, m.sampleRate);
+      e.mx_free_bytes(p, l);
+      if (!job) throw new Error(out());
+      jobs.set(m.job, job);
+      self.postMessage({ type: "reply", id: m.id, ok: true, frames: JSON.parse(out()).frames });
+    } else if (m.type === "renderTrack") {
+      const job = jobOf(m.job);
+      const a = e.mx_alloc_f32(m.audio.length);
+      new Float32Array(e.memory.buffer, a, m.audio.length).set(m.audio);
+      const [pp, pl] = text(m.path);
+      const [op, ol] = text(JSON.stringify(m.options));
+      const code = e.mx_render_track(job, pp, pl, a, m.audio.length, op, ol);
+      e.mx_free_bytes(pp, pl);
+      e.mx_free_bytes(op, ol);
+      if (code !== 0) throw new Error(out());
+      self.postMessage({ type: "reply", id: m.id, ok: true });
+    } else if (m.type === "renderMissing") {
+      const [pp, pl] = text(m.path);
+      e.mx_render_missing(jobOf(m.job), pp, pl);
+      e.mx_free_bytes(pp, pl);
+      self.postMessage({ type: "reply", id: m.id, ok: true });
+    } else if (m.type === "renderNext") {
+      if (e.mx_render_next(jobOf(m.job), m.frames) !== 0) throw new Error(out());
+      const progress = JSON.parse(out());
+      const audio = outF32();
+      self.postMessage({ type: "reply", id: m.id, ok: true, progress, audio }, [audio.buffer]);
+    } else if (m.type === "renderFree") {
+      const job = jobs.get(m.job);
+      if (job) e.mx_render_free(job);
+      jobs.delete(m.job);
+      self.postMessage({ type: "reply", id: m.id, ok: true });
     } else if (m.type === "kit") {
       const [p, l] = text(m.sound);
       const code = e.mx_kit(p, l, m.sampleRate);
