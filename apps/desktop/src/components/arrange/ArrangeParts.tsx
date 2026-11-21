@@ -35,9 +35,22 @@ import { playPreview } from "./preview";
 import { bpmAt, jumpHistory, redoProject, setProject, undoProject, updateClip, useHistory } from "./projectIo";
 
 /** Arrange view state shared by the timeline and the side panel. */
-export const useArrangeUi = create<{ snap: SnapMode; tempoSel: number | null; set: (p: Partial<{ snap: SnapMode; tempoSel: number | null }>) => void }>((set) => ({
+interface ArrangeUi {
+  snap: SnapMode;
+  tempoSel: number | null;
+  /** Selected clips; the last one is the one the side panel shows. */
+  selected: number[];
+  /** A stretch of the timeline that Play repeats, in beats. */
+  loop: { from: number; to: number } | null;
+  looping: boolean;
+}
+
+export const useArrangeUi = create<ArrangeUi & { set: (p: Partial<ArrangeUi>) => void }>((set) => ({
   snap: "bar",
   tempoSel: null,
+  selected: [],
+  loop: null,
+  looping: false,
   set: (p) => set(p),
 }));
 
