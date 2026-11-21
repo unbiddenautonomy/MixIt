@@ -1,4 +1,4 @@
-// The built-in guide: plain-English concepts with "Show me", the seven practice labs that
+// The built-in guide: plain-English concepts with "Show me", the eight practice labs that
 // tick themselves off as you do them, live troubleshooting, the signal chain and the
 // keyboard shortcuts. It sits beside the decks, so you can follow it while you play.
 import clsx from "clsx";

@@ -7,17 +7,20 @@
 //! not engine actions (`app.*`, grid edits, key sync) come back as [`ActionError::NotEngine`]
 //! for the app to handle.
 
-use mixit_core::actions::TEMPO_RANGES;
+use mixit_core::actions::{ECHO_TIMES, TEMPO_RANGES};
 use mixit_core::{DeckId, Quantize};
 use mixit_dsp::curves::{CrossfaderCurve, FaderCurve};
 use mixit_dsp::djeq::EqMode;
+use mixit_dsp::dynamics::CompressorSettings;
 use mixit_dsp::fx::{self, FxKind};
+use mixit_dsp::studio::StudioSettings;
 use serde::{Deserialize, Serialize};
 
 use crate::commands::{
     Command, DeckCommand, FxCommand, FxTarget, GlobalCommand, MixerCommand, PadMode, SamplerCommand, XfAssign,
 };
 use crate::input::MicCommand;
+use crate::mixer::ReturnParam;
 
 /// What happened to the control.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -88,7 +91,16 @@ pub struct ActionDispatcher {
     quantize: bool,
     quantize_size: usize,
     toggles: std::collections::HashMap<String, bool>,
+    /// Studio strip settings per channel, then the master's (last).
+    studio: Vec<StudioSettings>,
+    /// Ducking per channel: source deck and amount (0 … 1).
+    duck: Vec<(Option<usize>, f32)>,
 }
+
+/// Deepest ducking at amount 1 (dB).
+pub const DUCK_MAX_DB: f32 = 24.0;
+/// Saturation drive at warmth 1 (dB).
+pub const WARMTH_MAX_DB: f32 = 24.0;
 
 fn deck_index(letter: &str) -> Option<usize> {
     let c = letter.chars().next()?;
@@ -107,7 +119,30 @@ impl ActionDispatcher {
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v))
                 .collect(),
+            studio: vec![StudioSettings::default(); decks.max(1) + 1],
+            duck: vec![(None, 0.0); decks.max(1)],
         }
+    }
+
+    /// A channel's (or, with `None`, the master's) studio settings as last sent.
+    pub fn studio(&self, ch: Option<usize>) -> StudioSettings {
+        let i = ch.unwrap_or(self.studio.len() - 1).min(self.studio.len() - 1);
+        self.studio[i]
+    }
+
+    /// Replaces a channel's (or the master's) studio settings, for the detailed editor
+    /// and presets, and returns the command that applies them.
+    pub fn set_studio(&mut self, ch: Option<usize>, s: StudioSettings) -> Command {
+        let i = ch.unwrap_or(self.studio.len() - 1).min(self.studio.len() - 1);
+        self.studio[i] = s;
+        let target = (i < self.decks.len()).then_some(DeckId(i as u8));
+        Command::Mixer(MixerCommand::SetStudio(target, Box::new(s)))
+    }
+
+    fn edit_studio(&mut self, ch: Option<usize>, f: impl FnOnce(&mut StudioSettings)) -> Vec<Command> {
+        let mut s = self.studio(ch);
+        f(&mut s);
+        vec![self.set_studio(ch, s)]
     }
 
     /// Selected loop length of a deck in beats.
@@ -412,8 +447,59 @@ impl ActionDispatcher {
                 .map(|c| m(MixerCommand::SetAssign(deck, [XfAssign::A, XfAssign::Thru, XfAssign::B][c])))
                 .unwrap_or_default(),
             ["color"] | ["color_type"] => return Err(ActionError::NotEngine(id.into())),
+            ["pan"] => Self::value(input, id)?.map(|v| m(MixerCommand::SetPan(deck, v as f32))).unwrap_or_default(),
+            ["punch"] => match Self::value(input, id)? {
+                Some(v) => self.edit_studio(Some(i), |s| {
+                    s.comp_on = v > 0.001;
+                    s.comp = CompressorSettings::punch(v as f32);
+                }),
+                None => vec![],
+            },
+            ["warmth"] => match Self::value(input, id)? {
+                Some(v) => self.edit_studio(Some(i), |s| {
+                    s.sat_on = v > 0.001;
+                    s.drive_db = WARMTH_MAX_DB * v.clamp(0.0, 1.0) as f32;
+                }),
+                None => vec![],
+            },
+            ["width"] => match Self::value(input, id)? {
+                Some(v) => self.edit_studio(Some(i), |s| s.width = v.clamp(0.0, 2.0) as f32),
+                None => vec![],
+            },
+            ["gate"] => {
+                let cur = self.studio(Some(i)).gate_on;
+                match Self::toggle(cur, input, id)? {
+                    Some(on) => self.edit_studio(Some(i), |s| s.gate_on = on),
+                    None => vec![],
+                }
+            }
+            ["space"] => {
+                Self::value(input, id)?.map(|v| m(MixerCommand::SetSend(deck, 0, v as f32))).unwrap_or_default()
+            }
+            ["echo"] => {
+                Self::value(input, id)?.map(|v| m(MixerCommand::SetSend(deck, 1, v as f32))).unwrap_or_default()
+            }
+            ["duck_source"] => match Self::choice(input, mixit_core::actions::DUCK_SOURCES.len(), id)? {
+                Some(c) => {
+                    self.duck[i].0 = c.checked_sub(1).filter(|&j| j != i && j < self.decks.len());
+                    self.duck_command(i)
+                }
+                None => vec![],
+            },
+            ["duck"] => match Self::value(input, id)? {
+                Some(v) => {
+                    self.duck[i].1 = v.clamp(0.0, 1.0) as f32;
+                    self.duck_command(i)
+                }
+                None => vec![],
+            },
             _ => return Err(ActionError::Unknown(id.into())),
         })
+    }
+
+    fn duck_command(&self, i: usize) -> Vec<Command> {
+        let (src, amount) = self.duck[i];
+        vec![Command::Mixer(MixerCommand::SetDuck(DeckId(i as u8), src.map(|j| DeckId(j as u8)), amount * DUCK_MAX_DB))]
     }
 
     fn mic(&mut self, id: &str, rest: &[&str], input: ActionInput) -> Result<Vec<Command>, ActionError> {
@@ -482,6 +568,30 @@ impl ActionDispatcher {
             }
             ["limiter"] => {
                 Ok(self.generic_toggle(id, input)?.map(|on| m(MixerCommand::SetLimiter(on))).unwrap_or_default())
+            }
+            ["glue"] => Ok(match Self::value(input, id)? {
+                Some(v) => self.edit_studio(None, |s| {
+                    s.comp_on = v > 0.001;
+                    s.comp = CompressorSettings::glue(v as f32);
+                }),
+                None => vec![],
+            }),
+            [ret @ ("space" | "echo"), control] => {
+                let k = if *ret == "space" { 0 } else { 1 };
+                let r = |p: ReturnParam| vec![Command::Mixer(MixerCommand::SetReturn(k, p))];
+                match *control {
+                    "level" => Ok(Self::value(input, id)?.map(|v| r(ReturnParam::Level(v as f32))).unwrap_or_default()),
+                    "size" if k == 0 => {
+                        Ok(Self::value(input, id)?.map(|v| r(ReturnParam::Param(0, v as f32))).unwrap_or_default())
+                    }
+                    "feedback" if k == 1 => {
+                        Ok(Self::value(input, id)?.map(|v| r(ReturnParam::Param(0, v as f32))).unwrap_or_default())
+                    }
+                    "time" if k == 1 => Ok(Self::choice(input, ECHO_TIMES.len(), id)?
+                        .map(|c| r(ReturnParam::Beats(ECHO_TIMES[c].1)))
+                        .unwrap_or_default()),
+                    _ => Err(ActionError::Unknown(id.into())),
+                }
             }
             _ => Err(ActionError::Unknown(id.into())),
         }

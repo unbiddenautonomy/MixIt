@@ -8,13 +8,15 @@
 use std::sync::Arc;
 
 use mixit_core::{Beatgrid, DeckId, Key};
+use mixit_dsp::studio::{SPECTRUM_BANDS, Spectrum};
 use mixit_engine::actions::{ActionDispatcher, ActionError, ActionInput};
 use mixit_engine::commands::{Command, DeckCommand, GlobalCommand, PadMode, SamplerCommand};
-use mixit_engine::view::TelemetryDto;
+use mixit_engine::view::{StudioDto, TelemetryDto, studio_dto, studio_settings};
 use mixit_engine::{
     Controller, CueKind, DeckTrack, Engine, EngineConfig, Event, HOT_CUES, HotCue, InputFeed, MicCommand, TrackAudio,
     push_input,
 };
+use mixit_engine::{MixerCommand, ScopeSource};
 use mixit_stretch::PhaseVocoder;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -48,6 +50,10 @@ pub struct Host {
     /// Where the worklet writes each quantum of mic input (interleaved stereo).
     mic_in: Vec<f32>,
     capture: Vec<f32>,
+    /// What the spectrum analyser shows, and the analyser once one is open.
+    scope: ScopeSource,
+    scope_buf: Vec<f32>,
+    spectrum: Option<Spectrum>,
 }
 
 /// What the page sends with a track: where it starts and its saved cues.
@@ -118,6 +124,9 @@ impl Host {
             mic_tx: None,
             mic_in: vec![0.0; MAX_BLOCK * 2],
             capture: Vec::with_capacity(sample_rate as usize),
+            scope: ScopeSource::Off,
+            scope_buf: Vec::with_capacity(16_384),
+            spectrum: None,
         }
     }
 
@@ -171,7 +180,17 @@ impl Host {
             let dt = &t.decks[d];
             self.dispatcher.observe_deck(d, dt.sync, dt.keylock, dt.looping.active);
         }
-        Poll { t: TelemetryDto::new(&t, DECKS, self.sr, 0.0, 0), ended: self.ended.clone() }
+        let mut dto = TelemetryDto::new(&t, DECKS, self.sr, 0.0, 0);
+        if self.scope != ScopeSource::Off {
+            self.scope_buf.clear();
+            self.ctl.drain_scope(&mut self.scope_buf);
+            let sp = self.spectrum.get_or_insert_with(|| Spectrum::new(self.sr as f32));
+            sp.push(&self.scope_buf);
+            let mut bands = [0.0f32; SPECTRUM_BANDS];
+            sp.bands(&mut bands);
+            dto.spectrum = Some(bands.to_vec());
+        }
+        Poll { t: dto, ended: self.ended.clone() }
     }
 
     fn send(&mut self, c: Command) {
@@ -322,6 +341,28 @@ impl Host {
             }
             "micCapture" => self.send(Command::Mic(MicCommand::Capture(v["on"].as_bool().unwrap_or(false)))),
             "record" => self.send(Command::Global(GlobalCommand::SetRecording(v["on"].as_bool().unwrap_or(false)))),
+            "studioGet" => {
+                let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));
+                return Ok(json!(studio_dto(&self.dispatcher.studio(ch))));
+            }
+            "studioSet" => {
+                let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));
+                let dto: StudioDto = serde_json::from_value(v["settings"].clone()).map_err(|e| e.to_string())?;
+                let c = self.dispatcher.set_studio(ch, studio_settings(&dto));
+                self.send(c);
+            }
+            "scope" => {
+                let src = match &v["source"] {
+                    Value::String(s) if s == "master" => ScopeSource::Master,
+                    Value::Number(n) => ScopeSource::Channel((n.as_u64().unwrap_or(0) as usize).min(DECKS - 1)),
+                    _ => ScopeSource::Off,
+                };
+                self.scope = src;
+                if src == ScopeSource::Off {
+                    self.spectrum = None;
+                }
+                self.send(Command::Mixer(MixerCommand::SetScope(src)));
+            }
             _ => return Err(format!("unknown call {op}")),
         }
         Ok(Value::Null)
@@ -475,6 +516,32 @@ mod tests {
         h.call(r#"{"op":"micClose"}"#).unwrap();
         render(&mut h, 4_096);
         assert!(!h.poll().t.mic.connected);
+    }
+
+    #[test]
+    fn studio_settings_round_trip_and_the_spectrum_follows_the_channel() {
+        let sr = 48_000;
+        let mut h = Host::new(sr);
+        h.load(0, tone(4.0, sr), LoadOptions::default()).unwrap();
+        h.call(r#"{"op":"action","id":"deck.A.play","input":{"type":"press"}}"#).unwrap();
+        let mut s = h.call(r#"{"op":"studioGet","channel":0}"#).unwrap();
+        assert_eq!(s["bands"].as_array().unwrap().len(), 8);
+        s["compOn"] = json!(true);
+        s["bands"][0] = json!({"enabled":true,"shape":"highCut","freq":1000.0,"q":0.7,"gainDb":0.0,"slopeDb":24});
+        h.call(&json!({"op":"studioSet","channel":0,"settings":s}).to_string()).unwrap();
+        let back = h.call(r#"{"op":"studioGet","channel":0}"#).unwrap();
+        assert_eq!(back["compOn"], json!(true));
+        assert_eq!(back["bands"][0]["shape"], json!("highCut"));
+        h.call(r#"{"op":"action","id":"mixer.glue","input":{"type":"value","value":0.5}}"#).unwrap();
+        assert_eq!(h.call(r#"{"op":"studioGet"}"#).unwrap()["compOn"], json!(true));
+        h.call(r#"{"op":"scope","source":0}"#).unwrap();
+        render(&mut h, 8192);
+        let p = h.poll();
+        let sp = p.t.spectrum.expect("spectrum while the scope is on");
+        assert_eq!(sp.len(), SPECTRUM_BANDS);
+        assert!(sp.iter().all(|v| v.is_finite()));
+        h.call(r#"{"op":"scope","source":"off"}"#).unwrap();
+        assert!(h.poll().t.spectrum.is_none());
     }
 
     #[test]

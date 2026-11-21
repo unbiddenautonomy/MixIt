@@ -116,6 +116,38 @@ pub fn action(app: AppHandle, state: State<'_, AppState>, id: String, input: Act
     }
 }
 
+/// A channel's (`channel` 0..3) or the master's (`None`) studio strip settings.
+#[tauri::command]
+pub fn studio_get(state: State<'_, AppState>, channel: Option<u8>) -> R<mixit_engine::view::StudioDto> {
+    let a = state.audio.lock();
+    Ok(mixit_engine::view::studio_dto(&a.dispatcher.studio(channel.map(usize::from))))
+}
+
+/// Replaces a channel's or the master's studio strip settings (detailed editor, presets).
+#[tauri::command]
+pub fn studio_set(state: State<'_, AppState>, channel: Option<u8>, settings: mixit_engine::view::StudioDto) -> R<()> {
+    let s = mixit_engine::view::studio_settings(&settings);
+    let mut a = state.audio.lock();
+    let c = a.dispatcher.set_studio(channel.map(usize::from), s);
+    a.send(c);
+    Ok(())
+}
+
+/// Chooses what the spectrum analyser shows: "off", "master" or a channel number.
+#[tauri::command]
+pub fn scope_set(state: State<'_, AppState>, source: String) -> R<()> {
+    use mixit_engine::ScopeSource;
+    let src = match source.as_str() {
+        "off" => ScopeSource::Off,
+        "master" => ScopeSource::Master,
+        n => ScopeSource::Channel(n.parse::<usize>().map_err(|_| "bad scope source")?.min(DECKS - 1)),
+    };
+    let mut a = state.audio.lock();
+    a.scope = src;
+    a.send(Command::Mixer(mixit_engine::MixerCommand::SetScope(src)));
+    Ok(())
+}
+
 fn deck_letter(d: &str) -> R<usize> {
     let c = d.chars().next().ok_or("bad deck")?;
     let i = (c as u8).wrapping_sub(b'A') as usize;
@@ -1061,10 +1093,18 @@ pub fn project_check(project: serde_json::Value) -> R<Vec<String>> {
 /// Renders a project to samples, reporting progress as "render" jobs. Runs on the
 /// calling thread.
 fn render_samples(app: &AppHandle, p: &MixProject, label: &str) -> R<(Vec<f32>, u32)> {
+    app.state::<AppState>().render_cancel.store(false, Ordering::SeqCst);
+    render_with(app, p, label, &mixit_host::project::RenderOptions::default())
+}
+
+fn render_with(
+    app: &AppHandle,
+    p: &MixProject,
+    label: &str,
+    opts: &mixit_host::project::RenderOptions,
+) -> R<(Vec<f32>, u32)> {
     let state = app.state::<AppState>();
-    state.render_cancel.store(false, Ordering::SeqCst);
     let lib = state.job_library()?;
-    let opts = mixit_host::project::RenderOptions::default();
     let mut r = mixit_cli::resolve::Resolver::new(
         opts.sample_rate,
         Some(&lib),
@@ -1074,7 +1114,7 @@ fn render_samples(app: &AppHandle, p: &MixProject, label: &str) -> R<(Vec<f32>, 
     let cancel = state.render_cancel.clone();
     let res = mixit_host::project::render_project(
         p,
-        &opts,
+        opts,
         |c| r.resolve(c),
         &cancel,
         |f| {
@@ -1099,22 +1139,110 @@ fn render_samples(app: &AppHandle, p: &MixProject, label: &str) -> R<(Vec<f32>, 
 
 /// Bounces a project to `path` in the background ("job" events with kind "render").
 #[tauri::command]
-pub fn project_render(app: AppHandle, project: serde_json::Value, path: String, format: Option<String>) -> R<()> {
+/// With `target_lufs` the finished mix is turned up or down to that loudness (never past
+/// −1 dB peak).
+pub fn project_render(
+    app: AppHandle,
+    project: serde_json::Value,
+    path: String,
+    format: Option<String>,
+    target_lufs: Option<f64>,
+) -> R<()> {
     let p = project_from_value(project)?;
     let out = PathBuf::from(&path);
     let fmt = mixit_cli::ops::format_for(&out, format.as_deref()).map_err(err)?;
     std::thread::Builder::new()
         .name("mixit-render".into())
         .spawn(move || {
-            let done = render_samples(&app, &p, "Rendering").and_then(|(audio, sr)| {
+            let done = render_samples(&app, &p, "Rendering").and_then(|(mut audio, sr)| {
+                let note = match target_lufs {
+                    Some(t) => {
+                        let fix = mixit_engine::arrangement::normalize_loudness(&mut audio, sr, t, -1.0);
+                        if fix.peak_limited {
+                            format!(
+                                " (at {:.1} LUFS: louder would clip; turn up the glue or limiter to get closer to {t})",
+                                fix.measured_lufs + fix.gain_db
+                            )
+                        } else {
+                            format!(" (at {t} LUFS)")
+                        }
+                    }
+                    None => String::new(),
+                };
                 mixit_cli::ops::write_audio(&out, &audio, sr, fmt)
-                    .map(|_| format!("Saved {}", out.display()))
+                    .map(|_| format!("Saved {}{note}", out.display()))
                     .map_err(|e| e.to_string())
             });
             let (message, error) = match done {
                 Ok(m) => (m, None),
                 Err(e) => (String::new(), Some(e)),
             };
+            emit_job(&app, JobProgress { kind: "render", done: 1000, total: 1000, message, finished: true, error });
+        })
+        .map_err(err)?;
+    Ok(())
+}
+
+/// Bounces each lane of a project to its own file in `folder` ("<name> - Deck A.flac"),
+/// all the same length so they line up in another program. Stems skip the master strip
+/// and limiter, so added together they make the mix.
+#[tauri::command]
+pub fn project_render_stems(
+    app: AppHandle,
+    project: serde_json::Value,
+    folder: String,
+    format: Option<String>,
+) -> R<()> {
+    let p = project_from_value(project)?;
+    let lanes = p.used_lanes();
+    if lanes.is_empty() {
+        return Err("the project has no clips".into());
+    }
+    let ext = if format.as_deref() == Some("wav") { "wav" } else { "flac" };
+    let dir = PathBuf::from(&folder);
+    std::thread::Builder::new()
+        .name("mixit-stems".into())
+        .spawn(move || {
+            let state = app.state::<AppState>();
+            state.render_cancel.store(false, Ordering::SeqCst);
+            let base = mixit_host::project::RenderOptions::default();
+            let opts = mixit_host::project::RenderOptions {
+                limiter: false,
+                length_seconds: Some(p.length_seconds() + base.tail),
+                ..base
+            };
+            let safe: String =
+                p.name.chars().map(|c| if c.is_alphanumeric() || " -_".contains(c) { c } else { '_' }).collect();
+            let mut written = Vec::new();
+            let mut error = None;
+            for lane in &lanes {
+                let mut stem = p.lane_only(*lane);
+                stem.master_strip = None;
+                let letter = (b'A' + lane) as char;
+                let out = dir.join(format!("{} - Deck {letter}.{ext}", safe.trim()));
+                let fmt = match mixit_cli::ops::format_for(&out, None) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        error = Some(e.to_string());
+                        break;
+                    }
+                };
+                match render_with(&app, &stem, &format!("Stem {letter}"), &opts).and_then(|(audio, sr)| {
+                    mixit_cli::ops::write_audio(&out, &audio, sr, fmt).map_err(|e| e.to_string())
+                }) {
+                    Ok(()) => written.push(out),
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                }
+            }
+            let message = format!(
+                "Saved {} stem{} in {}",
+                written.len(),
+                if written.len() == 1 { "" } else { "s" },
+                dir.display()
+            );
             emit_job(&app, JobProgress { kind: "render", done: 1000, total: 1000, message, finished: true, error });
         })
         .map_err(err)?;

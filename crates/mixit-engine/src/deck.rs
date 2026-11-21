@@ -1287,6 +1287,7 @@ impl Deck {
             remaining: ((frames - a) / self.sr).max(0.0),
             peak: [0.0; 2],
             rms: 0.0,
+            ..DeckTelemetry::default()
         }
     }
 }

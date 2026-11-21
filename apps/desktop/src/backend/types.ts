@@ -140,6 +140,13 @@ export interface DeckTele {
   looping: LoopDto;
   peak: [number, number];
   rms: number;
+  /** Bass below about 150 Hz after the fader (RMS), for spotting two basslines at once. */
+  lowRms: number;
+  /** Studio compressor gain reduction (dB, positive). */
+  compGrDb: number;
+  /** How far ducking turned the channel down (dB, positive). */
+  duckDb: number;
+  gateOpen: boolean;
 }
 
 export interface MasterTele {
@@ -149,6 +156,8 @@ export interface MasterTele {
   shortTermLufs: number;
   correlation: number;
   limiterGrDb: number;
+  /** Master glue compressor gain reduction (dB, positive). */
+  glueGrDb: number;
   cuePeak: [number, number];
   clipped: boolean;
 }
@@ -166,7 +175,61 @@ export interface Telemetry {
   overruns: number;
   /** Bit n is set while sampler pad n plays. */
   samplerPlaying: number;
+  /** Spectrum-analyser bands (dB, 96 log-spaced bands from 20 Hz to 20 kHz) while one is open. */
+  spectrum?: number[];
 }
+
+// ------------------------------------------------------------------ studio strips
+
+export type BandShape = "bell" | "lowShelf" | "highShelf" | "lowCut" | "highCut" | "notch" | "bandPass";
+
+export interface BandDto {
+  enabled: boolean;
+  shape: BandShape;
+  freq: number;
+  q: number;
+  gainDb: number;
+  /** Cuts only: 12, 24, 36 or 48 dB per octave. */
+  slopeDb: number;
+}
+
+export interface CompDto {
+  thresholdDb: number;
+  ratio: number;
+  kneeDb: number;
+  attackMs: number;
+  releaseMs: number;
+  makeupDb: number;
+  autoMakeup: boolean;
+  sidechainHpfHz: number;
+  mix: number;
+}
+
+export interface GateDto {
+  thresholdDb: number;
+  hysteresisDb: number;
+  attackMs: number;
+  holdMs: number;
+  releaseMs: number;
+  rangeDb: number;
+}
+
+/** A channel's (or the master's) studio insert chain. */
+export interface StudioDto {
+  gateOn: boolean;
+  gate: GateDto;
+  eqOn: boolean;
+  bands: BandDto[];
+  compOn: boolean;
+  comp: CompDto;
+  satOn: boolean;
+  driveDb: number;
+  width: number;
+  outputDb: number;
+}
+
+/** What the spectrum analyser shows: nothing, the master, or a channel (0..3). */
+export type ScopeSource = "off" | "master" | number;
 
 export interface AudioStatus {
   device: string;
@@ -412,7 +475,7 @@ export interface TrackEdit {
 // --- Mix projects (crates/mixit-project, serialised as-is) ---
 
 export type CurveShape = "Linear" | "Smooth" | "Power" | "Hold";
-export type ProjectParam = "Volume" | "EqLow" | "EqMid" | "EqHigh" | "Filter" | "FxMix";
+export type ProjectParam = "Volume" | "EqLow" | "EqMid" | "EqHigh" | "Filter" | "FxMix" | "Pan" | "Space" | "Echo";
 
 export interface AutomationPoint {
   beat: number;
@@ -448,6 +511,8 @@ export interface Clip {
   lanes: AutomationLane[];
   fx: { kind: number; beats: number } | null;
   name: string;
+  /** Plays the clip's range of the track backwards. */
+  reverse?: boolean;
 }
 
 export interface TempoSegment {
@@ -463,7 +528,20 @@ export interface MixProject {
   clips: Clip[];
   markers: { beat: number; label: string }[];
   master_gain_db: number;
+  /** Studio strip per lane (deck); missing entries leave the sound unchanged. */
+  strips?: StudioDto[];
+  master_strip?: StudioDto | null;
+  returns?: ProjectReturns;
   next_id: number;
+}
+
+/** The shared reverb and echo a project's lanes send to. */
+export interface ProjectReturns {
+  space_level_db: number;
+  space_size: number;
+  echo_level_db: number;
+  echo_feedback: number;
+  echo_beats: number;
 }
 
 export interface AutomixRequest {
@@ -481,4 +559,41 @@ export interface WaveformData {
   framesPerColumn: number;
   /** 5 bytes per column: peak, rms, low, mid, high. */
   columns: Uint8Array;
+}
+
+// ------------------------------------------------------------------ sound editor
+
+/** One step of a non-destructive sound edit. Times are seconds in the sound as it is at
+ * that step. */
+export type EditOp =
+  | { op: "trim"; start: number; end: number }
+  | { op: "delete"; start: number; end: number }
+  | { op: "copy"; start: number; end: number }
+  | { op: "paste"; at: number }
+  | { op: "silence"; start: number; end: number }
+  | { op: "insertSilence"; at: number; seconds: number }
+  | { op: "fade"; start: number; end: number; fadeIn: boolean; shape: FadeShape }
+  | { op: "gain"; start: number; end: number; db: number }
+  | { op: "normalize"; to: "peak" | "loudness"; level: number }
+  | { op: "reverse"; start: number; end: number }
+  | { op: "trimSilence"; thresholdDb: number }
+  | { op: "removeDc" };
+
+export type FadeShape = "linear" | "smooth" | "power" | "exponential";
+
+/** An edited sound, summarised for drawing. */
+export interface SoundView {
+  seconds: number;
+  sampleRate: number;
+  /** [min, max] per bin over the whole sound. */
+  peaks: [number, number][];
+  /** Integrated loudness (LUFS; −99 when too short to measure) and peak (dBFS). */
+  lufs: number;
+  peakDb: number;
+}
+
+export interface SoundOpened {
+  id: number;
+  name: string;
+  view: SoundView;
 }

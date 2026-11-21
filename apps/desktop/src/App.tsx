@@ -14,11 +14,13 @@ import { Library } from "./components/library/Library";
 import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
 import { SamplerPanel } from "./components/sampler/SamplerPanel";
+import { StudioPanel } from "./components/studio/StudioPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TrackEditor } from "./components/editor/TrackEditor";
+import { SoundEditor } from "./components/editor/SoundEditor";
 import { MixReportDialog } from "./components/feedback/MixReport";
 import { Tour } from "./components/guide/Tour";
 import { maybeWelcome } from "./guide/tour";
@@ -149,10 +151,12 @@ export function App() {
       <CommandPalette />
       <SettingsDialog />
       <TrackEditor />
+      <SoundEditor />
       <MixReportDialog onEdit={(p) => void openCapturedMix(p)} />
       <Tour />
       <DragLayer />
       <AutomixDialog />
+      <StudioPanel />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />
     </Tooltip.Provider>

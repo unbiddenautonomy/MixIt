@@ -2463,6 +2463,7 @@ dependencies = [
  "mixit-stretch",
  "rtrb",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

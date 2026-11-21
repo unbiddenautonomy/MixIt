@@ -7,6 +7,7 @@ pub mod audio;
 pub mod commands;
 pub mod dto;
 pub mod sampler;
+pub mod sound;
 pub mod state;
 pub mod telemetry;
 
@@ -36,6 +37,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::studio_get,
+            commands::studio_set,
+            commands::scope_set,
             commands::action,
             commands::load_track,
             commands::seek,
@@ -88,6 +92,12 @@ pub fn run() {
             commands::project_open,
             commands::project_check,
             commands::project_render,
+            commands::project_render_stems,
+            sound::sound_open,
+            sound::sound_render,
+            sound::sound_audio,
+            sound::sound_save,
+            sound::sound_close,
             commands::project_preview,
             commands::import_rekordbox,
             commands::export_rekordbox,

@@ -3,7 +3,7 @@
 // "Mix it" button that runs a whole transition in time with the music.
 import clsx from "clsx";
 import * as Popover from "@radix-ui/react-popover";
-import { Headphones, SlidersHorizontal, Sparkles, Square } from "lucide-react";
+import { Headphones, SlidersHorizontal, SlidersVertical, Sparkles, Square } from "lucide-react";
 import { useMemo, useState } from "react";
 import { choose, setOn, setValue } from "../../lib/actions";
 import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
@@ -16,6 +16,7 @@ import { Knob } from "../ui/Knob";
 import { Meter } from "../ui/Meter";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { MicStrip } from "../mic/MicPanel";
+import { MASTER_STRIP, openStudio, useStudio } from "../../store/studio";
 
 /** Channel order on the mixer: 2 decks A B; 4 decks C A B D, like a club mixer. */
 export function channelOrder(count: number): number[] {
@@ -74,6 +75,7 @@ function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: 
         <span className="text-[11px] font-black" style={{ color }}>
           {L}
         </span>
+        <StudioButton strip={deck} />
         <Ctl id={`mixer.${L}.cue`} side="top">
           <button
             type="button"
@@ -119,7 +121,10 @@ function MasterSection({ pro }: { pro: boolean }) {
   const clipped = useTelemetry((s) => s.t.master.clipped);
   return (
     <div className="ml-1 flex w-[70px] flex-col items-center gap-1.5 rounded-xl border border-white/[0.05] bg-black/30 px-1 py-1.5">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Master</div>
+      <div className="flex items-center gap-1">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Master</div>
+        <StudioButton strip={MASTER_STRIP} />
+      </div>
       <Ctl id="mixer.master" side="right">
         <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" />
       </Ctl>
@@ -145,6 +150,29 @@ function MasterSection({ pro }: { pro: boolean }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Opens the studio panel (EQ, compressor, effects sends) for a channel or the master. */
+function StudioButton({ strip }: { strip: number }) {
+  const open = useStudio((s) => s.open === strip);
+  const busy = useApp((s) => (strip === MASTER_STRIP ? s.mixer.glue > 0 : (() => {
+    const c = s.mixer.channels[strip];
+    return !!c && (c.punch > 0 || c.warmth > 0 || c.space > 0 || c.echo > 0 || c.duckSource > 0 || c.gate || Math.abs(c.pan) > 0.01 || Math.abs(c.width - 1) > 0.01);
+  })()));
+  return (
+    <Ctl label="Studio" explain="Opens this channel's studio: a detailed EQ you can see, compression, warmth, reverb and echo sends, and presets like 'Clearer vocals'." side="top">
+      <button
+        type="button"
+        onClick={() => openStudio(open ? null : strip)}
+        className={clsx("relative flex h-5 w-6 items-center justify-center rounded-md border transition-colors", open ? "border-transparent bg-[var(--accent,#e4e4e7)] text-zinc-950" : "border-white/10 text-zinc-400 hover:text-zinc-100")}
+        aria-label="Studio"
+        aria-pressed={open}
+      >
+        <SlidersVertical size={11} />
+        {busy && !open && <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-[var(--accent,#e4e4e7)]" />}
+      </button>
+    </Ctl>
   );
 }
 

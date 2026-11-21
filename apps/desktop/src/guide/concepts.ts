@@ -19,9 +19,9 @@ export interface Concept {
   glossary?: string[];
 }
 
-export type ConceptGroup = "Basics" | "Beat and tempo" | "Mixer" | "Keys" | "Effects and tricks" | "Your library" | "Sound quality";
+export type ConceptGroup = "Basics" | "Beat and tempo" | "Mixer" | "Keys" | "Effects and tricks" | "Studio" | "Your library" | "Sound quality";
 
-export const CONCEPT_GROUPS: ConceptGroup[] = ["Basics", "Beat and tempo", "Mixer", "Keys", "Effects and tricks", "Your library", "Sound quality"];
+export const CONCEPT_GROUPS: ConceptGroup[] = ["Basics", "Beat and tempo", "Mixer", "Keys", "Effects and tricks", "Studio", "Your library", "Sound quality"];
 
 export const CONCEPTS: Concept[] = [
   // ---------------------------------------------------------------- basics
@@ -396,6 +396,114 @@ export const CONCEPTS: Concept[] = [
       "It is a calm way to design a transition, listen, adjust and render, instead of doing it live.",
     ],
     lab: "automation",
+  },
+  // ---------------------------------------------------------------- studio
+  {
+    id: "studio",
+    title: "The studio on every channel",
+    group: "Studio",
+    summary: "A detailed EQ you can see, plus compression, warmth and effects sends, behind the sliders button on each channel.",
+    body: [
+      "The three EQ knobs on the mixer are quick and musical. The studio goes further: up to eight EQ bands you drag on a picture of the sound, so you can see where the bass, the voice and the cymbals are and change just that part.",
+      "It also holds a compressor (Punch), tape-style warmth, stereo width, a gate for noisy mics, and sends to a shared reverb and echo. Presets like \"Clearer vocals\" or \"Make room for the other deck\" set it up for you.",
+      "Each Arrange lane has the same studio, and so does the whole mix (Master), so a mix you plan sounds the way you hear it.",
+    ],
+    controls: ["mixer.A.punch", "mixer.A.warmth", "mixer.A.space"],
+    lab: "studio",
+  },
+  {
+    id: "compressor",
+    title: "Compression (Punch and Glue)",
+    group: "Studio",
+    summary: "Turns loud moments down so the whole sound is more even, punchier and easier to hear.",
+    body: [
+      "A compressor listens to the level and turns it down whenever it gets louder than a threshold. The quiet parts can then come up, so a track sounds fuller and steadier.",
+      "Punch is a one-knob compressor for a channel: it lets the start of each drum hit through, then holds the body up. Glue is a gentle one for the whole mix, so separate tracks sound like one record.",
+      "Too much squashes the life out of the music. Watch the Compressing meter: a few dB is plenty.",
+    ],
+    controls: ["mixer.A.punch", "mixer.glue"],
+    glossary: ["compressor"],
+    lab: "studio",
+  },
+  {
+    id: "saturation",
+    title: "Warmth (saturation)",
+    group: "Studio",
+    summary: "Adds the gentle harmonics of tape and valves, so a thin track feels fuller.",
+    body: [
+      "Saturation bends the loudest parts of the wave slightly, adding harmonics the ear hears as warmth and weight. A little makes a clean digital track feel richer and louder without turning it up.",
+      "Turned far up it becomes audible distortion: a creative effect, but not what you want on everything.",
+    ],
+    controls: ["mixer.A.warmth"],
+    glossary: ["saturation"],
+  },
+  {
+    id: "stereo",
+    title: "Pan and stereo width",
+    group: "Studio",
+    summary: "Where a sound sits between the speakers, and how wide it spreads.",
+    body: [
+      "Pan moves a channel towards the left or right speaker. In a DJ mix both tracks usually stay in the middle; pan is useful for a mic or a sampler sound.",
+      "Width makes a track narrower (towards mono) or wider. Narrowing one track leaves space at the sides for another. MixIt keeps the bass in the middle either way, because bass in the sides sounds weak on club systems and vanishes on a phone.",
+    ],
+    controls: ["mixer.A.pan", "mixer.A.width"],
+    glossary: ["pan", "stereo-width"],
+  },
+  {
+    id: "sends",
+    title: "Reverb and echo sends",
+    group: "Studio",
+    summary: "Send some of a channel to a shared reverb (Space) or echo, and let it ring on.",
+    body: [
+      "Space and Echo on each channel send a copy of the sound to one shared reverb and one shared echo. The original carries on untouched; the effect is added on top.",
+      "Because the effect is separate, it keeps ringing after you pull the fader down or stop the track: the classic way to end a track on a wash of reverb or a trail of echoes.",
+      "The echo follows the tempo. Set its time and repeats, and the reverb's size, in the Master studio.",
+    ],
+    controls: ["mixer.A.space", "mixer.A.echo", "mixer.space.level", "mixer.echo.level"],
+    glossary: ["send", "reverb", "echo"],
+    lab: "studio",
+  },
+  {
+    id: "ducking",
+    title: "Ducking",
+    group: "Studio",
+    summary: "One channel turns itself down whenever another is loud.",
+    body: [
+      "Pick \"Duck under\" on a channel and choose another deck. Whenever that deck plays loud, this one dips automatically, then comes back up.",
+      "It is how radio voices sit over music, and it lets a new bassline come through without riding the fader. The Ducked meter shows how far it is down.",
+    ],
+    controls: ["mixer.A.duck_source", "mixer.A.duck"],
+    glossary: ["ducking"],
+  },
+  {
+    id: "gate",
+    title: "Noise gate",
+    group: "Studio",
+    summary: "Silences a channel between sounds, cutting hiss, hum or a noisy room.",
+    body: ["A gate stays closed while the sound is quieter than its threshold and opens when something louder comes through. On a mic it removes the room and the hum between your words; on a track it can tighten a loose recording."],
+    controls: ["mixer.A.gate"],
+    glossary: ["gate"],
+  },
+  {
+    id: "loudness",
+    title: "Loudness and LUFS",
+    group: "Studio",
+    summary: "How loud a mix feels, measured the way streaming services and broadcasters do.",
+    body: [
+      "LUFS measures loudness the way ears hear it. Streaming services turn every track to about −14 LUFS, so a mix made louder than that is turned down and only loses its punch.",
+      "Pick a target in the Master studio and press Match, or pick it when you render. Clubs run louder (around −9), podcasts and Apple Music quieter (−16).",
+    ],
+    controls: ["mixer.master", "mixer.glue"],
+  },
+  {
+    id: "sound-editor",
+    title: "Editing a sound",
+    group: "Studio",
+    summary: "Trim, cut, fade, normalise and reverse a mic take, a pad or part of a track.",
+    body: [
+      "Open the sound editor from a pad's menu, the mic's last take or a track's menu in the library. Select with the mouse, then trim, cut, copy and paste, fade, change the volume, normalise or reverse.",
+      "Every change is a step in a list over the untouched original, so you can undo, or take out an early step and keep the later ones. Save puts the result on a pad or in your library as a new file.",
+    ],
   },
   // ---------------------------------------------------------------- sound quality
   {

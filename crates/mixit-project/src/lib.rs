@@ -10,12 +10,14 @@
 //! host (it drives the real engine), so the result sounds exactly like playing live.
 
 pub mod automix;
+pub mod strip;
 pub mod transition;
 
 use mixit_core::tempo_map::{TempoSegment, TimeSignature};
 use mixit_core::{Key, TempoMap};
 use serde::{Deserialize, Serialize};
 
+pub use strip::StudioDto;
 pub use transition::TransitionKind;
 
 pub const PROJECT_VERSION: u32 = 1;
@@ -49,10 +51,26 @@ pub enum Param {
     Filter,
     /// Effect wet/dry 0..1 (0 = effect off).
     FxMix,
+    /// Stereo position −1 (left) … 0 (centre) … +1 (right).
+    Pan,
+    /// Send to the shared reverb, 0..1.
+    Space,
+    /// Send to the shared echo, 0..1.
+    Echo,
 }
 
 impl Param {
-    pub const ALL: [Param; 6] = [Param::Volume, Param::EqLow, Param::EqMid, Param::EqHigh, Param::Filter, Param::FxMix];
+    pub const ALL: [Param; 9] = [
+        Param::Volume,
+        Param::EqLow,
+        Param::EqMid,
+        Param::EqHigh,
+        Param::Filter,
+        Param::FxMix,
+        Param::Pan,
+        Param::Space,
+        Param::Echo,
+    ];
 
     pub fn default_value(self) -> f32 {
         match self {
@@ -63,9 +81,9 @@ impl Param {
 
     pub fn range(self) -> (f32, f32) {
         match self {
-            Param::Volume | Param::FxMix => (0.0, 1.0),
+            Param::Volume | Param::FxMix | Param::Space | Param::Echo => (0.0, 1.0),
             Param::EqLow | Param::EqMid | Param::EqHigh => (EQ_CUT_DB, 6.0),
-            Param::Filter => (-1.0, 1.0),
+            Param::Filter | Param::Pan => (-1.0, 1.0),
         }
     }
 
@@ -77,6 +95,9 @@ impl Param {
             Param::EqHigh => "High",
             Param::Filter => "Filter",
             Param::FxMix => "Effect",
+            Param::Pan => "Pan",
+            Param::Space => "Space",
+            Param::Echo => "Echo",
         }
     }
 }
@@ -185,7 +206,8 @@ pub struct Clip {
     pub start: f64,
     /// Length on the timeline (beats).
     pub length: f64,
-    /// The track's grid beat heard at `start`.
+    /// The track's grid beat heard at `start`: the low end of the range of the track the
+    /// clip plays (which a reversed clip plays from its top down to here).
     pub source_start: f64,
     /// Pitch shift in semitones (keylock keeps tempo and key independent).
     pub key_shift: f32,
@@ -194,6 +216,9 @@ pub struct Clip {
     pub lanes: Vec<Lane>,
     pub fx: Option<ClipFx>,
     pub name: String,
+    /// Plays the clip's range of the track backwards (its last beat first).
+    #[serde(default)]
+    pub reverse: bool,
 }
 
 impl Clip {
@@ -201,9 +226,13 @@ impl Clip {
         self.start + self.length
     }
 
-    /// The track grid beat heard at a timeline beat.
+    /// The track grid beat heard at a timeline beat (counting down for a reversed clip).
     pub fn source_beat(&self, timeline_beat: f64) -> f64 {
-        self.source_start + (timeline_beat - self.start)
+        if self.reverse {
+            self.source_start + self.length - (timeline_beat - self.start)
+        } else {
+            self.source_start + (timeline_beat - self.start)
+        }
     }
 
     pub fn lane(&self, p: Param) -> Option<&Lane> {
@@ -220,6 +249,23 @@ impl Clip {
 
     pub fn value_at(&self, p: Param, beat: f64) -> f32 {
         self.lane(p).map(|l| l.value_at(beat)).unwrap_or(p.default_value())
+    }
+
+    /// Shortens the clip from the front by `beats`, keeping the rest of the audio where it is.
+    pub fn cut_front(&mut self, beats: f64) {
+        if !self.reverse {
+            self.source_start += beats;
+        }
+        self.start += beats;
+        self.length -= beats;
+    }
+
+    /// Shortens the clip from the back by `beats`.
+    pub fn cut_back(&mut self, beats: f64) {
+        if self.reverse {
+            self.source_start += beats;
+        }
+        self.length -= beats;
     }
 
     /// Whether the clip sounds at a timeline beat.
@@ -242,7 +288,36 @@ pub struct MixProject {
     pub clips: Vec<Clip>,
     pub markers: Vec<Marker>,
     pub master_gain_db: f32,
+    /// Studio strip per lane (deck); missing entries are transparent.
+    #[serde(default)]
+    pub strips: Vec<StudioDto>,
+    /// Studio strip on the master, after the lanes are summed.
+    #[serde(default)]
+    pub master_strip: Option<StudioDto>,
+    /// The shared reverb and echo the lanes send to.
+    #[serde(default)]
+    pub returns: Returns,
     next_id: u64,
+}
+
+/// Settings of the shared reverb ("space") and echo returns.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Returns {
+    pub space_level_db: f32,
+    /// Room size 0..1.
+    pub space_size: f32,
+    pub echo_level_db: f32,
+    /// How many repeats 0..1.
+    pub echo_feedback: f32,
+    /// Echo time in beats.
+    pub echo_beats: f32,
+}
+
+impl Default for Returns {
+    fn default() -> Self {
+        Returns { space_level_db: -3.0, space_size: 0.5, echo_level_db: -3.0, echo_feedback: 0.5, echo_beats: 0.75 }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -271,6 +346,9 @@ impl MixProject {
             clips: vec![],
             markers: vec![],
             master_gain_db: 0.0,
+            strips: vec![],
+            master_strip: None,
+            returns: Returns::default(),
             next_id: 1,
         }
     }
@@ -328,11 +406,11 @@ impl MixProject {
             .map(|c| {
                 let mut c = c.clone();
                 if c.start < from {
-                    c.source_start = c.source_beat(from);
-                    c.length -= from - c.start;
-                    c.start = from;
+                    c.cut_front(from - c.start);
                 }
-                c.length = c.length.min(to - c.start);
+                if c.end() > to {
+                    c.cut_back(c.end() - to);
+                }
                 c.start -= from;
                 for l in &mut c.lanes {
                     l.shift(-from);
@@ -353,8 +431,26 @@ impl MixProject {
             clips,
             markers,
             master_gain_db: self.master_gain_db,
+            strips: self.strips.clone(),
+            master_strip: self.master_strip.clone(),
+            returns: self.returns,
             next_id: self.next_id,
         }
+    }
+
+    /// The project with only the clips on one lane (for rendering stems).
+    pub fn lane_only(&self, lane: u8) -> MixProject {
+        let mut p = self.clone();
+        p.clips.retain(|c| c.lane == lane);
+        p
+    }
+
+    /// Lanes that have at least one clip, in order.
+    pub fn used_lanes(&self) -> Vec<u8> {
+        let mut v: Vec<u8> = self.clips.iter().map(|c| c.lane).collect();
+        v.sort_unstable();
+        v.dedup();
+        v
     }
 
     /// Adds a clip and returns its id.
@@ -404,14 +500,15 @@ impl MixProject {
     pub fn trim_clip(&mut self, id: u64, new_start: Option<f64>, new_end: Option<f64>) -> Result<(), ProjectError> {
         let c = self.clip_mut(id)?;
         let end = new_end.unwrap_or(c.end());
-        if let Some(s) = new_start {
-            c.source_start += s - c.start;
-            c.start = s;
-        }
-        if end <= c.start {
+        if end <= new_start.unwrap_or(c.start) {
             return Err(ProjectError::Invalid("clip would have no length"));
         }
-        c.length = end - c.start;
+        // Extending past the old end of a reversed clip reaches lower in the track.
+        let back = c.end() - end;
+        c.cut_back(back);
+        if let Some(s) = new_start {
+            c.cut_front(s - c.start);
+        }
         self.sort();
         Ok(())
     }
@@ -423,16 +520,14 @@ impl MixProject {
             return Err(ProjectError::Invalid("split point is outside the clip"));
         }
         let mut right = c.clone();
-        right.source_start = c.source_beat(at);
-        right.start = at;
-        right.length = c.end() - at;
+        right.cut_front(at - c.start);
         for l in &mut right.lanes {
             let v = l.value_at(at);
             l.points.retain(|p| p.beat >= at);
             l.set_point(Point { beat: at, value: v, curve: Curve::Linear });
         }
         let left = self.clip_mut(id)?;
-        left.length = at - left.start;
+        left.cut_back(left.end() - at);
         for l in &mut left.lanes {
             let v = l.value_at(at);
             l.points.retain(|p| p.beat <= at);
@@ -625,6 +720,7 @@ mod tests {
             lanes: vec![],
             fx: None,
             name: String::new(),
+            reverse: false,
         }
     }
 
@@ -738,5 +834,50 @@ mod tests {
         let back = MixProject::from_json(&p.to_json()).unwrap();
         assert_eq!(back, p);
         assert!((back.tempo.seconds_at_beat(100.0) - p.tempo.seconds_at_beat(100.0)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn reversed_clips_keep_their_audio_in_place_when_cut() {
+        let mut p = MixProject::new("r", 124.0);
+        let mut c = clip(16.0, 32.0, 0);
+        c.source_start = 64.0;
+        c.reverse = true;
+        let id = p.add_clip(c);
+        // Heard at the start: the top of the range; at the end: the bottom.
+        assert_eq!(p.clip(id).unwrap().source_beat(16.0), 96.0);
+        assert_eq!(p.clip(id).unwrap().source_beat(48.0), 64.0);
+        let right = p.split_clip(id, 24.0).unwrap();
+        for (beat, src) in [(16.0, 96.0), (23.0, 89.0)] {
+            assert_eq!(p.clip(id).unwrap().source_beat(beat), src);
+        }
+        for (beat, src) in [(24.0, 88.0), (47.0, 65.0)] {
+            assert_eq!(p.clip(right).unwrap().source_beat(beat), src);
+        }
+        p.trim_clip(right, Some(28.0), Some(40.0)).unwrap();
+        let r = p.clip(right).unwrap();
+        assert_eq!((r.source_beat(28.0), r.source_beat(40.0)), (84.0, 72.0));
+        let ex = p.excerpt(30.0, 34.0);
+        assert_eq!(ex.clips[0].source_beat(0.0), 82.0);
+        assert_eq!(ex.clips[0].source_beat(4.0), 78.0);
+    }
+
+    #[test]
+    fn older_projects_load_with_transparent_strips() {
+        let mut p = MixProject::new("old", 124.0);
+        p.add_clip(clip(0.0, 16.0, 0));
+        let mut v: serde_json::Value = serde_json::from_str(&p.to_json()).unwrap();
+        let o = v.as_object_mut().unwrap();
+        o.remove("strips");
+        o.remove("master_strip");
+        o.remove("returns");
+        o["clips"][0].as_object_mut().unwrap().remove("reverse");
+        let back = MixProject::from_json(&v.to_string()).unwrap();
+        assert!(back.strips.is_empty() && back.master_strip.is_none());
+        assert_eq!(back.returns, Returns::default());
+        assert!(!back.clips[0].reverse);
+        assert!(StudioDto::default().is_transparent());
+        // A strip with a band missing still loads.
+        let s: StudioDto = serde_json::from_str(r#"{"compOn":true}"#).unwrap();
+        assert!(s.comp_on && s.bands.len() == strip::STRIP_BANDS && !s.is_transparent());
     }
 }

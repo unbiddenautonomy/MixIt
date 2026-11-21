@@ -6,11 +6,11 @@ import type { AutomationLane, AutomationPoint, Clip, CurveShape, ProjectParam } 
 import { useApp } from "../../store/app";
 import { updateClip } from "./projectIo";
 
-export const PARAM_COLORS: Record<ProjectParam, string> = { Volume: "#f4f4f5", EqLow: "#405cff", EqMid: "#ffa630", EqHigh: "#ecf6ff", Filter: "#e879f9", FxMix: "#34d399" };
-export const PARAM_RANGE: Record<ProjectParam, [number, number]> = { Volume: [0, 1], EqLow: [-26, 6], EqMid: [-26, 6], EqHigh: [-26, 6], Filter: [-1, 1], FxMix: [0, 1] };
-export const PARAM_LABEL: Record<ProjectParam, string> = { Volume: "Volume", EqLow: "Low EQ", EqMid: "Mid EQ", EqHigh: "High EQ", Filter: "Filter", FxMix: "FX amount" };
+export const PARAM_COLORS: Record<ProjectParam, string> = { Volume: "#f4f4f5", EqLow: "#405cff", EqMid: "#ffa630", EqHigh: "#ecf6ff", Filter: "#e879f9", FxMix: "#34d399", Pan: "#fde047", Space: "#a78bfa", Echo: "#22d3ee" };
+export const PARAM_RANGE: Record<ProjectParam, [number, number]> = { Volume: [0, 1], EqLow: [-26, 6], EqMid: [-26, 6], EqHigh: [-26, 6], Filter: [-1, 1], FxMix: [0, 1], Pan: [-1, 1], Space: [0, 1], Echo: [0, 1] };
+export const PARAM_LABEL: Record<ProjectParam, string> = { Volume: "Volume", EqLow: "Low EQ", EqMid: "Mid EQ", EqHigh: "High EQ", Filter: "Filter", FxMix: "FX amount", Pan: "Pan", Space: "Reverb send", Echo: "Echo send" };
 /** Value a new lane starts at (the control's resting position). */
-export const PARAM_DEFAULT: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0 };
+export const PARAM_DEFAULT: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0, Pan: 0, Space: 0, Echo: 0 };
 
 /** Which lane of the selected clip is being edited. */
 export const useAutoEdit = create<{ param: ProjectParam | null }>(() => ({ param: null }));

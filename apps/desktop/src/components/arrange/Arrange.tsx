@@ -1,7 +1,8 @@
 // Arrange: a mix on a timeline. Clips sit on four deck lanes over a tempo ruler; move
 // and trim them on the bar grid, edit gain, key and automation, then render the mix.
 import clsx from "clsx";
-import { FolderOpen, Loader2, Minus, Music, Play, Plus, Save, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { ChevronDown, FolderOpen, Layers, Loader2, Minus, Music, Play, Plus, Rewind, Save, SlidersVertical, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend } from "../../backend";
 import type { AutomationLane, AutomationPoint, Clip, CurveShape, MixProject, ProjectParam, TrackRow } from "../../backend/types";
@@ -13,9 +14,11 @@ import { useDropTarget } from "../../lib/dnd";
 import { rowsById } from "../library/data";
 import { playPreview, stopPreview, usePreview } from "./preview";
 import { AutomationEditor, PARAM_COLORS, PARAM_DEFAULT, PARAM_LABEL, PARAM_RANGE, setLane, setLaneCurve, useAutoEdit } from "./AutomationEditor";
-import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
+import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProject, projectBeats, renderProject, renderStems, saveProject, setProject, updateClip } from "./projectIo";
+import { LOUDNESS_TARGETS } from "../../lib/studio";
+import { MASTER_STRIP, openLaneStudio, useStudio } from "../../store/studio";
 import { EffectRow, HistoryButtons, IssuesButton, KeyRow, SnapPicker, TempoLane, TempoPanel, TransitionSection, useArrangeUi } from "./ArrangeParts";
-import { moveClip, PHRASE_BEATS, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
+import { moveClip, PHRASE_BEATS, rippleDelete, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
 
 const LANE_H = 76;
 
@@ -100,7 +103,7 @@ export function Arrange() {
                 className={clsx("rounded px-1.5 py-0.5", show.includes(p) ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300")}
               >
                 <span className="mr-1 inline-block size-1.5 rounded-full" style={{ background: PARAM_COLORS[p] }} />
-                {p.replace("Eq", "EQ ")}
+                {p === "FxMix" ? "FX" : p.replace("Eq", "EQ ")}
               </button>
             ))}
           </div>
@@ -115,6 +118,9 @@ export function Arrange() {
             Fit
           </Btn>
           <PlayButton project={project} />
+          <Btn size="sm" onClick={() => openLaneStudio(MASTER_STRIP)} title="EQ, glue and loudness for the whole mix, and its reverb and echo">
+            <SlidersVertical size={12} /> Mix studio
+          </Btn>
           <Btn size="sm" onClick={() => useApp.getState().set({ automixOpen: true })}>
             <Wand2 size={12} /> Automix
           </Btn>
@@ -129,9 +135,7 @@ export function Arrange() {
               <Loader2 size={12} className="animate-spin" /> {job.total ? Math.round((job.done / job.total) * 100) : 0}% · Stop
             </Btn>
           ) : (
-            <Btn size="sm" tone="accent" style={{ ["--accent" as string]: "#34d399" }} onClick={renderProject}>
-              <Music size={12} /> Render mix
-            </Btn>
+            <ExportMenu />
           )}
           <Btn size="sm" tone="ghost" onClick={closeProject} aria-label="Close project">
             <X size={12} />
@@ -228,7 +232,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
               <span className="flex size-6 items-center justify-center rounded-md text-xs font-black text-zinc-950" style={{ background: DECK_COLORS[lane] }}>
                 {String.fromCharCode(65 + lane)}
               </span>
-              <span className="text-[10px] text-zinc-500">Deck</span>
+              <LaneStudioButton project={project} lane={lane} />
             </div>
             <LaneDrop
               lane={lane}
@@ -281,7 +285,7 @@ function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: num
         } else {
           const step = mode === "beat" ? 1 : mode === "bar" ? 4 : PHRASE_BEATS;
           const length = Math.max(step, d.length + Math.round((e.clientX - d.x) / ppb / step) * step);
-          if (length !== me.length) updateClip(clip.id, { length });
+          if (length !== me.length) updateClip(clip.id, withLength(me, length));
         }
       }}
       onPointerUp={() => (drag.current = null)}
@@ -293,7 +297,10 @@ function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: num
             <polyline key={l.param} points={lanePoints(l, clip, ppb, LANE_H - 12)} fill="none" stroke={PARAM_COLORS[l.param]} strokeWidth={1.3} opacity={0.85} />
           ))}
       </svg>
-      <div className="relative truncate px-1.5 pt-1 font-medium text-zinc-100">{clip.name || clip.track.title}</div>
+      <div className="relative flex items-center gap-1 truncate px-1.5 pt-1 font-medium text-zinc-100">
+        {clip.reverse && <Rewind size={10} className="shrink-0 text-zinc-300" aria-label="Plays backwards" />}
+        <span className="truncate">{clip.name || clip.track.title}</span>
+      </div>
       <div className="relative truncate px-1.5 text-[10px] text-zinc-400">
         {clip.track.artist} · {fmtBpm(clip.track.bpm)}
         {clip.key_shift !== 0 && ` · ${clip.key_shift > 0 ? "+" : ""}${clip.key_shift} st`}
@@ -303,6 +310,12 @@ function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: num
       {selected && editing && <AutomationEditor clip={clip} ppb={ppb} height={LANE_H - 12} param={editing} />}
     </div>
   );
+}
+
+/** A new length for a clip; a reversed clip keeps what is heard at its start, so its
+ * range of the track grows or shrinks at the bottom. */
+function withLength(c: Clip, length: number): Partial<Clip> {
+  return c.reverse ? { length, source_start: Math.max(0, c.source_start - (length - c.length)) } : { length };
 }
 
 function lanePoints(l: AutomationLane, clip: Clip, ppb: number, h: number): string {
@@ -345,7 +358,7 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
         </span>
       </Row>
       <Row label="Length">
-        <input className="input h-7 w-20 font-mono" defaultValue={clip.length} key={`len${clip.id}${clip.length}`} onBlur={(e) => updateClip(clip.id, { length: Math.max(1, num(e.target.value, clip.length)) })} />
+        <input className="input h-7 w-20 font-mono" defaultValue={clip.length} key={`len${clip.id}${clip.length}`} onBlur={(e) => updateClip(clip.id, withLength(clip, Math.max(1, num(e.target.value, clip.length))))} />
         <span className="text-zinc-500">beats</span>
       </Row>
       <Row label="From beat">
@@ -361,6 +374,10 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
         <input type="checkbox" checked={clip.keylock} onChange={(e) => updateClip(clip.id, { keylock: e.target.checked })} />
         Key lock (tempo changes keep the pitch)
       </label>
+      <label className="flex items-center gap-2 text-zinc-300" title="Plays this part of the track from its end to its start, for a rewind or a build-up effect.">
+        <input type="checkbox" checked={!!clip.reverse} onChange={(e) => updateClip(clip.id, { reverse: e.target.checked }, e.target.checked ? "Play backwards" : "Play forwards")} />
+        <Rewind size={12} className="text-zinc-500" /> Play backwards
+      </label>
       <EffectRow clip={clip} />
       <TransitionSection key={clip.id} clip={clip} project={project} />
       <AutomationSection clip={clip} />
@@ -375,16 +392,31 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
       <div className="truncate font-mono text-[10px] text-zinc-600" title={clip.track.path ?? ""}>
         {clip.track.path}
       </div>
-      <Btn
-        size="sm"
-        tone="danger"
-        onClick={() => {
-          setProject({ ...project, clips: project.clips.filter((c) => c.id !== clip.id) }, undefined, undefined, `Remove “${clip.name || clip.track.title}”`);
-          close();
-        }}
-      >
-        <Trash2 size={12} /> Remove clip
-      </Btn>
+      <div className="flex gap-1">
+        <Btn
+          size="sm"
+          tone="danger"
+          className="flex-1"
+          onClick={() => {
+            setProject({ ...project, clips: project.clips.filter((c) => c.id !== clip.id) }, undefined, undefined, `Remove “${clip.name || clip.track.title}”`);
+            close();
+          }}
+        >
+          <Trash2 size={12} /> Remove
+        </Btn>
+        <Btn
+          size="sm"
+          tone="danger"
+          className="flex-1"
+          title="Removes the clip and moves everything after it back, so the next track mixes in where this one did."
+          onClick={() => {
+            setProject(rippleDelete(project, clip.id), undefined, undefined, `Remove “${clip.name || clip.track.title}” and close the gap`);
+            close();
+          }}
+        >
+          <Trash2 size={12} /> Remove, close gap
+        </Btn>
+      </div>
     </aside>
   );
 }
@@ -532,5 +564,90 @@ function LaneDrop({ lane, onTracks, children, ...rest }: { lane: number; onTrack
     <div {...rest} {...drop.props} className={clsx("relative flex-1", drop.over && "bg-sky-400/[0.06]")}>
       {children}
     </div>
+  );
+}
+
+/** Opens a lane's studio (EQ, compressor and more for every clip on it). */
+function LaneStudioButton({ project, lane }: { project: MixProject; lane: number }) {
+  const open = useStudio((s) => s.lane === lane);
+  const st = project.strips?.[lane];
+  const used = !!st && (st.compOn || st.satOn || st.gateOn || (st.eqOn && st.bands.some((b) => b.enabled)) || Math.abs(st.width - 1) > 0.01 || Math.abs(st.outputDb) > 0.01);
+  return (
+    <button
+      type="button"
+      onClick={() => openLaneStudio(open ? null : lane)}
+      className={clsx("relative flex h-6 items-center gap-1 rounded-md border px-1.5 text-[10px]", open ? "border-transparent bg-white/15 text-zinc-50" : "border-white/10 text-zinc-500 hover:text-zinc-200")}
+      title={`Studio for deck ${String.fromCharCode(65 + lane)}: EQ, compression and warmth for every clip on this lane`}
+      aria-label={`Deck ${String.fromCharCode(65 + lane)} lane studio`}
+    >
+      <SlidersVertical size={11} />
+      {used && <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full" style={{ background: DECK_COLORS[lane] }} />}
+    </button>
+  );
+}
+
+/** Render the mix (WAV or FLAC, optionally to a loudness target) or export stems. */
+function ExportMenu() {
+  const [open, setOpen] = useState(false);
+  const [format, setFormat] = useState<"wav" | "flac">("wav");
+  const [target, setTarget] = useState<string>("none");
+  const web = backend().kind === "web";
+  const lufs = LOUDNESS_TARGETS.find((t) => t.id === target)?.lufs ?? null;
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <Btn size="sm" tone="accent" style={{ ["--accent" as string]: "#34d399" }}>
+          <Music size={12} /> Render <ChevronDown size={11} />
+        </Btn>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content align="end" sideOffset={6} className="z-50 flex w-80 flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-xs shadow-2xl backdrop-blur">
+          <div className="flex flex-col gap-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">File type</div>
+            <div className="flex gap-1">
+              {(["wav", "flac"] as const).map((f) => (
+                <Btn key={f} size="sm" active={format === f} disabled={web && f === "flac"} onClick={() => setFormat(f)} className="flex-1">
+                  {f === "wav" ? "WAV" : "FLAC"}
+                </Btn>
+              ))}
+            </div>
+            <div className="leading-snug text-zinc-500">{web ? "The browser version saves WAV files." : "FLAC is lossless like WAV and about half the size."}</div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Loudness</div>
+            <select value={target} onChange={(e) => setTarget(e.target.value)} className="h-7 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" disabled={web}>
+              <option value="none">As mixed</option>
+              {LOUDNESS_TARGETS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.lufs} LUFS)
+                </option>
+              ))}
+            </select>
+            <div className="leading-snug text-zinc-500">{web ? "Matching a loudness target needs the desktop app." : (LOUDNESS_TARGETS.find((t) => t.id === target)?.hint ?? "Keeps the level you mixed at.")}</div>
+          </div>
+          <Btn
+            tone="accent"
+            style={{ ["--accent" as string]: "#34d399" }}
+            onClick={() => {
+              setOpen(false);
+              void renderProject({ format, targetLufs: web ? null : lufs });
+            }}
+          >
+            <Music size={12} /> Render the mix
+          </Btn>
+          <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
+            <Btn
+              onClick={() => {
+                setOpen(false);
+                void renderStems(web ? "wav" : format);
+              }}
+            >
+              <Layers size={12} /> Export stems
+            </Btn>
+            <div className="leading-snug text-zinc-500">One file per deck, all the same length, so you can finish the mix in another program. Each keeps its lane studio and sends; the mix studio and limiter are left off.</div>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

@@ -457,3 +457,111 @@ fn mic_goes_on_air_without_allocating_and_its_feed_is_freed_off_the_audio_thread
     rig.run(512);
     assert!(!rig.tel().mic.connected);
 }
+
+fn dispatch(r: &mut Rig, d: &mut mixit_engine::actions::ActionDispatcher, id: &str, v: f64) {
+    for c in d.dispatch(id, mixit_engine::actions::ActionInput::Value(v)).unwrap() {
+        r.send(c);
+    }
+}
+
+#[test]
+fn studio_strips_sends_ducking_and_glue_run_without_allocating() {
+    let mut r = Rig::new();
+    let mut d = mixit_engine::actions::ActionDispatcher::new(SR, 4);
+    r.deck(A, DeckCommand::Load(track(20.0, 220.0, 120.0)));
+    r.deck(B, DeckCommand::Load(track(20.0, 880.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    r.deck(B, DeckCommand::Play);
+    for (id, v) in [
+        ("mixer.A.punch", 0.8),
+        ("mixer.A.warmth", 0.6),
+        ("mixer.A.width", 0.3),
+        ("mixer.A.pan", -0.4),
+        ("mixer.A.space", 0.5),
+        ("mixer.B.echo", 0.5),
+        ("mixer.B.duck", 1.0),
+        ("mixer.glue", 0.7),
+        ("mixer.space.size", 0.9),
+        ("mixer.echo.feedback", 0.7),
+        ("mixer.space.level", 0.0),
+    ] {
+        dispatch(&mut r, &mut d, id, v);
+    }
+    for c in d.dispatch("mixer.B.duck_source", mixit_engine::actions::ActionInput::Choice(1)).unwrap() {
+        r.send(c);
+    }
+    for c in d.dispatch("mixer.A.gate", mixit_engine::actions::ActionInput::Press).unwrap() {
+        r.send(c);
+    }
+    let mut s = d.studio(Some(0));
+    s.bands[0] = mixit_dsp::peq::BandSettings {
+        enabled: true,
+        shape: mixit_dsp::peq::BandShape::LowCut,
+        freq: 80.0,
+        q: 0.7,
+        gain_db: 0.0,
+        slope_db: 24,
+    };
+    r.send(d.set_studio(Some(0), s));
+    r.send(Command::Mixer(MixerCommand::SetScope(ScopeSource::Channel(0))));
+    let out = r.run(48_000);
+    assert!(out.iter().all(|v| v.is_finite()));
+    let t = r.tel();
+    assert!(t.decks[0].comp_gr_db > 1.0, "punch compresses deck A: {}", t.decks[0].comp_gr_db);
+    assert!(t.decks[1].duck_db > 10.0, "deck B ducks under deck A: {}", t.decks[1].duck_db);
+    assert!(t.decks[0].low_rms > 0.01, "220 Hz is not bass, but some of it passes the 150 Hz meter");
+    assert!(t.master.glue_gr_db > 0.0);
+    let mut scope = Vec::new();
+    assert!(r.ctl.drain_scope(&mut scope) > 10_000);
+    // Turning everything back off leaves no clicks.
+    for (id, v) in [("mixer.A.punch", 0.0), ("mixer.A.warmth", 0.0), ("mixer.A.width", 1.0), ("mixer.glue", 0.0)] {
+        dispatch(&mut r, &mut d, id, v);
+    }
+    let out = r.run(24_000);
+    assert!(ClickDetector::default().clicks(&out).is_empty());
+    assert_eq!(r.tel().leaked, 0);
+}
+
+#[test]
+fn reverb_send_rings_on_after_the_track_stops() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(track(2.0, 440.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    r.send(Command::Mixer(MixerCommand::SetSend(A, 0, 1.0)));
+    r.run(48_000);
+    r.deck(A, DeckCommand::Pause);
+    r.run(4_800);
+    let tail = r.run(24_000);
+    assert!(testkit::rms(&tail) > 0.002, "reverb tail {}", testkit::rms(&tail));
+    // Bass is kept out of the reverb.
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(track(2.0, 50.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    r.send(Command::Mixer(MixerCommand::SetSend(A, 0, 1.0)));
+    r.run(48_000);
+    r.deck(A, DeckCommand::Pause);
+    r.run(4_800);
+    let bass_tail = r.run(24_000);
+    assert!(testkit::rms(&bass_tail) < testkit::rms(&tail) * 0.25);
+}
+
+#[test]
+fn ducking_follows_the_other_deck() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(track(10.0, 220.0, 120.0)));
+    r.deck(B, DeckCommand::Load(track(10.0, 1_000.0, 120.0)));
+    r.deck(B, DeckCommand::Play);
+    r.send(Command::Mixer(MixerCommand::SetDuck(B, Some(A), 12.0)));
+    let before = r.run(24_000);
+    let lvl = |x: &[f32]| testkit::tone_level(x, 1_000.0, SR as f32);
+    let alone = lvl(&before[12_000..]);
+    r.deck(A, DeckCommand::Play);
+    let during = r.run(24_000);
+    let ducked = lvl(&during[12_000..]);
+    let db = 20.0 * (ducked / alone).log10();
+    assert!((db + 12.0).abs() < 1.0, "ducked by {db} dB");
+    r.deck(A, DeckCommand::Pause);
+    r.run(96_000);
+    let after = r.run(12_000);
+    assert!((lvl(&after) / alone - 1.0).abs() < 0.05);
+}

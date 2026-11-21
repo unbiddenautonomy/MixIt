@@ -164,6 +164,14 @@ impl ParametricEq {
         }
     }
 
+    /// True when no band is on or fading and the output gain is unity: `process` would
+    /// leave the signal untouched.
+    pub fn is_idle(&self) -> bool {
+        self.bands.iter().all(|b| b.mix.is_steady() && b.mix.value() == 0.0)
+            && self.output_gain.is_steady()
+            && self.output_gain.value() == 1.0
+    }
+
     /// Magnitude response of the whole EQ at `f` (dB), for drawing the curve.
     pub fn response_db(&self, f: f32) -> f32 {
         let mut db = 0.0f64;

@@ -78,6 +78,9 @@ export class TauriBackend implements Backend {
   importTrack(path: string) { return invoke<T.TrackRow>("library_import", { path }); }
   registerFiles(_files: File[]): string[] { return []; }
   inputDevices() { return invoke<T.DeviceInfo[]>("input_devices"); }
+  studioGet(channel: number | null) { return invoke<T.StudioDto>("studio_get", { channel }); }
+  studioSet(channel: number | null, settings: T.StudioDto) { return invoke<void>("studio_set", { channel, settings }); }
+  setScope(source: T.ScopeSource) { return invoke<void>("scope_set", { source: String(source) }); }
   micState() { return invoke<T.MicState>("mic_status"); }
   async micRecordStart() { await invoke<string>("mic_record_start"); }
   micRecordStop(trim: boolean) { return invoke<T.MicTake>("mic_record_stop", { trim }); }
@@ -86,7 +89,13 @@ export class TauriBackend implements Backend {
   saveProject(path: string, project: T.MixProject) { return invoke<void>("project_save", { path, project }); }
   openProject(path: string) { return invoke<T.MixProject>("project_open", { path }); }
   checkProject(project: T.MixProject) { return invoke<string[]>("project_check", { project }); }
-  renderProject(project: T.MixProject, path: string, format?: string) { return invoke<void>("project_render", { project, path, format: format ?? null }); }
+  renderProject(project: T.MixProject, path: string, format?: string, targetLufs?: number | null) { return invoke<void>("project_render", { project, path, format: format ?? null, targetLufs: targetLufs ?? null }); }
+  soundOpen(source: T.PadSource, bins: number) { return invoke<T.SoundOpened>("sound_open", { source, bins }); }
+  soundRender(id: number, ops: T.EditOp[], bins: number) { return invoke<T.SoundView>("sound_render", { id, ops, bins }); }
+  soundAudio(id: number, ops: T.EditOp[]) { return invoke<ArrayBuffer>("sound_audio", { id, ops }); }
+  soundSave(id: number, ops: T.EditOp[], name: string) { return invoke<string>("sound_save", { id, ops, name }); }
+  soundClose(id: number) { return invoke<void>("sound_close", { id }); }
+  renderStems(project: T.MixProject, folder: string, format?: string) { return invoke<void>("project_render_stems", { project, folder, format: format ?? null }); }
   previewProject(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<ArrayBuffer>("project_preview", { project, fromBeat, toBeat }); }
 
   samplerLoad(pad: number, source: T.PadSource) { return invoke<T.PadInfo>("sampler_load", { pad, source }); }
@@ -109,7 +118,7 @@ export class TauriBackend implements Backend {
     return r == null ? null : Array.isArray(r) ? r : [r];
   }
   async pickSave(defaultName: string, extensions: string[]) {
-    return (await save({ defaultPath: defaultName, filters: [{ name: extensions.join(", "), extensions }] })) ?? null;
+    return (await save({ defaultPath: defaultName, filters: extensions.length ? [{ name: extensions.join(", "), extensions }] : undefined })) ?? null;
   }
 
   onTelemetry(cb: (t: T.Telemetry) => void) { return sub("telemetry", cb); }
