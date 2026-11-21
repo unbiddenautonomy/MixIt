@@ -1730,6 +1730,7 @@ export class DemoBackend implements Backend {
   async importRekordbox() {}
   async importTraktor() {}
   async importSerato() {}
+  async importVirtualDj() {}
   async exportRekordbox() {}
   async exportTraktor() {}
   async exportPlaylist() {}

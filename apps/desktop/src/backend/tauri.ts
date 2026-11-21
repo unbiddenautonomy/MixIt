@@ -139,6 +139,7 @@ export class TauriBackend implements Backend {
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   importTraktor(path: string) { return invoke<void>("import_traktor", { path }); }
   importSerato(path: string) { return invoke<void>("import_serato", { path }); }
+  importVirtualDj(path: string) { return invoke<void>("import_virtualdj", { path }); }
   exportRekordbox(path: string, playlist?: number | null) { return invoke<void>("export_rekordbox", { path, playlist: playlist ?? null }); }
   exportTraktor(path: string, playlist?: number | null) { return invoke<void>("export_traktor", { path, playlist: playlist ?? null }); }
   exportPlaylist(playlist: number, path: string) { return invoke<void>("export_playlist", { playlist, path }); }

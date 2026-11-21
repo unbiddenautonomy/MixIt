@@ -200,6 +200,8 @@ export interface Backend {
   importTraktor(path: string): Promise<void>;
   /** Imports a Serato library from its _Serato_ folder (or the folder holding it): tracks, crates, and the cues, loops and grids in the files. */
   importSerato(path: string): Promise<void>;
+  /** Imports a VirtualDJ library from its folder (the one with database.xml): tracks, cues, loops, grids and playlists. */
+  importVirtualDj(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;
   /** Writes a Traktor collection.nml (the whole library, or one playlist's tracks). */
   exportTraktor(path: string, playlist?: number | null): Promise<void>;

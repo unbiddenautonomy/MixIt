@@ -761,3 +761,90 @@ fn imports_a_serato_library_and_writes_cues_for_serato() {
     assert!((data.grid.unwrap()[0].seconds - 0.25).abs() < 1e-5);
     assert_eq!(lib.track(a.id).unwrap().title, "One", "the library keeps its details");
 }
+
+#[test]
+fn imports_a_virtualdj_library() {
+    let tmp = TempDir::new("vdj");
+    let music = tmp.0.join("Music");
+    let vdj = tmp.0.join("VirtualDJ");
+    std::fs::create_dir_all(&music).unwrap();
+    std::fs::create_dir_all(vdj.join("Playlists").join("Gigs")).unwrap();
+    std::fs::create_dir_all(vdj.join("MyLists")).unwrap();
+    let one = write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let gone = music.join("gone.mp3");
+    let (p1, p2) = (one.to_string_lossy(), gone.to_string_lossy());
+    let spb = 60.0 / 124.0;
+    let db = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<VirtualDJ_Database Version="8.5">
+ <Song FilePath="{p1}" FileSize="1000">
+  <Tags Author="Nova" Title="One &amp; Only" Genre="Deep House" Album="Night Drives" Label="Moon" Year="2023" Key="Am" Stars="4" Flag="1" />
+  <Infos SongLength="20.0" FirstSeen="1700000000" PlayCount="3" />
+  <Comment>warm-up opener</Comment>
+  <Scan Version="801" Flag="32768" Volume="1.1" Bpm="{spb:.6}" AltBpm="0.968" Key="Am" />
+  <Poi Pos="0.250000" Type="beatgrid" />
+  <Poi Name="Drop" Pos="7.990000" Num="2" Color="4278242304" />
+  <Poi Name="Cue 1" Pos="0.250000" Num="1" />
+  <Poi Name="Groove" Pos="2.185000" Size="8" Type="loop" />
+  <Poi Pos="1.0" Type="automix" Point="realStart" />
+  <Poi Name="Breakdown" Pos="12.5" Type="remix" />
+ </Song>
+ <Song FilePath="{p2}" FileSize="2000">
+  <Tags Author="Kairo" Title="Gone" Bpm="0.461538" Key="E" />
+ </Song>
+ <Song FilePath="netsearch://dz123">
+  <Tags Author="Online" Title="Stream" />
+ </Song>
+</VirtualDJ_Database>
+"#
+    );
+    std::fs::write(vdj.join("database.xml"), db).unwrap();
+    std::fs::write(
+        vdj.join("Playlists").join("Gigs").join("Friday.m3u"),
+        format!("#EXTM3U\n#EXTVDJ:<artist>Kairo</artist>\n{p2}\n{p1}\n"),
+    )
+    .unwrap();
+    std::fs::write(vdj.join("MyLists").join("Warm up.vdjfolder"), format!(r#"<?xml version="1.0" encoding="UTF-8"?><VirtualFolder noDuplicates="no"><song path="{p1}" idx="0" /></VirtualFolder>"#)).unwrap();
+    std::fs::write(vdj.join("MyLists").join("Fast.vdjfolder"), r#"<FilterFolder filter="bpm &gt; 130" />"#).unwrap();
+
+    let lib = Library::open_in_memory().unwrap();
+    // The folder above VirtualDJ works as well as VirtualDJ itself.
+    let rep = lib.import_virtualdj(&tmp.0).unwrap();
+    assert_eq!((rep.tracks, rep.playlists, rep.grids, rep.cues, rep.missing.len()), (2, 2, 1, 4, 1), "{rep:?}");
+    let a = lib.track_by_path(&one).unwrap().unwrap();
+    assert_eq!(
+        (a.title.as_str(), a.artist.as_str(), a.album.as_str(), a.label.as_str()),
+        ("One & Only", "Nova", "Night Drives", "Moon")
+    );
+    assert_eq!((a.rating, a.comment.as_str()), (4, "warm-up opener"));
+    assert_eq!(a.best_key(), Some(Key::new(9, Mode::Minor)));
+    let g = lib.grid(a.id).unwrap().unwrap();
+    assert!((g.bpm - 124.0).abs() < 1e-3 && (g.frame_at(0.0) - 0.25 * 44_100.0).abs() < 1.0);
+    let cues = lib.cues(a.id).unwrap();
+    let drop = cues.iter().find(|c| c.label == "Drop").unwrap();
+    assert_eq!(
+        (drop.kind, drop.slot, drop.color),
+        (CueKind::Hot, Some(1), Some(0x00CC00)),
+        "pads count from 1 in VirtualDJ"
+    );
+    assert!(cues.iter().any(|c| c.slot == Some(0) && c.label.is_empty()), "the default name is dropped");
+    let lp = cues.iter().find(|c| c.label == "Groove").unwrap();
+    assert!((lp.loop_seconds.unwrap() - 8.0 * 60.0 / 124.0).abs() < 1e-3, "loop sizes are in beats");
+    assert!(cues.iter().any(|c| c.label == "Breakdown" && c.kind == CueKind::Memory));
+    let b = lib.track_by_path(&gone).unwrap().unwrap();
+    assert!(b.missing);
+    assert!(b.best_bpm().is_some_and(|x| (x - 130.0).abs() < 0.01), "{:?}", b.best_bpm());
+
+    let pls = lib.playlists().unwrap();
+    let gigs = pls.iter().find(|p| p.name == "Gigs").unwrap();
+    assert_eq!(gigs.kind, PlaylistKind::Folder);
+    let fri = pls.iter().find(|p| p.name == "Friday").unwrap();
+    assert_eq!(fri.parent, Some(gigs.id));
+    assert_eq!(lib.playlist_tracks(fri.id).unwrap(), vec![b.id, a.id]);
+    assert!(pls.iter().any(|p| p.name == "Warm up"));
+    assert!(!pls.iter().any(|p| p.name == "Fast"), "filter folders are left out");
+
+    let again = lib.import_virtualdj(&vdj).unwrap();
+    assert_eq!((again.cues, again.grids), (0, 0));
+    assert_eq!(lib.playlists().unwrap().len(), pls.len());
+}
