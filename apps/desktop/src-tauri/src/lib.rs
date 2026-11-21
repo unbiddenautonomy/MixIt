@@ -53,6 +53,7 @@ pub fn run() {
             commands::library_folders,
             commands::library_remove_folder,
             commands::library_add,
+            commands::library_import,
             commands::library_rescan,
             commands::practice_add,
             commands::library_analyze,

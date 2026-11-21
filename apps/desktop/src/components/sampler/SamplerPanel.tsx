@@ -15,7 +15,7 @@ import { hex } from "../../lib/format";
 import { beatsIn } from "../../lib/waveform";
 import { DECK_LETTERS, MASTER_FX, useApp, usePro } from "../../store/app";
 import { livePosition, useTelemetry } from "../../store/telemetry";
-import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
+import { useDropTarget } from "../../lib/dnd";
 import { FxUnit } from "../deck/FxUnit";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
@@ -206,7 +206,12 @@ function PadButton({ pad }: { pad: number }) {
   const playing = useTelemetry((s) => ((s.t.samplerPlaying ?? 0) >> pad) & 1) === 1;
   const busy = useBusy((s) => !!s.busy[pad]);
   const selected = useBusy((s) => s.selected === pad);
-  const [over, setOver] = useState(false);
+  const drop = useDropTarget(`pad-${pad}`, {
+    label: `Put on pad ${pad + 1}`,
+    files: (paths) => void loadPad(pad, { type: "file", path: paths[0] }),
+    tracks: (ids) => void loadPad(pad, { type: "track", trackId: ids[0], start: null, seconds: null }),
+  });
+  const over = drop.over;
   const opts = useMenuOptions();
   if (!p) return null;
   const id = `sampler.pad.${pad + 1}`;
@@ -231,19 +236,7 @@ function PadButton({ pad }: { pad: number }) {
               }}
               onPointerUp={() => !empty && release(id)}
               onPointerCancel={() => !empty && release(id)}
-              onDragOver={(e) => {
-                if (!e.dataTransfer.types.includes(TRACK_MIME)) return;
-                e.preventDefault();
-                setOver(true);
-              }}
-              onDragLeave={() => setOver(false)}
-              onDrop={(e) => {
-                setOver(false);
-                const ids = dropTrackIds(e);
-                if (!ids.length) return;
-                e.preventDefault();
-                loadPad(pad, { type: "track", trackId: ids[0], start: null, seconds: null });
-              }}
+              {...drop.props}
               className={clsx(
                 "relative flex h-[54px] w-full select-none flex-col justify-between overflow-hidden rounded-xl border p-1.5 text-left transition-[box-shadow,background-color] duration-75",
                 empty ? "border-dashed border-white/10 bg-white/[0.02] text-zinc-500 hover:bg-white/[0.05]" : "text-zinc-100",

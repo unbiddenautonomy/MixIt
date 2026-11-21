@@ -181,9 +181,19 @@ export async function openProject() {
   if (!(await confirmDiscard("open another project"))) return;
   const f = await backend().pickFiles(["mixit", "json"], "MixIt project");
   if (!f?.[0]) return;
+  await openAt(f[0]);
+}
+
+/** Opens a project file (dropped on the window, for example). */
+export async function openProjectAt(path: string) {
+  if (!(await confirmDiscard("open another project"))) return;
+  await openAt(path);
+}
+
+async function openAt(path: string) {
   try {
-    const p = await backend().openProject(f[0]);
-    setProject(p, f[0]);
+    const p = await backend().openProject(path);
+    setProject(p, path);
     useApp.getState().set({ workspace: "arrange" });
     const issues = await backend().checkProject(p);
     if (issues.length) toast.warning(`${issues.length} problem${issues.length === 1 ? "" : "s"} in this project`, { description: issues.slice(0, 3).join("\n") });

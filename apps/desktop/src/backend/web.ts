@@ -554,6 +554,74 @@ export class WebAudioBackend extends DemoBackend {
     void this.importFiles(files);
   }
 
+  registerFiles(files: File[]): string[] {
+    return files.map((f) => {
+      const path = `browser:${this.nextPick++}/${f.webkitRelativePath || f.name}`;
+      this.files.set(path, [f]);
+      return path;
+    });
+  }
+
+  /** Decodes and analyses one dropped or picked file and adds it to the library. */
+  async importTrack(path: string): Promise<T.TrackRow> {
+    const f = this.files.get(path)?.[0];
+    if (!f) throw new Error("That file is no longer available. Drop it again.");
+    const known = this.tracks.find((t) => t.row.path === `browser:/${f.webkitRelativePath || f.name}`);
+    if (known) return known.row;
+    const job = (message: string, finished: boolean, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "analyze", done: finished ? 1 : 0, total: 1, message, finished, error });
+    job(`Analysing ${f.name}`, false);
+    try {
+      const t = await this.importOne(f);
+      job(`Added ${t.row.title}`, true);
+      this.emit("library-changed", null);
+      return t.row;
+    } catch (e) {
+      job("", true, `Could not read ${f.name}`);
+      throw e;
+    }
+  }
+
+  private async importOne(f: File): Promise<DemoTrack> {
+    const audio = await this.engine.decode(await f.arrayBuffer());
+    const a = await this.engine.analyse(audio);
+    const id = this.nextFileId++;
+    const path = `browser:/${f.webkitRelativePath || f.name}`;
+    this.files.set(path, [f]);
+    const t: DemoTrack = {
+      row: {
+        id,
+        path,
+        title: stem(f.name),
+        artist: "",
+        album: f.webkitRelativePath.split("/").slice(-2, -1)[0] ?? "",
+        genre: "",
+        label: "",
+        year: null,
+        duration: a.view.duration,
+        bpm: null,
+        key: null,
+        energy: null,
+        lufs: null,
+        rating: 0,
+        color: null,
+        playCount: 0,
+        lastPlayed: null,
+        addedAt: Math.floor(Date.now() / 1000),
+        missing: false,
+        analysis: "done",
+        comment: "",
+      },
+      sections: [],
+      firstBeat: 0,
+      period: 0.5,
+      wave: new Uint8Array(0),
+      cues: [],
+    };
+    this.tracks.push(t);
+    this.absorb(t, a);
+    return t;
+  }
+
   private async importFiles(files: File[]) {
     const total = files.length;
     const job = (done: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "analyze", done, total, message, finished, error });
@@ -562,43 +630,7 @@ export class WebAudioBackend extends DemoBackend {
       const f = files[i];
       job(i, `Analysing ${i + 1} of ${total}: ${f.name}`);
       try {
-        const audio = await this.engine.decode(await f.arrayBuffer());
-        const a = await this.engine.analyse(audio);
-        const id = this.nextFileId++;
-        const path = `browser:/${f.webkitRelativePath || f.name}`;
-        this.files.set(path, [f]);
-        const t: DemoTrack = {
-          row: {
-            id,
-            path,
-            title: stem(f.name),
-            artist: "",
-            album: f.webkitRelativePath.split("/").slice(-2, -1)[0] ?? "",
-            genre: "",
-            label: "",
-            year: null,
-            duration: a.view.duration,
-            bpm: null,
-            key: null,
-            energy: null,
-            lufs: null,
-            rating: 0,
-            color: null,
-            playCount: 0,
-            lastPlayed: null,
-            addedAt: Math.floor(Date.now() / 1000),
-            missing: false,
-            analysis: "done",
-            comment: "",
-          },
-          sections: [],
-          firstBeat: 0,
-          period: 0.5,
-          wave: new Uint8Array(0),
-          cues: [],
-        };
-        this.tracks.push(t);
-        this.absorb(t, a);
+        await this.importOne(f);
       } catch {
         failed++;
       }

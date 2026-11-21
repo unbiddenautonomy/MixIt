@@ -22,6 +22,7 @@ import { TrackEditor } from "./components/editor/TrackEditor";
 import { MixReportDialog } from "./components/feedback/MixReport";
 import { Tour } from "./components/guide/Tour";
 import { maybeWelcome } from "./guide/tour";
+import { DragLayer } from "./components/ui/DragLayer";
 import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
 import { handleShortcut, openCapturedMix } from "./lib/appCommands";
@@ -150,6 +151,7 @@ export function App() {
       <TrackEditor />
       <MixReportDialog onEdit={(p) => void openCapturedMix(p)} />
       <Tour />
+      <DragLayer />
       <AutomixDialog />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />

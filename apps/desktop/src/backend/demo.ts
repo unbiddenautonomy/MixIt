@@ -753,6 +753,23 @@ export class DemoBackend implements Backend {
   }
   async removeFolder() {}
 
+  async importTrack(path: string): Promise<T.TrackRow> {
+    const base = this.tracks[this.tracks.length % Math.max(1, this.tracks.length) || 0] ?? this.tracks[0];
+    if (!base) throw new Error("The demo library is not ready yet.");
+    const existing = this.tracks.find((t) => t.row.path === path);
+    if (existing) return existing.row;
+    const id = Math.max(...this.tracks.map((t) => t.row.id)) + 1;
+    const title = path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? "Dropped track";
+    const t: DemoTrack = { ...base, row: { ...base.row, id, path, title, artist: "", album: "", playCount: 0, lastPlayed: null, addedAt: Math.floor(Date.now() / 1000), rating: 0, color: null, comment: "" } };
+    this.tracks.push(t);
+    this.emit("library-changed", null);
+    return t.row;
+  }
+
+  registerFiles(files: File[]): string[] {
+    return files.map((f) => `demo-drop:/${f.webkitRelativePath || f.name}`);
+  }
+
   async addToLibrary(paths: string[]) {
     let done = 0;
     const total = 20;

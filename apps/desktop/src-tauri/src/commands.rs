@@ -550,6 +550,29 @@ pub fn library_add(app: AppHandle, paths: Vec<String>) -> R<()> {
     })
 }
 
+/// Adds one audio file to the library now and returns it (dropped on a deck, for
+/// example). It is analysed when it is first loaded.
+#[tauri::command]
+pub fn library_import(app: AppHandle, state: State<'_, AppState>, path: String) -> R<TrackRow> {
+    let p = PathBuf::from(&path);
+    if !mixit_io::is_audio_file(&p) {
+        return Err(format!(
+            "{} is not a music file MixIt can read",
+            p.file_name().unwrap_or_default().to_string_lossy()
+        ));
+    }
+    let lib = state.library.lock();
+    let id = match lib.import_file(&p).map_err(err)? {
+        mixit_library::scan::Imported::Added(id)
+        | mixit_library::scan::Imported::Updated(id)
+        | mixit_library::scan::Imported::Moved(id)
+        | mixit_library::scan::Imported::Unchanged(id) => id,
+    };
+    let t = lib.track(id).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(TrackRow::from(&t))
+}
+
 /// Generates the practice tracks the guide's labs use (once) and adds them to the
 /// library, analysed.
 #[tauri::command]

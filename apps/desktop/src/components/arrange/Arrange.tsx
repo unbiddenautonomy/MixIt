@@ -9,7 +9,7 @@ import { bpm as fmtBpm, clock } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
 import { DECK_COLORS } from "../deck/useWaveform";
-import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
+import { useDropTarget } from "../../lib/dnd";
 import { rowsById } from "../library/data";
 import { playPreview, stopPreview, usePreview } from "./preview";
 import { AutomationEditor, PARAM_COLORS, PARAM_DEFAULT, PARAM_LABEL, PARAM_RANGE, setLane, setLaneCurve, useAutoEdit } from "./AutomationEditor";
@@ -230,27 +230,18 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
               </span>
               <span className="text-[10px] text-zinc-500">Deck</span>
             </div>
-            <div
-              className="relative flex-1"
+            <LaneDrop
+              lane={lane}
+              onTracks={(ids, x) => addTracks(ids, lane, x)}
               style={{ backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.035) 0 1px, transparent 1px ${ppb * gridBeats}px), repeating-linear-gradient(to right, rgba(255,255,255,0.07) 0 1px, transparent 1px ${ppb * gridBeats * 4}px)` }}
               onPointerDown={(e) => e.target === e.currentTarget && setSel(null)}
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes(TRACK_MIME)) e.preventDefault();
-              }}
-              onDrop={(e) => {
-                const ids = dropTrackIds(e);
-                if (!ids.length) return;
-                e.preventDefault();
-                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                addTracks(ids, lane, e.clientX - r.left);
-              }}
             >
               {project.clips
                 .filter((c) => c.lane === lane)
                 .map((c) => (
                   <ClipBox key={c.id} clip={c} ppb={ppb} selected={sel === c.id} onSelect={() => setSel(c.id)} show={show} />
                 ))}
-            </div>
+            </LaneDrop>
           </div>
         ))}
         <Playhead project={project} ppb={ppb} />
@@ -528,5 +519,18 @@ function Playhead({ project, ppb }: { project: MixProject; ppb: number }) {
       </div>
       {status === "playing" && <div ref={line} className="pointer-events-none absolute bottom-0 top-0 z-30 w-0.5 bg-white shadow-[0_0_8px_white]" style={{ left: 80 }} />}
     </>
+  );
+}
+
+/** A deck lane on the timeline: tracks dropped on it become clips where they land. */
+function LaneDrop({ lane, onTracks, children, ...rest }: { lane: number; onTracks: (ids: number[], x: number) => void; children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
+  const drop = useDropTarget(`arrange-lane-${lane}`, {
+    label: `Add to the timeline on deck ${String.fromCharCode(65 + lane)}`,
+    tracks: (ids, at) => onTracks(ids, at.x - at.el.getBoundingClientRect().left),
+  });
+  return (
+    <div {...rest} {...drop.props} className={clsx("relative flex-1", drop.over && "bg-sky-400/[0.06]")}>
+      {children}
+    </div>
   );
 }
