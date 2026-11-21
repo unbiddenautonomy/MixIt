@@ -13,6 +13,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Two or four decks with beat-accurate sync, tempo master, key lock (Signalsmith Stretch), key shift and one-click "match key".
 - Three-band EQ with kills and isolator mode, DJ filter, gain, auto-gain from measured loudness, crossfader curves, master limiter, headphone cue and split cue.
 - Hot cues, beat-quantised loops, loop roll, beat jump, slip mode, reverse, brake and spin-up, censor.
+- Instant doubles (copy a playing track to another deck, in time) and fader start (a channel fader starts and stops its deck).
 - 17 beat-synced effects per deck (echo, ping-pong, reverb, filter LFO, flanger, phaser, chorus, gater, slicer, beat repeat, bitcrusher, distortion, tape stop, pitch delay, ring modulator, noise riser, dub echo).
 - **Mix it:** one button runs a whole transition (blend, bass swap, filter fade, echo out, cut, brake) on the beat, the way a DJ's hands would.
 - The same effects on the master, for a reverb wash or echo over the whole mix.

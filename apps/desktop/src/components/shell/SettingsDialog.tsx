@@ -172,6 +172,9 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Recording" hint="Recordings go to your Music folder as WAV.">
         <Toggle on={s.recordFloat} onChange={(v) => updateSettings({ recordFloat: v })} label="32-bit float (no clipping, larger files)" />
       </Field>
+      <Field label="Fader start" hint="Like a club mixer: raising a channel's volume fader from the bottom starts its deck, and pulling it all the way down stops the deck and takes it back to its cue point.">
+        <Toggle on={!!s.faderStart} onChange={(v) => updateSettings({ faderStart: v })} label="Start and stop decks with their faders" />
+      </Field>
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
       </Field>

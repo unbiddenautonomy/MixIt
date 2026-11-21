@@ -524,6 +524,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "club-habits",
+    title: "Fader start and instant doubles",
+    group: "Effects and tricks",
+    summary: "Two habits from club gear: start a deck by raising its fader, and copy a playing track to another deck in time.",
+    body: [
+      "Fader start (turn it on in Settings, Audio and mixing): raise a channel's volume fader from the bottom and its deck starts; pull it all the way down and the deck stops and goes back to its cue point. It saves a hand when you drop a track in on the beat.",
+      "Instant double: click a deck's letter and choose Copy deck A here. The same track loads at the same spot, synced and playing in time, with its fader where you left it. Loop, echo or scratch one copy while the other keeps the groove, then fade back.",
+    ],
+  },
+  {
     id: "recording",
     title: "Recording and rendering",
     group: "Your library",

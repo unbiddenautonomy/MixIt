@@ -89,6 +89,9 @@ pub struct Settings {
     pub mic_device: Option<String>,
     pub mic_channel: u16,
     pub mic_stereo: bool,
+    /// Raising a channel fader from the bottom starts its deck; closing it stops the
+    /// deck and goes back to the cue point.
+    pub fader_start: bool,
 }
 
 impl Default for Settings {
@@ -112,6 +115,7 @@ impl Default for Settings {
             mic_device: None,
             mic_channel: 0,
             mic_stereo: false,
+            fader_start: false,
         }
     }
 }

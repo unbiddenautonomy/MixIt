@@ -18,6 +18,7 @@ import { addMusicFolder, DJ_APPS, importFromApp, type DjApp } from "../library/L
 import { showSoundsLike } from "../library/data";
 import { openBuildSet } from "../library/BuildSetDialog";
 import { openTidy } from "../library/TidyDialog";
+import { instantDouble } from "../../lib/performance";
 import { toast } from "sonner";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
@@ -43,6 +44,11 @@ function extras(): Extra[] {
     { id: "x.add", label: "Add music folder…", group: "Library", run: addMusicFolder, keywords: ["import", "scan"] },
     ...(Object.keys(DJ_APPS) as DjApp[]).map((app) => ({ id: `x.import.${app}`, label: DJ_APPS[app].menu, group: "Library", run: () => importFromApp(app), keywords: ["import", "collection", "library", "dj", app] })),
     { id: "x.insights", label: "Collection at a glance", group: "Library", run: () => (s.set({ workspace: "library" }), useLibrary.getState().set({ source: { type: "insights" } })), keywords: ["stats", "insights", "overview", "keys", "tempo", "genres"] },
+    ...Array.from({ length: deckCount() }, (_, from) => from).flatMap((from) =>
+      Array.from({ length: deckCount() }, (_, to) => to)
+        .filter((to) => to !== from)
+        .map((to) => ({ id: `x.double.${from}.${to}`, label: `Copy deck ${DECK_LETTERS[from]} to deck ${DECK_LETTERS[to]}, in time`, group: "Mix", run: () => void instantDouble(from, to), keywords: ["instant double", "clone", "duplicate deck"] })),
+    ),
     { id: "x.build_set", label: "Build a set…", group: "Library", run: () => (s.set({ workspace: "library" }), openBuildSet()), keywords: ["set", "plan", "warm-up", "peak", "energy", "playlist", "generate"] },
     {
       id: "x.tidy",

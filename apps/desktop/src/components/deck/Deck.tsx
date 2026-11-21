@@ -9,7 +9,7 @@ import { backend } from "../../backend";
 import { act, choose, press, release, setOn, setValue, tap } from "../../lib/actions";
 import { bpm as fmtBpm, clock, signedPct } from "../../lib/format";
 import { keyColor, keyLabel, shiftedKey } from "../../lib/keys";
-import { useApp, useNotation, usePro } from "../../store/app";
+import { deckCount, useApp, useNotation, usePro } from "../../store/app";
 import { useDeckTele, useTelemetry } from "../../store/telemetry";
 import { useLibrary } from "../../store/library";
 import { ActionBtn, Btn } from "../ui/Button";
@@ -22,6 +22,8 @@ import { useDropTarget } from "../../lib/dnd";
 import { DECK_COLORS } from "./useWaveform";
 import { openEditor } from "../editor/TrackEditor";
 import { Cover } from "../ui/Cover";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { instantDouble } from "../../lib/performance";
 
 export const TEMPO_RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 export const TEMPO_RANGE_LABELS = ["±6%", "±8%", "±10%", "±16%", "±50%", "±100%"];
@@ -85,8 +87,41 @@ function EmptyDeck({ letter, compact }: { letter: string; compact: boolean }) {
   );
 }
 
-function Header({ deck }: { deck: number }) {
+/** The deck letter; click it to copy another deck's track here (an instant double). */
+function DeckMenu({ deck }: { deck: number }) {
   const L = String.fromCharCode(65 + deck);
+  const decks = useApp((s) => s.decks);
+  const n = deckCount();
+  const others = Array.from({ length: n }, (_, i) => i).filter((i) => i !== deck && decks[i]);
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-base font-black text-zinc-950 outline-none ring-white/60 focus-visible:ring-2"
+          style={{ background: DECK_COLORS[deck] }}
+          title={`Deck ${L}: click to copy another deck's track here`}
+          data-testid={`deck-menu-${L}`}
+        >
+          {L}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="start" sideOffset={4} className="menu">
+          {others.length === 0 && <div className="px-2 py-1.5 text-xs text-zinc-500">Load a track on another deck to copy it here.</div>}
+          {others.map((i) => (
+            <DropdownMenu.Item key={i} className="menu-item" onSelect={() => void instantDouble(i, deck)} data-testid={`double-${String.fromCharCode(65 + i)}-${L}`}>
+              Copy deck {String.fromCharCode(65 + i)} here, in time
+              <span className="ml-3 max-w-40 truncate text-zinc-500">{decks[i]?.detail.track.title}</span>
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+function Header({ deck }: { deck: number }) {
   const info = useApp((s) => s.decks[deck]);
   const notation = useNotation();
   const pro = usePro();
@@ -100,9 +135,7 @@ function Header({ deck }: { deck: number }) {
 
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl text-base font-black text-zinc-950" style={{ background: DECK_COLORS[deck] }}>
-        {L}
-      </div>
+      <DeckMenu deck={deck} />
       {t && <Cover trackId={t.id} has={t.hasArt} title={t.title} artist={t.artist} size={36} rounded="rounded-lg" />}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold leading-tight text-zinc-50" title={t?.title}>
