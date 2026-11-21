@@ -13,6 +13,18 @@ export interface ChannelState {
   fader: number;
   cue: boolean;
   kills: [boolean, boolean, boolean];
+  /** Studio one-knob controls (see `mixer.X.punch` and friends in the registry). */
+  pan: number;
+  punch: number;
+  warmth: number;
+  width: number;
+  /** Reverb and echo sends, 0..1. */
+  space: number;
+  echo: number;
+  /** Index into DUCK_SOURCES (0 = off, 1 = deck A…) and the amount 0..1. */
+  duckSource: number;
+  duck: number;
+  gate: boolean;
 }
 
 export interface FxSlot {
@@ -44,6 +56,15 @@ export interface MixerState {
   crossfaderReverse: boolean;
   /** Crossfader side per channel: 0 = A, 1 = thru, 2 = B. */
   assign: number[];
+  /** Master glue compressor 0..1. */
+  glue: number;
+  /** Shared reverb ("space") and echo returns. */
+  spaceLevel: number;
+  spaceSize: number;
+  echoLevel: number;
+  echoFeedback: number;
+  /** Index into the registry's echo times. */
+  echoTime: number;
 }
 
 export const LOOP_LABELS = ["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4", "8", "16", "32"];
@@ -56,7 +77,25 @@ export const MASTER_FX = 4;
 /** "A".."D" for deck units, "master" for the master unit. */
 export const fxUnitName = (unit: number) => (unit === MASTER_FX ? "master" : DECK_LETTERS[unit]);
 
-const channel = (): ChannelState => ({ trim: 0, high: 0, mid: 0, low: 0, filter: 0, fader: 1, cue: false, kills: [false, false, false] });
+const channel = (): ChannelState => ({
+  trim: 0,
+  high: 0,
+  mid: 0,
+  low: 0,
+  filter: 0,
+  fader: 1,
+  cue: false,
+  kills: [false, false, false],
+  pan: 0,
+  punch: 0,
+  warmth: 0,
+  width: 1,
+  space: 0,
+  echo: 0,
+  duckSource: 0,
+  duck: 0.5,
+  gate: false,
+});
 const fxSlot = (type: number): FxSlot => ({ type, on: false, mix: 0.5, beats: 5, p1: 0.5, p2: 0.5 });
 
 interface AppState {
@@ -131,6 +170,12 @@ export const useApp = create<AppState>((set) => ({
     splitCue: false,
     crossfaderReverse: false,
     assign: [0, 2, 0, 2],
+    glue: 0,
+    spaceLevel: -3,
+    spaceSize: 0.5,
+    echoLevel: -3,
+    echoFeedback: 0.5,
+    echoTime: 2,
   },
   workspace: "mix",
   paletteOpen: false,

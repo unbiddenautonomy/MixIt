@@ -14,6 +14,7 @@ import { Library } from "./components/library/Library";
 import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
 import { SamplerPanel } from "./components/sampler/SamplerPanel";
+import { StudioPanel } from "./components/studio/StudioPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
@@ -153,6 +154,7 @@ export function App() {
       <Tour />
       <DragLayer />
       <AutomixDialog />
+      <StudioPanel />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />
     </Tooltip.Provider>

@@ -140,6 +140,13 @@ export interface DeckTele {
   looping: LoopDto;
   peak: [number, number];
   rms: number;
+  /** Bass below about 150 Hz after the fader (RMS), for spotting two basslines at once. */
+  lowRms: number;
+  /** Studio compressor gain reduction (dB, positive). */
+  compGrDb: number;
+  /** How far ducking turned the channel down (dB, positive). */
+  duckDb: number;
+  gateOpen: boolean;
 }
 
 export interface MasterTele {
@@ -149,6 +156,8 @@ export interface MasterTele {
   shortTermLufs: number;
   correlation: number;
   limiterGrDb: number;
+  /** Master glue compressor gain reduction (dB, positive). */
+  glueGrDb: number;
   cuePeak: [number, number];
   clipped: boolean;
 }
@@ -166,7 +175,61 @@ export interface Telemetry {
   overruns: number;
   /** Bit n is set while sampler pad n plays. */
   samplerPlaying: number;
+  /** Spectrum-analyser bands (dB, 96 log-spaced bands from 20 Hz to 20 kHz) while one is open. */
+  spectrum?: number[];
 }
+
+// ------------------------------------------------------------------ studio strips
+
+export type BandShape = "bell" | "lowShelf" | "highShelf" | "lowCut" | "highCut" | "notch" | "bandPass";
+
+export interface BandDto {
+  enabled: boolean;
+  shape: BandShape;
+  freq: number;
+  q: number;
+  gainDb: number;
+  /** Cuts only: 12, 24, 36 or 48 dB per octave. */
+  slopeDb: number;
+}
+
+export interface CompDto {
+  thresholdDb: number;
+  ratio: number;
+  kneeDb: number;
+  attackMs: number;
+  releaseMs: number;
+  makeupDb: number;
+  autoMakeup: boolean;
+  sidechainHpfHz: number;
+  mix: number;
+}
+
+export interface GateDto {
+  thresholdDb: number;
+  hysteresisDb: number;
+  attackMs: number;
+  holdMs: number;
+  releaseMs: number;
+  rangeDb: number;
+}
+
+/** A channel's (or the master's) studio insert chain. */
+export interface StudioDto {
+  gateOn: boolean;
+  gate: GateDto;
+  eqOn: boolean;
+  bands: BandDto[];
+  compOn: boolean;
+  comp: CompDto;
+  satOn: boolean;
+  driveDb: number;
+  width: number;
+  outputDb: number;
+}
+
+/** What the spectrum analyser shows: nothing, the master, or a channel (0..3). */
+export type ScopeSource = "off" | "master" | number;
 
 export interface AudioStatus {
   device: string;

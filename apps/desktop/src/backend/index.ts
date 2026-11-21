@@ -17,6 +17,8 @@ import type {
   MicTake,
   MixProject,
   PadInfo,
+  ScopeSource,
+  StudioDto,
   PadPatch,
   PadSource,
   PlaylistDto,
@@ -92,6 +94,11 @@ export interface Backend {
 
   /** Microphones and line inputs. The mic itself opens and closes with the settings. */
   inputDevices(): Promise<DeviceInfo[]>;
+  /** A channel's (0..3) or, with null, the master's studio strip. */
+  studioGet(channel: number | null): Promise<StudioDto>;
+  studioSet(channel: number | null, settings: StudioDto): Promise<void>;
+  /** Turns the spectrum analyser on for the master or a channel, or off. */
+  setScope(source: ScopeSource): Promise<void>;
   micState(): Promise<MicState>;
   /** Starts recording the mic channel. */
   micRecordStart(): Promise<void>;

@@ -6,6 +6,7 @@ import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 import { toProjectKey } from "../lib/arrangeOps";
+import { DUCK_MAX_DB, WARMTH_MAX_DB, defaultStudio, eqDb, glueComp, punchComp } from "../lib/studio";
 
 export const SR = 48_000;
 const DECKS = 4;
@@ -237,6 +238,11 @@ export class DemoBackend implements Backend {
   };
   /** The simulated mic channel. */
   protected mic = { onAir: false, level: 0.8, gain: 0, talkover: true, depth: -12, recordingSince: null as number | null };
+  /** Studio strips: decks 0..3, then the master. */
+  protected studio: T.StudioDto[] = [0, 1, 2, 3, 4].map(() => defaultStudio());
+  /** Ducking per channel: source deck (or null) and amount 0..1. */
+  protected duck: { source: number | null; amount: number }[] = [0, 1, 2, 3].map(() => ({ source: null, amount: 0 }));
+  protected scope: T.ScopeSource = "off";
   protected playlistsData: (T.PlaylistDto & { tracks: number[] })[] = [];
   protected historyData: T.HistoryEntry[] = [];
   protected token = 1;
@@ -350,7 +356,15 @@ export class DemoBackend implements Backend {
         looping: d.loop,
         peak: [lvl, lvl * 0.97],
         rms: lvl * 0.6,
+        lowRms: lvl * 0.35 * d.fader * Math.pow(10, Math.max(-26, d.eq[0]) / 20),
+        compGrDb: this.studio[i].compOn && lvl > 0.05 ? Math.max(0, 20 * Math.log10(lvl) - this.studio[i].comp.thresholdDb) * (1 - 1 / this.studio[i].comp.ratio) : 0,
+        duckDb: 0,
+        gateOpen: this.studio[i].gateOn && lvl > 0.01,
       };
+    });
+    tele.forEach((d, i) => {
+      const src = this.duck[i].source;
+      if (src !== null && tele[src]?.playing && tele[src].peak[0] > 0.05) d.duckDb = this.duck[i].amount * DUCK_MAX_DB;
     });
     const mix = tele.reduce((a, d, i) => {
       const x = this.crossfader;
@@ -374,6 +388,7 @@ export class DemoBackend implements Backend {
         shortTermLufs: m > 0 ? -14 + 20 * Math.log10(m) : -70,
         correlation: 0.9,
         limiterGrDb: m > 0.98 ? -20 * Math.log10(m / 0.98) : 0,
+        glueGrDb: this.studio[4].compOn && m > 0.1 ? Math.max(0, 20 * Math.log10(m) - this.studio[4].comp.thresholdDb) * 0.5 : 0,
         cuePeak: [0, 0],
         clipped: false,
       },
@@ -398,6 +413,12 @@ export class DemoBackend implements Backend {
       load: 0.08 + Math.random() * 0.02,
       overruns: 0,
       samplerPlaying: this.samplerMask(),
+      spectrum:
+        this.scope === "off"
+          ? undefined
+          : this.scope === "master"
+            ? this.fakeSpectrum(limited, this.studio[4])
+            : this.fakeSpectrum(tele[this.scope]?.peak[0] ?? 0, this.studio[this.scope]),
     });
   }
 
@@ -618,6 +639,14 @@ export class DemoBackend implements Backend {
         else if (c === "eq.low") d.eq[0] = value;
         else if (c === "eq.mid") d.eq[1] = value;
         else if (c === "eq.high") d.eq[2] = value;
+        else if (c === "punch") this.studio[i] = { ...this.studio[i], compOn: value > 0.001, comp: punchComp(value) };
+        else if (c === "warmth") this.studio[i] = { ...this.studio[i], satOn: value > 0.001, driveDb: WARMTH_MAX_DB * value };
+        else if (c === "width") this.studio[i] = { ...this.studio[i], width: value };
+        else if (c === "gate") this.studio[i] = { ...this.studio[i], gateOn: toggle(this.studio[i].gateOn) };
+        else if (c === "duck_source") this.duck[i].source = value >= 1 && value - 1 !== i ? value - 1 : null;
+        else if (c === "duck") this.duck[i].amount = value;
+      } else if (p[1] === "glue") {
+        this.studio[4] = { ...this.studio[4], compOn: value > 0.001, comp: glueComp(value) };
       } else if (p[1] === "crossfader") this.crossfader = value;
       else if (p[1] === "master") this.masterDb = value;
     } else if (p[0] === "mic") {
@@ -950,6 +979,30 @@ export class DemoBackend implements Backend {
       { id: "demo:line", name: "USB audio interface, line in (simulated)", host: "Demo", max_channels: 4, sample_rates: [44100, 48000], default_sample_rate: 48000, buffer_range: [64, 1024], is_default: false },
     ];
   }
+  async studioGet(channel: number | null): Promise<T.StudioDto> {
+    return structuredClone(this.studio[channel ?? 4]);
+  }
+
+  async studioSet(channel: number | null, settings: T.StudioDto): Promise<void> {
+    this.studio[channel ?? 4] = structuredClone(settings);
+  }
+
+  async setScope(source: T.ScopeSource): Promise<void> {
+    this.scope = source;
+  }
+
+  /** A believable spectrum: pink-ish music shaped by the strip's EQ, moving with the level. */
+  protected fakeSpectrum(level: number, s: T.StudioDto): number[] {
+    const t = performance.now() / 1000;
+    return Array.from({ length: 96 }, (_, k) => {
+      const f = 20 * Math.pow(1000, (k + 0.5) / 96);
+      // Music falls about 4.5 dB per octave; the display tilts it back to roughly flat.
+      const base = -30 + 20 * Math.log10(Math.max(level, 1e-4)) - 6 * Math.max(0, Math.log2(f / 8000)) - 8 * Math.max(0, Math.log2(60 / f));
+      const wobble = 3 * Math.sin(t * 5 + k * 0.7) * Math.sin(t * 1.3 + k * 0.31);
+      return Math.max(-110, base + eqDb(s, f) + wobble);
+    });
+  }
+
   async micState(): Promise<T.MicState> {
     if (!this.settings.micEnabled) return { status: null, error: null, lost: false };
     const d = (await this.inputDevices()).find((x) => x.id === this.settings.micDevice) ?? (await this.inputDevices())[0];
@@ -1382,7 +1435,22 @@ function demoRegistry(): T.ActionSpec[] {
     add(`mixer.${l}.filter`, "Filter", m, cont(-1, 1, 0), "Left removes highs (muffled, far away); right removes lows (thin, airy). Centre is off.");
     add(`mixer.${l}.trim`, "Gain", m, cont(-12, 12, 0), "Input level, to match loudness between tracks.");
     add(`mixer.${l}.cue`, "Headphone cue", m, { type: "toggle" }, "Sends this channel to your headphones so you can prepare the next track.");
+    add(`mixer.${l}.pan`, "Pan", m, cont(-1, 1, 0), "Places this channel left or right in the stereo picture. Centre is straight ahead.", null, false);
+    add(`mixer.${l}.punch`, "Punch", m, cont(0, 1, 0), "Evens out loud and quiet moments so the track hits harder and sits steadier in the mix (a compressor). A little goes a long way.", null, false);
+    add(`mixer.${l}.warmth`, "Warmth", m, cont(0, 1, 0), "Adds the gentle grit of tape: fuller, denser and rounder peaks, without simply getting louder.", null, false);
+    add(`mixer.${l}.width`, "Stereo width", m, cont(0, 2, 1), "Left makes the track narrower (fully left is mono), right makes it wider. Narrow tracks leave room for others.", null, false);
+    add(`mixer.${l}.space`, "Space (reverb send)", m, cont(0, 1, 0), "Sends some of this channel into the shared reverb, as if it were played in a bigger room.", null, false);
+    add(`mixer.${l}.echo`, "Echo send", m, cont(0, 1, 0), "Sends some of this channel into the shared echo, which repeats in time with the beat.", null, false);
+    add(`mixer.${l}.duck_source`, "Duck under", m, { type: "choice", options: ["Off", "Deck A", "Deck B", "Deck C", "Deck D"], default: 0 }, "Which deck this channel gets quieter for. Pick the other deck so its kick and bass come through cleanly.", null, false);
+    add(`mixer.${l}.duck`, "Ducking amount", m, cont(0, 1, 0), "How far this channel dips while the deck it ducks under plays.", null, false);
+    add(`mixer.${l}.gate`, "Noise gate", m, { type: "toggle" }, "Silences the channel between sounds, removing hiss and hum in the quiet parts.", null, false);
   });
+  add("mixer.glue", "Glue", "Mixer", cont(0, 1, 0), "Gently compresses the whole mix so the tracks sound like they belong together, as mastering engineers do.", null, false);
+  add("mixer.space.level", "Reverb return", "Mixer", cont(-60, 6, -3), "How loud the shared reverb is in the mix.", null, false);
+  add("mixer.space.size", "Reverb size", "Mixer", cont(0, 1, 0.5), "From a small room (left) to a huge hall (right).", null, false);
+  add("mixer.echo.level", "Echo return", "Mixer", cont(-60, 6, -3), "How loud the shared echo is in the mix.", null, false);
+  add("mixer.echo.feedback", "Echo repeats", "Mixer", cont(0, 1, 0.5), "How many times the echo repeats before it fades away.", null, false);
+  add("mixer.echo.time", "Echo time", "Mixer", { type: "choice", options: ["1/4 beat", "1/2 beat", "3/4 beat", "1 beat", "2 beats", "4 beats"], default: 2 }, "How far apart the echoes are, in beats.", null, false);
   add("mixer.crossfader", "Crossfader", "Mixer", cont(-1, 1, 0), "Blends between the left and right decks.");
   add("mixer.master", "Master volume", "Mixer", cont(-120, 6, 0), "The level of the whole mix.");
   for (let n = 1; n <= 8; n++) add(`sampler.pad.${n}`, `Pad ${n}`, "Sampler", { type: "momentary" }, "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.", `Shift+${n}`);

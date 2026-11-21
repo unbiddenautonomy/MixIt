@@ -78,6 +78,9 @@ export class TauriBackend implements Backend {
   importTrack(path: string) { return invoke<T.TrackRow>("library_import", { path }); }
   registerFiles(_files: File[]): string[] { return []; }
   inputDevices() { return invoke<T.DeviceInfo[]>("input_devices"); }
+  studioGet(channel: number | null) { return invoke<T.StudioDto>("studio_get", { channel }); }
+  studioSet(channel: number | null, settings: T.StudioDto) { return invoke<void>("studio_set", { channel, settings }); }
+  setScope(source: T.ScopeSource) { return invoke<void>("scope_set", { source: String(source) }); }
   micState() { return invoke<T.MicState>("mic_status"); }
   async micRecordStart() { await invoke<string>("mic_record_start"); }
   micRecordStop(trim: boolean) { return invoke<T.MicTake>("mic_record_stop", { trim }); }

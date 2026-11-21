@@ -379,6 +379,18 @@ export class WebAudioBackend extends DemoBackend {
   private micStatus: T.MicStatus | null = null;
   private micRecording = false;
 
+  async studioGet(channel: number | null): Promise<T.StudioDto> {
+    return (await this.engine.call(channel === null ? { op: "studioGet" } : { op: "studioGet", channel })) as T.StudioDto;
+  }
+
+  async studioSet(channel: number | null, settings: T.StudioDto): Promise<void> {
+    this.engine.send(channel === null ? { op: "studioSet", settings } : { op: "studioSet", channel, settings });
+  }
+
+  async setScope(source: T.ScopeSource): Promise<void> {
+    this.engine.send({ op: "scope", source });
+  }
+
   async inputDevices(): Promise<T.DeviceInfo[]> {
     const sr = this.engine.sampleRate;
     return (await WebEngine.inputDevices()).map((d) => ({ id: d.id, name: d.name, host: "Web Audio", max_channels: 2, sample_rates: [sr], default_sample_rate: sr, buffer_range: null, is_default: d.isDefault }));
