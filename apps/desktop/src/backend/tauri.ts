@@ -91,6 +91,13 @@ export class TauriBackend implements Backend {
   reorderPlaylist(id: number, from: number[], to: number) { return invoke<void>("playlist_reorder", { id, from, to }); }
   orderPlaylist(id: number, energy: "steady" | "up" | "down") { return invoke<void>("playlist_order_set", { id, energy, start: null }); }
   history() { return invoke<T.HistoryEntry[]>("history"); }
+  async historySessions() {
+    const [current, sessions] = await invoke<[number | null, T.SessionDto[]]>("history_sessions");
+    return { current, sessions };
+  }
+  sessionHistory(session: number) { return invoke<T.HistoryEntry[]>("history_of", { session }); }
+  renameSession(session: number, name: string) { return invoke<void>("history_rename", { session, name }); }
+  deleteSession(session: number) { return invoke<void>("history_delete", { session }); }
   tracklist() { return invoke<string>("history_tracklist"); }
 
   devices() { return invoke<T.DeviceInfo[]>("audio_devices"); }

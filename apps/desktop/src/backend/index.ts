@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, TagDto,
+import type { BackupInfo, SessionDto, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -129,6 +129,13 @@ export interface Backend {
   reorderPlaylist(id: number, from: number[], to: number): Promise<void>;
   orderPlaylist(id: number, energy: "steady" | "up" | "down"): Promise<void>;
   history(): Promise<HistoryEntry[]>;
+  /** Past sets, newest first, and which one is this session. */
+  historySessions(): Promise<{ current: number | null; sessions: SessionDto[] }>;
+  /** What one session played, in order. */
+  sessionHistory(session: number): Promise<HistoryEntry[]>;
+  renameSession(session: number, name: string): Promise<void>;
+  /** Forgets a past set (play counts stay). */
+  deleteSession(session: number): Promise<void>;
   tracklist(): Promise<string>;
 
   devices(): Promise<DeviceInfo[]>;

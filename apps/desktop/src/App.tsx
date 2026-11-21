@@ -10,7 +10,7 @@ import { Arrange } from "./components/arrange/Arrange";
 import { AutomixDialog } from "./components/arrange/AutomixDialog";
 import { Deck } from "./components/deck/Deck";
 import { WaveStack } from "./components/deck/WaveStack";
-import { refreshCare, refreshRows, refreshStats, refreshTags } from "./components/library/data";
+import { refreshCare, refreshRows, refreshSessions, refreshStats, refreshTags } from "./components/library/data";
 import { Library } from "./components/library/Library";
 import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
@@ -97,6 +97,7 @@ export function App() {
             }, 300);
           }),
           b.onHistoryChanged(() => {
+            void refreshSessions();
             if (useLibrary.getState().source.type === "history") refreshRows();
           }),
           b.onAudioStatus((a) => {

@@ -2,24 +2,28 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Bot, Disc3, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
 import { ask, askText } from "../shell/Dialogs";
-import type { PlaylistDto, TagDto } from "../../backend/types";
+import type { PlaylistDto, SessionDto, TagDto } from "../../backend/types";
 import { clock, plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
-import { refreshPlaylists, refreshRows, refreshTags, tagTracks } from "./data";
+import { copySetTracklist, refreshPlaylists, refreshRows, refreshSessions, refreshTags, saveSetAsPlaylist, tagTracks } from "./data";
+import { setLabel } from "../../lib/history";
 import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { editSmartPlaylist } from "./SmartPlaylistDialog";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 
 const same = (a: Source, b: Source) =>
-  a.type === b.type && (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id)) && (a.type !== "tag" || (b.type === "tag" && a.name.toLowerCase() === b.name.toLowerCase()));
+  a.type === b.type &&
+  (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id)) &&
+  (a.type !== "tag" || (b.type === "tag" && a.name.toLowerCase() === b.name.toLowerCase())) &&
+  (a.type !== "history" || (b.type === "history" && (a.session ?? null) === (b.session ?? null)));
 
 export function Sidebar() {
   const source = useLibrary((s) => s.source);
@@ -30,6 +34,9 @@ export function Sidebar() {
   const djOn = useAutoDj((s) => s.phase !== "off");
   const [creating, setCreating] = useState<null | "list" | "smart" | "folder">(null);
   const tags = useLibrary((s) => s.tags);
+  const sessions = useLibrary((s) => s.sessions);
+  const currentSession = useLibrary((s) => s.currentSession);
+  const pastSets = sessions.filter((s) => s.id !== currentSession);
 
   const select = (s: Source) => {
     useLibrary.getState().set({ source: s, selected: [], anchor: null });
@@ -43,7 +50,10 @@ export function Sidebar() {
     <nav className="flex w-52 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/[0.06] p-2 text-[13px]">
       <Item icon={<LibIcon size={14} />} label="Collection" count={stats?.tracks} active={same(source, { type: "all" })} onClick={() => select({ type: "all" })} />
       <Item icon={<Sparkles size={14} />} label="Suggestions" active={same(source, { type: "suggest" })} onClick={() => select({ type: "suggest" })} hint="Tracks that mix well after the one playing" />
-      <Item icon={<History size={14} />} label="History" active={same(source, { type: "history" })} onClick={() => select({ type: "history" })} />
+      <Item icon={<History size={14} />} label="History" hint="What you played this session" active={same(source, { type: "history" })} onClick={() => select({ type: "history" })} />
+      {pastSets.slice(0, 5).map((s) => (
+        <SetItem key={s.id} s={s} active={same(source, { type: "history", session: s.id })} select={select} />
+      ))}
       <Item
         icon={<Bot size={14} className={djOn ? "text-sky-300" : undefined} />}
         label="Auto DJ"
@@ -198,7 +208,7 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
           </div>
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
-          <ContextMenu.Content className="menu">
+          <ContextMenu.Content className="menu" onCloseAutoFocus={(e) => e.preventDefault()}>
             <ContextMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
               Rename
             </ContextMenu.Item>
@@ -307,6 +317,58 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
   );
 }
 
+function SetItem({ s, active, select }: { s: SessionDto; active: boolean; select: (s: Source) => void }) {
+  const [renaming, setRenaming] = useState(false);
+  const label = setLabel(s);
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div data-testid="sidebar-set">
+          {renaming ? (
+            <RenameInput
+              initial={s.name || label}
+              done={async (name) => {
+                setRenaming(false);
+                if (name === (s.name || label)) return;
+                await backend().renameSession(s.id, name);
+                await refreshSessions();
+              }}
+            />
+          ) : (
+            <Item icon={<Disc3 size={12} />} label={label} count={s.tracks} depth={1} hint={`A set you played: ${plural(s.tracks, "track")}, from ${new Date(s.firstPlayed * 1000).toLocaleString(undefined, { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}`} active={active} onClick={() => select({ type: "history", session: s.id })} />
+          )}
+        </div>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="menu" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <ContextMenu.Item className="menu-item" onSelect={() => void saveSetAsPlaylist(s.id, label)}>
+            Save as playlist
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => void copySetTracklist(s.id)}>
+            Copy tracklist
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
+            Rename
+          </ContextMenu.Item>
+          <ContextMenu.Separator className="menu-sep" />
+          <ContextMenu.Item
+            className="menu-item text-red-300"
+            onSelect={async () => {
+              const ok = await ask({ title: `Forget the set “${label}”?`, body: "Its list of plays goes away. The tracks, their play counts and your playlists stay.", confirm: "Forget set", danger: true });
+              if (!ok) return;
+              if (active) select({ type: "history" });
+              await backend().deleteSession(s.id);
+              await refreshSessions();
+            }}
+          >
+            Forget this set
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+}
+
 const TAG_COLORS = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899];
 
 function TagItem({ t, source, select }: { t: TagDto; source: Source; select: (s: Source) => void }) {
@@ -355,7 +417,7 @@ function TagItem({ t, source, select }: { t: TagDto; source: Source; select: (s:
         </div>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Content className="menu">
+        <ContextMenu.Content className="menu" onCloseAutoFocus={(e) => e.preventDefault()}>
           <ContextMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
             Rename
           </ContextMenu.Item>
@@ -408,8 +470,18 @@ function TagItem({ t, source, select }: { t: TagDto; source: Source; select: (s:
 
 function RenameInput({ initial, done }: { initial: string; done: (v: string) => void }) {
   const [v, setV] = useState(initial);
+  const ref = useRef<HTMLInputElement>(null);
+  // Opened from a menu: take the focus once the menu has closed and handed it back.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      ref.current?.focus();
+      ref.current?.select();
+    }, 30);
+    return () => window.clearTimeout(t);
+  }, []);
   return (
     <input
+      ref={ref}
       autoFocus
       value={v}
       onChange={(e) => setV(e.target.value)}

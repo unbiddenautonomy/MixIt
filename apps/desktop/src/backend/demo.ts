@@ -1303,6 +1303,56 @@ export class DemoBackend implements Backend {
   async history() {
     return this.historyData;
   }
+
+  /** The current session's id; past demo sets are 1, 2 and 3. */
+  private static CURRENT = 100;
+  private pastSets: { id: number; name: string; startedAt: number; entries: T.HistoryEntry[] }[] | null = null;
+
+  /** A few made-up past sets so History has something to show. */
+  private demoSets() {
+    if (this.pastSets) return this.pastSets;
+    const day = 86_400;
+    const now = Math.floor(Date.now() / 1000);
+    const plan: [number, string, number, number][] = [
+      [2, "", 22, 16],
+      [6, "Friday at the bar", 30, 12],
+      [13, "", 50, 18],
+    ];
+    this.pastSets = plan.map(([ago, name, from, n], i) => {
+      const start = Math.floor((now - ago * day) / day) * day + 21 * 3600;
+      let at = start;
+      const entries = this.tracks.slice(from, from + n).map((t) => {
+        const e: T.HistoryEntry = { track_id: t.row.id, played_at: at, deck: (at / 60) % 2 ? 1 : 0, title: t.row.title, artist: t.row.artist };
+        at += Math.round(t.row.duration * 0.7);
+        return e;
+      });
+      return { id: i + 1, name, startedAt: start - 300, entries };
+    });
+    return this.pastSets;
+  }
+
+  async historySessions(): Promise<{ current: number | null; sessions: T.SessionDto[] }> {
+    const info = (id: number, name: string, startedAt: number, e: T.HistoryEntry[]): T.SessionDto => ({ id, name, startedAt, tracks: e.length, firstPlayed: e[0].played_at, lastPlayed: e[e.length - 1].played_at });
+    const sessions = this.demoSets().map((s) => info(s.id, s.name, s.startedAt, s.entries));
+    if (this.historyData.length) sessions.unshift(info(DemoBackend.CURRENT, "", this.historyData[0].played_at, this.historyData));
+    return { current: DemoBackend.CURRENT, sessions };
+  }
+
+  async sessionHistory(session: number): Promise<T.HistoryEntry[]> {
+    if (session === DemoBackend.CURRENT) return this.historyData;
+    return this.demoSets().find((s) => s.id === session)?.entries ?? [];
+  }
+
+  async renameSession(session: number, name: string): Promise<void> {
+    const s = this.demoSets().find((x) => x.id === session);
+    if (s) s.name = name.trim();
+  }
+
+  async deleteSession(session: number): Promise<void> {
+    if (session === DemoBackend.CURRENT) this.historyData = [];
+    else this.pastSets = this.demoSets().filter((s) => s.id !== session);
+    this.emit("history-changed", null);
+  }
   async tracklist() {
     return this.historyData.map((h, i) => `${i + 1}. ${h.artist} – ${h.title}`).join("\n");
   }

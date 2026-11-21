@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { LibraryStats, PlaylistDto, SuggestionRow, TagDto, TrackRow } from "../backend/types";
+import type { HistoryEntry, LibraryStats, PlaylistDto, SessionDto, SuggestionRow, TagDto, TrackRow } from "../backend/types";
 
-export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "tag"; name: string };
+export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history"; session?: number } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "tag"; name: string };
 
 export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | null;
 
@@ -26,6 +26,10 @@ interface LibraryState {
   /** Your own tags with their counts, and the tags of the rows on show. */
   tags: TagDto[];
   rowTags: Record<number, string[]>;
+  /** Past sets (newest first), this session's id, and the plays behind the history on show. */
+  sessions: SessionDto[];
+  currentSession: number | null;
+  historyEntries: HistoryEntry[];
   set: (p: Partial<LibraryState>) => void;
 }
 
@@ -48,6 +52,9 @@ export const useLibrary = create<LibraryState>((set) => ({
   duplicates: null,
   tags: [],
   rowTags: {},
+  sessions: [],
+  currentSession: null,
+  historyEntries: [],
   set: (p) => set(p),
 }));
 

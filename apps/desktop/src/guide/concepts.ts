@@ -446,6 +446,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "past-sets",
+    title: "Your past sets",
+    group: "Your library",
+    summary: "Every time you play, MixIt keeps the list of tracks, so you can play a good night again or share what you played.",
+    body: [
+      "History shows what you played this session, newest first. Under it are your last few sets, named by the night (Last night, Thu 19 Nov); click one to see its tracks in the order you played them, how long it ran and when it started.",
+      "Save as playlist turns a set into a playlist in the same order, to play it again or build on it. Copy tracklist puts the list with the time each track started on the clipboard, ready to paste under a recording. Right-click a set to rename it (Rooftop, Sarah's birthday) or forget it; forgetting keeps the tracks and their play counts.",
+    ],
+  },
+  {
     id: "tags",
     title: "Your own tags",
     group: "Your library",
