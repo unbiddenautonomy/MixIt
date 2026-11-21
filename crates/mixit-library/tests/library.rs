@@ -120,6 +120,43 @@ fn playlists_smart_lists_and_tags() {
 }
 
 #[test]
+fn your_own_tags_rename_merge_and_delete() {
+    let (lib, ids) = sample_library();
+    let vocal = lib.tag_by_name(" Vocal ", "Vocals", &[ids[0], ids[2]], true).unwrap();
+    let warm = lib.tag_by_name("warm-up", "", &[ids[0]], true).unwrap();
+    lib.tag_by_name("Warmup", "", &[ids[1]], true).unwrap();
+    assert!(lib.tag_by_name("  ", "", &[ids[1]], true).is_err(), "a tag needs a name");
+    let counts = lib.tag_counts().unwrap();
+    let count = |n: &str| counts.iter().find(|(t, _)| t.name == n).map(|x| x.1);
+    assert_eq!(count("Vocal"), Some(2));
+    assert_eq!(count("warm-up"), Some(1));
+    assert_eq!(
+        lib.tags_of(&[ids[0], ids[1], ids[4]]).unwrap(),
+        vec![(ids[0], vec!["warm-up".to_string(), "Vocal".to_string()]), (ids[1], vec!["Warmup".to_string()]),]
+    );
+
+    // Renaming onto an existing tag merges them: every track keeps a tag, none twice.
+    let warmup = lib.tags().unwrap().into_iter().find(|t| t.name == "Warmup").unwrap().id;
+    lib.tag_by_name("Warmup", "", &[ids[0]], true).unwrap();
+    assert_eq!(lib.rename_tag(warmup, "WARM-UP").unwrap(), warm);
+    assert_eq!(lib.search("tag:warm-up", None).unwrap().len(), 2);
+    assert!(lib.tags().unwrap().iter().all(|t| t.name != "Warmup"));
+    // A plain rename.
+    assert_eq!(lib.rename_tag(warm, "Opener").unwrap(), warm);
+    assert_eq!(lib.search("tag:opener -tag:vocal", None).unwrap().len(), 1);
+
+    lib.set_tag_info(vocal, "Voice", Some(0xff8800)).unwrap();
+    let t = lib.tags().unwrap().into_iter().find(|t| t.id == vocal).unwrap();
+    assert_eq!((t.category.as_str(), t.color), ("Voice", Some(0xff8800)));
+
+    lib.tag_by_name("Vocal", "", &[ids[0]], false).unwrap();
+    assert_eq!(lib.search("tag:vocal", None).unwrap().len(), 1);
+    lib.delete_tag(vocal).unwrap();
+    assert!(lib.search("tag:vocal", None).unwrap().is_empty());
+    assert!(lib.track_tags(ids[2]).unwrap().is_empty());
+}
+
+#[test]
 fn history_and_suggestions() {
     let (lib, ids) = sample_library();
     let s = lib.start_session("Friday").unwrap();

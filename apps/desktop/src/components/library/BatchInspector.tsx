@@ -9,6 +9,7 @@ import { clock, hex, plural } from "../../lib/format";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { refreshRows, writeTagsToFiles } from "./data";
+import { TagEditor } from "./TagEditor";
 
 const COLORS = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899];
 
@@ -81,6 +82,10 @@ export function BatchInspector({ ids }: { ids: number[] }) {
             <button type="button" aria-label="No colour" onClick={() => void apply({ color: null }, "Colour")} className="size-3.5 rounded-full border border-white/20" />
           </span>
         </div>
+      </div>
+      <div className="flex flex-col gap-1.5 rounded-lg border border-white/[0.06] p-2">
+        <span className="text-zinc-500">Your tags</span>
+        <TagEditor ids={ids} />
       </div>
       <Btn size="sm" onClick={() => void writeTagsToFiles(ids)} title="Put the library's details into the files, so other apps and DJ gear show them">
         <FileDown size={12} /> Write tags to {plural(ids.length, "file")}

@@ -436,6 +436,16 @@ export const CONCEPTS: Concept[] = [
     glossary: ["preview"],
   },
   {
+    id: "tags",
+    title: "Your own tags",
+    group: "Your library",
+    summary: "Label tracks with your own words, like vocal, peak time or dark, and find them again by feel.",
+    body: [
+      "Genre and tempo say what a track is; your tags say how you use it. Add them in a track's details (type a word and press Enter), right-click tracks and choose Tag, or drag tracks onto a tag in the sidebar. Select several tracks to tag them all at once.",
+      "Click a tag in the sidebar to see its tracks, or search with tag:vocal (put tags with spaces in quotes: tag:\"peak time\"). Mix them with other searches, like tag:dark bpm:~124, or make a smart playlist from one. Right-click a tag to rename it (renaming it to another tag's name merges the two), give it a group or a colour, or delete it.",
+    ],
+  },
+  {
     id: "fix-library",
     title: "Moved files and duplicates",
     group: "Your library",

@@ -9,7 +9,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Loader2, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
-import { ask } from "../shell/Dialogs";
+import { ask, askText } from "../shell/Dialogs";
 import type { TrackRow } from "../../backend/types";
 import { bpm as fmtBpm, clock, hex, plural, inkColor } from "../../lib/format";
 import { compatibility, keyColor, keyFromIndex, keyLabel, type Compat } from "../../lib/keys";
@@ -18,10 +18,11 @@ import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshPlaylists, refreshRows, refreshStats, writeTagsToFiles } from "./data";
+import { refreshPlaylists, refreshRows, refreshStats, tagTracks, writeTagsToFiles } from "./data";
 import { editTrack } from "../editor/TrackEditor";
 import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
+import { tagStyle } from "../../lib/tags";
 
 interface Column {
   key: string;
@@ -38,6 +39,7 @@ interface Ctx {
   refKey: number | null;
   refBpm: number | null;
   index: number;
+  tags: Record<number, string[]>;
 }
 
 const COMPAT_STYLE: Record<Compat, string> = {
@@ -103,6 +105,22 @@ const COLUMNS: Column[] = [
   { key: "duration", label: "Time", sort: "duration", width: "52px", align: "right", cell: (r) => <span className="font-mono tabular-nums text-zinc-400">{clock(r.duration)}</span> },
   { key: "rating", label: "Rating", sort: "rating", width: "76px", cell: (r) => <Stars track={r} /> },
   { key: "genre", label: "Genre", sort: "genre", width: "minmax(80px,0.8fr)", cell: (r) => <span className="truncate text-zinc-500">{r.genre}</span> },
+  {
+    key: "tags",
+    label: "Tags",
+    sort: null,
+    width: "minmax(80px,1fr)",
+    pro: true,
+    cell: (r, c) => (
+      <span className="flex min-w-0 gap-1 overflow-hidden" title={c.tags[r.id]?.join(", ")}>
+        {(c.tags[r.id] ?? []).map((n) => (
+          <span key={n} className="shrink-0 rounded-full px-1.5 text-[10px] leading-4" style={tagStyle(n, null)}>
+            {n}
+          </span>
+        ))}
+      </span>
+    ),
+  },
   { key: "lufs", label: "LUFS", sort: null, width: "48px", align: "right", pro: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.lufs != null ? r.lufs.toFixed(1) : "–"}</span> },
   { key: "plays", label: "Plays", sort: "playCount", width: "44px", align: "right", pro: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.playCount || ""}</span> },
   { key: "added", label: "Added", sort: "addedAt", width: "78px", align: "right", pro: true, cell: (r) => <span className="text-[11px] text-zinc-500">{new Date(r.addedAt * 1000).toLocaleDateString()}</span> },
@@ -172,6 +190,7 @@ export function TrackTable() {
   const pro = usePro();
   const notation = useNotation();
   const ref = useReference();
+  const rowTags = useLibrary((s) => s.rowTags);
   const cols = COLUMNS.filter((c) => pro || !c.pro);
   const template = cols.map((c) => c.width).join(" ");
   const sorted = useMemo(() => sortRows(rows, sort, sortDir), [rows, sort, sortDir]);
@@ -259,7 +278,7 @@ export function TrackTable() {
                 >
                   {cols.map((c) => (
                     <div key={c.key} className={clsx("flex min-w-0 items-center px-2", c.align === "right" && "justify-end", c.align === "center" && "justify-center")}>
-                      {c.cell(r, { notation, refKey: ref.key, refBpm: ref.bpm, index: it.index })}
+                      {c.cell(r, { notation, refKey: ref.key, refBpm: ref.bpm, index: it.index, tags: rowTags })}
                     </div>
                   ))}
                 </div>
@@ -287,6 +306,8 @@ function Empty({ source }: { source: string }) {
 function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) {
   const playlists = useLibrary((s) => s.playlists);
   const source = useLibrary((s) => s.source);
+  const tags = useLibrary((s) => s.tags);
+  const rowTags = useLibrary((s) => s.rowTags);
   const count = useApp((s) => s.settings?.decks ?? 2);
   const ids = () => {
     const s = useLibrary.getState().selected;
@@ -355,6 +376,33 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
                       {p.name}
                     </ContextMenu.Item>
                   ))}
+              </ContextMenu.SubContent>
+            </ContextMenu.Portal>
+          </ContextMenu.Sub>
+          <ContextMenu.Sub>
+            <ContextMenu.SubTrigger className="menu-item">Tag</ContextMenu.SubTrigger>
+            <ContextMenu.Portal>
+              <ContextMenu.SubContent className="menu">
+                {tags.map((t) => {
+                  const on = (rowTags[track.id] ?? []).some((n) => n.toLowerCase() === t.name.toLowerCase());
+                  return (
+                    <ContextMenu.CheckboxItem key={t.id} className="menu-item" checked={on} onSelect={() => void tagTracks(ids(), t.name, !on)}>
+                      <span className="mr-1.5 inline-block size-1.5 rounded-full" style={{ background: tagStyle(t.name, t.color).color }} />
+                      {t.name}
+                      {on && <span className="ml-auto pl-3 text-[10px] text-zinc-500">on</span>}
+                    </ContextMenu.CheckboxItem>
+                  );
+                })}
+                {tags.length > 0 && <ContextMenu.Separator className="menu-sep" />}
+                <ContextMenu.Item
+                  className="menu-item"
+                  onSelect={async () => {
+                    const name = await askText({ title: "New tag", placeholder: "vocal, peak time, sunset…", help: "A word or two to find these tracks by later. Search for it with tag:word.", confirm: "Tag" });
+                    if (name?.trim()) await tagTracks(ids(), name, true);
+                  }}
+                >
+                  New tag…
+                </ContextMenu.Item>
               </ContextMenu.SubContent>
             </ContextMenu.Portal>
           </ContextMenu.Sub>

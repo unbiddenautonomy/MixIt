@@ -987,6 +987,90 @@ impl Library {
         Ok(())
     }
 
+    /// Every tag with how many tracks carry it, by category and then name.
+    pub fn tag_counts(&self) -> Result<Vec<(Tag, i64)>> {
+        let mut st = self.conn.prepare(
+            "SELECT g.id, g.name, g.category, g.color, COUNT(tt.track_id) FROM tags g
+             LEFT JOIN track_tags tt ON tt.tag_id = g.id GROUP BY g.id ORDER BY g.category, g.name COLLATE NOCASE",
+        )?;
+        let rows = st.query_map([], |r| {
+            Ok((Tag { id: r.get(0)?, name: r.get(1)?, category: r.get(2)?, color: r.get(3)? }, r.get(4)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// The tag names of each of `tracks` (tracks without tags are left out).
+    pub fn tags_of(&self, tracks: &[TrackId]) -> Result<Vec<(TrackId, Vec<String>)>> {
+        let mut st = self.conn.prepare_cached(
+            "SELECT g.name FROM tags g JOIN track_tags tt ON tt.tag_id = g.id
+             WHERE tt.track_id = ? ORDER BY g.category, g.name COLLATE NOCASE",
+        )?;
+        let mut out = Vec::new();
+        for &t in tracks {
+            let names: Vec<String> = st.query_map([t], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+            if !names.is_empty() {
+                out.push((t, names));
+            }
+        }
+        Ok(out)
+    }
+
+    /// Puts the tag called `name` on `tracks` (creating it, in `category`, if it is new) or
+    /// takes it off. Returns the tag's id.
+    pub fn tag_by_name(&self, name: &str, category: &str, tracks: &[TrackId], on: bool) -> Result<i64> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(LibraryError::Invalid("a tag needs a name".into()));
+        }
+        let id = self.tag(name, category)?;
+        self.tag_tracks(id, tracks, on)?;
+        Ok(id)
+    }
+
+    /// Renames a tag. Renaming it to a tag that already exists merges the two. Returns the
+    /// id of the tag that remains.
+    pub fn rename_tag(&self, id: i64, name: &str) -> Result<i64> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(LibraryError::Invalid("a tag needs a name".into()));
+        }
+        let other: Option<i64> = self
+            .conn
+            .query_row("SELECT id FROM tags WHERE name = ? COLLATE NOCASE AND id != ?", params![name, id], |r| r.get(0))
+            .optional()?;
+        let tx = self.begin()?;
+        let kept = match other {
+            Some(o) => {
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO track_tags (track_id, tag_id) SELECT track_id, ?1 FROM track_tags WHERE tag_id = ?2",
+                    params![o, id],
+                )?;
+                self.conn.execute("DELETE FROM tags WHERE id = ?", [id])?;
+                o
+            }
+            None => {
+                self.conn.execute("UPDATE tags SET name = ? WHERE id = ?", params![name, id])?;
+                id
+            }
+        };
+        tx.commit()?;
+        Ok(kept)
+    }
+
+    /// Files a tag under a category ("Vibe", "Vocals", ...; empty for none) and colours it.
+    pub fn set_tag_info(&self, id: i64, category: &str, color: Option<u32>) -> Result<()> {
+        self.conn
+            .execute("UPDATE tags SET category = ?, color = ? WHERE id = ?", params![category.trim(), color, id])?;
+        Ok(())
+    }
+
+    /// Deletes a tag and takes it off every track.
+    pub fn delete_tag(&self, id: i64) -> Result<()> {
+        self.conn.execute("DELETE FROM track_tags WHERE tag_id = ?", [id])?;
+        self.conn.execute("DELETE FROM tags WHERE id = ?", [id])?;
+        Ok(())
+    }
+
     pub fn track_tags(&self, track: TrackId) -> Result<Vec<Tag>> {
         let mut st = self.conn.prepare(
             "SELECT g.id, g.name, g.category, g.color FROM tags g JOIN track_tags tt ON tt.tag_id = g.id

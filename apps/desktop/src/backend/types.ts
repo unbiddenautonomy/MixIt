@@ -32,6 +32,16 @@ export interface TrackRow {
   comment: string;
 }
 
+/** One of your own tags ("vocal", "peak time"), with how many tracks carry it. */
+export interface TagDto {
+  id: number;
+  name: string;
+  /** A group for the tag ("Vibe", "Vocals"), empty for none. */
+  category: string;
+  color: number | null;
+  count: number;
+}
+
 export interface SectionDto {
   start: number;
   end: number;

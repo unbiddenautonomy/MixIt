@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { LibraryStats, PlaylistDto, SuggestionRow, TrackRow } from "../backend/types";
+import type { LibraryStats, PlaylistDto, SuggestionRow, TagDto, TrackRow } from "../backend/types";
 
-export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" } | { type: "care" };
+export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "tag"; name: string };
 
 export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | null;
 
@@ -23,6 +23,9 @@ interface LibraryState {
   /** Library care: missing tracks and groups of duplicates (null until checked). */
   missing: TrackRow[] | null;
   duplicates: TrackRow[][] | null;
+  /** Your own tags with their counts, and the tags of the rows on show. */
+  tags: TagDto[];
+  rowTags: Record<number, string[]>;
   set: (p: Partial<LibraryState>) => void;
 }
 
@@ -43,6 +46,8 @@ export const useLibrary = create<LibraryState>((set) => ({
   inspect: null,
   missing: null,
   duplicates: null,
+  tags: [],
+  rowTags: {},
   set: (p) => set(p),
 }));
 

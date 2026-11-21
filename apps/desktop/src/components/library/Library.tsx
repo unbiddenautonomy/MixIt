@@ -70,7 +70,7 @@ function Toolbar() {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? "History" : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? "History" : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (
@@ -237,6 +237,7 @@ const HELP: [string, string][] = [
   ["energy:6+", "energy 6 or more"],
   ["rating:4+", "4 stars or more"],
   ["genre:techno", "any text field: artist: title: album: label: comment:"],
+  ['tag:"peak time"', "tracks with your tag (quote tags with spaces)"],
   ["-genre:trance", "a leading - excludes"],
   ["played:never", "never played (also played:<7d, played:>30d)"],
   ["added:<2w", "added in the last two weeks"],
