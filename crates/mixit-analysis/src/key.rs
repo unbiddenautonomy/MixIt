@@ -7,7 +7,9 @@
 //! 3. A harmonic pitch class profile (HPCP, Gómez 2006) is built from the peaks: each
 //!    peak counts towards its own pitch class and, with decaying weight, towards the
 //!    fundamentals it could be a harmonic of. A separate bass profile (below 220 Hz)
-//!    captures the root movement, which is strongly tonic-weighted in dance music.
+//!    captures the root movement, which is strongly tonic-weighted in dance music. Bass
+//!    is treated as monophonic: weaker peaks near a stronger one are sidebands of short
+//!    repeated notes, and each note's constant floor (a kick drum's pitch) is removed.
 //! 4. The profiles are correlated with rotated key profiles (Krumhansl–Kessler,
 //!    Temperley, and a diatonic/triad profile suited to electronic music) and the
 //!    scores averaged. The margin between the best and second key gives confidence.
@@ -20,8 +22,12 @@ use crate::stft::stft;
 
 pub const CHROMA_SIZE: usize = 8_192;
 pub const CHROMA_HOP: usize = 1_024;
-/// Weight of the bass profile against the treble profile.
-pub const BASS_WEIGHT: f32 = 0.5;
+/// Weight of the (moving) bass profile against the treble profile.
+pub const BASS_WEIGHT: f32 = 0.35;
+/// Bass peaks weaker than another within this many semitones are taken as sidebands
+/// (see `chromagram_with`). Tuned with the `key_sweep` and `key_practice` diagnostics:
+/// 243 of 252 generated tracks right, against 235 without it.
+pub const BASS_SPREAD: f64 = 3.0;
 /// Score bonus for the most common bass note as tonic.
 pub const TONIC_BASS_BONUS: f32 = 0.15;
 
@@ -142,7 +148,13 @@ pub fn chromagram_with(low: &[f32], sr: f32, size: usize, hop: usize, fmin: f64)
                 let pc = (r as i64).rem_euclid(12) as usize;
                 t[pc] += w * hw * wgt;
             }
-            if (33.0..57.0).contains(&p.pitch) {
+            // Bass is close to monophonic, and short repeated notes (a rolling techno
+            // bassline) put sidebands at the repetition rate, often a semitone or more
+            // from the note at these frequencies. Only the strongest peak within
+            // BASS_SPREAD semitones counts.
+            if (33.0..57.0).contains(&p.pitch)
+                && !fp.iter().any(|q| q.mag > p.mag && (q.pitch - p.pitch).abs() < BASS_SPREAD)
+            {
                 let r = pitch.round();
                 b[(r as i64).rem_euclid(12) as usize] += p.mag;
             }
@@ -198,9 +210,25 @@ pub fn key_scores(profile: &[f32; 12]) -> [f32; 24] {
 /// is the most common bass note (separates relative major and minor, which share
 /// their notes but not their root).
 fn scores_for(c: &Chromagram, range: std::ops::Range<usize>) -> [f32; 24] {
-    let p = profile(c, range.clone());
-    // Bass notes move with the chords while the kick drum's pitch stays put, so the
-    // per-note floor over 2-second blocks (the constant part) is removed first.
+    let b = moving_bass(c, range.clone());
+    let p = profile(c, range, &b);
+    let mut s = key_scores(&p);
+    let bm = b.iter().copied().fold(0.0, f32::max);
+    if bm > 0.0 {
+        let mean = b.iter().sum::<f32>() / 12.0 / bm;
+        for t in 0..12 {
+            let bonus = TONIC_BASS_BONUS * (b[t] / bm - mean);
+            s[t] += bonus;
+            s[12 + t] += bonus;
+        }
+    }
+    s
+}
+
+/// The bass notes that move with the chords. A kick drum's pitch (and anything else held
+/// throughout) stays put, so each note's floor over 2-second blocks (its lower quartile)
+/// is removed before summing.
+fn moving_bass(c: &Chromagram, range: std::ops::Range<usize>) -> [f32; 12] {
     let block = ((2.0 * c.rate) as usize).max(1);
     let blocks: Vec<[f32; 12]> = range
         .clone()
@@ -224,34 +252,22 @@ fn scores_for(c: &Chromagram, range: std::ops::Range<usize>) -> [f32; 24] {
             b[k] = blocks.iter().map(|v| (v[k] - floor).max(0.0)).sum();
         }
     }
-    let mut s = key_scores(&p);
-    let bm = b.iter().copied().fold(0.0, f32::max);
-    if bm > 0.0 {
-        let mean = b.iter().sum::<f32>() / 12.0 / bm;
-        for t in 0..12 {
-            let bonus = TONIC_BASS_BONUS * (b[t] / bm - mean);
-            s[t] += bonus;
-            s[12 + t] += bonus;
-        }
-    }
-    s
+    b
 }
 
-/// Combined treble and bass profile of frames `range`.
-fn profile(c: &Chromagram, range: std::ops::Range<usize>) -> [f32; 12] {
+/// Combined treble and (moving) bass profile of frames `range`.
+fn profile(c: &Chromagram, range: std::ops::Range<usize>, bass: &[f32; 12]) -> [f32; 12] {
     let mut t = [0.0f32; 12];
-    let mut b = [0.0f32; 12];
     for i in range {
         for k in 0..12 {
             t[k] += c.treble[i][k];
-            b[k] += c.bass[i][k];
         }
     }
     let nt = t.iter().copied().fold(0.0, f32::max).max(1e-12);
-    let nb = b.iter().copied().fold(0.0, f32::max).max(1e-12);
+    let nb = bass.iter().copied().fold(0.0, f32::max).max(1e-12);
     let mut out = [0.0f32; 12];
     for k in 0..12 {
-        out[k] = t[k] / nt + BASS_WEIGHT * b[k] / nb;
+        out[k] = t[k] / nt + BASS_WEIGHT * bass[k] / nb;
     }
     out
 }

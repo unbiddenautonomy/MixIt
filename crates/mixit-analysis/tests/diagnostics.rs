@@ -148,3 +148,80 @@ fn debug_key() {
         );
     }
 }
+
+/// Key accuracy over every key and style at both common sample rates (run with
+/// `--ignored --nocapture` after changing the key detector).
+#[test]
+#[ignore]
+fn key_sweep() {
+    use mixit_analysis::*;
+    use mixit_core::key::Mode;
+    let mut total = 0;
+    let mut right = 0;
+    let mut misses = Vec::new();
+    for sr in [44_100u32, 48_000] {
+        for style in [Style::House, Style::Techno, Style::Trance, Style::HipHop, Style::DrumAndBass] {
+            let bpm = match style {
+                Style::HipHop => 92.0,
+                Style::DrumAndBass => 174.0,
+                Style::Trance => 136.0,
+                Style::Techno => 130.0,
+                _ => 124.0,
+            };
+            for i in 0..24 {
+                let key = Key::new((i % 12) as u8, if i < 12 { Mode::Major } else { Mode::Minor });
+                let mut spec = TrackSpec::short(style, bpm, key);
+                spec.sample_rate = sr;
+                spec.seed = i as u64 + 7;
+                let g = generate(&spec);
+                let (mono, msr) = prep::analysis_mono(&g.audio, g.sample_rate);
+                let (low, lsr) = key::chroma_signal(&mono, msr);
+                let k = key::estimate_key(&key::chromagram(&low, lsr));
+                total += 1;
+                if k.key == key {
+                    right += 1;
+                } else {
+                    misses.push(format!(
+                        "{sr} {style:?} {} -> {}",
+                        key.display(mixit_core::key::KeyNotation::Camelot),
+                        k.key.display(mixit_core::key::KeyNotation::Camelot)
+                    ));
+                }
+            }
+        }
+    }
+    println!("{right}/{total}");
+    for m in misses {
+        println!("  {m}");
+    }
+}
+
+/// The guide's practice tracks (full length) at both common sample rates.
+#[test]
+#[ignore]
+fn key_practice() {
+    use mixit_analysis::*;
+    let mut right = 0;
+    let mut total = 0;
+    for sr in [44_100u32, 48_000] {
+        for p in practice::PRACTICE {
+            let g = generate(&p.spec(sr));
+            let (mono, msr) = prep::analysis_mono(&g.audio, g.sample_rate);
+            let (low, lsr) = key::chroma_signal(&mono, msr);
+            let k = key::estimate_key(&key::chromagram(&low, lsr));
+            let truth = Key::from_camelot(p.camelot.0, p.camelot.1).unwrap();
+            total += 1;
+            if k.key == truth {
+                right += 1;
+            } else {
+                println!(
+                    "  {sr} {} -> {} ({:.2})",
+                    p.id,
+                    k.key.display(mixit_core::key::KeyNotation::Camelot),
+                    k.confidence
+                );
+            }
+        }
+    }
+    println!("practice {right}/{total}");
+}
