@@ -513,4 +513,21 @@ mod tests {
             assert!(names.contains(&want.to_string()), "{names:?}");
         }
     }
+
+    /// Every term the app's smart playlist rules write is understood (no warnings).
+    #[test]
+    fn understands_every_rule_the_app_writes() {
+        let q = parse(
+            "genre:\"deep house\" -artist:nova title:remix album:x label:y -comment:z bpm:120-126 bpm:~124.5 bpm:>=120 \
+             bpm:<=128 key:~8A key:8A -key:5A energy:6+ energy:<=4 energy:3-7 rating:4+ rating:3 year:2015-2020 \
+             year:>=2018 year:<2010 tag:vocal -tag:\"peak time\" played:never played:<30d played:>30d added:<14d \
+             added:>90d sort:-energy",
+        );
+        assert!(q.warnings.is_empty(), "{:?}", q.warnings);
+        assert_eq!(q.terms.len(), 28);
+        assert_eq!(q.sort, Some((SortKey::Energy, true)));
+        assert!(q.terms.contains(&(true, Term::Tag("peak time".into()))));
+        assert!(q.terms.contains(&(false, Term::Num(NumField::Energy, Cmp::Le(4.0)))));
+        assert!(q.terms.contains(&(false, Term::Played(TimeFilter::NotWithin(30 * 86_400)))));
+    }
 }

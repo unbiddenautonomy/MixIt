@@ -436,6 +436,16 @@ export const CONCEPTS: Concept[] = [
     glossary: ["preview"],
   },
   {
+    id: "smart-playlists",
+    title: "Smart playlists",
+    group: "Your library",
+    summary: "Playlists that fill themselves with every track that fits your rules, including ones you add later.",
+    body: [
+      "Press the wand beside Playlists and say what you want in plain rules: tempo between 120 and 126, genre contains house, energy at least 6, tag is vocal, never played. The count shows how many tracks match as you go, and you can choose the order (slow to fast, calm first, newest first, shuffled).",
+      "A smart playlist is a saved search, so it stays up to date by itself. Already typed a search you like? Press the wand next to the search box to keep it. Right-click a smart playlist and choose Edit rules to change it; Edit as search text shows the same rules in the search language.",
+    ],
+  },
+  {
     id: "tags",
     title: "Your own tags",
     group: "Your library",
