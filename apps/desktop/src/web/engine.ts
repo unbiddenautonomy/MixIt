@@ -196,6 +196,11 @@ export class WebEngine {
     await this.ask(this.node.port, { type: "loadPad", pad, audio, json: JSON.stringify({ bpm, settings }) }, [audio.buffer]);
   }
 
+  /** Puts audio in the preview player (the buffer is transferred) and plays it from `start` seconds. */
+  async loadPreview(audio: Float32Array, start: number) {
+    await this.ask(this.node.port, { type: "loadPreview", audio, json: JSON.stringify({ start }) }, [audio.buffer]);
+  }
+
   /**
    * Renders an Arrange project (or the beats `from..to` of it) in the worker, about a
    * second at a time. `need` supplies each track when its first clip is about to play

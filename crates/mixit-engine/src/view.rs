@@ -160,6 +160,17 @@ impl MicTele {
     }
 }
 
+/// The library preview player.
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewTele {
+    pub loaded: bool,
+    pub playing: bool,
+    pub position: f64,
+    pub duration: f64,
+    pub ended: bool,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelemetryDto {
@@ -167,6 +178,7 @@ pub struct TelemetryDto {
     pub decks: Vec<DeckTele>,
     pub master: MasterTele,
     pub mic: MicTele,
+    pub preview: PreviewTele,
     pub clock_bpm: f64,
     pub master_deck: Option<u8>,
     pub recording: bool,
@@ -189,6 +201,13 @@ impl TelemetryDto {
             decks: t.decks.iter().take(decks).map(|d| DeckTele::new(d, sr as f64)).collect(),
             master: (&t.master).into(),
             mic: MicTele::new(&t.mic, sr),
+            preview: PreviewTele {
+                loaded: t.preview.loaded,
+                playing: t.preview.playing,
+                position: t.preview.position_frames / sr.max(1) as f64,
+                duration: t.preview.frames / sr.max(1) as f64,
+                ended: t.preview.ended,
+            },
             clock_bpm: t.clock_bpm,
             master_deck: t.master_deck.map(|d| d.0),
             recording: t.recording,

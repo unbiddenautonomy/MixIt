@@ -25,6 +25,7 @@ import type {
   SoundOpened,
   SoundView,
   PlaylistDto,
+  PreviewRoute,
   Settings,
   SequencerDto,
   SuggestionRow,
@@ -85,6 +86,13 @@ export interface Backend {
   duplicates(): Promise<TrackRow[][]>;
   /** Folds duplicates into the one to keep: playlists, tags, history and cues move over. */
   mergeTracks(keep: number, others: number[]): Promise<void>;
+  /** Plays a library track in the preview player from `seconds`, without loading it on a deck. Returns its length. */
+  previewLoad(trackId: number, seconds: number): Promise<number>;
+  previewPlay(on: boolean): Promise<void>;
+  previewSeek(seconds: number): Promise<void>;
+  /** Preview volume (0..2) and where it is heard. */
+  previewSettings(gain: number, route: PreviewRoute): Promise<void>;
+  previewClose(): Promise<void>;
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number): Promise<SuggestionRow[]>;
 
   playlists(): Promise<PlaylistDto[]>;

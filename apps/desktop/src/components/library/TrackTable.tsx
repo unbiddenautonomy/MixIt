@@ -20,6 +20,8 @@ import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
 import { refreshPlaylists, refreshRows, refreshStats } from "./data";
 import { editTrack } from "../editor/TrackEditor";
+import { PreviewButton } from "./PreviewBar";
+import { togglePreview } from "../../store/trackPreview";
 
 interface Column {
   key: string;
@@ -60,6 +62,7 @@ const COLUMNS: Column[] = [
     width: "minmax(160px,2.2fr)",
     cell: (r) => (
       <span className="flex min-w-0 items-center gap-2">
+        {!r.missing && <PreviewButton row={r} className="-ml-1" />}
         {r.color != null && <span className="size-2 shrink-0 rounded-full" style={{ background: hex(r.color) }} />}
         {r.missing && <AlertTriangle size={12} className="shrink-0 text-amber-400" aria-label="File missing" />}
         <span className={clsx("truncate", r.missing ? "text-zinc-500 line-through" : "text-zinc-100")}>{r.title || r.path.split(/[\\/]/).pop()}</span>
@@ -250,7 +253,7 @@ export function TrackTable() {
                   onContextMenu={() => {
                     if (!sel) useLibrary.getState().set({ selected: [r.id], anchor: it.index });
                   }}
-                  className={clsx("absolute left-0 right-0 grid cursor-default items-center text-[12px]", sel ? "bg-sky-500/20" : it.index % 2 ? "bg-white/[0.015] hover:bg-white/[0.05]" : "hover:bg-white/[0.05]")}
+                  className={clsx("group absolute left-0 right-0 grid cursor-default items-center text-[12px]", sel ? "bg-sky-500/20" : it.index % 2 ? "bg-white/[0.015] hover:bg-white/[0.05]" : "hover:bg-white/[0.05]")}
                   style={{ top: it.start, height: it.size, gridTemplateColumns: template }}
                   data-track={r.id}
                 >
@@ -299,6 +302,11 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
               Load on deck {l}
             </ContextMenu.Item>
           ))}
+          {!track.missing && (
+            <ContextMenu.Item className="menu-item" onSelect={() => togglePreview(track)}>
+              Preview in headphones
+            </ContextMenu.Item>
+          )}
           <ContextMenu.Item className="menu-item" onSelect={() => enqueueIds(ids())}>
             Add to Auto DJ
           </ContextMenu.Item>

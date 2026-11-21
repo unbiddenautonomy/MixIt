@@ -16,7 +16,7 @@ use mixit_engine::{
     Controller, CueKind, DeckTrack, Engine, EngineConfig, Event, HOT_CUES, HotCue, InputFeed, MicCommand, TrackAudio,
     push_input,
 };
-use mixit_engine::{MixerCommand, ScopeSource};
+use mixit_engine::{MixerCommand, PreviewCommand, PreviewRoute, ScopeSource};
 use mixit_stretch::PhaseVocoder;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -240,6 +240,17 @@ impl Host {
         Ok(token)
     }
 
+    /// Puts `audio` (interleaved stereo at the engine rate) in the preview player and
+    /// starts it at `start` seconds.
+    pub fn load_preview(&mut self, audio: Vec<f32>, start: f64) {
+        let sr = self.sr as f64;
+        self.send(Command::Preview(PreviewCommand::Load(
+            Arc::new(TrackAudio::new(self.sr, audio)),
+            start.max(0.0) * sr,
+        )));
+        self.send(Command::Preview(PreviewCommand::Play(true)));
+    }
+
     /// Loads a sampler pad (`audio` interleaved stereo at the engine rate).
     pub fn load_pad(&mut self, pad: usize, audio: Vec<f32>, bpm: Option<f64>, s: &PadSettings) -> Result<(), String> {
         if pad >= PADS {
@@ -347,6 +358,14 @@ impl Host {
                 self.send(Command::Mic(MicCommand::SetFeed(None)));
             }
             "micCapture" => self.send(Command::Mic(MicCommand::Capture(v["on"].as_bool().unwrap_or(false)))),
+            "previewPlay" => self.send(Command::Preview(PreviewCommand::Play(v["on"].as_bool().unwrap_or(false)))),
+            "previewSeek" => self.send(Command::Preview(PreviewCommand::Seek(f("seconds").max(0.0) * sr))),
+            "previewSettings" => {
+                self.send(Command::Preview(PreviewCommand::SetGain(f("gain") as f32)));
+                let r = if v["route"] == "headphones" { PreviewRoute::Headphones } else { PreviewRoute::Speakers };
+                self.send(Command::Preview(PreviewCommand::SetRoute(r)));
+            }
+            "previewClose" => self.send(Command::Preview(PreviewCommand::Unload)),
             "record" => self.send(Command::Global(GlobalCommand::SetRecording(v["on"].as_bool().unwrap_or(false)))),
             "studioGet" => {
                 let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));

@@ -96,6 +96,17 @@ pub struct MicTelemetry {
     pub captured_frames: u64,
 }
 
+/// The library preview player.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct PreviewTelemetry {
+    pub loaded: bool,
+    pub playing: bool,
+    pub position_frames: f64,
+    pub frames: f64,
+    /// It played to the end since the previous snapshot.
+    pub ended: bool,
+}
+
 /// A state snapshot, published several times per second.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Telemetry {
@@ -104,6 +115,7 @@ pub struct Telemetry {
     pub decks: [DeckTelemetry; DeckId::MAX],
     pub master: MasterTelemetry,
     pub mic: MicTelemetry,
+    pub preview: PreviewTelemetry,
     pub clock_bpm: f64,
     pub clock_beat: f64,
     /// Master deck, if a deck is master (otherwise the internal clock).

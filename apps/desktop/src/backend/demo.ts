@@ -420,6 +420,16 @@ export class DemoBackend implements Backend {
     const m = (Math.min(1.2, mix) * Math.pow(10, duckDb / 20) + (this.mic.onAir ? voice * this.mic.level : 0)) * Math.pow(10, (this.masterDb + this.studio[4].outputDb) / 20);
     const limited = Math.min(m, 0.98);
     this.sequencerTick(dt, this.master !== null ? tele[this.master].bpm || 124 : 124);
+    const pv = this.previewState;
+    let previewEnded = false;
+    if (pv && pv.playing) {
+      pv.position += dt;
+      if (pv.position >= pv.duration) {
+        pv.position = pv.duration;
+        pv.playing = false;
+        previewEnded = true;
+      }
+    }
     this.emit<T.Telemetry>("telemetry", {
       frame: this.frame,
       decks: tele,
@@ -434,6 +444,7 @@ export class DemoBackend implements Backend {
         cuePeak: [0, 0],
         clipped: false,
       },
+      preview: pv ? { loaded: true, playing: pv.playing, position: pv.position, duration: pv.duration, ended: previewEnded } : { loaded: false, playing: false, position: 0, duration: 0, ended: false },
       mic: {
         connected: this.settings.micEnabled,
         live: this.settings.micEnabled,
@@ -899,6 +910,35 @@ export class DemoBackend implements Backend {
   async removeTracks(ids: number[]) {
     this.tracks = this.tracks.filter((t) => !ids.includes(t.row.id));
     this.emit("library-changed", null);
+  }
+
+  // ---------------------------------------------------------------- preview player
+
+  /** The simulated preview player: only a position that moves. */
+  protected previewState: { trackId: number; playing: boolean; position: number; duration: number } | null = null;
+
+  async previewLoad(trackId: number, seconds: number): Promise<number> {
+    const t = this.find(trackId);
+    if (t.row.missing) throw new Error(`file not found: ${t.row.path}`);
+    this.previewState = { trackId, playing: true, position: Math.max(0, Math.min(seconds, t.row.duration)), duration: t.row.duration };
+    return t.row.duration;
+  }
+
+  async previewPlay(on: boolean): Promise<void> {
+    const p = this.previewState;
+    if (!p) return;
+    if (on && p.position >= p.duration) p.position = 0;
+    p.playing = on;
+  }
+
+  async previewSeek(seconds: number): Promise<void> {
+    if (this.previewState) this.previewState.position = Math.max(0, Math.min(seconds, this.previewState.duration));
+  }
+
+  async previewSettings(_gain: number, _route: T.PreviewRoute): Promise<void> {}
+
+  async previewClose(): Promise<void> {
+    this.previewState = null;
   }
 
   async missingTracks(): Promise<T.TrackRow[]> {
@@ -1707,6 +1747,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.marker_add", "Add marker", "App", { type: "trigger" }, "Adds a named marker on the Arrange ruler at the play marker, like Drop or Outro.", null);
   add("app.marker_next", "Next marker", "App", { type: "trigger" }, "Moves the play marker to the next marker on the Arrange ruler.", null);
   add("app.marker_prev", "Previous marker", "App", { type: "trigger" }, "Moves the play marker to the previous marker on the Arrange ruler.", null);
+  add("app.preview", "Preview track", "App", { type: "trigger" }, "Plays the selected library track in your headphones without loading it on a deck, so you can check it while the music plays. Press again to stop.", "P");
   add("app.arrange_loop", "Loop playback", "App", { type: "trigger" }, "Repeats a stretch of the mix in Arrange while you adjust it.", "L");
   add("app.arrange_play", "Play or stop the mix", "App", { type: "trigger" }, "Plays the Arrange timeline from the play marker, or stops it.", "Space");
   add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");
