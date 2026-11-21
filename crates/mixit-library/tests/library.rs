@@ -495,16 +495,22 @@ fn past_sets_are_listed_renamed_and_forgotten() {
     assert_eq!(lib.track(ids[0]).unwrap().play_count, 1, "play counts stay");
 }
 
-/// A Traktor directory for a local folder ("/:home/:dj/:Music/:").
-fn traktor_dir(p: &Path) -> String {
+/// A local folder as Traktor names it: the volume ("C:" on Windows, else none) and the
+/// directory ("/:home/:dj/:Music/:").
+fn traktor_dir(p: &Path) -> (String, String) {
+    let mut volume = String::new();
     let mut s = String::from("/:");
     for c in p.components() {
-        if let std::path::Component::Normal(n) = c {
-            s.push_str(&n.to_string_lossy());
-            s.push_str("/:");
+        match c {
+            std::path::Component::Prefix(pre) => volume = pre.as_os_str().to_string_lossy().into_owned(),
+            std::path::Component::Normal(n) => {
+                s.push_str(&n.to_string_lossy());
+                s.push_str("/:");
+            }
+            _ => {}
         }
     }
-    s
+    (volume, s)
 }
 
 #[test]
@@ -513,15 +519,15 @@ fn imports_a_traktor_collection() {
     let music = tmp.0.join("Music");
     std::fs::create_dir_all(&music).unwrap();
     write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
-    let dir = traktor_dir(&music);
-    let key_one = format!("{dir}one.wav");
-    let key_gone = format!("{dir}gone.mp3");
+    let (vol, dir) = traktor_dir(&music);
+    let key_one = format!("{vol}{dir}one.wav");
+    let key_gone = format!("{vol}{dir}gone.mp3");
     let nml = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <NML VERSION="19"><HEAD COMPANY="www.native-instruments.com" PROGRAM="Traktor"></HEAD>
 <COLLECTION ENTRIES="2">
 <ENTRY MODIFIED_DATE="2024/5/1" TITLE="One &amp; Only" ARTIST="Nova">
-<LOCATION DIR="{dir}" FILE="one.wav" VOLUME="" VOLUMEID=""></LOCATION>
+<LOCATION DIR="{dir}" FILE="one.wav" VOLUME="{vol}" VOLUMEID=""></LOCATION>
 <ALBUM TITLE="Night Drives"></ALBUM>
 <INFO BITRATE="1411000" GENRE="Deep House" LABEL="Moon" COMMENT="warm-up opener" PLAYTIME="20" RANKING="204"></INFO>
 <TEMPO BPM="124.000000" BPM_QUALITY="100.000000"></TEMPO>
@@ -532,7 +538,7 @@ fn imports_a_traktor_collection() {
 <CUE_V2 NAME="Start" DISPL_ORDER="0" TYPE="3" START="250.000000" LEN="0.000000" REPEATS="-1" HOTCUE="-1"></CUE_V2>
 </ENTRY>
 <ENTRY TITLE="Gone" ARTIST="Kairo">
-<LOCATION DIR="{dir}" FILE="gone.mp3" VOLUME="" VOLUMEID=""></LOCATION>
+<LOCATION DIR="{dir}" FILE="gone.mp3" VOLUME="{vol}" VOLUMEID=""></LOCATION>
 <INFO GENRE="Techno" PLAYTIME="300"></INFO>
 <TEMPO BPM="130.000000"></TEMPO>
 <MUSICAL_KEY VALUE="4"></MUSICAL_KEY>
