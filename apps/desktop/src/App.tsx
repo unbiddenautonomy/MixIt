@@ -11,6 +11,7 @@ import { Deck } from "./components/deck/Deck";
 import { WaveStack } from "./components/deck/WaveStack";
 import { refreshRows, refreshStats } from "./components/library/data";
 import { Library } from "./components/library/Library";
+import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
 import { SamplerPanel } from "./components/sampler/SamplerPanel";
 import { Coach } from "./components/shell/Coach";
@@ -30,6 +31,7 @@ export function App() {
   const ready = useApp((s) => s.ready);
   const error = useApp((s) => s.error);
   const workspace = useApp((s) => s.workspace);
+  const guideOpen = useApp((s) => s.guideOpen);
   const theme = useTheme();
 
   useEffect(() => {
@@ -122,11 +124,14 @@ export function App() {
     <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
       <div className="flex h-full flex-col bg-zinc-950 text-zinc-200">
         <TopBar />
-        <main className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          {workspace === "mix" && <MixView />}
-          {workspace === "library" && <Library full />}
-          {workspace === "arrange" && <Arrange />}
-        </main>
+        <div className="flex min-h-0 flex-1">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
+            {workspace === "mix" && <MixView />}
+            {workspace === "library" && <Library full />}
+            {workspace === "arrange" && <Arrange />}
+          </main>
+          {guideOpen && <GuidePanel />}
+        </div>
       </div>
       <CommandPalette />
       <SettingsDialog />

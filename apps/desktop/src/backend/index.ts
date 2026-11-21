@@ -89,6 +89,9 @@ export interface Backend {
   samplerReset(): Promise<PadInfo[]>;
   samplerStopAll(): Promise<void>;
 
+  /** Generates the practice tracks for the guide's labs and adds them to the library. */
+  addPracticeTracks(): Promise<void>;
+
   importRekordbox(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;
   exportPlaylist(playlist: number, path: string): Promise<void>;
@@ -114,17 +117,20 @@ export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-/** The backend for this environment (created once). */
-export async function getBackend(): Promise<Backend> {
-  if (instance) return instance;
-  if (isTauri()) {
-    const { TauriBackend } = await import("./tauri");
-    instance = new TauriBackend();
-  } else {
-    const { DemoBackend } = await import("./demo");
-    instance = new DemoBackend();
-  }
-  return instance!;
+let creating: Promise<Backend> | null = null;
+
+/**
+ * The backend for this environment, created once. Concurrent callers (React's strict mode
+ * runs start-up twice) share one instance, so events and the demo engine are never doubled.
+ */
+export function getBackend(): Promise<Backend> {
+  if (instance) return Promise.resolve(instance);
+  creating ??= (async () => {
+    const b: Backend = isTauri() ? new (await import("./tauri")).TauriBackend() : new (await import("./demo")).DemoBackend();
+    instance ??= b;
+    return instance;
+  })();
+  return creating;
 }
 
 /** Synchronous access after start-up. */
@@ -135,6 +141,7 @@ export function backend(): Backend {
 
 export function setBackendForTests(b: Backend) {
   instance = b;
+  creating = null;
 }
 
 /** Decodes the binary waveform from the `waveform` command. */

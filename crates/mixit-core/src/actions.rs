@@ -1008,6 +1008,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("Mod+P"),
         Some("sampler"),
     );
+    b.add(
+        "app.guide",
+        "Guide and practice labs",
+        ag,
+        ActionKind::Toggle,
+        "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.",
+        true,
+        Some("Mod+G"),
+        Some("guide"),
+    );
 
     b.v
 }

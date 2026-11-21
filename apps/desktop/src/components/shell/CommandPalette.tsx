@@ -2,7 +2,7 @@
 // in one fuzzy list.
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Music2 } from "lucide-react";
+import { BookOpen, FlaskConical, Music2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { backend } from "../../backend";
 import type { ActionSpec, TrackRow } from "../../backend/types";
@@ -15,6 +15,9 @@ import { deckCount, DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { loadOnDeck } from "../deck/Deck";
 import { addMusicFolder } from "../library/Library";
 import { openProject, saveProject, renderProject } from "../arrange/projectIo";
+import { CONCEPTS } from "../../guide/concepts";
+import { LABS } from "../../guide/labs";
+import { useGuide } from "../../guide/model";
 
 interface Extra {
   id: string;
@@ -22,6 +25,11 @@ interface Extra {
   group: string;
   run: () => void;
   keywords?: string[];
+}
+
+function openGuide(p: Parameters<ReturnType<typeof useGuide.getState>["set"]>[0]) {
+  useGuide.getState().set(p);
+  useApp.getState().set({ guideOpen: true });
 }
 
 function extras(): Extra[] {
@@ -144,6 +152,27 @@ export function CommandPalette() {
                     ))}
                 </Command.Group>
               ))}
+              {q.trim().length >= 2 && (
+                <Command.Group heading="Learn" className="cmdk-group">
+                  {CONCEPTS.map((c) => (
+                    <Command.Item key={c.id} value={`learn ${c.title} ${c.summary}`} onSelect={() => run(() => openGuide({ tab: "learn", topic: c.id }))} className="cmdk-item">
+                      <BookOpen size={13} className="text-zinc-500" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {c.title}
+                        <span className="ml-2 text-[11px] text-zinc-500">{c.summary}</span>
+                      </span>
+                    </Command.Item>
+                  ))}
+                  {LABS.map((l) => (
+                    <Command.Item key={l.id} value={`lab practice ${l.number} ${l.title}`} onSelect={() => run(() => openGuide({ tab: "labs", lab: l.id }))} className="cmdk-item">
+                      <FlaskConical size={13} className="text-zinc-500" />
+                      <span className="min-w-0 flex-1 truncate">
+                        Lab {l.number}: {l.title}
+                      </span>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+              )}
               {groups.map(([group, actions]) => (
                 <Command.Group key={group} heading={group} className="cmdk-group">
                   {actions.flatMap((a) =>

@@ -12,6 +12,7 @@
 //! Everything is deterministic for a given [`TrackSpec`] (seeded noise, no clocks).
 
 pub mod kit;
+pub mod practice;
 
 use mixit_core::{Key, Mode};
 use mixit_dsp::rng::Rng;

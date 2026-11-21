@@ -4,7 +4,7 @@
 
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
-import { bestShift, compatibility, keyDto, keyFromIndex, transpose } from "../lib/keys";
+import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 
 const SR = 48_000;
 const DECKS = 4;
@@ -43,15 +43,37 @@ interface DemoTrack {
   cues: T.CueDto[];
 }
 
-function makeTrack(id: number): DemoTrack {
+interface TrackOverride {
+  title: string;
+  genre: string;
+  bpm: number;
+  key: [number, "A" | "B"];
+  firstBeat: number;
+}
+
+/** The practice tracks the desktop app generates for the labs (see mixit-generator). */
+export const DEMO_PRACTICE: TrackOverride[] = [
+  { title: "Practice 1 - Warm House", genre: "House", bpm: 124, key: [8, "A"], firstBeat: 0.02 },
+  { title: "Practice 2 - Deep House", genre: "House", bpm: 124, key: [9, "A"], firstBeat: 0.02 },
+  { title: "Practice 3 - Night Techno", genre: "Techno", bpm: 128, key: [8, "A"], firstBeat: 0.02 },
+  { title: "Practice 4 - Clashing Keys", genre: "House", bpm: 124, key: [3, "B"], firstBeat: 0.02 },
+  { title: "Practice 5 - Melodic Trance", genre: "Trance", bpm: 132, key: [5, "A"], firstBeat: 0.02 },
+  { title: "Practice 6 - Live Drummer", genre: "House", bpm: 120, key: [11, "B"], firstBeat: 0.42 },
+];
+
+function makeTrack(id: number, o?: TrackOverride): DemoTrack {
   const r = rng(id * 7919);
-  const [genre, lo, hi] = GENRES[Math.floor(r() * GENRES.length)];
-  const bpm = Math.round((lo + r() * (hi - lo)) * 2) / 2;
-  const key = keyFromIndex(Math.floor(r() * 24));
+  const [g0, lo, hi] = GENRES[Math.floor(r() * GENRES.length)];
+  const genre = o?.genre ?? g0;
+  const bpm0 = Math.round((lo + r() * (hi - lo)) * 2) / 2;
+  const bpm = o?.bpm ?? bpm0;
+  const k0 = keyFromIndex(Math.floor(r() * 24));
+  const key = o ? fromCamelot(o.key[0], o.key[1]) : k0;
   const bars = [16, 16, 32, 16, 32, 16].map((b) => (r() < 0.3 ? b / 2 : b));
   const labels = ["Intro", "Build", "Drop", "Breakdown", "Drop", "Outro"];
   const period = 60 / bpm;
-  const firstBeat = r() < 0.4 ? 0.05 + r() * 0.4 : 0.02;
+  const fb = r() < 0.4 ? 0.05 + r() * 0.4 : 0.02;
+  const firstBeat = o?.firstBeat ?? fb;
   const sections: T.SectionDto[] = [];
   let t = firstBeat;
   const energies = [0.35, 0.6, 1, 0.3, 1, 0.4];
@@ -61,7 +83,8 @@ function makeTrack(id: number): DemoTrack {
     t += len;
   });
   const duration = t + 2;
-  const title = `${WORDS[Math.floor(r() * WORDS.length)]}${r() < 0.3 ? ` (${["Extended Mix", "Club Mix", "Dub", "Original Mix"][Math.floor(r() * 4)]})` : ""}`;
+  const t0 = `${WORDS[Math.floor(r() * WORDS.length)]}${r() < 0.3 ? ` (${["Extended Mix", "Club Mix", "Dub", "Original Mix"][Math.floor(r() * 4)]})` : ""}`;
+  const title = o?.title ?? t0;
   // Waveform: 64-frame columns at 48 kHz, shaped by section energy and the beat.
   const fpc = 64;
   const cols = Math.ceil((duration * SR) / fpc);
@@ -92,7 +115,7 @@ function makeTrack(id: number): DemoTrack {
       id,
       path: `/Music/${genre}/${title}.flac`,
       title,
-      artist: ARTISTS[Math.floor(r() * ARTISTS.length)],
+      artist: o ? "MixIt" : ARTISTS[Math.floor(r() * ARTISTS.length)],
       album: "",
       genre,
       label: ["Night Shift", "Lumen", "Coastline", "Free Form"][Math.floor(r() * 4)],
@@ -1043,6 +1066,15 @@ export class DemoBackend implements Backend {
     this.padEnds.clear();
   }
 
+  async addPracticeTracks() {
+    const have = new Set(this.tracks.map((t) => t.row.title));
+    DEMO_PRACTICE.forEach((o, i) => {
+      if (!have.has(o.title)) this.tracks.push(makeTrack(1001 + i, o));
+    });
+    this.emit("library-changed", null);
+    this.emit<T.JobProgress>("job", { kind: "scan", done: 0, total: 0, message: "Added 6 practice tracks.", finished: true, error: null });
+  }
+
   async importRekordbox() {}
   async exportRekordbox() {}
   async exportPlaylist() {}
@@ -1228,6 +1260,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.save_as", "Save mix project as", "App", { type: "trigger" }, "Saves the mix project under a new name.", "Mod+Shift+S", false);
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
+  add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
   add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");
