@@ -1,0 +1,107 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { decodeWaveform, type Backend, type Unlisten } from "./index";
+import type * as T from "./types";
+
+function sub<P>(event: string, cb: (p: P) => void): Unlisten {
+  let un: (() => void) | null = null;
+  let dead = false;
+  listen<P>(event, (e) => cb(e.payload)).then((u) => {
+    if (dead) u();
+    else un = u;
+  });
+  return () => {
+    dead = true;
+    un?.();
+  };
+}
+
+export class TauriBackend implements Backend {
+  readonly kind = "tauri" as const;
+
+  appInfo() { return invoke<T.AppInfo>("app_info"); }
+  action(id: string, input: T.ActionInput) { return invoke<void>("action", { id, input }); }
+
+  loadTrack(deck: number, trackId: number) { return invoke<T.DeckInfo>("load_track", { deck, trackId }); }
+  seek(deck: number, seconds: number) { return invoke<void>("seek", { deck, seconds }); }
+  scratch(deck: number, phase: "start" | "move" | "end", velocity: number) { return invoke<void>("scratch", { deck, phase, velocity }); }
+  setHotCue(deck: number, slot: number, seconds: number, loopSeconds?: number | null, color?: number) {
+    return invoke<void>("set_hot_cue", { deck, slot, seconds, loopSeconds: loopSeconds ?? null, color: color ?? null, label: null });
+  }
+  deleteHotCue(deck: number, slot: number) { return invoke<void>("delete_hot_cue", { deck, slot }); }
+  setMainCue(deck: number, seconds: number) { return invoke<void>("set_main_cue", { deck, seconds }); }
+  setLoop(deck: number, start: number, end: number, active: boolean) { return invoke<void>("set_loop", { deck, start, end, active }); }
+  async waveform(trackId: number) {
+    const buf = await invoke<ArrayBuffer>("waveform", { trackId });
+    return decodeWaveform(buf instanceof ArrayBuffer ? buf : new Uint8Array(buf as unknown as number[]).buffer);
+  }
+
+  search(query: string, limit?: number) { return invoke<T.TrackRow[]>("library_search", { query, limit: limit ?? null }); }
+  stats() { return invoke<T.LibraryStats>("library_stats"); }
+  folders() { return invoke<string[]>("library_folders"); }
+  removeFolder(path: string) { return invoke<void>("library_remove_folder", { path }); }
+  addToLibrary(paths: string[]) { return invoke<void>("library_add", { paths }); }
+  rescan() { return invoke<void>("library_rescan"); }
+  analyzePending() { return invoke<void>("library_analyze"); }
+  cancelJob() { return invoke<void>("job_cancel"); }
+  trackDetail(id: number) { return invoke<T.TrackDetail>("track_detail", { id }); }
+  editTrack(id: number, edit: T.TrackEdit) { return invoke<T.TrackRow>("track_edit", { id, edit }); }
+  removeTracks(ids: number[]) { return invoke<void>("tracks_remove", { ids }); }
+  suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number) {
+    return invoke<T.SuggestionRow[]>("suggest_next", { trackId, energy, limit: limit ?? null, tolerance: null });
+  }
+
+  playlists() { return invoke<T.PlaylistDto[]>("playlists"); }
+  playlistTracks(id: number) { return invoke<T.TrackRow[]>("playlist_tracks", { id }); }
+  createPlaylist(name: string, kind: "folder" | "list" | "smart", opts: { parent?: number | null; query?: string | null; tracks?: number[] } = {}) {
+    return invoke<number>("playlist_create", { name, kind, parent: opts.parent ?? null, query: opts.query ?? null, tracks: opts.tracks ?? null });
+  }
+  renamePlaylist(id: number, name: string) { return invoke<void>("playlist_rename", { id, name }); }
+  setPlaylistQuery(id: number, query: string) { return invoke<void>("playlist_set_query", { id, query }); }
+  deletePlaylist(id: number) { return invoke<void>("playlist_delete", { id }); }
+  addToPlaylist(id: number, tracks: number[]) { return invoke<void>("playlist_add", { id, tracks }); }
+  removeFromPlaylist(id: number, indices: number[]) { return invoke<void>("playlist_remove", { id, indices }); }
+  reorderPlaylist(id: number, from: number[], to: number) { return invoke<void>("playlist_reorder", { id, from, to }); }
+  orderPlaylist(id: number, energy: "steady" | "up" | "down") { return invoke<void>("playlist_order_set", { id, energy, start: null }); }
+  history() { return invoke<T.HistoryEntry[]>("history"); }
+  tracklist() { return invoke<string>("history_tracklist"); }
+
+  devices() { return invoke<T.DeviceInfo[]>("audio_devices"); }
+  audioStatus() { return invoke<T.AudioStatus>("audio_status"); }
+  saveSettings(settings: T.Settings) { return invoke<T.Settings>("settings_set", { settings }); }
+  recordStart() { return invoke<string>("record_start"); }
+  recordStop() { return invoke<string>("record_stop"); }
+
+  automix(tracks: number[], options: T.AutomixRequest) { return invoke<T.MixProject>("automix", { tracks, options }); }
+  saveProject(path: string, project: T.MixProject) { return invoke<void>("project_save", { path, project }); }
+  openProject(path: string) { return invoke<T.MixProject>("project_open", { path }); }
+  checkProject(project: T.MixProject) { return invoke<string[]>("project_check", { project }); }
+  renderProject(project: T.MixProject, path: string, format?: string) { return invoke<void>("project_render", { project, path, format: format ?? null }); }
+
+  importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
+  exportRekordbox(path: string, playlist?: number | null) { return invoke<void>("export_rekordbox", { path, playlist: playlist ?? null }); }
+  exportPlaylist(playlist: number, path: string) { return invoke<void>("export_playlist", { playlist, path }); }
+  importM3u(path: string) { return invoke<number>("import_m3u", { path }); }
+
+  async pickFolders() {
+    const r = await open({ directory: true, multiple: true, title: "Add music folders" });
+    return r == null ? null : Array.isArray(r) ? r : [r];
+  }
+  async pickFiles(extensions: string[], title: string) {
+    const r = await open({ multiple: true, title, filters: [{ name: title, extensions }] });
+    return r == null ? null : Array.isArray(r) ? r : [r];
+  }
+  async pickSave(defaultName: string, extensions: string[]) {
+    return (await save({ defaultPath: defaultName, filters: [{ name: extensions.join(", "), extensions }] })) ?? null;
+  }
+
+  onTelemetry(cb: (t: T.Telemetry) => void) { return sub("telemetry", cb); }
+  onDeckLoaded(cb: (d: T.DeckInfo) => void) { return sub("deck-loaded", cb); }
+  onDeckEnded(cb: (deck: number) => void) { return sub("deck-ended", cb); }
+  onJob(cb: (j: T.JobProgress) => void) { return sub("job", cb); }
+  onLibraryChanged(cb: () => void) { return sub("library-changed", cb); }
+  onHistoryChanged(cb: () => void) { return sub("history-changed", cb); }
+  onAudioStatus(cb: (s: T.AudioStatus) => void) { return sub("audio-status", cb); }
+  onError(cb: (m: string) => void) { return sub("error", cb); }
+}
