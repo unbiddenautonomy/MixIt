@@ -236,3 +236,43 @@ fn waveform_pyramid() {
     assert_eq!(ov.len(), 1_000);
     assert!(ov.iter().any(|c| c.low > 100) && ov.iter().any(|c| c.high > 30));
 }
+
+#[test]
+fn tracks_of_the_same_style_sound_alike() {
+    use mixit_analysis::timbre::{Normaliser, similarity};
+    // Two tracks per style, in different keys, tempos and seeds: only the sound is shared.
+    let styles = [
+        (Style::House, 122.0, 126.0),
+        (Style::Techno, 128.0, 133.0),
+        (Style::Trance, 136.0, 140.0),
+        (Style::DrumAndBass, 170.0, 174.0),
+        (Style::HipHop, 88.0, 94.0),
+    ];
+    let mut tracks = Vec::new();
+    for (i, &(style, b1, b2)) in styles.iter().enumerate() {
+        for (j, bpm) in [b1, b2].into_iter().enumerate() {
+            let mut spec = TrackSpec::short(
+                style,
+                bpm,
+                Key::new((i * 3 + j * 5) as u8 % 12, if j == 0 { Mode::Minor } else { Mode::Major }),
+            );
+            spec.seed = 10 + (i * 2 + j) as u64;
+            let a = run(&generate(&spec));
+            assert_eq!(a.sound.len(), timbre::PROFILE_LEN, "{style:?} has a sound profile");
+            tracks.push((style, a.sound));
+        }
+    }
+    let n = Normaliser::fit(tracks.iter().map(|t| t.1.as_slice()));
+    let z: Vec<Vec<f32>> = tracks.iter().map(|t| n.apply(&t.1)).collect();
+    let mut right = 0;
+    for i in 0..z.len() {
+        let best = (0..z.len())
+            .filter(|&j| j != i)
+            .max_by(|&a, &b| similarity(&z[i], &z[a]).unwrap().partial_cmp(&similarity(&z[i], &z[b]).unwrap()).unwrap())
+            .unwrap();
+        if tracks[best].0 == tracks[i].0 {
+            right += 1;
+        }
+    }
+    assert!(right >= 8, "{right} of 10 tracks have a same-style track as their closest match");
+}

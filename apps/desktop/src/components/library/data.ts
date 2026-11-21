@@ -53,6 +53,13 @@ export async function refreshRows() {
         .map((e) => (e.track_id != null ? byId.get(e.track_id) : undefined))
         .filter((r): r is TrackRow => !!r);
       rows = localFilter(rows, query);
+    } else if (source.type === "similar") {
+      const found = await backend().soundsLike(source.id, 60);
+      set({ matches: Object.fromEntries(found.map((m) => [m.track.id, m.score])) });
+      rows = localFilter(
+        found.map((m) => m.track),
+        query,
+      );
     } else if (source.type === "suggest") {
       await refreshSuggestions();
       rows = useLibrary.getState().suggestions.map((s) => s.track);
@@ -65,6 +72,16 @@ export async function refreshRows() {
     if (my === seq) set({ loading: false });
     fail(e);
   }
+}
+
+/** Lists the tracks that sound most like `row`, best match first. */
+export function showSoundsLike(row: Pick<TrackRow, "id" | "title" | "path" | "analysis">) {
+  if (row.analysis !== "done") {
+    toast.message("Analyse this track first", { description: "MixIt learns how a track sounds when it analyses it, then it can find others like it." });
+    return;
+  }
+  useLibrary.getState().set({ source: { type: "similar", id: row.id, title: row.title || row.path.split(/[\\/]/).pop() || "this track" }, sort: null, matches: {} });
+  refreshRows();
 }
 
 export async function refreshPlaylists() {

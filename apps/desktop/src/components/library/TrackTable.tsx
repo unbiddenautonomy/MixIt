@@ -19,7 +19,7 @@ import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshPlaylists, refreshRows, refreshStats, tagTracks, writeCuesForSerato, writeTagsToFiles } from "./data";
+import { refreshPlaylists, refreshRows, refreshStats, showSoundsLike, tagTracks, writeCuesForSerato, writeTagsToFiles } from "./data";
 import { editTrack } from "../editor/TrackEditor";
 import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
@@ -47,6 +47,7 @@ interface Ctx {
   refBpm: number | null;
   index: number;
   tags: Record<number, string[]>;
+  matches: Record<number, number>;
 }
 
 const COMPAT_STYLE: Record<Compat, string> = {
@@ -61,6 +62,27 @@ export function bpmFits(a: number | null, ref: number | null): boolean {
   if (!a || !ref) return false;
   return [ref, ref * 2, ref / 2].some((r) => Math.abs(a / r - 1) <= 0.06);
 }
+
+/** Only in "Sounds like": how alike each track sounds to the chosen one. */
+const MATCH: Column = {
+  key: "match",
+  label: "Match",
+  sort: null,
+  width: "64px",
+  align: "right",
+  cell: (r, c) => {
+    const m = c.matches[r.id];
+    if (m == null) return null;
+    return (
+      <span className="flex items-center justify-end gap-1.5" title={`Sounds ${Math.round(m * 100)} % alike`}>
+        <span className="h-1 w-6 overflow-hidden rounded-full bg-white/10">
+          <span className="block h-full rounded-full bg-sky-400" style={{ width: `${Math.round(m * 100)}%` }} />
+        </span>
+        <span className="font-mono text-[11px] tabular-nums text-zinc-300">{Math.round(m * 100)}</span>
+      </span>
+    );
+  },
+};
 
 const COLUMNS: Column[] = [
   { key: "n", label: "#", sort: null, width: "36px", align: "right", cell: (_r, c) => <span className="font-mono text-[10px] text-zinc-600">{c.index + 1}</span> },
@@ -291,7 +313,10 @@ export function TrackTable() {
   const ref = useReference();
   const rowTags = useLibrary((s) => s.rowTags);
   const prefs = useColumns();
-  const cols = COLUMNS.filter((c) => isShown(c.key, c.extra ? "extra" : c.pro ? "pro" : "always", pro, prefs));
+  const matches = useLibrary((s) => s.matches);
+  const shown = COLUMNS.filter((c) => isShown(c.key, c.extra ? "extra" : c.pro ? "pro" : "always", pro, prefs));
+  // "Sounds like" puts its match right after the title.
+  const cols = source.type === "similar" ? shown.flatMap((c) => (c.key === "title" ? [c, MATCH] : [c])) : shown;
   // A last narrow track holds the columns button in the header (and stays empty in rows).
   const template = `${cols.map((c) => track(c.key, c.width, prefs)).join(" ")} 24px`;
   const sorted = useMemo(() => sortRows(rows, sort, sortDir), [rows, sort, sortDir]);
@@ -384,7 +409,7 @@ export function TrackTable() {
                 >
                   {cols.map((c) => (
                     <div key={c.key} className={clsx("flex min-w-0 items-center px-2", c.align === "right" && "justify-end", c.align === "center" && "justify-center")}>
-                      {c.cell(r, { notation, refKey: ref.key, refBpm: ref.bpm, index: it.index, tags: rowTags })}
+                      {c.cell(r, { notation, refKey: ref.key, refBpm: ref.bpm, index: it.index, tags: rowTags, matches })}
                     </div>
                   ))}
                 </div>
@@ -448,6 +473,9 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
             }}
           >
             What mixes well after this?
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" disabled={track.analysis !== "done"} onSelect={() => showSoundsLike(track)} data-testid="menu-sounds-like">
+            Find tracks that sound like this
           </ContextMenu.Item>
           {backend().kind !== "web" && (
             <ContextMenu.Item className="menu-item" onSelect={() => void writeTagsToFiles(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>

@@ -141,8 +141,17 @@ impl Track {
             energy: self.energy,
             genre: self.genre.clone(),
             rating: self.rating,
+            sound: vec![],
         }
     }
+}
+
+fn sound_to_bytes(v: &[f32]) -> Vec<u8> {
+    v.iter().flat_map(|x| x.to_le_bytes()).collect()
+}
+
+fn sound_from_bytes(b: &[u8]) -> Vec<f32> {
+    b.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
 }
 
 const TRACK_COLS: &str = "t.id, t.path, t.hash, t.file_size, t.file_mtime, t.title, t.artist, t.album, \
@@ -664,9 +673,54 @@ impl Library {
 
     /// Ranks library tracks to follow `current` (see [`suggest`]).
     pub fn suggest_next(&self, current: TrackId, opts: &suggest::SuggestOptions) -> Result<Vec<suggest::Suggestion>> {
-        let cur = self.track(current)?.candidate();
-        let pool: Vec<suggest::Candidate> = self.search("missing:no", None)?.iter().map(|t| t.candidate()).collect();
+        let sounds = self.standard_sounds()?;
+        let with_sound = |t: &Track| {
+            let mut c = t.candidate();
+            c.sound = sounds.get(&t.id).cloned().unwrap_or_default();
+            c
+        };
+        let cur = with_sound(&self.track(current)?);
+        let pool: Vec<suggest::Candidate> = self.search("missing:no", None)?.iter().map(with_sound).collect();
         Ok(suggest::suggest(&cur, &pool, opts))
+    }
+
+    // ---------------------------------------------------------------- sounds like
+
+    /// Every stored sound profile (tracks whose files are there).
+    pub fn sound_profiles(&self) -> Result<Vec<(TrackId, Vec<f32>)>> {
+        let mut st = self.conn.prepare("SELECT id, sound FROM tracks WHERE sound IS NOT NULL AND missing = 0")?;
+        let rows = st.query_map([], |r| Ok((r.get::<_, TrackId>(0)?, r.get::<_, Vec<u8>>(1)?)))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, bytes) = row?;
+            let v = sound_from_bytes(&bytes);
+            if v.len() == mixit_analysis::timbre::PROFILE_LEN {
+                out.push((id, v));
+            }
+        }
+        Ok(out)
+    }
+
+    /// Profiles in standard units over the whole library, ready to compare.
+    fn standard_sounds(&self) -> Result<std::collections::HashMap<TrackId, Vec<f32>>> {
+        let all = self.sound_profiles()?;
+        let n = mixit_analysis::timbre::Normaliser::fit(all.iter().map(|(_, v)| v.as_slice()));
+        Ok(all.into_iter().map(|(id, v)| (id, n.apply(&v))).collect())
+    }
+
+    /// Tracks that sound most like `id` (instruments, production, groove), best first,
+    /// with their similarity 0..1. Empty when `id` has no profile yet (not analysed).
+    pub fn sounds_like(&self, id: TrackId, limit: usize) -> Result<Vec<(TrackId, f64)>> {
+        let sounds = self.standard_sounds()?;
+        let Some(me) = sounds.get(&id) else { return Ok(vec![]) };
+        let mut out: Vec<(TrackId, f64)> = sounds
+            .iter()
+            .filter(|(other, _)| **other != id)
+            .filter_map(|(other, v)| mixit_analysis::timbre::similarity(me, v).map(|s| (*other, s)))
+            .collect();
+        out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
+        out.truncate(limit);
+        Ok(out)
     }
 
     // ---------------------------------------------------------------- analysis
@@ -686,7 +740,7 @@ impl Library {
         self.conn.execute(
             "UPDATE tracks SET bpm = ?2, key_index = ?3, key_order = ?4, energy = ?5, lufs = ?6, auto_gain_db = ?7,
                 analysis_version = ?8, analysis_state = 1, analysis_error = NULL,
-                duration = CASE WHEN duration > 0 THEN duration ELSE ?9 END
+                duration = CASE WHEN duration > 0 THEN duration ELSE ?9 END, sound = ?10
              WHERE id = ?1",
             params![
                 id,
@@ -698,6 +752,7 @@ impl Library {
                 a.loudness.auto_gain_db,
                 a.version,
                 a.duration,
+                (!a.sound.is_empty()).then(|| sound_to_bytes(&a.sound)),
             ],
         )?;
         tx.commit()?;

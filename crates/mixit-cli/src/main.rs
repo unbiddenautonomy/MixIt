@@ -409,6 +409,12 @@ enum LibCmd {
         #[arg(long, default_value_t = 10)]
         limit: usize,
     },
+    /// Tracks that sound like a track (instruments, production, groove), whatever the tempo or key.
+    SoundsLike {
+        id: i64,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
     Stats,
     /// Groups of identical files.
     Duplicates,
@@ -1095,6 +1101,32 @@ fn library(ctx: &Ctx, c: LibCmd) -> Result<()> {
             );
             let rows: Vec<_> = list.into_iter().filter_map(|s| lib.track(s.id).ok().map(|t| (s, t))).collect();
             print!("{}", format::suggestions(&rows, n));
+            Ok(())
+        }
+        LibCmd::SoundsLike { id, limit } => {
+            let list = lib.sounds_like(id, limit)?;
+            if ctx.json {
+                let rows: Vec<_> =
+                    list.iter().map(|(id, score)| serde_json::json!({ "id": id, "score": score })).collect();
+                return ctx.print_json(&rows);
+            }
+            let cur = lib.track(id)?;
+            if list.is_empty() {
+                println!("No matches yet for {}: analyse it (and more of your library) first.", cur.display_title());
+                return Ok(());
+            }
+            println!("Sounds like {}:", cur.display_title());
+            for (other, score) in list {
+                let t = lib.track(other)?;
+                println!(
+                    "  {:>3} %  #{:<5} {}  ({}, {})",
+                    (score * 100.0).round(),
+                    t.id,
+                    t.display_title(),
+                    t.best_bpm().map(|b| format!("{b:.1} BPM")).unwrap_or_else(|| "? BPM".into()),
+                    t.best_key().map(|k| k.display(n)).unwrap_or_else(|| "?".into())
+                );
+            }
             Ok(())
         }
         LibCmd::Stats => {
