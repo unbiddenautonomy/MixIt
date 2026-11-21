@@ -295,7 +295,7 @@ function Tempo({ deck, pro, compact }: { deck: number; pro: boolean; compact: bo
         <Fader value={tempo} min={-1} max={1} def={0} length={compact ? 64 : pro ? 120 : 150} onChange={(v) => setValue(`deck.${L}.tempo`, v)} label="Tempo" />
       </Ctl>
       {pro && !compact && (
-        <Ctl id={`deck.${L}.nudge_down`} label="Nudge slower" explain="Hold to slow down a little.">
+        <Ctl id={`deck.${L}.nudge_down`} label="Nudge slower" explain="Hold to slow down a little, to pull the beats back in line.">
           <Btn size="sm" className="!h-5 !px-1" onPointerDown={() => press(`deck.${L}.nudge_down`)} onPointerUp={() => release(`deck.${L}.nudge_down`)} onPointerLeave={() => release(`deck.${L}.nudge_down`)}>
             <ChevronDown size={12} />
           </Btn>

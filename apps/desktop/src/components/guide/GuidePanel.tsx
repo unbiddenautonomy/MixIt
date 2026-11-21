@@ -11,6 +11,7 @@ import { CONCEPT_GROUPS, CONCEPTS, conceptById, type Concept } from "../../guide
 import { labById, LABS } from "../../guide/labs";
 import { currentStep, labMemory, PRACTICE_TITLES, runLab, showControls, useGuide, type GuideTab, type Lab, type Step } from "../../guide/model";
 import { loadPractice, setupLab } from "../../guide/setup";
+import { startTour } from "../../guide/tour";
 import { deckList, detectProblems, PROBLEMS, problemControls, type Problem } from "../../guide/troubleshoot";
 import { useApp } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
@@ -217,6 +218,16 @@ function LabList() {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs leading-snug text-zinc-400">Seven short practice sessions, from your first clean transition to a rendered mix. Each uses practice tracks MixIt makes for you, built to make the lesson easy to hear.</p>
+      <button type="button" onClick={() => (useApp.getState().set({ guideOpen: false }), startTour())} className="group flex items-center gap-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] p-2.5 text-left hover:bg-[var(--accent)]/10">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/20 text-[var(--accent-ink)]">
+          <Play size={14} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-medium text-zinc-100">New here? Take the 2-minute tour</div>
+          <div className="text-[11px] text-zinc-400">Your first blend, one control at a time.</div>
+        </div>
+        <ChevronRight size={14} className="shrink-0 text-zinc-600 group-hover:text-zinc-300" />
+      </button>
       {LABS.map((l) => {
         const n = done[l.id]?.length ?? 0;
         const complete = n >= l.steps.length;

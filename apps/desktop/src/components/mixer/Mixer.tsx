@@ -124,7 +124,7 @@ function MasterSection({ pro }: { pro: boolean }) {
       <div className="flex items-end gap-1">
         <Meter read={(t) => t.master.peak} height={pro ? 70 : 96} width={5} />
       </div>
-      <Ctl label="Loudness" explain="Short-term loudness (LUFS). Clubs and streaming sit around −14 to −8. The orange number is how much the limiter is holding back.">
+      <Ctl label="Loudness" explain="How loud the whole mix is right now (in LUFS). Clubs and streaming sit around −14 to −8; louder only squashes the sound. The orange number is how much MixIt is turning it down to stop distortion.">
         <div className="text-center font-mono leading-tight">
           <div className={clsx("text-[11px]", lufs > -6 ? "text-orange-400" : "text-zinc-200")}>{lufs <= -69 ? "–" : lufs}</div>
           <div className="text-[9px] text-zinc-500">LUFS</div>

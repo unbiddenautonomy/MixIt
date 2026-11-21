@@ -17,6 +17,7 @@ import { toProjectKey } from "./arrangeOps";
 import { startTransition, type TransitionId } from "./transition";
 import { mixReport, type MixReport } from "./feedback";
 import { showReport, useReport } from "../components/feedback/MixReport";
+import { startTour } from "../guide/tour";
 import { openEditor } from "../components/editor/TrackEditor";
 
 export async function updateSettings(patch: Partial<Settings>) {
@@ -132,6 +133,9 @@ export function runApp(id: string): boolean {
       return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
+      return true;
+    case "tour":
+      startTour();
       return true;
     case "feedback":
       if (useReport.getState().report) useReport.setState({ open: true });

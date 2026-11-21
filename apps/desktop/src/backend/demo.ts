@@ -1291,10 +1291,10 @@ function demoRegistry(): T.ActionSpec[] {
     const k = keys[i] ?? [];
     add(`deck.${l}.play`, "Play / pause", g, { type: "trigger" }, "Starts or pauses the track.", k[0] ?? null);
     add(`deck.${l}.cue`, "Cue", g, { type: "momentary" }, "Paused: sets the cue point here. Playing: jumps back to it and stops. Hold to preview.", k[1] ?? null);
-    add(`deck.${l}.sync`, "Sync", g, { type: "toggle" }, "Matches this deck's tempo and beat phase to the master deck.", k[2] ?? null);
+    add(`deck.${l}.sync`, "Sync", g, { type: "toggle" }, "Makes this deck play at the same speed as the leading deck, with the beats lined up, and keeps it that way.", k[2] ?? null);
     add(`deck.${l}.keylock`, "Key lock", g, { type: "toggle" }, "Keeps the pitch steady when you change the tempo.");
     add(`deck.${l}.tempo`, "Tempo", g, cont(-1, 1, 0), "Speeds the track up or down within the tempo range.");
-    add(`deck.${l}.key_sync`, "Match key", g, { type: "trigger" }, "Shifts this deck's key to fit the other deck.");
+    add(`deck.${l}.key_sync`, "Match key", g, { type: "trigger" }, "Moves this track's key the smallest step that sounds good with the leading deck's key.");
     add(`deck.${l}.loop.auto`, "Loop", g, { type: "toggle" }, "Loops the selected number of beats from here, on the beat.", k[7] ?? null);
     add(`deck.${l}.loop.halve`, "Halve loop", g, { type: "trigger" }, "Halves the loop length.", k[8] ?? null);
     add(`deck.${l}.loop.double`, "Double loop", g, { type: "trigger" }, "Doubles the loop length.", k[9] ?? null);
@@ -1303,11 +1303,11 @@ function demoRegistry(): T.ActionSpec[] {
     for (let h = 1; h <= 8; h++) add(`deck.${l}.hotcue.${h}`, `Hot cue ${h}`, g, { type: "momentary" }, "Empty: saves this spot. Set: jumps there instantly.", h <= 4 ? k[2 + h] ?? null : null);
     add(`deck.${l}.eject`, "Eject", g, { type: "trigger" }, "Unloads the track (only when paused).");
     const m = `Mixer ${l}`;
-    add(`mixer.${l}.fader`, "Volume", m, cont(0, 1, 1), "The channel's volume fader.");
+    add(`mixer.${l}.fader`, "Volume", m, cont(0, 1, 1), "How loud this deck is in the mix.");
     add(`mixer.${l}.eq.high`, "High EQ", m, cont(-26, 6, 0), "Hi-hats and air.");
     add(`mixer.${l}.eq.mid`, "Mid EQ", m, cont(-26, 6, 0), "Vocals, synths and snares.");
     add(`mixer.${l}.eq.low`, "Low EQ", m, cont(-26, 6, 0), "Kick and bass. Cut it on the incoming track so two basslines never clash.");
-    add(`mixer.${l}.filter`, "Filter", m, cont(-1, 1, 0), "Left: low-pass (muffled). Right: high-pass (thin). Centre: off.");
+    add(`mixer.${l}.filter`, "Filter", m, cont(-1, 1, 0), "Left removes highs (muffled, far away); right removes lows (thin, airy). Centre is off.");
     add(`mixer.${l}.trim`, "Gain", m, cont(-12, 12, 0), "Input level, to match loudness between tracks.");
     add(`mixer.${l}.cue`, "Headphone cue", m, { type: "toggle" }, "Sends this channel to your headphones so you can prepare the next track.");
   });
@@ -1321,6 +1321,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.tour", "Take the 2-minute tour", "App", { type: "trigger" }, "Walks you through your first mix: play two tracks in time and blend from one into the other.", null);
   add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);
   add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
