@@ -1,7 +1,7 @@
 // Arrange: a mix on a timeline. Clips sit on four deck lanes over a tempo ruler; move
 // and trim them on the bar grid, edit gain, key and automation, then render the mix.
 import clsx from "clsx";
-import { FolderOpen, Loader2, Minus, Music, Plus, Save, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { FolderOpen, Loader2, Minus, Music, Play, Plus, Save, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend } from "../../backend";
 import type { AutomationLane, Clip, MixProject, ProjectParam, TrackRow } from "../../backend/types";
@@ -11,7 +11,8 @@ import { Btn } from "../ui/Button";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { dropTrackIds, TRACK_MIME } from "../deck/Deck";
 import { rowsById } from "../library/data";
-import { beatToSeconds, bpmAt, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
+import { playPreview, stopPreview, usePreview } from "./preview";
+import { beatAfter, beatToSeconds, bpmAt, emptyProject, openProject, projectBeats, renderProject, saveProject, setProject, updateClip } from "./projectIo";
 
 const LANE_H = 76;
 const PARAM_COLORS: Record<ProjectParam, string> = { Volume: "#f4f4f5", EqLow: "#405cff", EqMid: "#ffa630", EqHigh: "#ecf6ff", Filter: "#e879f9", FxMix: "#34d399" };
@@ -44,6 +45,7 @@ export function Arrange() {
   const [show, setShow] = useState<ProjectParam[]>(["Volume", "EqLow"]);
   const [width, setWidth] = useState(1200);
   const area = useRef<HTMLDivElement>(null);
+  useEffect(() => () => stopPreview(), []);
   useEffect(() => {
     const el = area.current;
     if (!el) return;
@@ -53,7 +55,7 @@ export function Arrange() {
   }, [project != null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!project) return <EmptyArrange />;
-  const fit = Math.max(0.08, Math.min(40, (width - 300) / Math.max(16, projectBeats(project) + 8)));
+  const fit = Math.max(0.08, Math.min(40, (width - 110) / Math.max(16, projectBeats(project) + 8)));
   const ppb = zoom ?? fit;
   const setPpb = (f: (p: number) => number) => setZoom(f(ppb));
   const beats = Math.max(64, projectBeats(project) + 32);
@@ -95,6 +97,7 @@ export function Arrange() {
           <Btn size="sm" tone="ghost" active={zoom == null} onClick={() => setZoom(null)}>
             Fit
           </Btn>
+          <PlayButton project={project} />
           <Btn size="sm" onClick={() => useApp.getState().set({ automixOpen: true })}>
             <Wand2 size={12} /> Automix
           </Btn>
@@ -176,7 +179,15 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
         {/* Ruler */}
         <div className="sticky top-0 z-20 flex h-9 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur">
           <div className="sticky left-0 z-10 w-20 shrink-0 border-r border-white/[0.06] bg-zinc-950" />
-          <div className="relative flex-1">
+          <div
+            className="relative flex-1 cursor-pointer"
+            title="Click to set where Play starts"
+            onPointerDown={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const beat = Math.max(0, Math.round((e.clientX - r.left) / ppb / 4) * 4);
+              usePreview.getState().set({ cursor: beat });
+            }}
+          >
             {Array.from({ length: Math.ceil(beats / 4) }, (_, bar) =>
               bar % barEvery === 0 ? (
                 <div key={bar} className="absolute top-0 h-full border-l border-white/[0.08] pl-1" style={{ left: bar * 4 * ppb }}>
@@ -230,6 +241,7 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
             </div>
           </div>
         ))}
+        <Playhead project={project} ppb={ppb} />
         <div className="px-24 py-3 text-[11px] text-zinc-600">Drag tracks from the library onto a lane. Drag clips to move them (on bars; hold Shift for beats), drag the right edge to trim.</div>
       </div>
     </div>
@@ -363,6 +375,14 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
           ))}
         </div>
       )}
+      <div className="flex gap-1">
+        <Btn size="sm" className="flex-1" onClick={() => playPreview(project, Math.max(0, clip.start - 16), clip.start + 48)}>
+          <Play size={11} /> Hear the mix in
+        </Btn>
+        <Btn size="sm" className="flex-1" onClick={() => playPreview(project, Math.max(0, (clip.start + clip.length) - 48), (clip.start + clip.length) + 16)}>
+          <Play size={11} /> Mix out
+        </Btn>
+      </div>
       <div className="truncate font-mono text-[10px] text-zinc-600" title={clip.track.path ?? ""}>
         {clip.track.path}
       </div>
@@ -386,5 +406,56 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="w-16 shrink-0 text-zinc-500">{label}</span>
       {children}
     </div>
+  );
+}
+
+function PlayButton({ project }: { project: MixProject }) {
+  const status = usePreview((s) => s.status);
+  const cursor = usePreview((s) => s.cursor);
+  if (status !== "idle") {
+    return (
+      <Btn size="sm" tone="accent" style={{ ["--accent" as string]: "#34d399" }} onClick={stopPreview}>
+        {status === "loading" ? <Loader2 size={12} className="animate-spin" /> : <Square size={11} fill="currentColor" />}
+        {status === "loading" ? "Preparing…" : "Stop"}
+      </Btn>
+    );
+  }
+  return (
+    <Btn
+      size="sm"
+      tone="accent"
+      style={{ ["--accent" as string]: "#34d399" }}
+      disabled={project.clips.length === 0}
+      onClick={() => playPreview(project, cursor, Math.min(projectBeats(project) + 8, cursor + 128))}
+      title="Plays 32 bars from the marker on the ruler"
+    >
+      <Play size={11} fill="currentColor" /> Play from bar {Math.floor(cursor / 4) + 1}
+    </Btn>
+  );
+}
+
+/** The start marker, and the moving play head while a preview plays. */
+function Playhead({ project, ppb }: { project: MixProject; ppb: number }) {
+  const cursor = usePreview((s) => s.cursor);
+  const status = usePreview((s) => s.status);
+  const line = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (status !== "playing") return;
+    let raf = 0;
+    const tick = () => {
+      const { audio, from } = usePreview.getState();
+      if (audio && line.current) line.current.style.transform = `translateX(${beatAfter(project, from, audio.currentTime) * ppb}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [status, project, ppb]);
+  return (
+    <>
+      <div className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-emerald-400/50" style={{ left: 80 + cursor * ppb }}>
+        <div className="absolute -left-1 top-0 size-2 rotate-45 bg-emerald-400" />
+      </div>
+      {status === "playing" && <div ref={line} className="pointer-events-none absolute bottom-0 top-0 z-30 w-0.5 bg-white shadow-[0_0_8px_white]" style={{ left: 80 }} />}
+    </>
   );
 }

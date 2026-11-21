@@ -873,56 +873,59 @@ pub fn project_check(project: serde_json::Value) -> R<Vec<String>> {
     Ok(p.check().iter().map(|i| format!("{i:?}")).collect())
 }
 
+/// Renders a project to samples, reporting progress as "render" jobs. Runs on the
+/// calling thread.
+fn render_samples(app: &AppHandle, p: &MixProject, label: &str) -> R<(Vec<f32>, u32)> {
+    let state = app.state::<AppState>();
+    state.render_cancel.store(false, Ordering::SeqCst);
+    let lib = state.job_library()?;
+    let opts = mixit_host::project::RenderOptions::default();
+    let mut r = mixit_cli::resolve::Resolver::new(
+        opts.sample_rate,
+        Some(&lib),
+        mixit_io::DecodeCache::new(state.paths.cache.clone()).ok(),
+    );
+    let mut last = 0.0f32;
+    let cancel = state.render_cancel.clone();
+    let res = mixit_host::project::render_project(
+        p,
+        &opts,
+        |c| r.resolve(c),
+        &cancel,
+        |f| {
+            if f - last > 0.01 {
+                last = f;
+                emit_job(
+                    app,
+                    JobProgress {
+                        kind: "render",
+                        done: (f * 1000.0) as usize,
+                        total: 1000,
+                        message: format!("{label} {:.0} %", f * 100.0),
+                        finished: false,
+                        error: None,
+                    },
+                );
+            }
+        },
+    );
+    res.map(|a| (a, opts.sample_rate)).map_err(|e| r.last_error.clone().unwrap_or_else(|| e.to_string()))
+}
+
 /// Bounces a project to `path` in the background ("job" events with kind "render").
 #[tauri::command]
 pub fn project_render(app: AppHandle, project: serde_json::Value, path: String, format: Option<String>) -> R<()> {
     let p = project_from_value(project)?;
-    let state = app.state::<AppState>();
-    state.render_cancel.store(false, Ordering::SeqCst);
-    let lib = state.job_library()?;
-    let cache_dir = state.paths.cache.clone();
     let out = PathBuf::from(&path);
     let fmt = mixit_cli::ops::format_for(&out, format.as_deref()).map_err(err)?;
     std::thread::Builder::new()
         .name("mixit-render".into())
         .spawn(move || {
-            let state = app.state::<AppState>();
-            let opts = mixit_host::project::RenderOptions::default();
-            let mut r = mixit_cli::resolve::Resolver::new(
-                opts.sample_rate,
-                Some(&lib),
-                mixit_io::DecodeCache::new(cache_dir).ok(),
-            );
-            let mut last = 0.0f32;
-            let cancel = state.render_cancel.clone();
-            let res = mixit_host::project::render_project(
-                &p,
-                &opts,
-                |c| r.resolve(c),
-                &cancel,
-                |f| {
-                    if f - last > 0.01 {
-                        last = f;
-                        emit_job(
-                            &app,
-                            JobProgress {
-                                kind: "render",
-                                done: (f * 1000.0) as usize,
-                                total: 1000,
-                                message: format!("Rendering {:.0} %", f * 100.0),
-                                finished: false,
-                                error: None,
-                            },
-                        );
-                    }
-                },
-            );
-            let done = match res {
-                Ok(audio) => mixit_cli::ops::write_audio(&out, &audio, opts.sample_rate, fmt)
+            let done = render_samples(&app, &p, "Rendering").and_then(|(audio, sr)| {
+                mixit_cli::ops::write_audio(&out, &audio, sr, fmt)
                     .map(|_| format!("Saved {}", out.display()))
-                    .map_err(|e| e.to_string()),
-                Err(e) => Err(r.last_error.clone().unwrap_or_else(|| e.to_string())),
-            };
+                    .map_err(|e| e.to_string())
+            });
             let (message, error) = match done {
                 Ok(m) => (m, None),
                 Err(e) => (String::new(), Some(e)),
@@ -931,6 +934,44 @@ pub fn project_render(app: AppHandle, project: serde_json::Value, path: String, 
         })
         .map_err(err)?;
     Ok(())
+}
+
+/// Renders the beats [from_beat, to_beat) of a project and returns it as a 16-bit WAV,
+/// so the arrange view can play a passage without bouncing the whole mix.
+#[tauri::command]
+pub async fn project_preview(
+    app: AppHandle,
+    project: serde_json::Value,
+    from_beat: f64,
+    to_beat: f64,
+) -> R<tauri::ipc::Response> {
+    let p = project_from_value(project)?.excerpt(from_beat, to_beat);
+    tauri::async_runtime::spawn_blocking(move || {
+        let res = render_samples(&app, &p, "Preparing preview");
+        let finish = |error: Option<String>| {
+            emit_job(
+                &app,
+                JobProgress { kind: "render", done: 1000, total: 1000, message: String::new(), finished: true, error },
+            )
+        };
+        let (audio, sr) = match res {
+            Ok(x) => x,
+            Err(e) => {
+                finish(Some(e.clone()));
+                return Err(e);
+            }
+        };
+        let dir = app.state::<AppState>().paths.cache.clone();
+        std::fs::create_dir_all(&dir).map_err(err)?;
+        let path = dir.join("preview.wav");
+        mixit_cli::ops::write_audio(&path, &audio, sr, mixit_cli::ops::parse_format("wav16").map_err(err)?)
+            .map_err(err)?;
+        let bytes = std::fs::read(&path).map_err(err)?;
+        finish(None);
+        Ok(tauri::ipc::Response::new(bytes))
+    })
+    .await
+    .map_err(err)?
 }
 
 // ------------------------------------------------------------------------- exchange

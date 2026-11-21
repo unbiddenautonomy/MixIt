@@ -78,6 +78,7 @@ export class TauriBackend implements Backend {
   openProject(path: string) { return invoke<T.MixProject>("project_open", { path }); }
   checkProject(project: T.MixProject) { return invoke<string[]>("project_check", { project }); }
   renderProject(project: T.MixProject, path: string, format?: string) { return invoke<void>("project_render", { project, path, format: format ?? null }); }
+  previewProject(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<ArrayBuffer>("project_preview", { project, fromBeat, toBeat }); }
 
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   exportRekordbox(path: string, playlist?: number | null) { return invoke<void>("export_rekordbox", { path, playlist: playlist ?? null }); }

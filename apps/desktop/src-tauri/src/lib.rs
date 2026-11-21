@@ -73,6 +73,7 @@ pub fn run() {
             commands::project_open,
             commands::project_check,
             commands::project_render,
+            commands::project_preview,
             commands::import_rekordbox,
             commands::export_rekordbox,
             commands::export_playlist,

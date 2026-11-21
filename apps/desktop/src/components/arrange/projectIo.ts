@@ -104,3 +104,16 @@ export async function renderProject() {
     toast.error(String(e));
   }
 }
+
+/** The beat heard `seconds` after `fromBeat` (inverse of beatToSeconds). */
+export function beatAfter(p: MixProject, fromBeat: number, seconds: number): number {
+  const t0 = beatToSeconds(p, fromBeat);
+  let lo = fromBeat;
+  let hi = fromBeat + (seconds * 400) / 60 + 1; // no tempo is above 400 BPM
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (beatToSeconds(p, mid) - t0 < seconds) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}

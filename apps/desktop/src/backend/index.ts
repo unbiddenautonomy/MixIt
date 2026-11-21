@@ -76,6 +76,8 @@ export interface Backend {
   openProject(path: string): Promise<MixProject>;
   checkProject(project: MixProject): Promise<string[]>;
   renderProject(project: MixProject, path: string, format?: string): Promise<void>;
+  /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
+  previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
 
   importRekordbox(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;

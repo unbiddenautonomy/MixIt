@@ -12,6 +12,7 @@
 pub mod automix;
 pub mod transition;
 
+use mixit_core::tempo_map::{TempoSegment, TimeSignature};
 use mixit_core::{Key, TempoMap};
 use serde::{Deserialize, Serialize};
 
@@ -285,6 +286,77 @@ impl MixProject {
         Ok(p)
     }
 
+    /// The part of the project between two beats as a project of its own, starting at
+    /// beat 0: clips cut to the window (their source start moved so they still play the
+    /// same music), automation, markers and the tempo map shifted. Used to preview a
+    /// passage without rendering the whole mix.
+    pub fn excerpt(&self, from: f64, to: f64) -> MixProject {
+        let from = from.max(0.0);
+        let to = to.max(from + 1.0);
+        let mut segs: Vec<TempoSegment> = Vec::new();
+        let all = self.tempo.segments();
+        for (i, s) in all.iter().enumerate() {
+            let next_start = all.get(i + 1).map(|n| n.start_beat).unwrap_or(f64::INFINITY);
+            if next_start <= from || s.start_beat >= to {
+                continue;
+            }
+            let start = s.start_beat.max(from);
+            segs.push(TempoSegment {
+                start_beat: start - from,
+                bpm: self.tempo.bpm_at_beat(start),
+                end_bpm: s.end_bpm,
+            });
+        }
+        let mut tempo = self.tempo.clone();
+        tempo.set_segments(segs);
+        let shift = from.floor() as i64;
+        let mut sigs: Vec<TimeSignature> = Vec::new();
+        for ts in &self.tempo.time_signatures {
+            if (ts.start_beat as f64) <= from {
+                sigs = vec![TimeSignature { start_beat: 0, ..*ts }];
+            } else if (ts.start_beat as f64) < to {
+                sigs.push(TimeSignature { start_beat: ts.start_beat - shift, ..*ts });
+            }
+        }
+        tempo.time_signatures = sigs;
+        tempo.rebuild();
+
+        let clips = self
+            .clips
+            .iter()
+            .filter(|c| c.start < to && c.end() > from)
+            .map(|c| {
+                let mut c = c.clone();
+                if c.start < from {
+                    c.source_start = c.source_beat(from);
+                    c.length -= from - c.start;
+                    c.start = from;
+                }
+                c.length = c.length.min(to - c.start);
+                c.start -= from;
+                for l in &mut c.lanes {
+                    l.shift(-from);
+                }
+                c
+            })
+            .collect();
+        let markers = self
+            .markers
+            .iter()
+            .filter(|m| m.beat >= from && m.beat < to)
+            .map(|m| Marker { beat: m.beat - from, label: m.label.clone() })
+            .collect();
+        MixProject {
+            version: self.version,
+            name: self.name.clone(),
+            tempo,
+            clips,
+            markers,
+            master_gain_db: self.master_gain_db,
+            next_id: self.next_id,
+        }
+    }
+
     /// Adds a clip and returns its id.
     pub fn add_clip(&mut self, mut clip: Clip) -> u64 {
         clip.id = self.next_id;
@@ -554,6 +626,41 @@ mod tests {
             fx: None,
             name: String::new(),
         }
+    }
+
+    #[test]
+    fn excerpt_keeps_what_is_heard() {
+        let mut p = MixProject::new("x", 120.0);
+        p.tempo.set_segments(vec![
+            TempoSegment { start_beat: 0.0, bpm: 120.0, end_bpm: 120.0 },
+            TempoSegment { start_beat: 64.0, bpm: 120.0, end_bpm: 128.0 },
+            TempoSegment { start_beat: 128.0, bpm: 128.0, end_bpm: 128.0 },
+        ]);
+        p.tempo.rebuild();
+        let mut a = clip(0.0, 128.0, 0);
+        a.source_start = 16.0;
+        a.lane_mut(Param::Volume).set_point(Point { beat: 96.0, value: 1.0, curve: Curve::Linear });
+        a.lane_mut(Param::Volume).set_point(Point { beat: 128.0, value: 0.0, curve: Curve::Linear });
+        p.add_clip(a);
+        p.add_clip(clip(96.0, 200.0, 1));
+        p.add_clip(clip(400.0, 16.0, 0));
+        p.markers.push(Marker { beat: 100.0, label: "drop".into() });
+
+        let e = p.excerpt(80.0, 144.0);
+        assert_eq!(e.clips.len(), 2, "the clip far later is left out");
+        let a = &e.clips[0];
+        assert_eq!((a.start, a.length), (0.0, 48.0));
+        assert_eq!(a.source_start, 96.0, "same music at the window start");
+        let b = &e.clips[1];
+        assert_eq!((b.start, b.length, b.source_start), (16.0, 48.0, 0.0));
+        // Automation keeps its shape: halfway through the fade-out is still 0.5.
+        assert!((a.value_at(Param::Volume, 112.0 - 80.0) - 0.5).abs() < 1e-6);
+        assert_eq!(e.markers, vec![Marker { beat: 20.0, label: "drop".into() }]);
+        // Tempo: mid-ramp at the start, same seconds between any two beats.
+        assert!((e.tempo.bpm_at_beat(0.0) - p.tempo.bpm_at_beat(80.0)).abs() < 1e-9);
+        let d0 = p.tempo.seconds_at_beat(130.0) - p.tempo.seconds_at_beat(80.0);
+        let d1 = e.tempo.seconds_at_beat(50.0) - e.tempo.seconds_at_beat(0.0);
+        assert!((d0 - d1).abs() < 1e-9, "{d0} vs {d1}");
     }
 
     #[test]

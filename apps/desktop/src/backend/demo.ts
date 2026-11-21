@@ -902,6 +902,61 @@ export class DemoBackend implements Backend {
     }, 100);
   }
 
+  /** A drum-machine sketch of the passage: kick on every beat, hats off-beat and a tone
+   * per playing clip, at the project's tempo. */
+  async previewProject(project: T.MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer> {
+    const sr = 22050;
+    const bpm = project.tempo.segments[0]?.bpm ?? 124;
+    const spb = 60 / bpm;
+    const beats = Math.max(1, toBeat - fromBeat);
+    const n = Math.round(beats * spb * sr);
+    const pcm = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      const beat = fromBeat + t / spb;
+      const ph = (t / spb) % 1;
+      let v = Math.sin(2 * Math.PI * 55 * Math.exp(-ph * 6) * ph * spb) * Math.exp(-ph * 10) * 0.6;
+      const off = (ph + 0.5) % 1;
+      v += (Math.random() * 2 - 1) * Math.exp(-off * 40) * 0.12;
+      for (const c of project.clips) {
+        if (beat < c.start || beat >= c.start + c.length) continue;
+        const f = 220 * Math.pow(2, ((c.id * 5) % 12) / 12);
+        const vol = c.lanes.find((l) => l.param === "Volume");
+        let g = 1;
+        if (vol && vol.points.length) {
+          const pts = vol.points;
+          if (beat <= pts[0].beat) g = pts[0].value;
+          else if (beat >= pts[pts.length - 1].beat) g = pts[pts.length - 1].value;
+          else {
+            const k = pts.findIndex((p) => p.beat > beat);
+            const a = pts[k - 1];
+            const b = pts[k];
+            g = a.value + ((b.value - a.value) * (beat - a.beat)) / Math.max(1e-9, b.beat - a.beat);
+          }
+        }
+        v += Math.sin(2 * Math.PI * f * t) * 0.08 * g;
+      }
+      pcm[i] = Math.max(-1, Math.min(1, v)) * 32000;
+    }
+    const buf = new ArrayBuffer(44 + n * 2);
+    const d = new DataView(buf);
+    const str = (o: number, x: string) => [...x].forEach((ch, j) => d.setUint8(o + j, ch.charCodeAt(0)));
+    str(0, "RIFF");
+    d.setUint32(4, 36 + n * 2, true);
+    str(8, "WAVEfmt ");
+    d.setUint32(16, 16, true);
+    d.setUint16(20, 1, true);
+    d.setUint16(22, 1, true);
+    d.setUint32(24, sr, true);
+    d.setUint32(28, sr * 2, true);
+    d.setUint16(32, 2, true);
+    d.setUint16(34, 16, true);
+    str(36, "data");
+    d.setUint32(40, n * 2, true);
+    new Int16Array(buf, 44).set(pcm);
+    return buf;
+  }
+
   async importRekordbox() {}
   async exportRekordbox() {}
   async exportPlaylist() {}
