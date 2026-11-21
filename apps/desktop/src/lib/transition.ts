@@ -1,5 +1,5 @@
 // "Mix it for me": runs a DJ transition between two decks in time with the music.
-// The incoming deck is synced and started on the next bar, then the mixer moves along
+// The incoming deck is synced and started at the top of the next phrase, then the mixer moves along
 // the outgoing deck's beat counter, exactly as a DJ's hands would.
 import { create } from "zustand";
 import { toast } from "sonner";
@@ -62,9 +62,12 @@ export async function startTransition(from: number, to: number, kind: Transition
     if (!dt.playing) await press(`deck.${b}.play`);
     return;
   }
-  // Start the incoming deck on the next bar of the outgoing one.
+  // Start the incoming deck at the top of the outgoing track's next 8-bar phrase, lined up
+  // with the incoming track's own phrases, so builds and drops land together. When the
+  // outgoing track would run out first, the next bar has to do.
   const bpb = df.beatsPerBar || 4;
-  const startBeat = Math.ceil((df.beat + 0.25) / bpb) * bpb;
+  const nextBar = Math.ceil((df.beat + 0.25) / bpb) * bpb;
+  const startBeat = phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar;
   const echoBeats = kind === "echoOut" ? Math.min(beats, 8) : 0;
   const run: Running = { from, to, kind, beats: Math.max(beats, 1), startBeat, progress: 0 };
   useTransition.getState().set(run);
@@ -170,4 +173,18 @@ export async function startTransition(from: number, to: number, kind: Transition
   stamp = performance.now();
   last = {};
   raf = requestAnimationFrame(step);
+}
+
+/**
+ * The outgoing deck's beat at which to start the incoming deck so both tracks' 8-bar
+ * phrases line up: the incoming deck starts from `inBeat` (rounded to its bar). Null when
+ * that is more than `room` beats away.
+ */
+export function phraseStart(outBeat: number, inBeat: number, beatsPerBar: number, room: number): number | null {
+  const phrase = beatsPerBar * 8;
+  const inPhase = (((Math.round(inBeat / beatsPerBar) * beatsPerBar) % phrase) + phrase) % phrase;
+  const from = outBeat + 0.25;
+  const k = Math.ceil((from - inPhase) / phrase);
+  const start = inPhase + k * phrase;
+  return start - outBeat <= Math.max(0, room) ? start : null;
 }

@@ -19,8 +19,9 @@ import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TrackEditor } from "./components/editor/TrackEditor";
+import { MixReportDialog } from "./components/feedback/MixReport";
 import { TopBar } from "./components/shell/TopBar";
-import { handleShortcut } from "./lib/appCommands";
+import { handleShortcut, openCapturedMix } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
 import { useTheme } from "./lib/theme";
@@ -137,6 +138,7 @@ export function App() {
       <CommandPalette />
       <SettingsDialog />
       <TrackEditor />
+      <MixReportDialog onEdit={(p) => void openCapturedMix(p)} />
       <AutomixDialog />
       <DialogHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />

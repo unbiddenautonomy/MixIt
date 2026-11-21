@@ -38,6 +38,8 @@ export interface CaptureFrame {
   t: number;
   clockBpm: number;
   decks: (DeckFrame | null)[];
+  /** The master output, for the feedback report. */
+  master?: { peak: number; clipped: boolean; limiterDb: number; lufs: number };
 }
 
 export interface Capture {
@@ -66,6 +68,7 @@ export function sampleFrame(t: number, tele: Telemetry, mixer: MixerState): Capt
   return {
     t,
     clockBpm: tele.clockBpm,
+    master: { peak: Math.max(tele.master.peak[0], tele.master.peak[1]), clipped: tele.master.clipped, limiterDb: tele.master.limiterGrDb, lufs: tele.master.momentaryLufs },
     decks: tele.decks.map((d, i) => {
       if (!d.loaded) return null;
       const c: ChannelState = mixer.channels[i];

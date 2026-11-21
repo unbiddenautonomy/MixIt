@@ -15,6 +15,8 @@ import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
 import { toProjectKey } from "./arrangeOps";
 import { startTransition, type TransitionId } from "./transition";
+import { mixReport, type MixReport } from "./feedback";
+import { showReport, useReport } from "../components/feedback/MixReport";
 import { openEditor } from "../components/editor/TrackEditor";
 
 export async function updateSettings(patch: Partial<Settings>) {
@@ -58,12 +60,14 @@ function startCapture() {
   captureOff = useTelemetry.subscribe((s) => c.add(s.t, useApp.getState().mixer, trackRefFor));
 }
 
-function stopCapture(): MixProject | null {
+function stopCapture(): { project: MixProject | null; report: MixReport | null } {
   captureOff?.();
   captureOff = null;
   const c = capture;
   capture = null;
-  return c ? buildProject(c.capture()) : null;
+  if (!c) return { project: null, report: null };
+  const cap = c.capture();
+  return { project: buildProject(cap), report: mixReport(cap) };
 }
 
 /** Opens a captured live mix in Arrange (asking first if the open project has unsaved edits). */
@@ -78,7 +82,8 @@ export async function toggleRecording() {
   try {
     if (rec) {
       const path = await backend().recordStop();
-      const project = stopCapture();
+      const { project, report } = stopCapture();
+      if (report) showReport(report, project, path);
       toast.success("Recording saved", {
         description: project ? `${path}. Every move you made was captured too: open it in Arrange to fix a transition or a fade.` : path,
         action: project ? { label: "Edit in Arrange", onClick: () => void openCapturedMix(project) } : undefined,
@@ -127,6 +132,10 @@ export function runApp(id: string): boolean {
       return true;
     case "coach":
       updateSettings({ coach: !s.settings?.coach });
+      return true;
+    case "feedback":
+      if (useReport.getState().report) useReport.setState({ open: true });
+      else toast.message("No feedback yet", { description: "Press Rec, mix two or more tracks, then stop recording. MixIt then tells you how the mix went." });
       return true;
     case "edit_track":
       openEditor(s.targetDeck);

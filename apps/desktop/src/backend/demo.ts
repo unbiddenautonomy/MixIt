@@ -1321,6 +1321,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);
   add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");

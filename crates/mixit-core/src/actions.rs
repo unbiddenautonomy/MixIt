@@ -1019,6 +1019,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("guide"),
     );
     b.add(
+        "app.feedback",
+        "Mix feedback",
+        ag,
+        ActionKind::Trigger,
+        "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.",
+        true,
+        None,
+        None,
+    );
+    b.add(
         "app.edit_track",
         "Edit track",
         ag,
