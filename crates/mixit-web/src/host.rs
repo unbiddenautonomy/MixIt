@@ -8,10 +8,10 @@
 use std::sync::Arc;
 
 use mixit_core::{Beatgrid, DeckId, Key};
-use mixit_dsp::studio::{SPECTRUM_BANDS, Spectrum, StudioSettings};
+use mixit_dsp::studio::{SPECTRUM_BANDS, Spectrum};
 use mixit_engine::actions::{ActionDispatcher, ActionError, ActionInput};
 use mixit_engine::commands::{Command, DeckCommand, GlobalCommand, PadMode, SamplerCommand};
-use mixit_engine::view::{StudioDto, TelemetryDto};
+use mixit_engine::view::{StudioDto, TelemetryDto, studio_dto, studio_settings};
 use mixit_engine::{
     Controller, CueKind, DeckTrack, Engine, EngineConfig, Event, HOT_CUES, HotCue, InputFeed, MicCommand, TrackAudio,
     push_input,
@@ -343,12 +343,12 @@ impl Host {
             "record" => self.send(Command::Global(GlobalCommand::SetRecording(v["on"].as_bool().unwrap_or(false)))),
             "studioGet" => {
                 let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));
-                return Ok(json!(StudioDto::from(&self.dispatcher.studio(ch))));
+                return Ok(json!(studio_dto(&self.dispatcher.studio(ch))));
             }
             "studioSet" => {
                 let ch = v["channel"].as_u64().map(|c| (c as usize).min(DECKS - 1));
                 let dto: StudioDto = serde_json::from_value(v["settings"].clone()).map_err(|e| e.to_string())?;
-                let c = self.dispatcher.set_studio(ch, StudioSettings::from(&dto));
+                let c = self.dispatcher.set_studio(ch, studio_settings(&dto));
                 self.send(c);
             }
             "scope" => {

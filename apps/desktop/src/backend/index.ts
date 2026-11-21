@@ -109,7 +109,10 @@ export interface Backend {
   saveProject(path: string, project: MixProject): Promise<void>;
   openProject(path: string): Promise<MixProject>;
   checkProject(project: MixProject): Promise<string[]>;
-  renderProject(project: MixProject, path: string, format?: string): Promise<void>;
+  /** Bounces the mix to a file; with `targetLufs` it is turned to that loudness. */
+  renderProject(project: MixProject, path: string, format?: string, targetLufs?: number | null): Promise<void>;
+  /** Bounces each lane to its own file in `folder`, all the same length. */
+  renderStems(project: MixProject, folder: string, format?: string): Promise<void>;
   /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
   previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
 

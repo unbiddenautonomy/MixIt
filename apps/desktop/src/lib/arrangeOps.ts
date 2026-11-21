@@ -9,8 +9,8 @@ export const EQ_CUT = -26;
 /** Echo's index in the effect list (mixit-dsp `FxKind::ALL`). */
 export const FX_ECHO = 1;
 
-const RANGE: Record<ProjectParam, [number, number]> = { Volume: [0, 1], EqLow: [-26, 6], EqMid: [-26, 6], EqHigh: [-26, 6], Filter: [-1, 1], FxMix: [0, 1] };
-const DEFAULT: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0 };
+const RANGE: Record<ProjectParam, [number, number]> = { Volume: [0, 1], EqLow: [-26, 6], EqMid: [-26, 6], EqHigh: [-26, 6], Filter: [-1, 1], FxMix: [0, 1], Pan: [-1, 1], Space: [0, 1], Echo: [0, 1] };
+const DEFAULT: Record<ProjectParam, number> = { Volume: 1, EqLow: 0, EqMid: 0, EqHigh: 0, Filter: 0, FxMix: 0, Pan: 0, Space: 0, Echo: 0 };
 
 // ---------------------------------------------------------------- keys
 
@@ -108,6 +108,33 @@ export function moveClip(p: MixProject, id: number, start: number, lane?: number
       return { ...c, start, lane: lane ?? c.lane, lanes: c.lanes.map((l) => ({ ...l, points: l.points.map((x) => ({ ...x, beat: x.beat + d })) })) };
     }),
   };
+}
+
+/**
+ * Removes a clip and closes the gap it leaves: the next clip to start after it moves
+ * back to where the removed one started (so it mixes in from the clip before instead),
+ * and everything after moves with it, markers too. Without a later clip it is a plain
+ * remove.
+ */
+export function rippleDelete(p: MixProject, id: number): MixProject {
+  const gone = p.clips.find((c) => c.id === id);
+  if (!gone) return p;
+  const rest = p.clips.filter((c) => c.id !== id);
+  const later = rest.filter((c) => c.start > gone.start);
+  if (!later.length) return { ...p, clips: rest };
+  const next = Math.min(...later.map((c) => c.start));
+  const d = next - gone.start;
+  const shift = (c: Clip): Clip => ({ ...c, start: c.start - d, lanes: c.lanes.map((l) => ({ ...l, points: l.points.map((x) => ({ ...x, beat: x.beat - d })) })) });
+  return {
+    ...p,
+    clips: rest.map((c) => (c.start > gone.start ? shift(c) : c)),
+    markers: p.markers.filter((m) => m.beat <= gone.start || m.beat >= next).map((m) => (m.beat >= next ? { ...m, beat: m.beat - d } : m)),
+  };
+}
+
+/** The track beat heard at a timeline beat (counting down for a reversed clip). */
+export function sourceBeat(c: Clip, beat: number): number {
+  return c.reverse ? c.source_start + c.length - (beat - c.start) : c.source_start + (beat - c.start);
 }
 
 // ---------------------------------------------------------------- tempo

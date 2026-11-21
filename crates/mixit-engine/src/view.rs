@@ -4,7 +4,7 @@
 use mixit_dsp::dynamics::{CompressorSettings, GateSettings};
 use mixit_dsp::peq::{BandSettings, BandShape, MAX_BANDS};
 use mixit_dsp::studio::StudioSettings;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{DeckTelemetry, MasterTelemetry, MicTelemetry, Telemetry};
 
@@ -201,100 +201,35 @@ impl TelemetryDto {
 
 // ------------------------------------------------------------------ studio settings
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum BandShapeDto {
-    Bell,
-    LowShelf,
-    HighShelf,
-    LowCut,
-    HighCut,
-    Notch,
-    BandPass,
-}
+pub use mixit_project::strip::{BandDto, BandShapeDto, CompDto, GateDto, StudioDto};
 
-impl From<BandShape> for BandShapeDto {
-    fn from(s: BandShape) -> Self {
-        match s {
-            BandShape::Bell => BandShapeDto::Bell,
-            BandShape::LowShelf => BandShapeDto::LowShelf,
-            BandShape::HighShelf => BandShapeDto::HighShelf,
-            BandShape::LowCut => BandShapeDto::LowCut,
-            BandShape::HighCut => BandShapeDto::HighCut,
-            BandShape::Notch => BandShapeDto::Notch,
-            BandShape::BandPass => BandShapeDto::BandPass,
-        }
+fn shape_dto(s: BandShape) -> BandShapeDto {
+    match s {
+        BandShape::Bell => BandShapeDto::Bell,
+        BandShape::LowShelf => BandShapeDto::LowShelf,
+        BandShape::HighShelf => BandShapeDto::HighShelf,
+        BandShape::LowCut => BandShapeDto::LowCut,
+        BandShape::HighCut => BandShapeDto::HighCut,
+        BandShape::Notch => BandShapeDto::Notch,
+        BandShape::BandPass => BandShapeDto::BandPass,
     }
 }
 
-impl From<BandShapeDto> for BandShape {
-    fn from(s: BandShapeDto) -> Self {
-        match s {
-            BandShapeDto::Bell => BandShape::Bell,
-            BandShapeDto::LowShelf => BandShape::LowShelf,
-            BandShapeDto::HighShelf => BandShape::HighShelf,
-            BandShapeDto::LowCut => BandShape::LowCut,
-            BandShapeDto::HighCut => BandShape::HighCut,
-            BandShapeDto::Notch => BandShape::Notch,
-            BandShapeDto::BandPass => BandShape::BandPass,
-        }
+fn shape_from_dto(s: BandShapeDto) -> BandShape {
+    match s {
+        BandShapeDto::Bell => BandShape::Bell,
+        BandShapeDto::LowShelf => BandShape::LowShelf,
+        BandShapeDto::HighShelf => BandShape::HighShelf,
+        BandShapeDto::LowCut => BandShape::LowCut,
+        BandShapeDto::HighCut => BandShape::HighCut,
+        BandShapeDto::Notch => BandShape::Notch,
+        BandShapeDto::BandPass => BandShape::BandPass,
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BandDto {
-    pub enabled: bool,
-    pub shape: BandShapeDto,
-    pub freq: f32,
-    pub q: f32,
-    pub gain_db: f32,
-    pub slope_db: u8,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompDto {
-    pub threshold_db: f32,
-    pub ratio: f32,
-    pub knee_db: f32,
-    pub attack_ms: f32,
-    pub release_ms: f32,
-    pub makeup_db: f32,
-    pub auto_makeup: bool,
-    pub sidechain_hpf_hz: f32,
-    pub mix: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GateDto {
-    pub threshold_db: f32,
-    pub hysteresis_db: f32,
-    pub attack_ms: f32,
-    pub hold_ms: f32,
-    pub release_ms: f32,
-    pub range_db: f32,
-}
-
-/// A studio strip's settings as the UI and saved projects see them.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StudioDto {
-    pub gate_on: bool,
-    pub gate: GateDto,
-    pub eq_on: bool,
-    pub bands: Vec<BandDto>,
-    pub comp_on: bool,
-    pub comp: CompDto,
-    pub sat_on: bool,
-    pub drive_db: f32,
-    pub width: f32,
-    pub output_db: f32,
-}
-
-impl From<&StudioSettings> for StudioDto {
-    fn from(s: &StudioSettings) -> Self {
+/// The UI and project form of an engine strip.
+pub fn studio_dto(s: &StudioSettings) -> StudioDto {
+    {
         let c = &s.comp;
         let g = &s.gate;
         StudioDto {
@@ -313,7 +248,7 @@ impl From<&StudioSettings> for StudioDto {
                 .iter()
                 .map(|b| BandDto {
                     enabled: b.enabled,
-                    shape: b.shape.into(),
+                    shape: shape_dto(b.shape),
                     freq: b.freq,
                     q: b.q,
                     gain_db: b.gain_db,
@@ -340,15 +275,16 @@ impl From<&StudioSettings> for StudioDto {
     }
 }
 
-impl From<&StudioDto> for StudioSettings {
-    /// Out-of-range values are clamped; missing bands are off.
-    fn from(d: &StudioDto) -> Self {
+/// The engine form of a strip from the UI or a project. Out-of-range values are clamped;
+/// missing bands are off.
+pub fn studio_settings(d: &StudioDto) -> StudioSettings {
+    {
         let mut bands = [BandSettings::default(); MAX_BANDS];
         for (b, x) in bands.iter_mut().zip(&d.bands) {
             let f = |v: f32, lo: f32, hi: f32, def: f32| if v.is_finite() { v.clamp(lo, hi) } else { def };
             *b = BandSettings {
                 enabled: x.enabled,
-                shape: x.shape.into(),
+                shape: shape_from_dto(x.shape),
                 freq: f(x.freq, 10.0, 22_000.0, 1_000.0),
                 q: f(x.q, 0.1, 30.0, 0.707),
                 gain_db: f(x.gain_db, -30.0, 30.0, 0.0),
@@ -389,8 +325,17 @@ impl From<&StudioDto> for StudioSettings {
     }
 }
 
-impl Default for StudioDto {
-    fn default() -> Self {
-        (&StudioSettings::default()).into()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_defaults_agree_with_the_engine() {
+        assert_eq!(studio_dto(&StudioSettings::default()), StudioDto::default());
+        assert!(studio_settings(&StudioDto::default()) == StudioSettings::default());
+        assert_eq!(
+            CompDto::punch(0.3),
+            studio_dto(&StudioSettings { comp: CompressorSettings::punch(0.3), ..Default::default() }).comp
+        );
     }
 }

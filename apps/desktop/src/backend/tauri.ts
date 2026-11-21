@@ -89,7 +89,8 @@ export class TauriBackend implements Backend {
   saveProject(path: string, project: T.MixProject) { return invoke<void>("project_save", { path, project }); }
   openProject(path: string) { return invoke<T.MixProject>("project_open", { path }); }
   checkProject(project: T.MixProject) { return invoke<string[]>("project_check", { project }); }
-  renderProject(project: T.MixProject, path: string, format?: string) { return invoke<void>("project_render", { project, path, format: format ?? null }); }
+  renderProject(project: T.MixProject, path: string, format?: string, targetLufs?: number | null) { return invoke<void>("project_render", { project, path, format: format ?? null, targetLufs: targetLufs ?? null }); }
+  renderStems(project: T.MixProject, folder: string, format?: string) { return invoke<void>("project_render_stems", { project, folder, format: format ?? null }); }
   previewProject(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<ArrayBuffer>("project_preview", { project, fromBeat, toBeat }); }
 
   samplerLoad(pad: number, source: T.PadSource) { return invoke<T.PadInfo>("sampler_load", { pad, source }); }
@@ -112,7 +113,7 @@ export class TauriBackend implements Backend {
     return r == null ? null : Array.isArray(r) ? r : [r];
   }
   async pickSave(defaultName: string, extensions: string[]) {
-    return (await save({ defaultPath: defaultName, filters: [{ name: extensions.join(", "), extensions }] })) ?? null;
+    return (await save({ defaultPath: defaultName, filters: extensions.length ? [{ name: extensions.join(", "), extensions }] : undefined })) ?? null;
   }
 
   onTelemetry(cb: (t: T.Telemetry) => void) { return sub("telemetry", cb); }

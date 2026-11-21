@@ -1088,7 +1088,10 @@ export class DemoBackend implements Backend {
   async checkProject() {
     return [];
   }
-  async renderProject(_project: T.MixProject, _path: string, _format?: string) {
+  async renderStems(project: T.MixProject, _folder: string, format?: string) {
+    return this.renderProject(project, `stems.${format ?? "flac"}`);
+  }
+  async renderProject(_project: T.MixProject, _path: string, _format?: string, _targetLufs?: number | null) {
     let done = 0;
     const timer = setInterval(() => {
       done += 50;

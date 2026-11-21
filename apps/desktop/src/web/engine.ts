@@ -202,7 +202,7 @@ export class WebEngine {
    * (null when it cannot be found); `chunk` receives the interleaved stereo as it comes.
    */
   async renderProject(
-    request: { project: unknown; from?: number; to?: number; tail?: number; limiter?: boolean; autoGain?: boolean },
+    request: { project: unknown; from?: number; to?: number; tail?: number; limiter?: boolean; autoGain?: boolean; lane?: number },
     need: (n: RenderNeed) => Promise<RenderTrack | null>,
     chunk: (audio: Float32Array, position: number, total: number) => void,
     cancelled: () => boolean = () => false,

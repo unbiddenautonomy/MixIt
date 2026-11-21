@@ -14,7 +14,7 @@ import { keyLabel } from "../../lib/keys";
 import { deckCount, DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { loadOnDeck } from "../deck/Deck";
 import { addMusicFolder } from "../library/Library";
-import { openProject, saveProject, renderProject } from "../arrange/projectIo";
+import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
 import { LABS } from "../../guide/labs";
 import { useGuide } from "../../guide/model";
@@ -41,7 +41,8 @@ function extras(): Extra[] {
     { id: "x.automix", label: "Automix: make a mix from tracks…", group: "Mix", run: () => s.set({ automixOpen: true }), keywords: ["auto", "dj", "playlist"] },
     { id: "x.open", label: "Open mix project…", group: "Mix", run: openProject },
     { id: "x.save", label: "Save mix project", group: "Mix", run: () => saveProject(false) },
-    { id: "x.render", label: "Render mix to a file…", group: "Mix", run: renderProject, keywords: ["export", "bounce", "wav", "mp3", "flac"] },
+    { id: "x.render", label: "Render mix to a file…", group: "Mix", run: () => void renderProject(), keywords: ["export", "bounce", "wav", "mp3", "flac"] },
+    { id: "x.stems", label: "Export stems (one file per deck)…", group: "Mix", run: () => void renderStems("flac"), keywords: ["export", "stems", "multitrack", "flac", "wav"] },
     { id: "x.tracklist", label: "Copy tracklist of this session", group: "Mix", run: async () => navigator.clipboard?.writeText(await backend().tracklist()) },
     { id: "x.ws.mix", label: "Go to Mix", group: "View", run: () => s.set({ workspace: "mix" }) },
     { id: "x.ws.lib", label: "Go to Library", group: "View", run: () => s.set({ workspace: "library" }) },

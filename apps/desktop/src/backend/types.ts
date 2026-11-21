@@ -475,7 +475,7 @@ export interface TrackEdit {
 // --- Mix projects (crates/mixit-project, serialised as-is) ---
 
 export type CurveShape = "Linear" | "Smooth" | "Power" | "Hold";
-export type ProjectParam = "Volume" | "EqLow" | "EqMid" | "EqHigh" | "Filter" | "FxMix";
+export type ProjectParam = "Volume" | "EqLow" | "EqMid" | "EqHigh" | "Filter" | "FxMix" | "Pan" | "Space" | "Echo";
 
 export interface AutomationPoint {
   beat: number;
@@ -511,6 +511,8 @@ export interface Clip {
   lanes: AutomationLane[];
   fx: { kind: number; beats: number } | null;
   name: string;
+  /** Plays the clip's range of the track backwards. */
+  reverse?: boolean;
 }
 
 export interface TempoSegment {
@@ -526,7 +528,20 @@ export interface MixProject {
   clips: Clip[];
   markers: { beat: number; label: string }[];
   master_gain_db: number;
+  /** Studio strip per lane (deck); missing entries leave the sound unchanged. */
+  strips?: StudioDto[];
+  master_strip?: StudioDto | null;
+  returns?: ProjectReturns;
   next_id: number;
+}
+
+/** The shared reverb and echo a project's lanes send to. */
+export interface ProjectReturns {
+  space_level_db: number;
+  space_size: number;
+  echo_level_db: number;
+  echo_feedback: number;
+  echo_beats: number;
 }
 
 export interface AutomixRequest {

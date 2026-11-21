@@ -1,5 +1,6 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
+import { withLiveSound } from "../store/studio";
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { Settings } from "../backend/types";
@@ -83,7 +84,9 @@ export async function toggleRecording() {
   try {
     if (rec) {
       const path = await backend().recordStop();
-      const { project, report } = stopCapture();
+      const captured = stopCapture();
+      const report = captured.report;
+      const project = captured.project ? await withLiveSound(captured.project).catch(() => captured.project) : null;
       if (report) showReport(report, project, path);
       toast.success("Recording saved", {
         description: project ? `${path}. Every move you made was captured too: open it in Arrange to fix a transition or a fade.` : path,

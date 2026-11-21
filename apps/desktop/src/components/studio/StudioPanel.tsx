@@ -7,11 +7,12 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, Power, RotateCcw, Sparkles, Target, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { BandDto, BandShape, StudioDto } from "../../backend/types";
+import type { BandDto, BandShape, ProjectReturns, StudioDto } from "../../backend/types";
 import { choose, findAction, setOn, setValue } from "../../lib/actions";
 import { BAND_SLOTS, LOUDNESS_TARGETS, STUDIO_PRESETS, defaultBand, defaultStudio, fmtHz, hasGain } from "../../lib/studio";
 import { useApp, usePro } from "../../store/app";
-import { MASTER_STRIP, matchGainDb, openStudio, updateStudio, useStudio } from "../../store/studio";
+import { ECHO_BEATS, MASTER_STRIP, matchGainDb, openLaneStudio, openStudio, updateStudio, useStudio } from "../../store/studio";
+import { setProject } from "../arrange/projectIo";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
@@ -36,44 +37,127 @@ const stripColor = (strip: number) => (strip === MASTER_STRIP ? MASTER_COLOR : D
 
 export function StudioPanel() {
   const open = useStudio((s) => s.open);
+  const lane = useStudio((s) => s.lane);
   const count = useApp((s) => s.settings?.decks ?? 2);
+  const shown = open !== null || lane !== null;
   return (
-    <Dialog.Root modal={false} open={open !== null} onOpenChange={(o) => !o && openStudio(null)}>
+    <Dialog.Root
+      modal={false}
+      open={shown}
+      onOpenChange={(o) => {
+        if (o) return;
+        openStudio(null);
+        openLaneStudio(null);
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Content
           onInteractOutside={(e) => e.preventDefault()}
           className="fixed bottom-3 left-1/2 z-40 flex max-h-[min(640px,86vh)] w-[min(1000px,96vw)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl backdrop-blur"
           aria-describedby={undefined}
         >
-          {open !== null && <Body strip={open} count={count} />}
+          {open !== null ? <LiveBody strip={open} count={count} /> : lane !== null ? <LaneBody lane={lane} /> : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
 }
 
-function Body({ strip, count }: { strip: number; count: number }) {
+/** A live channel's or the master's strip, sent to the engine as it changes. */
+function LiveBody({ strip, count }: { strip: number; count: number }) {
   const settings = useStudio((s) => s.settings[strip]);
+  const strips = [...Array.from({ length: count }, (_, i) => i), MASTER_STRIP];
+  return (
+    <Body
+      id={`live${strip}`}
+      title={`${stripName(strip)} studio`}
+      color={stripColor(strip)}
+      master={strip === MASTER_STRIP}
+      settings={settings}
+      change={(f) => void updateStudio(strip, f)}
+      switcher={<Segmented value={strip} onChange={(v) => openStudio(v)} options={strips.map((s) => ({ value: s, label: s === MASTER_STRIP ? "Master" : String.fromCharCode(65 + s), title: `${stripName(s)} studio` }))} />}
+      quick={strip === MASTER_STRIP ? (st, ch) => <MasterQuick settings={st} change={ch} /> : () => <ChannelQuick deck={strip} count={count} />}
+      details={strip}
+      live
+    />
+  );
+}
+
+/** A lane's (or the mix's master) strip in the Arrange project, saved with it. */
+function LaneBody({ lane }: { lane: number }) {
+  const project = useApp((s) => s.project);
+  if (!project) return <div className="p-8 text-center text-xs text-zinc-500">Open a project in Arrange first.</div>;
+  const master = lane === MASTER_STRIP;
+  const settings = (master ? project.master_strip : project.strips?.[lane]) ?? defaultStudio();
+  const change = (f: (s: StudioDto) => StudioDto) => {
+    const p = useApp.getState().project;
+    if (!p) return;
+    const cur = (master ? p.master_strip : p.strips?.[lane]) ?? defaultStudio();
+    const next = f(structuredClone(cur));
+    if (master) setProject({ ...p, master_strip: next }, undefined, "strip:master", "Mix master studio");
+    else {
+      const strips = Array.from({ length: 4 }, (_, i) => p.strips?.[i] ?? defaultStudio());
+      strips[lane] = next;
+      setProject({ ...p, strips }, undefined, `strip:${lane}`, `Deck ${String.fromCharCode(65 + lane)} lane studio`);
+    }
+  };
+  return (
+    <Body
+      id={`lane${lane}`}
+      title={master ? "Mix master studio" : `Deck ${String.fromCharCode(65 + lane)} lane studio`}
+      color={stripColor(lane)}
+      master={master}
+      settings={settings}
+      change={change}
+      switcher={<Segmented value={lane} onChange={(v) => openLaneStudio(v)} options={[0, 1, 2, 3, MASTER_STRIP].map((s) => ({ value: s, label: s === MASTER_STRIP ? "Master" : String.fromCharCode(65 + s) }))} />}
+      quick={master ? () => <ProjectReturnsEditor /> : () => <LaneHelp />}
+      details={lane}
+      live={false}
+    />
+  );
+}
+
+function Body({
+  id,
+  title,
+  color,
+  master,
+  settings,
+  change,
+  switcher,
+  quick,
+  details,
+  live,
+}: {
+  id: string;
+  title: string;
+  color: string;
+  master: boolean;
+  settings: StudioDto | null;
+  change: (f: (s: StudioDto) => StudioDto) => void;
+  switcher: ReactNode;
+  quick: (s: StudioDto, change: (f: (s: StudioDto) => StudioDto) => void) => ReactNode;
+  details: number;
+  live: boolean;
+}) {
   const pro = usePro();
   const [all, setAll] = useState(pro);
   const [band, setBand] = useState<number | null>(null);
-  const color = stripColor(strip);
-  const master = strip === MASTER_STRIP;
-  useEffect(() => setBand(null), [strip]);
-  const change = (f: (s: StudioDto) => StudioDto) => void updateStudio(strip, f);
-  const strips = [...Array.from({ length: count }, (_, i) => i), MASTER_STRIP];
+  useEffect(() => setBand(null), [id]);
   return (
     <div style={{ ["--accent" as string]: color }} className="flex min-h-0 flex-col">
       <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-2.5">
         <span className="size-2.5 rounded-full" style={{ background: color }} />
-        <Dialog.Title className="text-sm font-semibold text-zinc-50">{stripName(strip)} studio</Dialog.Title>
-        <Segmented value={strip} onChange={(v) => openStudio(v)} options={strips.map((s) => ({ value: s, label: s === MASTER_STRIP ? "Master" : String.fromCharCode(65 + s), title: `${stripName(s)} studio` }))} />
+        <Dialog.Title className="text-sm font-semibold text-zinc-50">{title}</Dialog.Title>
+        {switcher}
         <div className="ml-auto flex items-center gap-2">
           {settings && <Presets master={master} onPick={(p) => change(p)} />}
-          <label className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-            <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
-            Show all controls
-          </label>
+          {live && (
+            <label className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+              <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+              Show all controls
+            </label>
+          )}
           <Dialog.Close className="rounded p-1 text-zinc-500 hover:bg-white/10 hover:text-zinc-100" aria-label="Close">
             <X size={16} />
           </Dialog.Close>
@@ -86,7 +170,12 @@ function Body({ strip, count }: { strip: number; count: number }) {
           <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-4">
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex items-center gap-2">
-                <Section title="EQ" on={settings.eqOn} onToggle={(on) => change((s) => ({ ...s, eqOn: on }))} explain="Shapes the tone: turn pitches up or down. The grey hill behind the line is what is playing right now, so you can see where the bass, voice and cymbals are." />
+                <Section
+                  title="EQ"
+                  on={settings.eqOn}
+                  onToggle={(on) => change((s) => ({ ...s, eqOn: on }))}
+                  explain={live ? "Shapes the tone: turn pitches up or down. The grey hill behind the line is what is playing right now, so you can see where the bass, voice and cymbals are." : "Shapes the tone of everything on this lane: turn pitches up or down."}
+                />
                 <span className="text-[11px] text-zinc-500">Drag a dot to move it, scroll on it for narrower or wider, double-click to add or remove.</span>
                 <button type="button" className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-500 hover:bg-white/10 hover:text-zinc-200" onClick={() => change((s) => ({ ...s, bands: defaultStudio().bands }))}>
                   <RotateCcw size={11} /> Flat
@@ -95,14 +184,57 @@ function Body({ strip, count }: { strip: number; count: number }) {
               <EqGraph settings={settings} selected={band} onSelect={setBand} color={color} onChange={(bands) => change((s) => ({ ...s, bands }))} />
               <BandRow settings={settings} selected={band} onSelect={setBand} onChange={(bands) => change((s) => ({ ...s, bands }))} />
             </div>
-            <div className="flex flex-col gap-3">{master ? <MasterQuick settings={settings} change={change} /> : <ChannelQuick deck={strip} count={count} />}</div>
+            <div className="flex flex-col gap-3">{quick(settings, change)}</div>
           </div>
-          {all && <Details strip={strip} settings={settings} change={change} />}
+          {(all || !live) && <Details strip={details} settings={settings} change={change} />}
         </div>
       )}
     </div>
   );
 }
+
+function LaneHelp() {
+  return (
+    <div className="flex flex-col gap-2 text-[11px] leading-snug text-zinc-400">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">This lane</div>
+      <p>These settings shape every clip on this lane, the same way a deck's studio shapes what it plays live.</p>
+      <p>Pan and the reverb and echo sends can change during a clip: pick them under Automation in the clip's panel and draw how they move.</p>
+      <p className="text-zinc-500">Use "Hear the mix in" on a clip to listen to a change.</p>
+    </div>
+  );
+}
+
+/** The project's shared reverb and echo. */
+function ProjectReturnsEditor() {
+  const project = useApp((s) => s.project);
+  const r = project?.returns ?? DEFAULT_RETURNS;
+  const set = (patch: Partial<ProjectReturns>) => {
+    const p = useApp.getState().project;
+    if (p) setProject({ ...p, returns: { ...(p.returns ?? DEFAULT_RETURNS), ...patch } }, undefined, "returns", "Reverb and echo");
+  };
+  return (
+    <>
+      <Group title="Space (reverb)" explain="The shared reverb every lane's Reverb send automation goes to.">
+        <Knob value={r.space_level_db} min={-60} max={6} def={-3} size={36} onChange={(v) => set({ space_level_db: v })} label="Level" format={(v) => `${Math.round(v)} dB`} />
+        <Knob value={r.space_size} min={0} max={1} def={0.5} size={36} onChange={(v) => set({ space_size: v })} label="Size" format={pct} />
+      </Group>
+      <Group title="Echo" explain="The shared echo every lane's Echo send automation goes to.">
+        <Knob value={r.echo_level_db} min={-60} max={6} def={-3} size={36} onChange={(v) => set({ echo_level_db: v })} label="Level" format={(v) => `${Math.round(v)} dB`} />
+        <Knob value={r.echo_feedback} min={0} max={1} def={0.5} size={36} onChange={(v) => set({ echo_feedback: v })} label="Repeats" format={pct} />
+        <select value={r.echo_beats} onChange={(e) => set({ echo_beats: Number(e.target.value) })} className="h-7 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" aria-label="Echo time">
+          {ECHO_BEATS.map((b) => (
+            <option key={b} value={b}>
+              {b === 1 ? "1 beat" : b < 1 ? `${b === 0.25 ? "1/4" : b === 0.5 ? "1/2" : "3/4"} beat` : `${b} beats`}
+            </option>
+          ))}
+        </select>
+      </Group>
+      <p className="text-[11px] leading-snug text-zinc-500">The loudness of the finished file is set when you render: pick a target there.</p>
+    </>
+  );
+}
+
+const DEFAULT_RETURNS: ProjectReturns = { space_level_db: -3, space_size: 0.5, echo_level_db: -3, echo_feedback: 0.5, echo_beats: 0.75 };
 
 // ------------------------------------------------------------------ presets
 
@@ -294,7 +426,7 @@ function MasterQuick({ settings, change }: { settings: StudioDto; change: (f: (s
   const m = useApp((s) => s.mixer);
   const times = useMemo(() => {
     const k = findAction("mixer.echo.time")?.kind;
-    return k?.type === "choice" ? k.options : ["1/4 beat", "1/2 beat", "3/4 beat", "1 beat", "1.5 beats", "2 beats"];
+    return k?.type === "choice" ? k.options : ["1/4 beat", "1/2 beat", "3/4 beat", "1 beat", "2 beats", "4 beats"];
   }, []);
   const gr = useTelemetry((s) => Math.round(s.t.master.glueGrDb * 2) / 2);
   return (

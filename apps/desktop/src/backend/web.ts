@@ -481,46 +481,67 @@ export class WebAudioBackend extends DemoBackend {
     return encodeWav(chunks, this.engine.sampleRate).arrayBuffer();
   }
 
-  /** Renders the whole mix in the worker and downloads it as a WAV file. */
-  async renderProject(project: T.MixProject, path: string) {
+  /** Renders the whole mix in the worker and downloads it as a WAV file. Loudness
+   * matching needs the whole mix in memory, so it is left to the desktop app here. */
+  async renderProject(project: T.MixProject, path: string, _format?: string, targetLufs?: number | null) {
+    const name = `${path.replace(/\.(wav|flac|mixit|json)$/i, "") || project.name}.wav`;
+    const note = targetLufs != null ? " (loudness matching needs the desktop app, so it is as mixed)" : "";
+    this.renderJobs([{ request: { project, autoGain: this.settings.autoGain }, name }], (n) => `${n}, in your downloads${note}`);
+  }
+
+  /** Renders each lane as its own WAV file (all the same length) and downloads them. */
+  async renderStems(project: T.MixProject) {
+    const lanes = [...new Set(project.clips.map((c) => c.lane))].sort();
+    if (!lanes.length) throw new Error("The mix has no clips.");
+    const base = project.name.replace(/[^\w\- ]+/g, "_").trim() || "Mix";
+    this.renderJobs(
+      lanes.map((lane) => ({ request: { project, autoGain: this.settings.autoGain, lane }, name: `${base} - Deck ${String.fromCharCode(65 + lane)}.wav` })),
+      () => `${lanes.length} stem${lanes.length === 1 ? "" : "s"}, in your downloads`,
+    );
+  }
+
+  private renderJobs(files: { request: Parameters<WebEngine["renderProject"]>[0]; name: string }[], done: (name: string) => string) {
     if (this.rendering) throw new Error("A mix is already rendering. Stop it first.");
     this.rendering = true;
     this.renderStop = false;
-    const name = `${path.replace(/\.(wav|flac|mixit|json)$/i, "") || project.name}.wav`;
     const sr = this.engine.sampleRate;
-    const job = (done: number, total: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "render", done, total, message, finished, error });
-    // 16-bit parts, folded into Blobs as they pile up so the browser can keep them out of memory.
-    const parts: BlobPart[] = [];
-    let pending: BlobPart[] = [];
-    let samples = 0;
-    let last = 0;
+    const job = (d: number, total: number, message: string, finished = false, error: string | null = null) => this.emit<T.JobProgress>("job", { kind: "render", done: d, total, message, finished, error });
     job(0, 1, "Rendering your mix…");
     void (async () => {
       try {
-        await this.engine.renderProject(
-          { project, autoGain: this.settings.autoGain },
-          (n) => {
-            job(samples / 2, 0, `Loading “${n.title}”…`);
-            return this.renderTrack(n);
-          },
-          (a, position, total) => {
-            pending.push(toPcm16(a));
-            samples += a.length;
-            if (pending.length >= 30) {
-              parts.push(new Blob(pending));
-              pending = [];
-            }
-            const now = performance.now();
-            if (now - last > 250) {
-              last = now;
-              job(position, total, `Rendering ${Math.round((position / Math.max(1, total)) * 100)} %`);
-            }
-          },
-          () => this.renderStop,
-        );
-        parts.push(new Blob(pending));
-        download(new Blob([wavHeader(samples, sr), ...parts], { type: "audio/wav" }), name);
-        job(1, 1, `${name}, in your downloads`, true);
+        for (const [i, f] of files.entries()) {
+          const label = files.length > 1 ? `${f.name}: ` : "";
+          // 16-bit parts, folded into Blobs as they pile up so the browser can keep them out of memory.
+          const parts: BlobPart[] = [];
+          let pending: BlobPart[] = [];
+          let samples = 0;
+          let last = 0;
+          await this.engine.renderProject(
+            f.request,
+            (n) => {
+              job(samples / 2, 0, `${label}Loading “${n.title}”…`);
+              return this.renderTrack(n);
+            },
+            (a, position, total) => {
+              pending.push(toPcm16(a));
+              samples += a.length;
+              if (pending.length >= 30) {
+                parts.push(new Blob(pending));
+                pending = [];
+              }
+              const now = performance.now();
+              if (now - last > 250) {
+                last = now;
+                const frac = (i + position / Math.max(1, total)) / files.length;
+                job(Math.round(frac * 1000), 1000, `${label}Rendering ${Math.round(frac * 100)} %`);
+              }
+            },
+            () => this.renderStop,
+          );
+          parts.push(new Blob(pending));
+          download(new Blob([wavHeader(samples, sr), ...parts], { type: "audio/wav" }), f.name);
+        }
+        job(1, 1, done(files[0]?.name ?? ""), true);
       } catch (e) {
         if (e instanceof RenderCancelled) job(0, 1, "Render stopped", true);
         else job(0, 1, "", true, `Could not render the mix: ${e instanceof Error ? e.message : String(e)}`);
