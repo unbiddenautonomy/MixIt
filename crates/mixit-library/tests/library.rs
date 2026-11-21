@@ -410,3 +410,63 @@ fn writes_library_details_into_the_files() {
     assert_eq!((r.unchanged, r.updated.len()), (1, 0));
     assert_eq!(lib.track(id).unwrap().title, "Sunrise");
 }
+
+#[test]
+fn backs_up_and_restores_the_whole_library() {
+    use mixit_library::backup::{self, BackupKind};
+    let dir = TempDir::new("backup");
+    let db = dir.0.join("library.db");
+    let backups = dir.0.join("backups");
+    let mut lib = Library::open(&db).unwrap();
+    let a = add(&lib, "Midnight Drive", "Nova", "Deep House", 122.0, "8A", 5);
+    let b = add(&lib, "Solar Wind", "Kairo", "Techno", 130.0, "5A", 8);
+    let set = lib.create_playlist("Friday", PlaylistKind::List, None, None).unwrap();
+    lib.add_to_playlist(set, &[b, a]).unwrap();
+    lib.tag_by_name("Vocal", "", &[a], true).unwrap();
+
+    // The daily backup: made once, then not again the same day.
+    let first = lib.auto_backup(&backups).unwrap().expect("first backup");
+    assert!(lib.auto_backup(&backups).unwrap().is_none());
+    assert_eq!(backup::check(&first).unwrap(), 2);
+
+    // Things go wrong after the backup.
+    lib.delete_playlist(set).unwrap();
+    lib.delete_tag(lib.tags().unwrap()[0].id).unwrap();
+    add(&lib, "Stray", "Someone", "Pop", 100.0, "1A", 3);
+    // A background job's connection is open while restoring.
+    let other = Library::open(&db).unwrap();
+    assert_eq!(other.search("", None).unwrap().len(), 3);
+
+    let safety = lib.restore_from(&first, &backups).unwrap();
+    assert_eq!(lib.search("", None).unwrap().len(), 2);
+    assert_eq!(lib.playlist_tracks(set).unwrap(), vec![b, a]);
+    assert_eq!(lib.search("tag:vocal", None).unwrap().len(), 1);
+    assert_eq!(other.search("", None).unwrap().len(), 2, "other connections see the restored library");
+    // The library as it was before the restore is kept, so a restore can be undone.
+    assert_eq!(backup::check(&safety).unwrap(), 3);
+    let list = backup::list(&backups);
+    assert_eq!(list.len(), 2);
+    assert!(list.iter().any(|x| x.kind == BackupKind::BeforeRestore && x.tracks == Some(3)));
+    assert!(list.iter().any(|x| x.kind == BackupKind::Auto && x.tracks == Some(2)));
+    // Still a working library after the restore.
+    add(&lib, "After", "Someone", "Pop", 100.0, "1A", 3);
+    drop(lib);
+    assert_eq!(Library::open(&db).unwrap().search("", None).unwrap().len(), 3);
+
+    // A file that is not a library is refused and changes nothing.
+    let junk = dir.0.join("junk.mixitlib");
+    std::fs::write(&junk, b"not a database at all, just some bytes").unwrap();
+    let mut lib = Library::open(&db).unwrap();
+    assert!(lib.restore_from(&junk, &backups).is_err());
+    assert_eq!(lib.search("", None).unwrap().len(), 3);
+
+    // Only the newest automatic backups are kept; hand-made ones stay.
+    for i in 0..12 {
+        std::fs::copy(&first, backups.join(format!("auto-2020-01-{:02}-0000.mixitlib", i + 1))).unwrap();
+    }
+    let manual = lib.backup_into(&backups, BackupKind::Manual).unwrap();
+    backup::prune(&backups, backup::KEEP_AUTO);
+    let list = backup::list(&backups);
+    assert_eq!(list.iter().filter(|x| x.kind == BackupKind::Auto).count(), backup::KEEP_AUTO);
+    assert!(list.iter().any(|x| x.path == manual));
+}

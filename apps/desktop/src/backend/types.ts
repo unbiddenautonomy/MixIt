@@ -42,6 +42,18 @@ export interface TagDto {
   count: number;
 }
 
+/** A copy of the library (tracks, analysis, cues, playlists, tags, history; not the music files). */
+export interface BackupInfo {
+  path: string;
+  /** Made by hand, by the daily backup, or saved just before a restore. */
+  kind: "manual" | "auto" | "beforeRestore";
+  /** Unix seconds. */
+  created: number;
+  bytes: number;
+  /** Tracks in it (null when the file could not be read). */
+  tracks: number | null;
+}
+
 export interface SectionDto {
   start: number;
   end: number;

@@ -446,6 +446,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "backups",
+    title: "Backing up your library",
+    group: "Your library",
+    summary: "MixIt copies your library every day, so a mistake or a broken drive never costs you your cues and playlists.",
+    body: [
+      "Your library is everything MixIt knows about your music: the analysis, beat grids you fixed, cues, playlists, tags and what you played. Once a day MixIt saves a copy of it and keeps the last 10. Find them in Settings, Library, Backups, where you can also back up now or save a copy to a USB stick or another drive.",
+      "Restore puts a backup back as your library. MixIt first saves the library as it is, marked Before a restore, so you can always go back. Backups hold the library, not the music files themselves: keep a copy of your music folders too.",
+    ],
+  },
+  {
     id: "fix-library",
     title: "Moved files and duplicates",
     group: "Your library",

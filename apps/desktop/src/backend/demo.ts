@@ -982,6 +982,47 @@ export class DemoBackend implements Backend {
     this.previewState = null;
   }
 
+  // ---------------------------------------------------------------- backups
+
+  /** Simulated backups: snapshots of the library in memory. */
+  private snapshots: { info: T.BackupInfo; rows: Map<number, T.TrackRow>; playlists: (T.PlaylistDto & { tracks: number[] })[]; tags: { id: number; name: string; category: string; color: number | null }[]; trackTags: [number, number[]][] }[] = [];
+
+  private snapshot(kind: T.BackupInfo["kind"], path?: string | null): string {
+    const created = Math.floor(Date.now() / 1000) + this.snapshots.length * 0.001;
+    const d = new Date(created * 1000);
+    const stamp = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}-${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}`;
+    const p = path ?? `~/MixIt/Backups/${kind === "auto" ? "auto" : kind === "beforeRestore" ? "before-restore" : "library"}-${stamp}${this.snapshots.length ? `-${this.snapshots.length + 1}` : ""}.mixitlib`;
+    this.snapshots.unshift({
+      info: { path: p, kind, created: Math.floor(created), bytes: 180_000 + this.tracks.length * 9_000, tracks: this.tracks.length },
+      rows: new Map(this.tracks.map((t) => [t.row.id, { ...t.row }])),
+      playlists: this.playlistsData.map((pl) => ({ ...pl, tracks: [...pl.tracks] })),
+      tags: this.tagsData.map((t) => ({ ...t })),
+      trackTags: [...this.trackTagIds].map(([id, s]) => [id, [...s]]),
+    });
+    return p;
+  }
+
+  async backups(): Promise<T.BackupInfo[]> {
+    return this.snapshots.map((s) => s.info);
+  }
+
+  async backupLibrary(path?: string | null): Promise<string> {
+    return this.snapshot("manual", path);
+  }
+
+  async restoreLibrary(path: string): Promise<string> {
+    const s = this.snapshots.find((x) => x.info.path === path);
+    if (!s) throw new Error("this file is not a MixIt library backup");
+    const safety = this.snapshot("beforeRestore");
+    this.tracks = this.tracks.filter((t) => s.rows.has(t.row.id));
+    for (const t of this.tracks) t.row = { ...s.rows.get(t.row.id)! };
+    this.playlistsData = s.playlists.map((pl) => ({ ...pl, tracks: [...pl.tracks] }));
+    this.tagsData = s.tags.map((t) => ({ ...t }));
+    this.trackTagIds = new Map(s.trackTags.map(([id, ids]) => [id, new Set(ids)]));
+    this.emit("library-changed", null);
+    return safety;
+  }
+
   // ---------------------------------------------------------------- your own tags
 
   protected tagsData: { id: number; name: string; category: string; color: number | null }[] = [];

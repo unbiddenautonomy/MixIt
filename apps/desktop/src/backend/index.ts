@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { TagDto,
+import type { BackupInfo, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -81,6 +81,12 @@ export interface Backend {
   editTracks(ids: number[], edit: TrackEdit): Promise<void>;
   /** Writes the library's details (title, artist, genre, tempo, key…) into the tracks' files. */
   writeTags(ids: number[], notation: "camelot" | "openKey" | "standard"): Promise<WriteTagsResult>;
+  /** Library backups, newest first. */
+  backups(): Promise<BackupInfo[]>;
+  /** Backs the library up now, into the backups folder or to `path`. Returns where it went. */
+  backupLibrary(path?: string | null): Promise<string>;
+  /** Puts a backup back as the library (the current one is saved first). Returns that copy's path. */
+  restoreLibrary(path: string): Promise<string>;
   /** Your own tags, with their number of tracks. */
   listTags(): Promise<TagDto[]>;
   /** The tag names of each track, as [track id, names] (tracks without tags left out). */

@@ -784,6 +784,57 @@ pub fn library_merge(app: AppHandle, state: State<'_, AppState>, keep: i64, othe
     Ok(())
 }
 
+// ------------------------------------------------------------------ backups
+
+/// The library backups, newest first.
+#[tauri::command]
+pub fn library_backups(state: State<'_, AppState>) -> R<Vec<mixit_library::backup::BackupInfo>> {
+    Ok(mixit_library::backup::list(&state.paths.backups))
+}
+
+/// Backs the library up now: into the backups folder, or to `path` when given (a copy
+/// for another drive). Returns where it went.
+#[tauri::command]
+pub async fn library_backup(app: AppHandle, path: Option<String>) -> R<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        // A separate connection: the copy does not hold up the rest of the app.
+        let lib = state.job_library()?;
+        let out = match path {
+            Some(p) => {
+                let p = PathBuf::from(p);
+                lib.backup_to(&p).map_err(err)?;
+                p
+            }
+            None => lib.backup_into(&state.paths.backups, mixit_library::backup::BackupKind::Manual).map_err(err)?,
+        };
+        Ok(out.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(err)?
+}
+
+/// Puts a backup back as the library. The library as it was is saved first (as a
+/// "before restore" backup), so this can be undone. Returns that copy's path.
+#[tauri::command]
+pub async fn library_restore(app: AppHandle, path: String) -> R<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        if state.job_running.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err("A scan or analysis is running. Wait for it to finish (or stop it), then restore.".to_string());
+        }
+        let safety = state.library.lock().restore_from(Path::new(&path), &state.paths.backups).map_err(err)?;
+        // Settings live in the library too.
+        let settings = crate::state::Settings::load(&state.library.lock());
+        *state.settings.lock() = settings;
+        state.apply_mixer_settings();
+        let _ = app.emit("library-changed", ());
+        Ok(safety.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(err)?
+}
+
 // ------------------------------------------------------------------ your own tags
 
 #[derive(Serialize)]

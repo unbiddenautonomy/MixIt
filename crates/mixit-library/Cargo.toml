@@ -11,7 +11,7 @@ mixit-core = { path = "../mixit-core" }
 mixit-io = { path = "../mixit-io" }
 mixit-analysis = { path = "../mixit-analysis" }
 mixit-project = { path = "../mixit-project" }
-rusqlite.workspace = true
+rusqlite = { workspace = true, features = ["backup"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

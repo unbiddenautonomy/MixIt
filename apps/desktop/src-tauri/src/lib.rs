@@ -28,6 +28,16 @@ pub fn run() {
         .setup(|app| {
             telemetry::spawn(app.handle().clone());
             let _ = app.state::<state::AppState>().session();
+            // The daily library backup, on its own connection so start-up does not wait.
+            let st = app.state::<state::AppState>();
+            if let Ok(lib) = st.job_library() {
+                let dir = st.paths.backups.clone();
+                let _ = std::thread::Builder::new().name("mixit-backup".into()).spawn(move || {
+                    if let Err(e) = lib.auto_backup(&dir) {
+                        eprintln!("daily library backup failed: {e}");
+                    }
+                });
+            }
             let handle = app.handle().clone();
             std::thread::Builder::new()
                 .name("mixit-pads".into())
@@ -61,6 +71,9 @@ pub fn run() {
             commands::library_relocate,
             commands::library_duplicates,
             commands::library_merge,
+            commands::library_backups,
+            commands::library_backup,
+            commands::library_restore,
             commands::tags_list,
             commands::tags_of,
             commands::tags_set,
