@@ -142,3 +142,40 @@ fn writes_tags_into_wav_and_flac() {
         assert_eq!(d.frames(), 4_800, "{name}");
     }
 }
+
+#[test]
+fn serato_cues_and_grids_live_in_the_file() {
+    use mixit_io::serato::*;
+    let dir = tmpdir("serato");
+    let x = stereo_sine(4_800, 440.0, 48_000);
+    let data = SeratoData {
+        markers: Some(SeratoMarkers {
+            cues: vec![SeratoCue { index: 1, ms: 1_234, color: 0xCC8800, name: "Vocal".into() }],
+            loops: vec![SeratoLoop { index: 0, start_ms: 2_000, end_ms: 3_935, locked: true, name: String::new() }],
+            color: None,
+            bpm_lock: false,
+        }),
+        grid: Some(vec![SeratoGridMarker { seconds: 0.05, bpm: 124.0 }]),
+    };
+    for name in ["s.wav", "s.flac"] {
+        let p = dir.join(name);
+        if name.ends_with(".wav") {
+            write_wav(&p, &x, 2, 48_000, WavDepth::Pcm16).unwrap();
+        } else {
+            write_flac(&p, &x, 2, 48_000, 16).unwrap();
+        }
+        assert!(read_serato(&p).unwrap().is_empty(), "{name}: a fresh file has nothing");
+        write_tags(&p, &TagUpdate { title: Some("Keep me".into()), ..Default::default() }).unwrap();
+        write_serato(&p, &data).unwrap();
+        let back = read_serato(&p).unwrap();
+        assert_eq!(back.markers, data.markers, "{name}");
+        let g = back.grid.unwrap();
+        assert!((g[0].seconds - 0.05).abs() < 1e-6 && (g[0].bpm - 124.0).abs() < 1e-4, "{name}: {g:?}");
+        // Writing again replaces Serato's markers and leaves the other tags.
+        write_serato(&p, &SeratoData { markers: Some(SeratoMarkers::default()), grid: None }).unwrap();
+        let again = read_serato(&p).unwrap();
+        assert!(again.markers.unwrap().cues.is_empty() && again.grid.is_none(), "{name}");
+        assert_eq!(read_tags(&p).unwrap().title.as_deref(), Some("Keep me"), "{name}");
+        assert_eq!(decode_file(&p).unwrap().frames(), 4_800, "{name}: the audio is untouched");
+    }
+}

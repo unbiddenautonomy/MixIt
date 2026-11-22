@@ -35,7 +35,7 @@ pub enum Imported {
     Unchanged(TrackId),
 }
 
-fn file_info(path: &Path) -> std::io::Result<(u64, i64)> {
+pub(crate) fn file_info(path: &Path) -> std::io::Result<(u64, i64)> {
     let m = std::fs::metadata(path)?;
     let mtime =
         m.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs() as i64).unwrap_or(0);

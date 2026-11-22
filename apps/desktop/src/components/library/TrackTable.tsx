@@ -19,7 +19,7 @@ import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshPlaylists, refreshRows, refreshStats, tagTracks, writeTagsToFiles } from "./data";
+import { refreshPlaylists, refreshRows, refreshStats, tagTracks, writeCuesForSerato, writeTagsToFiles } from "./data";
 import { editTrack } from "../editor/TrackEditor";
 import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
@@ -449,6 +449,11 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
           {backend().kind !== "web" && (
             <ContextMenu.Item className="menu-item" onSelect={() => void writeTagsToFiles(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>
               {ids().length > 1 ? `Write tags to ${ids().length} files` : "Write tags to the file"}
+            </ContextMenu.Item>
+          )}
+          {backend().kind !== "web" && (
+            <ContextMenu.Item className="menu-item" onSelect={() => void writeCuesForSerato(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>
+              {ids().length > 1 ? `Write cues for Serato to ${ids().length} files` : "Write cues for Serato"}
             </ContextMenu.Item>
           )}
           <ContextMenu.Item className="menu-item" onSelect={() => void editTrack(track.id)}>

@@ -160,6 +160,34 @@ export async function writeTagsToFiles(ids: number[]) {
   }
 }
 
+/**
+ * Writes hot cues, loops and beat grids into the tracks' files where Serato DJ looks for
+ * them, after asking: it changes the files.
+ */
+export async function writeCuesForSerato(ids: number[]) {
+  if (!ids.length) return;
+  if (backend().kind === "web") {
+    toast.message("Writing to files needs the desktop app", { description: "A web page cannot change files on your computer." });
+    return;
+  }
+  const n = ids.length === 1 ? "this track's file" : `${ids.length} files`;
+  if (
+    !(await ask({
+      title: `Write cues for Serato into ${n}?`,
+      body: "Hot cues 1 to 8, saved loops, the track colour and the beat grid go into the file, so Serato DJ shows them. Cues Serato saved there before are replaced. The audio and other tags are not touched.",
+      confirm: "Write cues",
+    }))
+  )
+    return;
+  try {
+    const r = await backend().writeSerato(ids);
+    if (r.failed.length === 0) toast.success(r.written === 1 ? "Cues written for Serato" : `Cues written to ${r.written} files for Serato`);
+    else toast.warning(`Cues written to ${r.written} of ${ids.length} files`, { description: r.failed.slice(0, 3).map(([, why]) => why).join("\n") + (r.failed.length > 3 ? `\n…and ${r.failed.length - 3} more` : "") });
+  } catch (e) {
+    toast.error(String(e));
+  }
+}
+
 // ---------------------------------------------------------------- your own tags
 
 /** Reloads the list of tags and the tags of the rows on show. */

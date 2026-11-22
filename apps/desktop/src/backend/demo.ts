@@ -940,6 +940,10 @@ export class DemoBackend implements Backend {
   }
 
   /** The demo has no files to write: it reports them written, and missing ones as failed. */
+  async writeSerato(ids: number[]): Promise<T.WriteTagsResult> {
+    return this.writeTags(ids);
+  }
+
   async writeTags(ids: number[]): Promise<T.WriteTagsResult> {
     const failed: [number, string][] = [];
     for (const id of ids) {
@@ -1725,6 +1729,7 @@ export class DemoBackend implements Backend {
 
   async importRekordbox() {}
   async importTraktor() {}
+  async importSerato() {}
   async exportRekordbox() {}
   async exportTraktor() {}
   async exportPlaylist() {}

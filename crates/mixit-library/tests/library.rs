@@ -632,3 +632,132 @@ fn imports_a_traktor_collection() {
     assert!(fri2.parent.is_some(), "still inside its folder");
     assert_eq!(other.playlist_tracks(fri2.id).unwrap().len(), 2);
 }
+
+#[test]
+fn imports_a_serato_library_and_writes_cues_for_serato() {
+    use mixit_io::serato::*;
+    use mixit_library::serato::{Field, serato_rel, serato_root, write_fields};
+    let tmp = TempDir::new("serato");
+    let music = tmp.0.join("Music");
+    let sdir = music.join("_Serato_");
+    std::fs::create_dir_all(sdir.join("Subcrates")).unwrap();
+    let one = write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let gone = music.join("gone.mp3");
+    // Serato saved a hot cue, a loop and a grid into the file.
+    write_serato(
+        &one,
+        &SeratoData {
+            markers: Some(SeratoMarkers {
+                cues: vec![SeratoCue { index: 2, ms: 7_990, color: 0x00CC00, name: "Drop".into() }],
+                loops: vec![SeratoLoop {
+                    index: 0,
+                    start_ms: 2_185,
+                    end_ms: 6_055,
+                    locked: false,
+                    name: String::new(),
+                }],
+                color: Some(0xFF99FF),
+                bpm_lock: false,
+            }),
+            grid: Some(vec![SeratoGridMarker { seconds: 0.25, bpm: 124.0 }]),
+        },
+    )
+    .unwrap();
+    let root = serato_root(&sdir);
+    let root = root.as_path();
+    let t = |n: &str, v: &str| Field::Text(n.into(), v.into());
+    let db = write_fields(&[
+        t("vrsn", "2.0/Serato Scratch LIVE Database"),
+        Field::List(
+            "otrk".into(),
+            vec![
+                t("ttyp", "wav"),
+                t("pfil", &serato_rel(root, &one)),
+                t("tsng", "One"),
+                t("tart", "Nova"),
+                t("tgen", "Deep House"),
+                t("tbpm", "124.00"),
+                t("tkey", "Am"),
+            ],
+        ),
+        Field::List(
+            "otrk".into(),
+            vec![
+                t("ttyp", "mp3"),
+                t("pfil", &serato_rel(root, &gone)),
+                t("tsng", "Gone"),
+                t("tart", "Kairo"),
+                t("tkey", "E"),
+            ],
+        ),
+    ]);
+    std::fs::write(sdir.join("database V2"), db).unwrap();
+    let krate = |tracks: &[&Path]| {
+        let mut f = vec![t("vrsn", "1.0/Serato ScratchLive Crate")];
+        for p in tracks {
+            f.push(Field::List("otrk".into(), vec![t("ptrk", &serato_rel(root, p))]));
+        }
+        write_fields(&f)
+    };
+    std::fs::write(sdir.join("Subcrates").join("Gigs.crate"), krate(&[&one])).unwrap();
+    std::fs::write(sdir.join("Subcrates").join("Gigs%%Friday.crate"), krate(&[&gone, &one])).unwrap();
+    std::fs::write(sdir.join("Subcrates").join("Warm up.crate"), krate(&[&one])).unwrap();
+
+    let lib = Library::open_in_memory().unwrap();
+    // The folder that holds _Serato_ works as well as _Serato_ itself.
+    let rep = lib.import_serato(&music).unwrap();
+    assert_eq!((rep.tracks, rep.playlists, rep.grids, rep.cues, rep.missing.len()), (2, 3, 1, 2, 1), "{rep:?}");
+    let a = lib.track_by_path(&one).unwrap().unwrap();
+    assert_eq!((a.title.as_str(), a.artist.as_str(), a.genre.as_str()), ("One", "Nova", "Deep House"));
+    assert_eq!(a.best_key(), Some(Key::new(9, Mode::Minor)));
+    assert_eq!(a.color, Some(0xFF99FF));
+    let g = lib.grid(a.id).unwrap().unwrap();
+    assert!((g.bpm - 124.0).abs() < 1e-3 && (g.frame_at(0.0) - 0.25 * 44_100.0).abs() < 1.0);
+    let cues = lib.cues(a.id).unwrap();
+    let drop = cues.iter().find(|c| c.kind == CueKind::Hot).unwrap();
+    assert_eq!((drop.slot, drop.label.as_str(), drop.color), (Some(2), "Drop", Some(0x00CC00)));
+    let lp = cues.iter().find(|c| c.loop_seconds.is_some()).unwrap();
+    assert!((lp.seconds - 2.185).abs() < 1e-9 && (lp.loop_seconds.unwrap() - 3.87).abs() < 1e-9);
+    let b = lib.track_by_path(&gone).unwrap().unwrap();
+    assert!(b.missing);
+    assert_eq!(b.best_key(), Some(Key::new(4, Mode::Major)));
+
+    let pls = lib.playlists().unwrap();
+    let folder = pls.iter().find(|p| p.name == "Gigs" && p.kind == PlaylistKind::Folder).unwrap();
+    let own = pls.iter().find(|p| p.name == "Gigs" && p.kind == PlaylistKind::List).unwrap();
+    assert_eq!(own.parent, Some(folder.id), "a parent crate's own tracks sit inside its folder");
+    let fri = pls.iter().find(|p| p.name == "Friday").unwrap();
+    assert_eq!(fri.parent, Some(folder.id));
+    assert_eq!(lib.playlist_tracks(fri.id).unwrap(), vec![b.id, a.id]);
+    assert!(pls.iter().any(|p| p.name == "Warm up" && p.parent.is_none()));
+
+    // Importing again copies nothing.
+    let again = lib.import_serato(&sdir).unwrap();
+    assert_eq!((again.cues, again.grids), (0, 0));
+    assert_eq!(lib.playlists().unwrap().len(), pls.len());
+
+    // Cues made in MixIt go into the file for Serato, and come back from it.
+    let mut mine = cues.clone();
+    mine.push(Cue {
+        kind: CueKind::Hot,
+        slot: Some(5),
+        seconds: 12.5,
+        loop_seconds: None,
+        color: None,
+        label: "Break".into(),
+    });
+    lib.set_cues(a.id, &mine).unwrap();
+    let (written, failed) = lib.write_serato(&[a.id, b.id]).unwrap();
+    assert_eq!(written, 1);
+    assert_eq!(failed.len(), 1, "the missing file is reported");
+    let data = read_serato(&one).unwrap();
+    let m = data.markers.unwrap();
+    assert_eq!(m.cues.len(), 2);
+    assert!(m.cues.iter().any(|c| c.index == 5
+        && c.ms == 12_500
+        && c.name == "Break"
+        && c.color == mixit_library::serato::SERATO_COLORS[5]));
+    assert_eq!(m.loops.len(), 1);
+    assert!((data.grid.unwrap()[0].seconds - 0.25).abs() < 1e-5);
+    assert_eq!(lib.track(a.id).unwrap().title, "One", "the library keeps its details");
+}

@@ -489,11 +489,12 @@ export const CONCEPTS: Concept[] = [
     id: "other-apps",
     title: "Bringing your music from other DJ apps",
     group: "Your library",
-    summary: "Move your collection over from rekordbox or Traktor without redoing your cues, grids and playlists.",
+    summary: "Move your collection over from rekordbox, Traktor or Serato without redoing your cues, grids and playlists.",
     body: [
       "Open the import menu beside Add music (or drop the file onto MixIt). From rekordbox, export your collection as XML (File, Export Collection in xml format). From Traktor, pick its collection.nml, which lives in your Documents folder under Native Instruments, Traktor.",
+      "From Serato, pick the _Serato_ folder (in your Music folder, or at the top of a USB drive). Crates come in as playlists, crates inside crates as folders, and the cues, loops and grids Serato saved inside your music files come along.",
       "MixIt brings in each track with its tempo, beat grid, key, rating, comment, hot cues, loops and playlists in their folders. Tracks MixIt already knows keep what you set up here, so importing twice is safe. Files that are not on this computer are added as missing, so playlists stay whole: Fix library finds them once you point it at the right drive.",
-      "Going the other way, the same menu exports your collection for rekordbox (XML) or Traktor (.nml), with cues, loops, grids and playlists. Right-click a playlist to export just that one, or save it as M3U for other apps and DJ gear. In Traktor, open the exported file with Import Collection.",
+      "Going the other way, the same menu exports your collection for rekordbox (XML) or Traktor (.nml), with cues, loops, grids and playlists. Right-click a playlist to export just that one, or save it as M3U for other apps and DJ gear. In Traktor, open the exported file with Import Collection. For Serato, right-click tracks and choose Write cues for Serato: the cues go into the music files, where Serato reads them.",
     ],
   },
   {

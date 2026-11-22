@@ -81,6 +81,8 @@ export interface Backend {
   editTracks(ids: number[], edit: TrackEdit): Promise<void>;
   /** Writes the library's details (title, artist, genre, tempo, key…) into the tracks' files. */
   writeTags(ids: number[], notation: "camelot" | "openKey" | "standard"): Promise<WriteTagsResult>;
+  /** Writes hot cues, loops and beat grids into the tracks' files the way Serato DJ reads them. */
+  writeSerato(ids: number[]): Promise<WriteTagsResult>;
   /** Library backups, newest first. */
   backups(): Promise<BackupInfo[]>;
   /** Backs the library up now, into the backups folder or to `path`. Returns where it went. */
@@ -196,13 +198,15 @@ export interface Backend {
   importRekordbox(path: string): Promise<void>;
   /** Imports a Traktor collection.nml: tracks, grids, keys, cues, loops, ratings and playlists. */
   importTraktor(path: string): Promise<void>;
+  /** Imports a Serato library from its _Serato_ folder (or the folder holding it): tracks, crates, and the cues, loops and grids in the files. */
+  importSerato(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;
   /** Writes a Traktor collection.nml (the whole library, or one playlist's tracks). */
   exportTraktor(path: string, playlist?: number | null): Promise<void>;
   exportPlaylist(playlist: number, path: string): Promise<void>;
   importM3u(path: string): Promise<number>;
 
-  pickFolders(): Promise<string[] | null>;
+  pickFolders(title?: string): Promise<string[] | null>;
   pickFiles(extensions: string[], title: string): Promise<string[] | null>;
   pickSave(defaultName: string, extensions: string[]): Promise<string | null>;
 
