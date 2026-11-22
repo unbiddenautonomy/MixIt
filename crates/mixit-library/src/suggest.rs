@@ -10,6 +10,8 @@
 //! * **Energy**: a gentle rise (or the direction the DJ asked for) beats a jump.
 //! * **Sound**: tracks that sound alike (instruments, production, groove; see
 //!   `mixit_analysis::timbre`) get a small lift, so a set keeps its character.
+//! * **Your own sets**: a track you have played right after this one before gets a lift
+//!   (you already know the transition works).
 //! * Small extras for genre continuity and ratings; tracks played this session are out.
 //!
 //! Every suggestion carries plain-language reasons for the coach and explain mode.
@@ -49,6 +51,9 @@ pub struct SuggestOptions {
     /// Tracks to leave out (already played, already loaded).
     pub exclude: Vec<TrackId>,
     pub limit: usize,
+    /// How many times each track was played right after the current one in past sets.
+    #[serde(skip)]
+    pub played_after: std::collections::HashMap<TrackId, u32>,
 }
 
 impl Default for SuggestOptions {
@@ -60,6 +65,7 @@ impl Default for SuggestOptions {
             energy: EnergyDirection::Steady,
             exclude: vec![],
             limit: 20,
+            played_after: Default::default(),
         }
     }
 }
@@ -83,6 +89,8 @@ pub enum Reason {
     HighlyRated,
     /// Sounds alike (0..1 similarity, only given when high).
     SoundsAlike(f64),
+    /// You played it right after this track this many times before.
+    MixedBefore(u32),
 }
 
 impl Reason {
@@ -105,6 +113,8 @@ impl Reason {
             Reason::EnergyChange(d) => format!("Brings the energy down by {}.", -d),
             Reason::SameGenre => "Same genre.".into(),
             Reason::HighlyRated => "One of your highly rated tracks.".into(),
+            Reason::MixedBefore(1) => "You played it after this track in a past set.".into(),
+            Reason::MixedBefore(n) => format!("You played it after this track {n} times before."),
             Reason::SoundsAlike(s) => {
                 format!("Sounds alike ({:.0} % match): similar instruments and groove.", s * 100.0)
             }
@@ -221,6 +231,10 @@ pub fn suggest(current: &Candidate, pool: &[Candidate], opts: &SuggestOptions) -
             if alike >= SOUNDS_ALIKE {
                 reasons.push(Reason::SoundsAlike(alike));
             }
+        }
+        if let Some(&n) = opts.played_after.get(&c.id).filter(|n| **n > 0) {
+            score += 0.03 * n.min(3) as f64;
+            reasons.push(Reason::MixedBefore(n));
         }
         if c.rating >= 4 {
             score += 0.01 * c.rating as f64;

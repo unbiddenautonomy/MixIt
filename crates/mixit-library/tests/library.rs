@@ -968,3 +968,27 @@ fn finds_tracks_that_sound_alike() {
     let none = lib.sounds_like(9_999, 5).unwrap();
     assert!(none.is_empty());
 }
+
+#[test]
+fn suggestions_remember_what_you_played_next() {
+    let lib = Library::open_in_memory().unwrap();
+    let a = add(&lib, "Opener", "A", "House", 124.0, "8A", 5);
+    let b = add(&lib, "Follow", "B", "House", 124.0, "8A", 5);
+    let c = add(&lib, "Other", "C", "House", 124.0, "8A", 5);
+    // Two past sets played Follow right after Opener; Other came after Follow.
+    for name in ["Friday", "Saturday"] {
+        let s = lib.start_session(name).unwrap();
+        for t in [a, b, c] {
+            lib.log_play(s, t, Some(0)).unwrap();
+        }
+        lib.end_session(s).unwrap();
+    }
+    let after = lib.played_after(a).unwrap();
+    assert_eq!(after.get(&b), Some(&2));
+    assert_eq!(after.get(&c), None, "only the very next track counts");
+
+    let s = lib.suggest_next(a, &SuggestOptions::default()).unwrap();
+    assert_eq!(s[0].id, b, "the transition you already played ranks first: {s:?}");
+    assert!(s[0].reasons.contains(&mixit_library::suggest::Reason::MixedBefore(2)));
+    assert!(!s[1].reasons.iter().any(|r| matches!(r, mixit_library::suggest::Reason::MixedBefore(_))));
+}

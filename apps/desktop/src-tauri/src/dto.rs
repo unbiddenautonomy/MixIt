@@ -263,7 +263,7 @@ pub struct SuggestionRow {
     pub tempo_change_pct: Option<f64>,
     pub key_shift: i32,
     pub reasons: Vec<String>,
-    /// Reason codes for icons: "key" | "keyShift" | "clash" | "tempo" | "half" | "double" | "energy" | "genre" | "rating" | "sound"
+    /// Reason codes for icons: "key" | "keyShift" | "clash" | "tempo" | "half" | "double" | "energy" | "genre" | "rating" | "sound" | "history"
     pub tags: Vec<&'static str>,
 }
 
@@ -285,6 +285,7 @@ impl SuggestionRow {
                 R::SameGenre => "genre",
                 R::HighlyRated => "rating",
                 R::SoundsAlike(_) => "sound",
+                R::MixedBefore(_) => "history",
             })
             .collect();
         SuggestionRow {

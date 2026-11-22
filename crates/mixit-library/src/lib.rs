@@ -673,6 +673,11 @@ impl Library {
 
     /// Ranks library tracks to follow `current` (see [`suggest`]).
     pub fn suggest_next(&self, current: TrackId, opts: &suggest::SuggestOptions) -> Result<Vec<suggest::Suggestion>> {
+        let mut opts = opts.clone();
+        if opts.played_after.is_empty() {
+            opts.played_after = self.played_after(current)?;
+        }
+        let opts = &opts;
         let sounds = self.standard_sounds()?;
         let with_sound = |t: &Track| {
             let mut c = t.candidate();
@@ -1258,6 +1263,18 @@ impl Library {
     }
 
     /// Tracks played in a session (to exclude from suggestions).
+    /// How many times each track was played right after `track` across all past sets.
+    pub fn played_after(&self, track: TrackId) -> Result<std::collections::HashMap<TrackId, u32>> {
+        let mut st = self.conn.prepare(
+            "SELECT track_id, COUNT(*) FROM (
+                SELECT track_id, LAG(track_id) OVER (PARTITION BY session_id ORDER BY played_at, id) AS prev
+                FROM history
+             ) WHERE prev = ?1 AND track_id IS NOT NULL AND track_id != prev GROUP BY track_id",
+        )?;
+        let rows = st.query_map([track], |r| Ok((r.get::<_, TrackId>(0)?, r.get::<_, i64>(1)? as u32)))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn session_track_ids(&self, session: i64) -> Result<Vec<TrackId>> {
         Ok(self.session_history(session)?.into_iter().filter_map(|h| h.track_id).collect())
     }
