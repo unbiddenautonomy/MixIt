@@ -26,7 +26,7 @@ export function editSmartPlaylist(opts: { title: string; name?: string; query?: 
   return new Promise((resolve) => useSmart.setState({ req: { name: "", query: "", confirm: "Save", ...opts, resolve } }));
 }
 
-const FIELD_ORDER: RuleField[] = ["genre", "bpm", "key", "energy", "rating", "tag", "played", "added", "year", "artist", "title", "label", "album", "comment"];
+const FIELD_ORDER: RuleField[] = ["genre", "bpm", "key", "energy", "vocals", "rating", "tag", "played", "added", "year", "artist", "title", "label", "album", "comment"];
 
 export function SmartPlaylistHost() {
   const req = useSmart((s) => s.req);

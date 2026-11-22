@@ -145,6 +145,7 @@ impl Track {
             genre: self.genre.clone(),
             rating: self.rating,
             sound: vec![],
+            vocals: self.vocals,
         }
     }
 }

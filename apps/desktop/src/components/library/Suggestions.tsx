@@ -16,7 +16,7 @@ import { PreviewButton } from "./PreviewBar";
 
 const GENERIC_TAGS = new Set(["tempo", "key", "energy", "genre", "keyShift", "rating"]);
 /** Plain words for the reason chips. */
-const TAG_LABEL: Record<string, string> = { sound: "sounds alike", history: "played next before", half: "half-time", double: "double-time", clash: "key clash", unknown: "not analysed" };
+const TAG_LABEL: Record<string, string> = { sound: "sounds alike", history: "played next before", instrumental: "instrumental", half: "half-time", double: "double-time", clash: "key clash", unknown: "not analysed" };
 
 /** The deck to load a suggestion onto: the first one that is not playing. */
 export function freeDeck(): number {

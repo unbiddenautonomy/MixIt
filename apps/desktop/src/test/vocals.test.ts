@@ -64,4 +64,14 @@ describe("vocals", () => {
     useTelemetry.setState({ t: { ...t } });
     expect(bothSinging(0, 1)).toBe(false);
   });
+
+  it("suggestions after a singer lift instrumentals and say why", async () => {
+    const b = new DemoBackend();
+    const sung = (await b.search("vocals:yes"))[0];
+    const s = await b.suggestNext(sung.id, "steady", 200);
+    const inst = s.filter((x) => x.tags.includes("instrumental"));
+    expect(inst.length).toBeGreaterThan(0);
+    expect(inst.every((x) => (x.track.vocals ?? 99) < 5)).toBe(true);
+  });
 });
+
