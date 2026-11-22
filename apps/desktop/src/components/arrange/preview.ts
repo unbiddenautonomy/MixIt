@@ -29,7 +29,8 @@ export function stopPreview() {
   usePreview.getState().set({ status: "idle", audio: null });
 }
 
-export async function playPreview(project: MixProject, from: number, to: number) {
+/** Plays a passage of the mix; with `loop` it repeats until stopped. */
+export async function playPreview(project: MixProject, from: number, to: number, loop = false) {
   stopPreview();
   const my = ++request;
   usePreview.getState().set({ status: "loading", from, to });
@@ -38,6 +39,7 @@ export async function playPreview(project: MixProject, from: number, to: number)
     if (my !== request) return;
     url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
     const audio = new Audio(url);
+    audio.loop = loop;
     audio.onended = () => my === request && stopPreview();
     await audio.play();
     usePreview.getState().set({ status: "playing", audio });

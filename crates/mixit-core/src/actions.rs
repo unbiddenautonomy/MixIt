@@ -1240,6 +1240,126 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("Mod+K"),
         None,
     );
+    b.add(
+        "app.clip_copy",
+        "Copy clips",
+        ag,
+        ActionKind::Trigger,
+        "Copies the selected clips in Arrange, to paste somewhere else in the mix.",
+        true,
+        Some("Mod+C"),
+        None,
+    );
+    b.add(
+        "app.clip_cut",
+        "Cut clips",
+        ag,
+        ActionKind::Trigger,
+        "Removes the selected clips in Arrange and keeps them to paste.",
+        true,
+        Some("Mod+X"),
+        None,
+    );
+    b.add(
+        "app.clip_paste",
+        "Paste clips",
+        ag,
+        ActionKind::Trigger,
+        "Pastes copied clips in Arrange at the play marker, keeping their spacing and moves.",
+        true,
+        Some("Mod+V"),
+        None,
+    );
+    b.add(
+        "app.clip_duplicate",
+        "Duplicate clips",
+        ag,
+        ActionKind::Trigger,
+        "Copies the selected clips in Arrange to just after themselves, to repeat a section.",
+        true,
+        Some("Mod+D"),
+        None,
+    );
+    b.add(
+        "app.clip_delete",
+        "Delete clips",
+        ag,
+        ActionKind::Trigger,
+        "Removes the selected clips from the mix in Arrange.",
+        true,
+        Some("Delete"),
+        None,
+    );
+    b.add(
+        "app.clip_split",
+        "Cut clip in two",
+        ag,
+        ActionKind::Trigger,
+        "Cuts the selected clips (or every clip under the play marker) in two at the marker.",
+        true,
+        Some("Mod+B"),
+        None,
+    );
+    b.add(
+        "app.select_all",
+        "Select all clips",
+        ag,
+        ActionKind::Trigger,
+        "Selects every clip in Arrange.",
+        true,
+        Some("Mod+A"),
+        None,
+    );
+    b.add(
+        "app.marker_add",
+        "Add marker",
+        ag,
+        ActionKind::Trigger,
+        "Adds a named marker on the Arrange ruler at the play marker, like Drop or Outro.",
+        true,
+        None,
+        None,
+    );
+    b.add(
+        "app.marker_next",
+        "Next marker",
+        ag,
+        ActionKind::Trigger,
+        "Moves the play marker to the next marker on the Arrange ruler.",
+        true,
+        None,
+        None,
+    );
+    b.add(
+        "app.marker_prev",
+        "Previous marker",
+        ag,
+        ActionKind::Trigger,
+        "Moves the play marker to the previous marker on the Arrange ruler.",
+        true,
+        None,
+        None,
+    );
+    b.add(
+        "app.arrange_loop",
+        "Loop playback",
+        ag,
+        ActionKind::Trigger,
+        "Repeats a stretch of the mix in Arrange while you adjust it.",
+        true,
+        Some("L"),
+        None,
+    );
+    b.add(
+        "app.arrange_play",
+        "Play or stop the mix",
+        ag,
+        ActionKind::Trigger,
+        "Plays the Arrange timeline from the play marker, or stops it.",
+        true,
+        Some("Space"),
+        None,
+    );
     b.add("app.undo", "Undo", ag, ActionKind::Trigger, "Undoes the last change.", true, Some("Mod+Z"), None);
     b.add(
         "app.redo",

@@ -412,6 +412,18 @@ export const CONCEPTS: Concept[] = [
     lab: "automation",
   },
   {
+    id: "arrange-editing",
+    title: "Editing the timeline",
+    group: "Your library",
+    summary: "Select, copy, repeat, cut and fade clips, label the mix with markers, and loop a passage while you work on it.",
+    body: [
+      "Click a clip to select it, Ctrl/⌘-click to add more, or drag a box over an empty part of the lanes. Drag any selected clip and the whole group moves together, so a transition you have built keeps its shape.",
+      "Copy and paste (Ctrl/⌘+C and V) put clips at the play marker, the green line you set by clicking the ruler. Duplicate (Ctrl/⌘+D) repeats them right after themselves. Ctrl/⌘+B cuts clips in two at the marker, and Alt-click cuts a clip where you click, so you can drop a verse or move a breakdown.",
+      "Drag the small squares at a clip's top corners to fade it in or out. Markers label parts of the mix such as Intro or Drop: drag them to move, double-click to rename. Press L to loop: Play then repeats the selected clips (or a stretch you Shift-drag on the ruler) until you stop it.",
+    ],
+    controls: ["app.clip_split", "app.clip_duplicate", "app.arrange_loop", "app.marker_add"],
+  },
+  {
     id: "automation",
     title: "Timeline and automation",
     group: "Your library",

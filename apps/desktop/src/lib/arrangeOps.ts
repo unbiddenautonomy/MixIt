@@ -413,3 +413,169 @@ export function projectIssues(p: MixProject, bpmAt: (beat: number) => number): P
   });
   return out;
 }
+
+// ---------------------------------------------------------------- editing many clips
+
+const shiftLanes = (c: Clip, d: number): AutomationLane[] => (d === 0 ? c.lanes : c.lanes.map((l) => ({ ...l, points: l.points.map((x) => ({ ...x, beat: x.beat + d })) })));
+
+/**
+ * Moves a group of clips together by `dBeats` and `dLane`, keeping their spacing. The
+ * move is limited so no clip goes before the start or off the four lanes.
+ */
+export function moveClips(p: MixProject, ids: number[], dBeats: number, dLane = 0): MixProject {
+  const set = new Set(ids);
+  const group = p.clips.filter((c) => set.has(c.id));
+  if (!group.length) return p;
+  const minStart = Math.min(...group.map((c) => c.start));
+  const minLane = Math.min(...group.map((c) => c.lane));
+  const maxLane = Math.max(...group.map((c) => c.lane));
+  const db = Math.max(-minStart, dBeats);
+  const dl = Math.max(-minLane, Math.min(3 - maxLane, dLane));
+  if (db === 0 && dl === 0) return p;
+  return { ...p, clips: p.clips.map((c) => (set.has(c.id) ? { ...c, start: c.start + db, lane: c.lane + dl, lanes: shiftLanes(c, db) } : c)) };
+}
+
+/** Clips copied to the clipboard: their positions relative to the earliest one. */
+export interface ClipBoard {
+  clips: Clip[];
+  /** Length from the earliest start to the latest end. */
+  span: number;
+}
+
+export function copyClips(p: MixProject, ids: number[]): ClipBoard | null {
+  const set = new Set(ids);
+  const group = p.clips.filter((c) => set.has(c.id));
+  if (!group.length) return null;
+  const from = Math.min(...group.map((c) => c.start));
+  const to = Math.max(...group.map((c) => c.start + c.length));
+  return { clips: group.map((c) => ({ ...c, start: c.start - from, lanes: shiftLanes(c, -from) })), span: to - from };
+}
+
+/** Puts clipboard clips into the mix with their earliest start at `at`. Returns the new ids. */
+export function pasteClips(p: MixProject, board: ClipBoard, at: number): { project: MixProject; ids: number[] } {
+  let next = p.next_id;
+  const at0 = Math.max(0, at);
+  const added = board.clips.map((c) => ({ ...c, id: next++, start: c.start + at0, lanes: shiftLanes(c, at0) }));
+  return { project: { ...p, clips: [...p.clips, ...added], next_id: next }, ids: added.map((c) => c.id) };
+}
+
+/** Copies clips to just after the group, on the next bar, so they repeat. */
+export function duplicateClips(p: MixProject, ids: number[]): { project: MixProject; ids: number[] } {
+  const board = copyClips(p, ids);
+  if (!board) return { project: p, ids: [] };
+  const from = Math.min(...p.clips.filter((c) => ids.includes(c.id)).map((c) => c.start));
+  return pasteClips(p, board, from + Math.ceil(board.span / 4) * 4);
+}
+
+export function removeClips(p: MixProject, ids: number[]): MixProject {
+  const set = new Set(ids);
+  return { ...p, clips: p.clips.filter((c) => !set.has(c.id)) };
+}
+
+/** Points of a lane split at `beat`: each side keeps its own points plus the value at the cut. */
+function splitLane(c: Clip, l: AutomationLane, beat: number): [AutomationLane, AutomationLane] {
+  const v = valueAt(c, l.param, beat);
+  const i = l.points.findIndex((x) => x.beat > beat);
+  const curve = i > 0 ? l.points[i - 1].curve : (l.points[0]?.curve ?? "Linear");
+  const left = l.points.filter((x) => x.beat < beat - 1e-9);
+  const right = l.points.filter((x) => x.beat > beat + 1e-9);
+  return [
+    { ...l, points: [...left, { beat, value: v, curve }] },
+    { ...l, points: [{ beat, value: v, curve }, ...right] },
+  ];
+}
+
+/**
+ * Cuts a clip in two at a timeline beat. Both halves keep playing exactly what they
+ * played before (a reversed clip too), and automation is cut with the value at the cut
+ * kept on both sides. Returns the ids of the two halves, or the project unchanged when
+ * the beat is not inside the clip.
+ */
+export function splitClip(p: MixProject, id: number, beat: number): { project: MixProject; ids: number[] } {
+  const c = p.clips.find((x) => x.id === id);
+  if (!c || beat <= c.start || beat >= c.start + c.length) return { project: p, ids: [] };
+  const k = beat - c.start;
+  const lanes = c.lanes.map((l) => splitLane(c, l, beat));
+  const a: Clip = { ...c, length: k, source_start: c.reverse ? c.source_start + (c.length - k) : c.source_start, lanes: lanes.map((x) => x[0]) };
+  const b: Clip = { ...c, id: p.next_id, start: beat, length: c.length - k, source_start: c.reverse ? c.source_start : c.source_start + k, lanes: lanes.map((x) => x[1]) };
+  const clips = p.clips.flatMap((x) => (x.id === id ? [a, b] : [x]));
+  return { project: { ...p, clips, next_id: p.next_id + 1 }, ids: [a.id, b.id] };
+}
+
+/** Clips that touch a box on the timeline (beats and lanes, ends included). */
+export function clipsInBox(p: MixProject, beatA: number, beatB: number, laneA: number, laneB: number): number[] {
+  const [b0, b1] = beatA <= beatB ? [beatA, beatB] : [beatB, beatA];
+  const [l0, l1] = laneA <= laneB ? [laneA, laneB] : [laneB, laneA];
+  return p.clips.filter((c) => c.lane >= l0 && c.lane <= l1 && c.start < b1 && c.start + c.length > b0).map((c) => c.id);
+}
+
+/** How many beats a clip fades in or out over, read from its volume automation (0 for none). */
+export function fadeOf(c: Clip, side: "in" | "out"): number {
+  const pts = lane(c, "Volume").points;
+  if (pts.length < 2) return 0;
+  if (side === "in") {
+    const [a, b] = pts;
+    return Math.abs(a.beat - c.start) < 1e-6 && a.value <= 0.001 && b.value >= 0.999 ? b.beat - a.beat : 0;
+  }
+  const a = pts[pts.length - 2];
+  const b = pts[pts.length - 1];
+  return Math.abs(b.beat - (c.start + c.length)) < 1e-6 && b.value <= 0.001 && a.value >= 0.999 ? b.beat - a.beat : 0;
+}
+
+/**
+ * Sets a fade at the start or end of a clip (an equal-power volume ramp of `beats`, 0 to
+ * remove it). Other volume moves in the clip are kept, except the ones under the fade.
+ */
+export function setFade(c: Clip, side: "in" | "out", beats: number): Clip {
+  const len = Math.max(0, Math.min(c.length, Math.round(beats * 4) / 4));
+  const old = fadeOf(c, side);
+  if (old === 0 && len === 0) return c;
+  const end = c.start + c.length;
+  let out = c;
+  // Take away the old fade and anything the new one covers.
+  if (side === "in") out = clearRange(out, c.start, c.start + Math.max(old, len));
+  else out = clearRange(out, end - Math.max(old, len), end);
+  if (len > 0) {
+    if (side === "in") {
+      out = setPoint(out, "Volume", c.start, 0, "Power");
+      out = setPoint(out, "Volume", c.start + len, 1, "Linear");
+    } else {
+      out = setPoint(out, "Volume", end - len, 1, "Power");
+      out = setPoint(out, "Volume", end, 0, "Linear");
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- markers
+
+export type Marker = MixProject["markers"][number];
+
+const sortMarkers = (m: Marker[]) => [...m].sort((a, b) => a.beat - b.beat);
+
+export function addMarker(p: MixProject, beat: number, label?: string): { project: MixProject; index: number } {
+  const b = Math.max(0, Math.round(beat));
+  const existing = p.markers.findIndex((m) => Math.abs(m.beat - b) < 1e-6);
+  if (existing >= 0) return { project: p, index: existing };
+  const markers = sortMarkers([...p.markers, { beat: b, label: label ?? `Marker ${p.markers.length + 1}` }]);
+  return { project: { ...p, markers }, index: markers.findIndex((m) => m.beat === b) };
+}
+
+export function moveMarker(p: MixProject, index: number, beat: number): MixProject {
+  if (!p.markers[index]) return p;
+  return { ...p, markers: sortMarkers(p.markers.map((m, i) => (i === index ? { ...m, beat: Math.max(0, Math.round(beat)) } : m))) };
+}
+
+export function renameMarker(p: MixProject, index: number, label: string): MixProject {
+  return { ...p, markers: p.markers.map((m, i) => (i === index ? { ...m, label } : m)) };
+}
+
+export function removeMarker(p: MixProject, index: number): MixProject {
+  return { ...p, markers: p.markers.filter((_, i) => i !== index) };
+}
+
+/** The marker after (dir 1) or before (dir -1) a beat, for jumping between them. */
+export function markerNear(p: MixProject, beat: number, dir: 1 | -1): Marker | null {
+  const m = sortMarkers(p.markers);
+  return dir > 0 ? (m.find((x) => x.beat > beat + 1e-6) ?? null) : ([...m].reverse().find((x) => x.beat < beat - 1e-6) ?? null);
+}

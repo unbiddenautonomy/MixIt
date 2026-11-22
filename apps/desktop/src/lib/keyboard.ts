@@ -6,6 +6,12 @@ import { act, isMac } from "./actions";
 
 type AppHandler = (id: string) => boolean;
 
+/** Arrange's editing keys. Anywhere else (and while typing) they keep their usual
+ * meaning: copy and paste text, Space presses the focused button. */
+const ARRANGE_KEYS = new Set(["app.clip_copy", "app.clip_cut", "app.clip_paste", "app.clip_duplicate", "app.clip_delete", "app.clip_split", "app.select_all", "app.arrange_loop", "app.arrange_play"]);
+/** Keys that stand in for another (the Mac's delete key is Backspace). */
+const ALIASES: Record<string, string> = { BACKSPACE: "DELETE" };
+
 export function keyName(e: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">): string {
   const parts: string[] = [];
   const mod = isMac ? e.metaKey : e.ctrlKey;
@@ -46,8 +52,9 @@ export function installKeyboard(appHandler: AppHandler): () => void {
     const name = keyName(e);
     const isMod = name.startsWith("Mod+");
     if (editing(e) && !isMod && name !== "Escape") return;
-    const a = map.get(name.toUpperCase());
+    const a = map.get(name.toUpperCase()) ?? map.get(ALIASES[name.toUpperCase()] ?? "");
     if (!a) return;
+    if (ARRANGE_KEYS.has(a.id) && (useApp.getState().workspace !== "arrange" || editing(e))) return;
     e.preventDefault();
     if (e.repeat) return;
     held.add(name);
@@ -58,7 +65,7 @@ export function installKeyboard(appHandler: AppHandler): () => void {
   const up = (e: KeyboardEvent) => {
     const name = keyName(e);
     if (!held.delete(name)) return;
-    const a = map.get(name.toUpperCase());
+    const a = map.get(name.toUpperCase()) ?? map.get(ALIASES[name.toUpperCase()] ?? "");
     if (!a) return;
     if (a.id === "app.explain") {
       useApp.getState().set({ explainHeld: false });

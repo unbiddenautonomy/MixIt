@@ -1,8 +1,9 @@
 // Arrange: a mix on a timeline. Clips sit on four deck lanes over a tempo ruler; move
 // and trim them on the bar grid, edit gain, key and automation, then render the mix.
 import clsx from "clsx";
+import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as Popover from "@radix-ui/react-popover";
-import { ChevronDown, FolderOpen, Layers, Loader2, Minus, Music, Play, Plus, Rewind, Save, SlidersVertical, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
+import { ChevronDown, ClipboardPaste, Copy, CopyPlus, Flag, FolderOpen, Layers, Loader2, Minus, Music, Play, Plus, Repeat, Rewind, Save, Scissors, SlidersVertical, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend } from "../../backend";
 import type { AutomationLane, AutomationPoint, Clip, CurveShape, MixProject, ProjectParam, TrackRow } from "../../backend/types";
@@ -18,7 +19,9 @@ import { beatAfter, beatToSeconds, bpmAt, closeProject, emptyProject, openProjec
 import { LOUDNESS_TARGETS } from "../../lib/studio";
 import { MASTER_STRIP, openLaneStudio, useStudio } from "../../store/studio";
 import { EffectRow, HistoryButtons, IssuesButton, KeyRow, SnapPicker, TempoLane, TempoPanel, TransitionSection, useArrangeUi } from "./ArrangeParts";
-import { moveClip, PHRASE_BEATS, rippleDelete, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
+import { fadeOf, moveClips, moveMarker, PHRASE_BEATS, removeMarker, renameMarker, rippleDelete, setFade, snapClipStart, toProjectKey } from "../../lib/arrangeOps";
+import { addMarkerAtCursor, copySelection, cutSelection, deleteSelection, duplicateSelection, paste, select, selectBox, splitAt, toggleLoop, togglePlay } from "./editing";
+import { shortcutLabel } from "../../lib/actions";
 
 const LANE_H = 76;
 
@@ -46,12 +49,10 @@ export function Arrange() {
   const dirty = useApp((s) => s.projectDirty);
   const job = useApp((s) => s.jobs.render);
   const [zoom, setZoom] = useState<number | null>(null); // pixels per beat; null fits the mix
-  const [sel, setSelRaw] = useState<number | null>(null);
+  const selected = useArrangeUi((s) => s.selected);
+  const sel = selected.length ? selected[selected.length - 1] : null;
   const tempoSel = useArrangeUi((s) => s.tempoSel);
-  const setSel = (id: number | null) => {
-    setSelRaw(id);
-    if (id != null) useArrangeUi.getState().set({ tempoSel: null });
-  };
+  const setSel = (id: number | null) => select(id == null ? [] : [id]);
   const [show, setShow] = useState<ProjectParam[]>(["Volume", "EqLow"]);
   const [width, setWidth] = useState(1200);
   const area = useRef<HTMLDivElement>(null);
@@ -71,6 +72,7 @@ export function Arrange() {
   const beats = Math.max(64, projectBeats(project) + 32);
   const total = beatToSeconds(project, projectBeats(project));
   const clip = project.clips.find((c) => c.id === sel) ?? null;
+  const many = selected.filter((id) => project.clips.some((c) => c.id === id));
   const rendering = job && !job.finished;
 
   return (
@@ -90,6 +92,8 @@ export function Arrange() {
         )}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <HistoryButtons />
+          <div className="h-5 w-px bg-white/10" />
+          <EditTools count={many.length} />
           <div className="h-5 w-px bg-white/10" />
           <SnapPicker />
           <div className="h-5 w-px bg-white/10" />
@@ -143,8 +147,14 @@ export function Arrange() {
         </div>
       </div>
       <div ref={area} className="flex min-h-0 flex-1 gap-2">
-        <Timeline project={project} ppb={ppb} beats={beats} sel={sel} setSel={setSel} show={show} />
-        {tempoSel != null && project.tempo.segments[tempoSel] ? <TempoPanel project={project} index={tempoSel} /> : clip && <ClipPanel clip={clip} project={project} close={() => setSel(null)} />}
+        <Timeline project={project} ppb={ppb} beats={beats} selected={selected} show={show} />
+        {tempoSel != null && project.tempo.segments[tempoSel] ? (
+          <TempoPanel project={project} index={tempoSel} />
+        ) : many.length > 1 ? (
+          <MultiPanel ids={many} project={project} />
+        ) : (
+          clip && <ClipPanel clip={clip} project={project} close={() => setSel(null)} />
+        )}
       </div>
     </div>
   );
@@ -171,13 +181,19 @@ function EmptyArrange() {
   );
 }
 
-function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProject; ppb: number; beats: number; sel: number | null; setSel: (id: number | null) => void; show: ProjectParam[] }) {
+function Timeline({ project, ppb, beats, selected, show }: { project: MixProject; ppb: number; beats: number; selected: number[]; show: ProjectParam[] }) {
   const width = beats * ppb;
   const scroller = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const lanesRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const loop = useArrangeUi((s) => s.loop);
+  const looping = useArrangeUi((s) => s.looping);
   // Label every N bars, N a power of two that keeps labels at least ~56 px apart.
   const barEvery = [1, 2, 4, 8, 16, 32, 64, 128, 256].find((n) => n * 4 * ppb >= 56) ?? 512;
   const gridBeats = Math.max(4, barEvery);
   const lanes = 4;
+  const selSet = new Set(selected);
 
   const addTracks = async (ids: number[], lane: number, x: number) => {
     const rows = await rowsById(ids);
@@ -185,131 +201,388 @@ function Timeline({ project, ppb, beats, sel, setSel, show }: { project: MixProj
     let p = useApp.getState().project ?? project;
     let next = p.next_id;
     const clips = [...p.clips];
+    const made: number[] = [];
     for (const r of rows) {
       const c = clipFromTrack(r, next++, lane, start);
       clips.push(c);
+      made.push(c.id);
       start += c.length;
     }
     p = { ...p, clips, next_id: next };
     setProject(p, undefined, undefined, rows.length === 1 ? `Add “${rows[0].title}”` : `Add ${rows.length} tracks`);
+    select(made);
+  };
+
+  /** Timeline beat and lane under a point on screen. */
+  const at = (clientX: number, clientY: number) => {
+    const lr = lanesRef.current!.getBoundingClientRect();
+    return { beat: Math.max(0, (clientX - lr.left - 80) / ppb), lane: Math.max(0, Math.min(lanes - 1, Math.floor((clientY - lr.top) / LANE_H))) };
+  };
+
+  /** On an empty part of a lane: a click moves the play marker there, a drag selects clips in a box. */
+  const startBox = (e: React.PointerEvent) => {
+    if (e.button !== 0 || e.target !== e.currentTarget) return;
+    const ir = inner.current!.getBoundingClientRect();
+    const x0 = e.clientX - ir.left;
+    const y0 = e.clientY - ir.top;
+    const from = at(e.clientX, e.clientY);
+    const additive = e.ctrlKey || e.metaKey;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      const r = inner.current!.getBoundingClientRect();
+      if (!moved && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 4) return;
+      moved = true;
+      setBox({ x0, y0, x1: ev.clientX - r.left, y1: ev.clientY - r.top });
+      const to = at(ev.clientX, ev.clientY);
+      selectBox(from.beat, to.beat, from.lane, to.lane, additive);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setBox(null);
+      if (!moved) {
+        if (!additive) select([]);
+        usePreview.getState().set({ cursor: Math.round(from.beat / 4) * 4 });
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   return (
-    <div ref={scroller} className="screen relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950" onPointerDown={(e) => e.target === e.currentTarget && setSel(null)}>
-      <div style={{ width: width + 80 }} className="relative">
-        {/* Ruler */}
-        <div className="sticky top-0 z-20 flex h-9 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur">
-          <div className="sticky left-0 z-10 w-20 shrink-0 border-r border-white/[0.06] bg-zinc-950" />
-          <div
-            className="relative flex-1 cursor-pointer"
-            title="Click to set where Play starts"
-            onPointerDown={(e) => {
-              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-              const beat = Math.max(0, Math.round((e.clientX - r.left) / ppb / 4) * 4);
-              usePreview.getState().set({ cursor: beat });
-            }}
-          >
-            {Array.from({ length: Math.ceil(beats / 4) }, (_, bar) =>
-              bar % barEvery === 0 ? (
-                <div key={bar} className="absolute top-0 h-full border-l border-white/[0.08] pl-1" style={{ left: bar * 4 * ppb }}>
-                  <div className="font-mono text-[10px] text-zinc-400">{bar + 1}</div>
-                  {bar % (barEvery * 4) === 0 && <div className="font-mono text-[9px] text-zinc-600">{clock(beatToSeconds(project, bar * 4))}</div>}
-                </div>
-              ) : null,
-            )}
-            {project.markers.map((m, i) => (
-              <div key={i} className="absolute top-0 h-full border-l border-pink-400/60 pl-1 text-[9px] text-pink-300" style={{ left: m.beat * ppb }}>
-                {m.label}
-              </div>
-            ))}
-          </div>
-        </div>
+    <div ref={scroller} className="screen relative min-w-0 flex-1 overflow-auto rounded-2xl border border-white/[0.06] bg-zinc-950" onPointerDown={(e) => e.target === e.currentTarget && select([])}>
+      <div ref={inner} style={{ width: width + 80 }} className="relative">
+        <Ruler project={project} ppb={ppb} beats={beats} barEvery={barEvery} />
         <TempoLane project={project} ppb={ppb} beats={beats} />
         {/* Lanes */}
-        {Array.from({ length: lanes }, (_, lane) => (
-          <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: LANE_H }}>
-            <div className="sticky left-0 z-10 flex w-20 shrink-0 items-center gap-2 border-r border-white/[0.06] bg-zinc-950 px-2">
-              <span className="flex size-6 items-center justify-center rounded-md text-xs font-black text-zinc-950" style={{ background: DECK_COLORS[lane] }}>
-                {String.fromCharCode(65 + lane)}
-              </span>
-              <LaneStudioButton project={project} lane={lane} />
+        <div ref={lanesRef}>
+          {Array.from({ length: lanes }, (_, lane) => (
+            <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: LANE_H }}>
+              <div className="sticky left-0 z-10 flex w-20 shrink-0 items-center gap-2 border-r border-white/[0.06] bg-zinc-950 px-2">
+                <span className="flex size-6 items-center justify-center rounded-md text-xs font-black text-zinc-950" style={{ background: DECK_COLORS[lane] }}>
+                  {String.fromCharCode(65 + lane)}
+                </span>
+                <LaneStudioButton project={project} lane={lane} />
+              </div>
+              <LaneDrop
+                lane={lane}
+                onTracks={(ids, x) => addTracks(ids, lane, x)}
+                style={{ backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.035) 0 1px, transparent 1px ${ppb * gridBeats}px), repeating-linear-gradient(to right, rgba(255,255,255,0.07) 0 1px, transparent 1px ${ppb * gridBeats * 4}px)` }}
+                onPointerDown={startBox}
+              >
+                {project.clips
+                  .filter((c) => c.lane === lane)
+                  .map((c) => (
+                    <ClipBox key={c.id} clip={c} ppb={ppb} selected={selSet.has(c.id)} only={selected.length === 1} show={show} />
+                  ))}
+              </LaneDrop>
             </div>
-            <LaneDrop
-              lane={lane}
-              onTracks={(ids, x) => addTracks(ids, lane, x)}
-              style={{ backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.035) 0 1px, transparent 1px ${ppb * gridBeats}px), repeating-linear-gradient(to right, rgba(255,255,255,0.07) 0 1px, transparent 1px ${ppb * gridBeats * 4}px)` }}
-              onPointerDown={(e) => e.target === e.currentTarget && setSel(null)}
-            >
-              {project.clips
-                .filter((c) => c.lane === lane)
-                .map((c) => (
-                  <ClipBox key={c.id} clip={c} ppb={ppb} selected={sel === c.id} onSelect={() => setSel(c.id)} show={show} />
-                ))}
-            </LaneDrop>
-          </div>
+          ))}
+        </div>
+        {loop && (
+          <div
+            className={clsx("pointer-events-none absolute bottom-0 top-9 z-[5] border-x", looping ? "border-amber-300/50 bg-amber-300/[0.05]" : "border-white/10")}
+            style={{ left: 80 + loop.from * ppb, width: (loop.to - loop.from) * ppb }}
+          />
+        )}
+        {project.markers.map((m, i) => (
+          <div key={i} className="pointer-events-none absolute bottom-0 top-9 z-[5] w-px bg-pink-400/25" style={{ left: 80 + m.beat * ppb }} />
         ))}
+        {box && (
+          <div
+            className="pointer-events-none absolute z-30 rounded border border-sky-300/70 bg-sky-300/10"
+            style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }}
+          />
+        )}
         <Playhead project={project} ppb={ppb} />
-        <div className="px-24 py-3 text-[11px] text-zinc-600">Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim.</div>
+        <div className="px-24 py-3 text-[11px] text-zinc-600">
+          Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim and the top corners to fade. Ctrl/⌘-click or drag a box to select several clips; Alt-click a clip to cut it there. Right-click a clip for more.
+        </div>
       </div>
     </div>
   );
 }
 
-function ClipBox({ clip, ppb, selected, onSelect, show }: { clip: Clip; ppb: number; selected: boolean; onSelect: () => void; show: ProjectParam[] }) {
-  const editing = useAutoEdit((s) => s.param);
-  const drag = useRef<{ x: number; y: number; start: number; length: number; lane: number; mode: "move" | "trim" } | null>(null);
-  const color = DECK_COLORS[clip.lane] ?? "#a1a1aa";
-  const w = clip.length * ppb;
+/** Bars and times, markers, and the loop. Click to set the play marker; Shift-drag to set the loop. */
+function Ruler({ project, ppb, beats, barEvery }: { project: MixProject; ppb: number; beats: number; barEvery: number }) {
+  const loop = useArrangeUi((s) => s.loop);
+  const looping = useArrangeUi((s) => s.looping);
+  const snapBeat = (b: number, fine: boolean) => Math.max(0, fine ? Math.round(b) : Math.round(b / 4) * 4);
   return (
-    <div
-      className={clsx("group absolute top-1.5 overflow-hidden rounded-lg border text-[11px]", selected ? "border-white shadow-[0_0_0_1px_white]" : "border-transparent")}
-      style={{ left: clip.start * ppb, width: w, height: LANE_H - 12, background: `${color}26`, borderLeft: `3px solid ${color}` }}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        onSelect();
-        const trim = (e.target as HTMLElement).dataset.trim === "1";
-        drag.current = { x: e.clientX, y: e.clientY, start: clip.start, length: clip.length, lane: clip.lane, mode: trim ? "trim" : "move" };
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        if (!d) return;
-        const mode = e.shiftKey ? "beat" : useArrangeUi.getState().snap;
-        const cur = useApp.getState().project;
-        const me = cur?.clips.find((c) => c.id === clip.id);
-        if (!cur || !me) return;
-        if (d.mode === "move") {
-          const start = snapClipStart(cur, me, d.start + (e.clientX - d.x) / ppb, mode);
-          const lane = Math.max(0, Math.min(3, d.lane + Math.round((e.clientY - d.y) / LANE_H)));
-          if (start !== me.start || lane !== me.lane) setProject(moveClip(cur, clip.id, start, lane), undefined, `clip:${clip.id}:start`);
-        } else {
-          const step = mode === "beat" ? 1 : mode === "bar" ? 4 : PHRASE_BEATS;
-          const length = Math.max(step, d.length + Math.round((e.clientX - d.x) / ppb / step) * step);
-          if (length !== me.length) updateClip(clip.id, withLength(me, length));
-        }
-      }}
-      onPointerUp={() => (drag.current = null)}
-    >
-      <svg className="pointer-events-none absolute inset-0" width={w} height={LANE_H - 12} preserveAspectRatio="none">
-        {clip.lanes
-          .filter((l) => show.includes(l.param))
-          .map((l) => (
-            <polyline key={l.param} points={lanePoints(l, clip, ppb, LANE_H - 12)} fill="none" stroke={PARAM_COLORS[l.param]} strokeWidth={1.3} opacity={0.85} />
-          ))}
-      </svg>
-      <div className="relative flex items-center gap-1 truncate px-1.5 pt-1 font-medium text-zinc-100">
-        {clip.reverse && <Rewind size={10} className="shrink-0 text-zinc-300" aria-label="Plays backwards" />}
-        <span className="truncate">{clip.name || clip.track.title}</span>
+    <div className="sticky top-0 z-20 flex h-9 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur">
+      <div className="sticky left-0 z-10 w-20 shrink-0 border-r border-white/[0.06] bg-zinc-950" />
+      <div
+        className="relative flex-1 cursor-pointer"
+        title="Click to set where Play starts. Shift-drag to choose a stretch to loop."
+        data-testid="arrange-ruler"
+        onPointerDown={(e) => {
+          if (e.button !== 0 || (e.target as HTMLElement).closest("[data-marker]")) return;
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const beatOf = (x: number) => snapBeat((x - r.left) / ppb, e.altKey);
+          const b0 = beatOf(e.clientX);
+          if (!e.shiftKey) {
+            usePreview.getState().set({ cursor: b0 });
+            return;
+          }
+          const move = (ev: PointerEvent) => {
+            const b1 = beatOf(ev.clientX);
+            if (b1 !== b0) useArrangeUi.getState().set({ loop: { from: Math.min(b0, b1), to: Math.max(b0, b1) }, looping: true });
+          };
+          const up = () => {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+          };
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", up);
+        }}
+      >
+        {loop && (
+          <div
+            className={clsx("pointer-events-none absolute bottom-0 h-1.5 rounded-sm", looping ? "bg-amber-300/80" : "bg-white/20")}
+            style={{ left: loop.from * ppb, width: (loop.to - loop.from) * ppb }}
+          />
+        )}
+        {Array.from({ length: Math.ceil(beats / 4) }, (_, bar) =>
+          bar % barEvery === 0 ? (
+            <div key={bar} className="pointer-events-none absolute top-0 h-full border-l border-white/[0.08] pl-1" style={{ left: bar * 4 * ppb }}>
+              <div className="font-mono text-[10px] text-zinc-400">{bar + 1}</div>
+              {bar % (barEvery * 4) === 0 && <div className="font-mono text-[9px] text-zinc-600">{clock(beatToSeconds(project, bar * 4))}</div>}
+            </div>
+          ) : null,
+        )}
+        {project.markers.map((m, i) => (
+          <MarkerFlag key={`${i}:${m.beat}`} index={i} beat={m.beat} label={m.label} ppb={ppb} />
+        ))}
       </div>
-      <div className="relative truncate px-1.5 text-[10px] text-zinc-400">
-        {clip.track.artist} · {fmtBpm(clip.track.bpm)}
-        {clip.key_shift !== 0 && ` · ${clip.key_shift > 0 ? "+" : ""}${clip.key_shift} st`}
-        {clip.gain_db !== 0 && ` · ${clip.gain_db > 0 ? "+" : ""}${clip.gain_db.toFixed(1)} dB`}
-      </div>
-      <div data-trim="1" className="absolute right-0 top-0 h-full w-2 cursor-ew-resize opacity-0 group-hover:opacity-100" style={{ background: `${color}66` }} />
-      {selected && editing && <AutomationEditor clip={clip} ppb={ppb} height={LANE_H - 12} param={editing} />}
     </div>
   );
+}
+
+/** A marker on the ruler: drag to move, click to put the play marker on it, double-click to rename, right-click to remove. */
+function MarkerFlag({ index, beat, label, ppb }: { index: number; beat: number; label: string; ppb: number }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div
+      data-marker
+      className="absolute top-0 z-10 flex h-full cursor-grab items-start border-l-2 border-pink-400 bg-zinc-950/70 pl-1 pr-1 text-[10px] font-medium text-pink-200 active:cursor-grabbing"
+      style={{ left: beat * ppb }}
+      title={`${label}: drag to move, double-click to rename, right-click to remove`}
+      onPointerDown={(e) => {
+        if (e.button !== 0 || editing) return;
+        e.stopPropagation();
+        const x0 = e.clientX;
+        let moved = false;
+        let now = beat;
+        const move = (ev: PointerEvent) => {
+          const p = useApp.getState().project;
+          if (!p) return;
+          if (!moved && Math.abs(ev.clientX - x0) < 3) return;
+          moved = true;
+          const raw = beat + (ev.clientX - x0) / ppb;
+          const b = Math.max(0, ev.shiftKey ? Math.round(raw) : Math.round(raw / 4) * 4);
+          const idx = p.markers.findIndex((m) => m.label === label && Math.abs(m.beat - now) < 1e-6);
+          if (idx < 0 || b === now) return;
+          now = b;
+          setProject(moveMarker(p, idx, b), undefined, `marker:${label}`, `Move “${label}”`);
+        };
+        const up = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          if (!moved) usePreview.getState().set({ cursor: beat });
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        const p = useApp.getState().project;
+        if (p) setProject(removeMarker(p, index), undefined, undefined, `Remove “${label}”`);
+      }}
+    >
+      {editing ? (
+        <input
+          autoFocus
+          defaultValue={label}
+          aria-label="Marker name"
+          className="w-24 rounded bg-zinc-900 px-1 text-[10px] text-zinc-100 outline-none ring-1 ring-pink-400"
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          onBlur={(e) => {
+            setEditing(false);
+            const p = useApp.getState().project;
+            const v = e.target.value.trim();
+            if (p && v && v !== label) setProject(renameMarker(p, index, v), undefined, undefined, `Rename marker to “${v}”`);
+          }}
+        />
+      ) : (
+        <span className="mt-0.5 flex items-center gap-0.5 whitespace-nowrap">
+          <Flag size={9} />
+          {label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type Drag =
+  | { mode: "move"; x: number; y: number; start: number; origin: MixProject; ids: number[]; last: string }
+  | { mode: "trim"; x: number; length: number }
+  | { mode: "fade"; side: "in" | "out"; x: number; beats: number };
+
+function ClipBox({ clip, ppb, selected, only, show }: { clip: Clip; ppb: number; selected: boolean; only: boolean; show: ProjectParam[] }) {
+  const editing = useAutoEdit((s) => s.param);
+  const drag = useRef<Drag | null>(null);
+  const menuAt = useRef(clip.start);
+  const color = DECK_COLORS[clip.lane] ?? "#a1a1aa";
+  const w = clip.length * ppb;
+  const h = LANE_H - 12;
+  const fadeIn = fadeOf(clip, "in");
+  const fadeOut = fadeOf(clip, "out");
+  const beatAtX = (clientX: number, el: HTMLElement, fine: boolean) => {
+    const r = el.getBoundingClientRect();
+    const raw = clip.start + (clientX - r.left) / ppb;
+    return fine ? Math.round(raw * 4) / 4 : Math.round(raw);
+  };
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div
+          data-clip={clip.id}
+          className={clsx("group absolute top-1.5 overflow-hidden rounded-lg border text-[11px]", selected ? "border-white shadow-[0_0_0_1px_white]" : "border-transparent")}
+          style={{ left: clip.start * ppb, width: w, height: h, background: `${color}${selected ? "38" : "26"}`, borderLeft: `3px solid ${color}` }}
+          onContextMenu={(e) => {
+            menuAt.current = beatAtX(e.clientX, e.currentTarget, false);
+            if (!useArrangeUi.getState().selected.includes(clip.id)) select([clip.id]);
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            if (e.button !== 0) return;
+            const el = e.currentTarget as HTMLElement;
+            if (e.altKey) {
+              splitAt(beatAtX(e.clientX, el, e.shiftKey), [clip.id]);
+              return;
+            }
+            const ui = useArrangeUi.getState();
+            if (e.ctrlKey || e.metaKey) {
+              select(ui.selected.includes(clip.id) ? ui.selected.filter((id) => id !== clip.id) : [...ui.selected, clip.id]);
+              return;
+            }
+            const ids = ui.selected.includes(clip.id) ? [...ui.selected.filter((id) => id !== clip.id), clip.id] : [clip.id];
+            select(ids);
+            const t = (e.target as HTMLElement).dataset;
+            if (t.trim === "1") drag.current = { mode: "trim", x: e.clientX, length: clip.length };
+            else if (t.fade === "in" || t.fade === "out") drag.current = { mode: "fade", side: t.fade, x: e.clientX, beats: t.fade === "in" ? fadeIn : fadeOut };
+            else drag.current = { mode: "move", x: e.clientX, y: e.clientY, start: clip.start, origin: useApp.getState().project ?? useApp.getState().project!, ids, last: "0:0" };
+            el.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const d = drag.current;
+            if (!d) return;
+            const mode = e.shiftKey ? "beat" : useArrangeUi.getState().snap;
+            const cur = useApp.getState().project;
+            const me = cur?.clips.find((c) => c.id === clip.id);
+            if (!cur || !me) return;
+            if (d.mode === "move") {
+              const me0 = d.origin.clips.find((c) => c.id === clip.id) ?? me;
+              const start = snapClipStart(d.origin, me0, d.start + (e.clientX - d.x) / ppb, mode);
+              const dl = Math.round((e.clientY - d.y) / LANE_H);
+              const key = `${start - d.start}:${dl}`;
+              if (key === d.last) return;
+              d.last = key;
+              setProject(moveClips(d.origin, d.ids, start - d.start, dl), undefined, `clips:${d.ids.join(",")}:move`, d.ids.length > 1 ? `Move ${d.ids.length} clips` : undefined);
+            } else if (d.mode === "trim") {
+              const step = mode === "beat" ? 1 : mode === "bar" ? 4 : PHRASE_BEATS;
+              const length = Math.max(step, d.length + Math.round((e.clientX - d.x) / ppb / step) * step);
+              if (length !== me.length) updateClip(clip.id, withLength(me, length));
+            } else {
+              const dx = (e.clientX - d.x) / ppb;
+              const raw = d.side === "in" ? d.beats + dx : d.beats - dx;
+              const beats = Math.max(0, Math.min(me.length, e.shiftKey ? Math.round(raw * 4) / 4 : Math.round(raw)));
+              if (beats !== fadeOf(me, d.side)) updateClip(clip.id, { lanes: setFade(me, d.side, beats).lanes }, d.side === "in" ? "Fade in" : "Fade out");
+            }
+          }}
+          onPointerUp={(e) => {
+            const d = drag.current;
+            drag.current = null;
+            // A click (no drag) on a clip of a group selects just that clip.
+            if (d?.mode === "move" && d.ids.length > 1 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 3) select([clip.id]);
+          }}
+        >
+          <svg className="pointer-events-none absolute inset-0" width={w} height={h} preserveAspectRatio="none">
+            {fadeIn > 0 && <polygon points={`0,0 ${fadeIn * ppb},0 0,${h}`} fill="rgba(0,0,0,0.45)" />}
+            {fadeOut > 0 && <polygon points={`${w},0 ${w - fadeOut * ppb},0 ${w},${h}`} fill="rgba(0,0,0,0.45)" />}
+            {clip.lanes
+              .filter((l) => show.includes(l.param))
+              .map((l) => (
+                <polyline key={l.param} points={lanePoints(l, clip, ppb, h)} fill="none" stroke={PARAM_COLORS[l.param]} strokeWidth={1.3} opacity={0.85} />
+              ))}
+          </svg>
+          <div className="relative flex items-center gap-1 truncate px-1.5 pt-1 font-medium text-zinc-100">
+            {clip.reverse && <Rewind size={10} className="shrink-0 text-zinc-300" aria-label="Plays backwards" />}
+            <span className="truncate">{clip.name || clip.track.title}</span>
+          </div>
+          <div className="relative truncate px-1.5 text-[10px] text-zinc-400">
+            {clip.track.artist} · {fmtBpm(clip.track.bpm)}
+            {clip.key_shift !== 0 && ` · ${clip.key_shift > 0 ? "+" : ""}${clip.key_shift} st`}
+            {clip.gain_db !== 0 && ` · ${clip.gain_db > 0 ? "+" : ""}${clip.gain_db.toFixed(1)} dB`}
+          </div>
+          <div data-trim="1" className="absolute right-0 top-3 h-[calc(100%-12px)] w-2 cursor-ew-resize opacity-0 group-hover:opacity-100" style={{ background: `${color}66` }} />
+          <div data-fade="in" title="Drag to fade in" className={clsx("absolute top-0 size-3 cursor-ew-resize rounded-sm border border-white/80 bg-zinc-900", selected ? "opacity-100" : "opacity-0 group-hover:opacity-100")} style={{ left: Math.max(0, fadeIn * ppb - 6) }} />
+          <div data-fade="out" title="Drag to fade out" className={clsx("absolute top-0 size-3 cursor-ew-resize rounded-sm border border-white/80 bg-zinc-900", selected ? "opacity-100" : "opacity-0 group-hover:opacity-100")} style={{ right: Math.max(0, fadeOut * ppb - 6) }} />
+          {selected && only && editing && <AutomationEditor clip={clip} ppb={ppb} height={h} param={editing} />}
+        </div>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="menu">
+          <ContextMenu.Item className="menu-item" onSelect={() => splitAt(menuAt.current, [clip.id])}>
+            <Scissors size={12} /> Cut in two here
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={duplicateSelection}>
+            <CopyPlus size={12} /> Duplicate <Kbd id="app.clip_duplicate" />
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={copySelection}>
+            <Copy size={12} /> Copy <Kbd id="app.clip_copy" />
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={cutSelection}>
+            <Scissors size={12} /> Cut out <Kbd id="app.clip_cut" />
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            className="menu-item"
+            onSelect={() => {
+              usePreview.getState().set({ cursor: menuAt.current });
+              paste();
+            }}
+          >
+            <ClipboardPaste size={12} /> Paste here
+          </ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-white/10" />
+          <ContextMenu.Item className="menu-item" onSelect={() => updateClip(clip.id, { lanes: setFade(setFade(clip, "in", 8), "out", 8).lanes }, "Fade in and out")}>
+            Fade in and out over 2 bars
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => updateClip(clip.id, { lanes: setFade(setFade(clip, "in", 0), "out", 0).lanes }, "Remove fades")} disabled={!fadeIn && !fadeOut}>
+            Remove fades
+          </ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-white/10" />
+          <ContextMenu.Item className="menu-item text-red-300" onSelect={deleteSelection}>
+            <Trash2 size={12} /> Remove <Kbd id="app.clip_delete" />
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+}
+
+/** A shortcut hint at the end of a menu item. */
+function Kbd({ id }: { id: string }) {
+  const sc = useApp((s) => s.registry.find((a) => a.id === id)?.shortcut ?? null);
+  return sc ? <span className="ml-auto pl-4 font-mono text-[10px] text-zinc-500">{shortcutLabel(sc)}</span> : null;
 }
 
 /** A new length for a clip; a reversed clip keeps what is heard at its start, so its
@@ -506,25 +779,130 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function PlayButton({ project }: { project: MixProject }) {
   const status = usePreview((s) => s.status);
   const cursor = usePreview((s) => s.cursor);
-  if (status !== "idle") {
-    return (
-      <Btn size="sm" tone="accent" style={{ ["--accent" as string]: "#34d399" }} onClick={stopPreview}>
-        {status === "loading" ? <Loader2 size={12} className="animate-spin" /> : <Square size={11} fill="currentColor" />}
-        {status === "loading" ? "Preparing…" : "Stop"}
-      </Btn>
-    );
-  }
+  const looping = useArrangeUi((s) => s.looping);
+  const loop = useArrangeUi((s) => s.loop);
   return (
-    <Btn
-      size="sm"
-      tone="accent"
-      style={{ ["--accent" as string]: "#34d399" }}
-      disabled={project.clips.length === 0}
-      onClick={() => playPreview(project, cursor, Math.min(projectBeats(project) + 8, cursor + 128))}
-      title="Plays 32 bars from the marker on the ruler"
-    >
-      <Play size={11} fill="currentColor" /> Play from bar {Math.floor(cursor / 4) + 1}
-    </Btn>
+    <>
+      <Btn
+        size="sm"
+        tone="accent"
+        style={{ ["--accent" as string]: "#34d399" }}
+        disabled={status === "idle" && project.clips.length === 0}
+        onClick={togglePlay}
+        title={status !== "idle" ? "Stop (Space)" : looping ? "Plays the loop over and over (Space)" : "Plays 32 bars from the play marker (Space)"}
+      >
+        {status === "loading" ? <Loader2 size={12} className="animate-spin" /> : status === "playing" ? <Square size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
+        {status === "loading" ? "Preparing…" : status === "playing" ? "Stop" : looping && loop ? `Loop bars ${Math.floor(loop.from / 4) + 1}–${Math.ceil(loop.to / 4)}` : `Play from bar ${Math.floor(cursor / 4) + 1}`}
+      </Btn>
+      <Btn size="sm" tone="ghost" active={looping} onClick={toggleLoop} aria-label="Loop" title="Loop: repeat a stretch while you adjust it (L). Shift-drag on the ruler to choose it; it starts as the selected clips, or 8 bars from the play marker.">
+        <Repeat size={12} />
+      </Btn>
+    </>
+  );
+}
+
+/** Edit buttons for the selected clips, plus a marker at the play marker. */
+function EditTools({ count }: { count: number }) {
+  const none = count === 0;
+  return (
+    <div className="flex items-center gap-0.5" role="group" aria-label="Edit clips">
+      <Btn size="sm" tone="ghost" onClick={() => splitAt()} aria-label="Cut in two at the play marker" title="Cut the selected clips (or every clip under the play marker) in two at the play marker (Ctrl/⌘+B)">
+        <Scissors size={12} />
+      </Btn>
+      <Btn size="sm" tone="ghost" disabled={none} onClick={duplicateSelection} aria-label="Duplicate" title="Repeat the selected clips right after themselves (Ctrl/⌘+D)">
+        <CopyPlus size={12} />
+      </Btn>
+      <Btn size="sm" tone="ghost" disabled={none} onClick={copySelection} aria-label="Copy" title="Copy the selected clips (Ctrl/⌘+C)">
+        <Copy size={12} />
+      </Btn>
+      <Btn size="sm" tone="ghost" onClick={paste} aria-label="Paste" title="Paste at the play marker (Ctrl/⌘+V)">
+        <ClipboardPaste size={12} />
+      </Btn>
+      <Btn size="sm" tone="ghost" disabled={none} onClick={deleteSelection} aria-label="Remove selected clips" title="Remove the selected clips (Delete)">
+        <Trash2 size={12} />
+      </Btn>
+      <Btn size="sm" tone="ghost" onClick={addMarkerAtCursor} aria-label="Add marker" title="Add a marker at the play marker, to label parts of the mix like Drop or Outro">
+        <Flag size={12} />
+      </Btn>
+    </div>
+  );
+}
+
+/** The side panel when several clips are selected: change them all at once. */
+function MultiPanel({ ids, project }: { ids: number[]; project: MixProject }) {
+  const clips = project.clips.filter((c) => ids.includes(c.id));
+  const from = Math.min(...clips.map((c) => c.start));
+  const to = Math.max(...clips.map((c) => c.start + c.length));
+  const nudge = (beats: number, lanes = 0) => setProject(moveClips(project, ids, beats, lanes), undefined, undefined, `Move ${ids.length} clips`);
+  const gain = (db: number) =>
+    setProject({ ...project, clips: project.clips.map((c) => (ids.includes(c.id) ? { ...c, gain_db: Math.max(-24, Math.min(12, Math.round((c.gain_db + db) * 2) / 2)) } : c)) }, undefined, `clips:${ids.join(",")}:gain`, `Change the volume of ${ids.length} clips`);
+  const fades = (beats: number) =>
+    setProject({ ...project, clips: project.clips.map((c) => (ids.includes(c.id) ? { ...c, lanes: setFade(setFade(c, "in", beats), "out", beats).lanes } : c)) }, undefined, undefined, beats ? `Fade ${ids.length} clips` : `Remove fades from ${ids.length} clips`);
+  return (
+    <aside className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-3 text-xs" aria-label="Selected clips">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-zinc-100">{ids.length} clips selected</div>
+          <div className="mt-0.5 text-zinc-500">
+            bars {Math.floor(from / 4) + 1} to {Math.ceil(to / 4)} · {clock(beatToSeconds(project, to) - beatToSeconds(project, from))}
+          </div>
+        </div>
+        <button type="button" className="rounded p-1 text-zinc-500 hover:bg-white/10 hover:text-zinc-100" onClick={() => select([])} aria-label="Clear selection">
+          <X size={13} />
+        </button>
+      </div>
+      <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto">
+        {clips
+          .sort((a, b) => a.start - b.start)
+          .map((c) => (
+            <li key={c.id} className="flex items-center gap-1.5 truncate text-zinc-300">
+              <span className="size-2 shrink-0 rounded-full" style={{ background: DECK_COLORS[c.lane] }} />
+              <span className="truncate">{c.name || c.track.title}</span>
+            </li>
+          ))}
+      </ul>
+      <Row label="Move">
+        <div className="flex flex-wrap gap-1">
+          <Btn size="sm" onClick={() => nudge(-PHRASE_BEATS)} title="8 bars earlier">−8 bars</Btn>
+          <Btn size="sm" onClick={() => nudge(-4)} title="One bar earlier">−1</Btn>
+          <Btn size="sm" onClick={() => nudge(4)} title="One bar later">+1</Btn>
+          <Btn size="sm" onClick={() => nudge(PHRASE_BEATS)} title="8 bars later">+8 bars</Btn>
+        </div>
+      </Row>
+      <Row label="Deck">
+        <div className="flex gap-1">
+          <Btn size="sm" onClick={() => nudge(0, -1)} title="Move them all up one deck lane">Up</Btn>
+          <Btn size="sm" onClick={() => nudge(0, 1)} title="Move them all down one deck lane">Down</Btn>
+        </div>
+      </Row>
+      <Row label="Volume">
+        <div className="flex gap-1">
+          <Btn size="sm" onClick={() => gain(-1)} title="All 1 dB quieter, keeping their balance">−1 dB</Btn>
+          <Btn size="sm" onClick={() => gain(1)} title="All 1 dB louder, keeping their balance">+1 dB</Btn>
+        </div>
+      </Row>
+      <Row label="Fades">
+        <div className="flex gap-1">
+          <Btn size="sm" onClick={() => fades(8)} title="Fade each clip in and out over 2 bars">2 bars</Btn>
+          <Btn size="sm" onClick={() => fades(0)}>None</Btn>
+        </div>
+      </Row>
+      <div className="grid grid-cols-2 gap-1">
+        <Btn size="sm" onClick={duplicateSelection}>
+          <CopyPlus size={11} /> Duplicate
+        </Btn>
+        <Btn size="sm" onClick={copySelection}>
+          <Copy size={11} /> Copy
+        </Btn>
+        <Btn size="sm" onClick={() => playPreview(project, Math.max(0, from - 8), to + 8)}>
+          <Play size={11} /> Hear them
+        </Btn>
+        <Btn size="sm" tone="danger" onClick={deleteSelection}>
+          <Trash2 size={11} /> Remove
+        </Btn>
+      </div>
+      <p className="leading-snug text-zinc-500">Drag any selected clip to move them all together. Ctrl/⌘-click a clip to add it to or take it out of the selection.</p>
+    </aside>
   );
 }
 

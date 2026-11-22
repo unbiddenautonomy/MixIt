@@ -1620,6 +1620,18 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
+  add("app.clip_copy", "Copy clips", "App", { type: "trigger" }, "Copies the selected clips in Arrange, to paste somewhere else in the mix.", "Mod+C");
+  add("app.clip_cut", "Cut clips", "App", { type: "trigger" }, "Removes the selected clips in Arrange and keeps them to paste.", "Mod+X");
+  add("app.clip_paste", "Paste clips", "App", { type: "trigger" }, "Pastes copied clips in Arrange at the play marker, keeping their spacing and moves.", "Mod+V");
+  add("app.clip_duplicate", "Duplicate clips", "App", { type: "trigger" }, "Copies the selected clips in Arrange to just after themselves, to repeat a section.", "Mod+D");
+  add("app.clip_delete", "Delete clips", "App", { type: "trigger" }, "Removes the selected clips from the mix in Arrange.", "Delete");
+  add("app.clip_split", "Cut clip in two", "App", { type: "trigger" }, "Cuts the selected clips (or every clip under the play marker) in two at the marker.", "Mod+B");
+  add("app.select_all", "Select all clips", "App", { type: "trigger" }, "Selects every clip in Arrange.", "Mod+A");
+  add("app.marker_add", "Add marker", "App", { type: "trigger" }, "Adds a named marker on the Arrange ruler at the play marker, like Drop or Outro.", null);
+  add("app.marker_next", "Next marker", "App", { type: "trigger" }, "Moves the play marker to the next marker on the Arrange ruler.", null);
+  add("app.marker_prev", "Previous marker", "App", { type: "trigger" }, "Moves the play marker to the previous marker on the Arrange ruler.", null);
+  add("app.arrange_loop", "Loop playback", "App", { type: "trigger" }, "Repeats a stretch of the mix in Arrange while you adjust it.", "L");
+  add("app.arrange_play", "Play or stop the mix", "App", { type: "trigger" }, "Plays the Arrange timeline from the play marker, or stops it.", "Space");
   add("app.undo", "Undo", "App", { type: "trigger" }, "Undoes the last change.", "Mod+Z");
   add("app.redo", "Redo", "App", { type: "trigger" }, "Redoes the last undone change.", "Mod+Shift+Z");
   add("app.view_mode", "Easy / Pro view", "App", { type: "toggle" }, "Switches between the simple and the full interface.", "Mod+E");
