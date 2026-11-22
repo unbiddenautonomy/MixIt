@@ -116,6 +116,18 @@ impl Library {
     /// The library track for a file named by another app's collection: the file itself
     /// when it is there (added or refreshed), the track already at that path, or a
     /// placeholder marked missing (with `tags` from the collection) so playlists stay whole.
+    /// The playlist or folder an import writes into: the one of that name already in
+    /// that folder (so importing again refreshes it rather than making a copy), else new.
+    pub(crate) fn playlist_for_import(&self, name: &str, kind: PlaylistKind, parent: Option<i64>) -> Result<i64> {
+        let same = self.playlists()?.into_iter().find(|p| {
+            p.parent == parent && p.name == name && (p.kind == PlaylistKind::Folder) == (kind == PlaylistKind::Folder)
+        });
+        match same {
+            Some(p) if p.kind != PlaylistKind::Smart => Ok(p.id),
+            _ => self.create_playlist(name, kind, parent, None),
+        }
+    }
+
     pub(crate) fn track_for_import(
         &self,
         path: &Path,
@@ -354,12 +366,12 @@ impl Library {
                         if parent.is_none() && name == "ROOT" {
                             add(lib, children, None, ids, rep)?;
                         } else {
-                            let id = lib.create_playlist(name, PlaylistKind::Folder, parent, None)?;
+                            let id = lib.playlist_for_import(name, PlaylistKind::Folder, parent)?;
                             add(lib, children, Some(id), ids, rep)?;
                         }
                     }
                     XmlNode::List(name, entries) => {
-                        let id = lib.create_playlist(name, PlaylistKind::List, parent, None)?;
+                        let id = lib.playlist_for_import(name, PlaylistKind::List, parent)?;
                         let tracks: Vec<TrackId> = entries.iter().filter_map(|k| ids.get(k).copied()).collect();
                         lib.set_playlist_tracks(id, &tracks)?;
                         rep.playlists += 1;

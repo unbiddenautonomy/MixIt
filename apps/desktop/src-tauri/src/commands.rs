@@ -1660,6 +1660,16 @@ pub fn export_rekordbox(state: State<'_, AppState>, path: String, playlist: Opti
 }
 
 #[tauri::command]
+pub fn export_traktor(state: State<'_, AppState>, path: String, playlist: Option<i64>) -> R<()> {
+    let lib = state.library.lock();
+    let ids = match playlist {
+        Some(p) => Some(lib.playlist_tracks(p).map_err(err)?),
+        None => None,
+    };
+    lib.export_traktor_nml(ids.as_deref(), Path::new(&path)).map_err(err)
+}
+
+#[tauri::command]
 pub fn export_playlist(state: State<'_, AppState>, playlist: i64, path: String) -> R<()> {
     let lib = state.library.lock();
     let ids = lib.playlist_tracks(playlist).map_err(err)?;

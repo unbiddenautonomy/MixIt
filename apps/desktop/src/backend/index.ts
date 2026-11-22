@@ -197,6 +197,8 @@ export interface Backend {
   /** Imports a Traktor collection.nml: tracks, grids, keys, cues, loops, ratings and playlists. */
   importTraktor(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;
+  /** Writes a Traktor collection.nml (the whole library, or one playlist's tracks). */
+  exportTraktor(path: string, playlist?: number | null): Promise<void>;
   exportPlaylist(playlist: number, path: string): Promise<void>;
   importM3u(path: string): Promise<number>;
 

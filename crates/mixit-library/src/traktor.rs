@@ -59,6 +59,36 @@ pub fn nml_path(volume: &str, dir: &str, file: &str) -> PathBuf {
     p
 }
 
+/// A path as Traktor names it: (volume, directory with `/:` separators, file name).
+/// Windows drives are volumes (`C:`); on a Mac a disk under /Volumes is its volume, and
+/// anything else is written without one (Traktor then looks on the start-up disk).
+pub fn nml_location(path: &Path) -> (String, String, String) {
+    let s = path.to_string_lossy().replace('\\', "/");
+    let b = s.as_bytes();
+    let (volume, rest) = if b.len() >= 2 && b[1] == b':' && b[0].is_ascii_alphabetic() {
+        (s[..2].to_string(), &s[2..])
+    } else if let Some(r) = s.strip_prefix("/Volumes/") {
+        match r.split_once('/') {
+            Some((v, rest)) => (v.to_string(), rest),
+            None => (String::new(), s.as_str()),
+        }
+    } else {
+        (String::new(), s.as_str())
+    };
+    let mut parts: Vec<&str> = rest.split('/').filter(|p| !p.is_empty()).collect();
+    let file = parts.pop().unwrap_or_default().to_string();
+    let mut dir = String::from("/:");
+    for p in parts {
+        dir.push_str(p);
+        dir.push_str("/:");
+    }
+    (volume, dir, file)
+}
+
+fn esc(s: &str) -> String {
+    quick_xml::escape::escape(s).into_owned()
+}
+
 /// The Mac start-up disk shows under /Volumes as a link to /.
 fn is_boot_volume(v: &str) -> bool {
     std::fs::canonicalize(Path::new("/Volumes").join(v)).is_ok_and(|p| p == Path::new("/"))
@@ -331,12 +361,12 @@ impl Library {
                         if parent.is_none() && name == "$ROOT" {
                             add(lib, children, None, ids, rep)?;
                         } else {
-                            let id = lib.create_playlist(name, PlaylistKind::Folder, parent, None)?;
+                            let id = lib.playlist_for_import(name, PlaylistKind::Folder, parent)?;
                             add(lib, children, Some(id), ids, rep)?;
                         }
                     }
                     Node::List(name, keys) => {
-                        let id = lib.create_playlist(name, PlaylistKind::List, parent, None)?;
+                        let id = lib.playlist_for_import(name, PlaylistKind::List, parent)?;
                         let tracks: Vec<i64> = keys.iter().filter_map(|k| ids.get(k).copied()).collect();
                         lib.set_playlist_tracks(id, &tracks)?;
                         rep.playlists += 1;
@@ -348,6 +378,143 @@ impl Library {
         add(self, &roots, None, &by_key, &mut report)?;
         tx.commit()?;
         Ok(report)
+    }
+}
+
+impl Library {
+    /// Writes the library (or the given tracks) as a Traktor `collection.nml`: details,
+    /// tempo and beat grid, key, rating, hot cues, loops and every playlist in its folder
+    /// (smart lists as the tracks they hold now). Traktor grids keep one tempo, so a
+    /// track that drifts gets its first tempo.
+    pub fn export_traktor_nml(&self, tracks: Option<&[crate::TrackId]>, out: &Path) -> Result<()> {
+        let all: Vec<crate::TrackId> = match tracks {
+            Some(t) => t.to_vec(),
+            None => self.all_tracks()?.iter().map(|t| t.id).collect(),
+        };
+        let mut keys: HashMap<crate::TrackId, String> = HashMap::new();
+        let mut x = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n<NML VERSION=\"19\">");
+        x.push_str("<HEAD COMPANY=\"www.native-instruments.com\" PROGRAM=\"Traktor\"></HEAD>\n");
+        x.push_str(&format!("<COLLECTION ENTRIES=\"{}\">\n", all.len()));
+        for &id in &all {
+            let t = self.track(id)?;
+            let (volume, dir, file) = nml_location(&t.path);
+            keys.insert(id, format!("{volume}{dir}{file}"));
+            x.push_str(&format!(
+                "<ENTRY TITLE=\"{}\" ARTIST=\"{}\">\n<LOCATION DIR=\"{}\" FILE=\"{}\" VOLUME=\"{}\" VOLUMEID=\"\"></LOCATION>\n",
+                esc(&t.display_title()),
+                esc(&t.artist),
+                esc(&dir),
+                esc(&file),
+                esc(&volume)
+            ));
+            if !t.album.is_empty() {
+                x.push_str(&format!("<ALBUM TITLE=\"{}\"></ALBUM>\n", esc(&t.album)));
+            }
+            let mut info = format!(
+                "<INFO GENRE=\"{}\" LABEL=\"{}\" COMMENT=\"{}\" PLAYTIME=\"{}\" PLAYTIME_FLOAT=\"{:.6}\" RANKING=\"{}\" PLAYCOUNT=\"{}\"",
+                esc(&t.genre),
+                esc(&t.label),
+                esc(&t.comment),
+                t.duration.round() as i64,
+                t.duration,
+                t.rating as u32 * 51,
+                t.play_count
+            );
+            if !t.remixer.is_empty() {
+                info.push_str(&format!(" REMIXER=\"{}\"", esc(&t.remixer)));
+            }
+            if let Some(b) = t.bitrate_kbps {
+                info.push_str(&format!(" BITRATE=\"{}\"", b * 1000));
+            }
+            if let Some(k) = t.best_key() {
+                info.push_str(&format!(" KEY=\"{}\"", k.standard_name()));
+            }
+            x.push_str(&info);
+            x.push_str("></INFO>\n");
+            let grid = self.grid(id)?;
+            let bpm = grid.as_ref().map(|g| g.bpm).or(t.best_bpm());
+            if let Some(b) = bpm {
+                x.push_str(&format!("<TEMPO BPM=\"{b:.6}\" BPM_QUALITY=\"100.000000\"></TEMPO>\n"));
+            }
+            if let Some(k) = t.best_key() {
+                x.push_str(&format!("<MUSICAL_KEY VALUE=\"{}\"></MUSICAL_KEY>\n", k.index()));
+            }
+            if let Some(g) = &grid {
+                // The first downbeat in the track.
+                let mut beat = g.beat_at(0.0).ceil() as i64;
+                while !g.is_downbeat(beat) {
+                    beat += 1;
+                }
+                let ms = g.frame_at(beat as f64) / g.sample_rate as f64 * 1000.0;
+                x.push_str(&format!(
+                    "<CUE_V2 NAME=\"Beat Marker\" DISPL_ORDER=\"0\" TYPE=\"4\" START=\"{ms:.6}\" LEN=\"0.000000\" REPEATS=\"-1\" HOTCUE=\"-1\"></CUE_V2>\n"
+                ));
+            }
+            for c in self.cues(id)? {
+                let ty = match (c.kind, c.loop_seconds) {
+                    (_, Some(_)) => 5,
+                    (CueKind::Main, None) => 3,
+                    _ => 0,
+                };
+                let hot = match c.kind {
+                    CueKind::Hot => c.slot.map(i64::from).unwrap_or(-1),
+                    _ => -1,
+                };
+                let name = if c.label.is_empty() { "n.n.".to_string() } else { esc(&c.label) };
+                x.push_str(&format!(
+                    "<CUE_V2 NAME=\"{name}\" DISPL_ORDER=\"0\" TYPE=\"{ty}\" START=\"{:.6}\" LEN=\"{:.6}\" REPEATS=\"-1\" HOTCUE=\"{hot}\"></CUE_V2>\n",
+                    c.seconds * 1000.0,
+                    c.loop_seconds.unwrap_or(0.0) * 1000.0
+                ));
+            }
+            x.push_str("</ENTRY>\n");
+        }
+        x.push_str("</COLLECTION>\n<PLAYLISTS>\n");
+
+        let lists = self.playlists()?;
+        fn node(
+            lib: &Library,
+            lists: &[crate::Playlist],
+            parent: Option<i64>,
+            keys: &HashMap<crate::TrackId, String>,
+            x: &mut String,
+        ) -> Result<()> {
+            let kids: Vec<&crate::Playlist> = lists.iter().filter(|p| p.parent == parent).collect();
+            x.push_str(&format!("<SUBNODES COUNT=\"{}\">\n", kids.len()));
+            for p in kids {
+                match p.kind {
+                    PlaylistKind::Folder => {
+                        x.push_str(&format!("<NODE TYPE=\"FOLDER\" NAME=\"{}\">", esc(&p.name)));
+                        node(lib, lists, Some(p.id), keys, x)?;
+                        x.push_str("</NODE>\n");
+                    }
+                    _ => {
+                        let tracks: Vec<&String> =
+                            lib.playlist_tracks(p.id)?.iter().filter_map(|t| keys.get(t)).collect();
+                        x.push_str(&format!(
+                            "<NODE TYPE=\"PLAYLIST\" NAME=\"{}\"><PLAYLIST ENTRIES=\"{}\" TYPE=\"LIST\" UUID=\"mixit-{}\">\n",
+                            esc(&p.name),
+                            tracks.len(),
+                            p.id
+                        ));
+                        for k in tracks {
+                            x.push_str(&format!(
+                                "<ENTRY><PRIMARYKEY TYPE=\"TRACK\" KEY=\"{}\"></PRIMARYKEY></ENTRY>\n",
+                                esc(k)
+                            ));
+                        }
+                        x.push_str("</PLAYLIST></NODE>\n");
+                    }
+                }
+            }
+            x.push_str("</SUBNODES>");
+            Ok(())
+        }
+        x.push_str("<NODE TYPE=\"FOLDER\" NAME=\"$ROOT\">");
+        node(self, &lists, None, &keys, &mut x)?;
+        x.push_str("</NODE>\n</PLAYLISTS>\n</NML>\n");
+        std::fs::write(out, x)?;
+        Ok(())
     }
 }
 
@@ -364,5 +531,11 @@ mod tests {
         assert_eq!(key_from_traktor(0).unwrap().to_string(), "8B");
         assert_eq!(key_from_traktor(21).unwrap().to_string(), "8A"); // A minor
         assert!(key_from_traktor(24).is_none());
+        let loc = |p: &str| nml_location(Path::new(p));
+        assert_eq!(loc("C:\\Users\\dj\\a b.mp3"), ("C:".into(), "/:Users/:dj/:".into(), "a b.mp3".into()));
+        assert_eq!(loc("/Volumes/USB/Music/x.flac"), ("USB".into(), "/:Music/:".into(), "x.flac".into()));
+        assert_eq!(loc("/home/dj/x.flac"), (String::new(), "/:home/:dj/:".into(), "x.flac".into()));
+        let (v, d, f) = loc("/home/dj/x.flac");
+        assert_eq!(nml_path(&v, &d, &f), PathBuf::from("/home/dj/x.flac"));
     }
 }
