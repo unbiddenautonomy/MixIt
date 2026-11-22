@@ -1225,9 +1225,35 @@ export class DemoBackend implements Backend {
         reasons.push("Same genre.");
         tags.push("genre");
       }
+      const alike = this.alike(cur, c);
+      score += 0.08 * (alike - 0.5);
+      if (alike >= 0.7) {
+        reasons.push(`Sounds alike (${Math.round(alike * 100)} % match): similar instruments and groove.`);
+        tags.push("sound");
+      }
       out.push({ track: c, score: Math.min(1, score), tempoChangePct: best.pct, keyShift: shift, reasons, tags });
     }
     return out.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  /** How alike two demo tracks sound: mostly their genre, then energy and tempo, with a little of their own. */
+  private alike(a: T.TrackRow, b: T.TrackRow): number {
+    const jitter = (((a.id * 7919 + b.id * 104729) % 97) / 97 - 0.5) * 0.08;
+    const sameGenre = a.genre && a.genre === b.genre ? 0.38 : 0;
+    const energy = 0.17 * (1 - Math.min(9, Math.abs((a.energy ?? 5) - (b.energy ?? 5))) / 9);
+    const tempo = a.bpm && b.bpm ? 0.12 * (1 - Math.min(1, Math.abs(a.bpm - b.bpm) / 60)) : 0.04;
+    return Math.max(0, Math.min(1, 0.25 + sameGenre + energy + tempo + jitter));
+  }
+
+  async soundsLike(trackId: number, limit = 50): Promise<T.SoundMatch[]> {
+    const me = this.find(trackId).row;
+    if (me.analysis !== "done") return [];
+    return this.tracks
+      .map((t) => t.row)
+      .filter((r) => r.id !== me.id && r.analysis === "done" && !r.missing)
+      .map((r) => ({ track: r, score: this.alike(me, r) }))
+      .sort((x, y) => y.score - x.score || x.track.id - y.track.id)
+      .slice(0, limit);
   }
 
   async playlists(): Promise<T.PlaylistDto[]> {

@@ -113,6 +113,7 @@ pub fn automix_analysed(
                 energy: Some(a.energy),
                 genre: String::new(),
                 rating: 0,
+                sound: vec![],
             })
             .collect();
         // Open with the calmest track when building up, the most intense when winding down.

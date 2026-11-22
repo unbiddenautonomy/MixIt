@@ -21,13 +21,15 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 
 **Understand your music**
 - Analysis of tempo and beatgrid (including drifting live recordings), downbeats, key (with confidence and an alternative), tuning, loudness and true peak, energy over time, song sections (intro, build, drop, breakdown, outro) and suggested mix-in and mix-out points.
-- Ranked next-track suggestions with plain-language reasons: tempo, Camelot key compatibility (with key shifts that make a track fit), energy direction and genre.
+- Ranked next-track suggestions with plain-language reasons: tempo, Camelot key compatibility (with key shifts that make a track fit), energy direction, genre and sound.
+- "Sounds like": a sound profile from analysis (tone colour, brightness, bass/mid/high balance, punch, kick, snare and hat density, groove) finds the tracks that sound most alike, whatever their tempo or key.
 - A coach that explains what is happening while you mix and offers one-click fixes, explain mode on every control, and Easy and Pro views.
 
 **Organise**
 - SQLite library with folder scanning, a search language (`bpm:120-128 key:~8A energy:6+ -genre:trance played:never tag:"peak time" sort:-energy`), smart playlists built from rules, folders, ratings, colours and your own tags.
 - Past sets: every session's tracklist, renamed, saved as a playlist or copied as text.
 - Choose, resize and sort the columns; preview a track in your headphones in time with the decks.
+- Album art on the decks, in the inspector and in the track list, and a collection overview (tempos, keys on the Camelot wheel, energy, genres, plays) with notes on gaps.
 - Playlist tools: move between folders, duplicate, shuffle, take out repeats and missing files, and copy a set's music to a USB stick with a playlist beside it.
 - Undo and redo for library changes (Ctrl+Z in the Library).
 - Daily library backups with one-click restore.

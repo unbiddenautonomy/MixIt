@@ -1,6 +1,6 @@
 // Everything MixIt knows about one track: editable tags, the analysis (tempo, key,
 // loudness, energy over time, sections) and saved cues.
-import { FileDown, Sparkles, X } from "lucide-react";
+import { AudioLines, FileDown, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -13,7 +13,7 @@ import { useLibrary } from "../../store/library";
 import { Cover } from "../ui/Cover";
 import { Btn } from "../ui/Button";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshRows, writeTagsToFiles } from "./data";
+import { refreshRows, showSoundsLike, writeTagsToFiles } from "./data";
 import { BatchInspector } from "./BatchInspector";
 import { TagEditor } from "./TagEditor";
 import { editTracksWithUndo } from "../../lib/libraryUndo";
@@ -88,6 +88,11 @@ function OneTrack() {
         >
           <Sparkles size={12} /> Next
         </Btn>
+        {t.analysis === "done" && (
+          <Btn size="sm" onClick={() => showSoundsLike(t)} title="Tracks with a similar sound: instruments, production and groove" data-testid="inspector-sounds-like">
+            <AudioLines size={12} /> Sounds like
+          </Btn>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-1.5">

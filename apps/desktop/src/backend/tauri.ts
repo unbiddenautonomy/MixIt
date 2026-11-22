@@ -80,6 +80,9 @@ export class TauriBackend implements Backend {
   previewSync(on: boolean) { return invoke<void>("preview_sync", { on }); }
   previewClose() { return invoke<void>("preview_close"); }
   saveText(path: string, text: string) { return invoke<void>("save_text", { path, text }); }
+  soundsLike(trackId: number, limit?: number) {
+    return invoke<T.SoundMatch[]>("sounds_like", { trackId, limit: limit ?? null });
+  }
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number) {
     return invoke<T.SuggestionRow[]>("suggest_next", { trackId, energy, limit: limit ?? null, tolerance: null });
   }

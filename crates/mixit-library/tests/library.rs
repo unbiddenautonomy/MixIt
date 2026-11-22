@@ -933,3 +933,38 @@ fn playlists_move_between_folders() {
     assert!(lib.move_playlist(gigs, Some(gigs), 0).is_err());
     assert!(lib.move_playlist(a, Some(b), 0).is_err(), "only folders hold playlists");
 }
+
+#[test]
+fn finds_tracks_that_sound_alike() {
+    let tmp = TempDir::new("sounds");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    let house = write_track(&music, "house.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    write_track(&music, "house2.wav", Style::House, 126.0, Key::new(2, Mode::Major));
+    write_track(&music, "hiphop.wav", Style::HipHop, 90.0, Key::new(9, Mode::Minor));
+    write_track(&music, "dnb.wav", Style::DrumAndBass, 172.0, Key::new(9, Mode::Minor));
+
+    let lib = Library::open(&tmp.0.join("library.db")).unwrap();
+    lib.add_folder(&music).unwrap();
+    lib.rescan_all(|_, _| {}).unwrap();
+    let cancel = AtomicBool::new(false);
+    lib.analyze_pending(&JobOptions { threads: 2, ..Default::default() }, &cancel, |_, _, _| {}).unwrap();
+    assert_eq!(lib.sound_profiles().unwrap().len(), 4, "every analysed track has a sound profile");
+
+    let h = lib.track_by_path(&house).unwrap().unwrap().id;
+    let alike = lib.sounds_like(h, 10).unwrap();
+    assert_eq!(alike.len(), 3);
+    let first = lib.track(alike[0].0).unwrap();
+    assert!(first.path.ends_with("house2.wav"), "closest to a house track is the other house track: {alike:?}");
+    assert!(alike[0].1 > alike[2].1);
+    assert!(alike.iter().all(|(_, s)| (0.0..=1.0).contains(s)));
+
+    // Suggestions take the sound into account too.
+    let s = lib.suggest_next(h, &SuggestOptions { tempo_tolerance_pct: 50.0, ..Default::default() }).unwrap();
+    let h2 = s.iter().find(|x| x.id == first.id).unwrap();
+    assert!(h2.reasons.iter().any(|r| matches!(r, mixit_library::suggest::Reason::SoundsAlike(_))), "{:?}", h2.reasons);
+
+    // A track that was never analysed has no matches yet.
+    let none = lib.sounds_like(9_999, 5).unwrap();
+    assert!(none.is_empty());
+}

@@ -151,6 +151,10 @@ const MIGRATIONS: &[&str] = &[
         value       TEXT NOT NULL
     );
     "#,
+    // 2: sound profiles for "sounds like", as little-endian f32s.
+    r#"
+    ALTER TABLE tracks ADD COLUMN sound BLOB;
+    "#,
 ];
 
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;

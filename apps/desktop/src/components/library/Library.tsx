@@ -74,7 +74,7 @@ function Toolbar() {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : source.type === "similar" ? `Sounds like “${source.title}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (

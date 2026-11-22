@@ -8,6 +8,8 @@
 //!   (with keylock) is offered with that shift; a "energy boost" (+2 on the wheel,
 //!   a whole tone up) is allowed but scores lower.
 //! * **Energy**: a gentle rise (or the direction the DJ asked for) beats a jump.
+//! * **Sound**: tracks that sound alike (instruments, production, groove; see
+//!   `mixit_analysis::timbre`) get a small lift, so a set keeps its character.
 //! * Small extras for genre continuity and ratings; tracks played this session are out.
 //!
 //! Every suggestion carries plain-language reasons for the coach and explain mode.
@@ -24,6 +26,8 @@ pub struct Candidate {
     pub energy: Option<u8>,
     pub genre: String,
     pub rating: u8,
+    /// Sound profile in standard units (`timbre::Normaliser::apply`); empty when unknown.
+    pub sound: Vec<f32>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -77,6 +81,8 @@ pub enum Reason {
     EnergyChange(i8),
     SameGenre,
     HighlyRated,
+    /// Sounds alike (0..1 similarity, only given when high).
+    SoundsAlike(f64),
 }
 
 impl Reason {
@@ -99,6 +105,9 @@ impl Reason {
             Reason::EnergyChange(d) => format!("Brings the energy down by {}.", -d),
             Reason::SameGenre => "Same genre.".into(),
             Reason::HighlyRated => "One of your highly rated tracks.".into(),
+            Reason::SoundsAlike(s) => {
+                format!("Sounds alike ({:.0} % match): similar instruments and groove.", s * 100.0)
+            }
         }
     }
 }
@@ -114,6 +123,9 @@ pub struct Suggestion {
     pub key_shift: i32,
     pub reasons: Vec<Reason>,
 }
+
+/// Similarity from which two tracks are said to sound alike.
+pub const SOUNDS_ALIKE: f64 = 0.7;
 
 /// Ratio to multiply `bpm` by to reach `target`, allowing half/double time.
 fn tempo_fit(bpm: f64, target: f64, half_double: bool) -> (f64, f64) {
@@ -204,6 +216,12 @@ pub fn suggest(current: &Candidate, pool: &[Candidate], opts: &SuggestOptions) -
             score += 0.04;
             reasons.push(Reason::SameGenre);
         }
+        if let Some(alike) = mixit_analysis::timbre::similarity(&current.sound, &c.sound) {
+            score += 0.08 * (alike - 0.5);
+            if alike >= SOUNDS_ALIKE {
+                reasons.push(Reason::SoundsAlike(alike));
+            }
+        }
         if c.rating >= 4 {
             score += 0.01 * c.rating as f64;
             reasons.push(Reason::HighlyRated);
@@ -291,7 +309,15 @@ mod tests {
     use mixit_core::Mode;
 
     fn cand(id: TrackId, bpm: f64, key: Key, energy: u8) -> Candidate {
-        Candidate { id, bpm: Some(bpm), key: Some(key), energy: Some(energy), genre: "House".into(), rating: 0 }
+        Candidate {
+            id,
+            bpm: Some(bpm),
+            key: Some(key),
+            energy: Some(energy),
+            genre: "House".into(),
+            rating: 0,
+            sound: vec![],
+        }
     }
 
     #[test]

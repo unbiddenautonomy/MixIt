@@ -104,6 +104,12 @@ export interface TrackDetail {
   audible: [number, number];
 }
 
+/** A track that sounds like another: `score` 0..1. */
+export interface SoundMatch {
+  track: TrackRow;
+  score: number;
+}
+
 export interface SuggestionRow {
   track: TrackRow;
   score: number;

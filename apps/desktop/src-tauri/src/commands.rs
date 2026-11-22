@@ -1043,6 +1043,26 @@ pub fn suggest_next(
     Ok(list.iter().filter_map(|s| lib.track(s.id).ok().map(|t| SuggestionRow::new(s, &t))).collect())
 }
 
+/// A track that sounds like another, with how alike (0..1).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoundMatch {
+    pub track: TrackRow,
+    pub score: f64,
+}
+
+/// Tracks that sound most like `track_id`: instruments, production and groove, whatever
+/// the tempo or key. Empty until the track has been analysed.
+#[tauri::command]
+pub fn sounds_like(state: State<'_, AppState>, track_id: i64, limit: Option<usize>) -> R<Vec<SoundMatch>> {
+    let lib = state.library.lock();
+    let list = lib.sounds_like(track_id, limit.unwrap_or(50)).map_err(err)?;
+    Ok(list
+        .into_iter()
+        .filter_map(|(id, score)| lib.track(id).ok().map(|t| SoundMatch { track: TrackRow::from(&t), score }))
+        .collect())
+}
+
 // ------------------------------------------------------------------------- playlists
 
 #[derive(Serialize)]

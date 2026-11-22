@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, SessionDto, TagDto,
+import type { BackupInfo, SessionDto, SoundMatch, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -119,6 +119,8 @@ export interface Backend {
   previewSync(on: boolean): Promise<void>;
   previewClose(): Promise<void>;
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number): Promise<SuggestionRow[]>;
+  /** Tracks that sound most like this one (instruments, production, groove), best first. Empty until it is analysed. */
+  soundsLike(trackId: number, limit?: number): Promise<SoundMatch[]>;
 
   playlists(): Promise<PlaylistDto[]>;
   playlistTracks(id: number): Promise<TrackRow[]>;

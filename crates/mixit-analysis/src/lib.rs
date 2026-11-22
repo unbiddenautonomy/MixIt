@@ -15,6 +15,8 @@
 //! * **Waveform**: a pyramid of peak/RMS/3-band columns for coloured waveforms.
 //! * **Structure**: sections (intro, build-up, drop, breakdown, outro), an energy curve,
 //!   an overall 1–10 energy rating and suggested cue points for mixing.
+//! * **Sound profile**: tone colour, brightness, balance, punch and groove, for finding
+//!   tracks that sound alike (see [`timbre`]).
 
 pub mod grid;
 pub mod key;
@@ -24,6 +26,7 @@ pub mod prep;
 pub mod sections;
 pub mod stft;
 pub mod tempo;
+pub mod timbre;
 pub mod waveform;
 
 use mixit_core::{Beatgrid, GridAnchor};
@@ -36,7 +39,7 @@ pub use sections::{Section, SectionLabel};
 pub use waveform::{Column, Waveform, WaveformLevel};
 
 /// Bumped whenever results change, so libraries know to re-analyse.
-pub const ANALYSIS_VERSION: u32 = 1;
+pub const ANALYSIS_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisOptions {
@@ -125,6 +128,10 @@ pub struct Analysis {
     /// 1 (ambient) … 10 (peak time).
     pub energy: u8,
     pub cues: Vec<CueSuggestion>,
+    /// Sound profile for "sounds like" (see [`timbre::profile`]); empty when there is too
+    /// little sound, or for analyses made before profiles existed.
+    #[serde(default)]
+    pub sound: Vec<f32>,
 }
 
 /// Where a track can be mixed, in its own grid beats.
@@ -204,6 +211,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
     let rhythm = grid::rhythm(&ons, opts.bpm_range, opts.allow_warp, audible);
     let Some(r) = rhythm else {
         // No usable pulse: a nominal 120 BPM grid from the start so the decks still work.
+        let sound = timbre::profile(&spec, &ons, audible, 0.0, 1.0, loud.range_lu);
         let mut grid = Beatgrid::constant(sample_rate, 120.0, audible.0 * sr);
         grid.confidence = 0.0;
         return Analysis {
@@ -235,6 +243,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
                 label: "Start".into(),
                 color: color_for(CueRole::Load),
             }],
+            sound,
         };
     };
 
@@ -311,6 +320,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
         let drops: f64 = st.sections.iter().filter(|s| s.label == SectionLabel::Drop).map(|s| s.end - s.start).sum();
         if total > 0.0 { drops / total } else { 0.0 }
     };
+    let sound = timbre::profile(&spec, &ons, audible, r.pulse_clarity, r.beat_strength, loud.range_lu);
     Analysis {
         version: ANALYSIS_VERSION,
         sample_rate,
@@ -333,6 +343,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
         energy_curve: st.energy,
         energy_curve_start: t_first,
         cues,
+        sound,
     }
 }
 
