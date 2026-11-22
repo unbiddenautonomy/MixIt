@@ -7,6 +7,7 @@ import { useLibrary } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { ask } from "../shell/Dialogs";
 import { starterCategory, tagQuery } from "../../lib/tags";
+import { historyTracklist } from "../../lib/history";
 
 let seq = 0;
 
@@ -40,12 +41,13 @@ export async function refreshRows() {
       if (pl?.kind === "smart" && pl.query) rows = await backend().search(`${pl.query} ${query}`.trim());
       else rows = localFilter(await backend().playlistTracks(source.id), query);
     } else if (source.type === "history") {
-      const h = await backend().history();
+      const past = source.session != null && source.session !== useLibrary.getState().currentSession;
+      const h = past ? await backend().sessionHistory(source.session!) : await backend().history();
+      set({ historyEntries: h });
       const all = await backend().search("");
       const byId = new Map(all.map((r) => [r.id, r]));
-      rows = h
-        .slice()
-        .reverse()
+      // This session reads newest first (what just played); a past set in the order it was played.
+      rows = (past ? h : h.slice().reverse())
         .map((e) => (e.track_id != null ? byId.get(e.track_id) : undefined))
         .filter((r): r is TrackRow => !!r);
       rows = localFilter(rows, query);
@@ -105,7 +107,7 @@ export async function refreshSuggestions() {
 }
 
 export async function refreshAll() {
-  await Promise.all([refreshPlaylists(), refreshStats(), refreshCare(), refreshTags()]);
+  await Promise.all([refreshPlaylists(), refreshStats(), refreshCare(), refreshTags(), refreshSessions()]);
   await refreshRows();
 }
 
@@ -190,6 +192,50 @@ export async function tagTracks(ids: number[], name: string, on: boolean) {
     await backend().setTag(ids, known?.name ?? n, on, known ? known.category : starterCategory(n));
     await refreshTags();
     if (useLibrary.getState().source.type === "tag") await refreshRows();
+  } catch (e) {
+    fail(e);
+  }
+}
+
+// ---------------------------------------------------------------- past sets
+
+export async function refreshSessions() {
+  try {
+    const { current, sessions } = await backend().historySessions();
+    useLibrary.getState().set({ sessions, currentSession: current });
+  } catch {
+    // Kept as they were.
+  }
+}
+
+async function setEntries(session: number | undefined) {
+  const cur = useLibrary.getState().currentSession;
+  return session != null && session !== cur ? backend().sessionHistory(session) : backend().history();
+}
+
+/** Makes a playlist of a set's tracks, in the order they were played. */
+export async function saveSetAsPlaylist(session: number | undefined, name: string) {
+  try {
+    const entries = await setEntries(session);
+    const ids = entries.map((e) => e.track_id).filter((id): id is number => id != null);
+    if (!ids.length) {
+      toast.error("Nothing was played in this set.");
+      return;
+    }
+    await backend().createPlaylist(name, "list", { tracks: ids });
+    await refreshPlaylists();
+    toast.success(`Made the playlist “${name}”`, { description: `${ids.length} tracks, in the order you played them.` });
+  } catch (e) {
+    fail(e);
+  }
+}
+
+/** Copies a set's tracklist ("01. [0:00] Artist - Title") to the clipboard. */
+export async function copySetTracklist(session: number | undefined) {
+  try {
+    const text = historyTracklist(await setEntries(session));
+    await navigator.clipboard.writeText(text);
+    toast.success("Tracklist copied", { description: "Paste it under your mix or into a message." });
   } catch (e) {
     fail(e);
   }

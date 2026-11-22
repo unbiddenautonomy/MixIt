@@ -19,6 +19,7 @@ import { AutoDjView } from "../autodj/AutoDj";
 import { LibraryCare } from "./LibraryCare";
 import { PreviewBar } from "./PreviewBar";
 import { SetFlow, SetFlowToggle } from "./SetFlow";
+import { HistoryBar } from "./HistoryBar";
 
 export async function addMusicFolder() {
   const dirs = await backend().pickFolders();
@@ -38,6 +39,7 @@ export function Library({ full = false }: { full?: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar />
         <SetFlow />
+        <HistoryBar />
         {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : <TrackTable />}
         <PreviewBar />
       </div>
@@ -48,6 +50,7 @@ export function Library({ full = false }: { full?: boolean }) {
 
 function Toolbar() {
   const query = useLibrary((s) => s.query);
+  const currentSession = useLibrary((s) => s.currentSession);
   const rows = useLibrary((s) => s.rows.length);
   const selected = useLibrary((s) => s.selected.length);
   const source = useLibrary((s) => s.source);
@@ -70,7 +73,7 @@ function Toolbar() {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? "History" : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (

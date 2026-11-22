@@ -496,6 +496,16 @@ export interface PlaylistDto {
   duration: number;
 }
 
+/** A past set: one session of the app that played at least one track. */
+export interface SessionDto {
+  id: number;
+  name: string;
+  startedAt: number;
+  tracks: number;
+  firstPlayed: number;
+  lastPlayed: number;
+}
+
 export interface HistoryEntry {
   track_id: number | null;
   played_at: number;

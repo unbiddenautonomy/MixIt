@@ -1125,6 +1125,32 @@ pub fn history(state: State<'_, AppState>) -> R<Vec<mixit_library::HistoryEntry>
     state.library.lock().session_history(s).map_err(err)
 }
 
+/// Past sets: the sessions that played something, newest first. The current one is marked.
+#[tauri::command]
+pub fn history_sessions(state: State<'_, AppState>) -> R<(Option<i64>, Vec<mixit_library::SessionInfo>)> {
+    let current = *state.session.lock();
+    Ok((current, state.library.lock().sessions().map_err(err)?))
+}
+
+/// What one session played, in order.
+#[tauri::command]
+pub fn history_of(state: State<'_, AppState>, session: i64) -> R<Vec<mixit_library::HistoryEntry>> {
+    state.library.lock().session_history(session).map_err(err)
+}
+
+#[tauri::command]
+pub fn history_rename(state: State<'_, AppState>, session: i64, name: String) -> R<()> {
+    state.library.lock().rename_session(session, &name).map_err(err)
+}
+
+/// Forgets a past set's history (play counts stay).
+#[tauri::command]
+pub fn history_delete(app: AppHandle, state: State<'_, AppState>, session: i64) -> R<()> {
+    state.library.lock().delete_session(session).map_err(err)?;
+    let _ = app.emit("history-changed", ());
+    Ok(())
+}
+
 #[tauri::command]
 pub fn history_tracklist(state: State<'_, AppState>) -> R<String> {
     let Some(s) = *state.session.lock() else { return Ok(String::new()) };

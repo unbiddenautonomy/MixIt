@@ -267,6 +267,19 @@ pub struct Tag {
     pub color: Option<u32>,
 }
 
+/// A DJ session (one run of the app) that played at least one track.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionInfo {
+    pub id: i64,
+    pub name: String,
+    pub started_at: i64,
+    /// Tracks played.
+    pub tracks: i64,
+    pub first_played: i64,
+    pub last_played: i64,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HistoryEntry {
     pub track_id: Option<TrackId>,
@@ -1124,6 +1137,40 @@ impl Library {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Sessions that played something, newest first.
+    pub fn sessions(&self) -> Result<Vec<SessionInfo>> {
+        let mut st = self.conn.prepare(
+            "SELECT s.id, s.name, s.started_at, COUNT(h.id), MIN(h.played_at), MAX(h.played_at)
+             FROM history_sessions s JOIN history h ON h.session_id = s.id
+             GROUP BY s.id ORDER BY MAX(h.played_at) DESC, s.id DESC",
+        )?;
+        let rows = st.query_map([], |r| {
+            Ok(SessionInfo {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                started_at: r.get(2)?,
+                tracks: r.get(3)?,
+                first_played: r.get(4)?,
+                last_played: r.get(5)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn rename_session(&self, session: i64, name: &str) -> Result<()> {
+        self.conn.execute("UPDATE history_sessions SET name = ? WHERE id = ?", params![name.trim(), session])?;
+        Ok(())
+    }
+
+    /// Forgets a session's history. Play counts and "last played" stay as they are.
+    pub fn delete_session(&self, session: i64) -> Result<()> {
+        let tx = self.begin()?;
+        self.conn.execute("DELETE FROM history WHERE session_id = ?", [session])?;
+        self.conn.execute("DELETE FROM history_sessions WHERE id = ?", [session])?;
+        tx.commit()?;
+        Ok(())
     }
 
     /// Tracks played in a session (to exclude from suggestions).

@@ -470,3 +470,27 @@ fn backs_up_and_restores_the_whole_library() {
     assert_eq!(list.iter().filter(|x| x.kind == BackupKind::Auto).count(), backup::KEEP_AUTO);
     assert!(list.iter().any(|x| x.path == manual));
 }
+
+#[test]
+fn past_sets_are_listed_renamed_and_forgotten() {
+    let (lib, ids) = sample_library();
+    let empty = lib.start_session("Opened and closed").unwrap();
+    let friday = lib.start_session("Friday").unwrap();
+    for &t in &ids[..3] {
+        lib.log_play(friday, t, Some(0)).unwrap();
+    }
+    let saturday = lib.start_session("Saturday").unwrap();
+    lib.log_play(saturday, ids[3], Some(1)).unwrap();
+    let s = lib.sessions().unwrap();
+    // Only sessions that played something, newest first.
+    assert_eq!(s.iter().map(|x| x.id).collect::<Vec<_>>(), vec![saturday, friday]);
+    assert!(s.iter().all(|x| x.id != empty));
+    assert_eq!(s[1].tracks, 3);
+    assert!(s[1].first_played <= s[1].last_played);
+    lib.rename_session(friday, "  Friday at the bar ").unwrap();
+    assert_eq!(lib.sessions().unwrap()[1].name, "Friday at the bar");
+    lib.delete_session(friday).unwrap();
+    assert_eq!(lib.sessions().unwrap().len(), 1);
+    assert!(lib.session_history(friday).unwrap().is_empty());
+    assert_eq!(lib.track(ids[0]).unwrap().play_count, 1, "play counts stay");
+}
