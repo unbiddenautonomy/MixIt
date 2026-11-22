@@ -29,6 +29,7 @@ import { editTracksWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
 import { Cover } from "../ui/Cover";
 import { openBuildSet } from "./BuildSetDialog";
 import { openTidy } from "./TidyDialog";
+import { vocalLabel } from "../../lib/vocals";
 
 interface Column {
   key: string;
@@ -134,6 +135,14 @@ const COLUMNS: Column[] = [
     },
   },
   { key: "energy", label: "Energy", sort: "energy", width: "62px", cell: (r) => <EnergyBar v={r.energy} /> },
+  {
+    key: "vocals",
+    label: "Vocals",
+    sort: null,
+    width: "64px",
+    extra: true,
+    cell: (r) => (r.vocals == null ? <span className="text-zinc-600">–</span> : <span className="text-zinc-400" title={vocalLabel(r.vocals) ?? ""}>{r.vocals < 5 ? "None" : `${r.vocals}%`}</span>),
+  },
   { key: "duration", label: "Time", sort: "duration", width: "52px", align: "right", cell: (r) => <span className="font-mono tabular-nums text-zinc-400">{clock(r.duration)}</span> },
   { key: "rating", label: "Rating", sort: "rating", width: "76px", cell: (r) => <Stars track={r} /> },
   { key: "genre", label: "Genre", sort: "genre", width: "minmax(80px,0.8fr)", cell: (r) => <span className="truncate text-zinc-500">{r.genre}</span> },

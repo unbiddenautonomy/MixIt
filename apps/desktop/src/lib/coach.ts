@@ -14,6 +14,11 @@ export interface Tip {
 
 const L = (d: number) => String.fromCharCode(65 + d);
 
+/** Whether a deck is in one of its track's vocal parts at `seconds` (with a little lead-in). */
+export function singingAt(d: DeckInfo | null | undefined, seconds: number, ahead = 0): boolean {
+  return !!d?.detail.vocals?.some(([a, b]) => seconds >= a - ahead && seconds < b);
+}
+
 export function coachTips(t: Telemetry, decks: (DeckInfo | null)[], mixer: MixerState, count: number): Tip[] {
   const tips: Tip[] = [];
   const idx = Array.from({ length: count }, (_, i) => i);
@@ -76,6 +81,12 @@ export function coachTips(t: Telemetry, decks: (DeckInfo | null)[], mixer: Mixer
     if (bassy.length >= 2) {
       const quiet = bassy.find((i) => !t.decks[i].master) ?? bassy[1];
       tips.push({ id: "bass", level: "warn", text: `Two basslines at once sound muddy. Cut the low EQ on deck ${L(quiet)}.`, action: { label: `Cut bass ${L(quiet)}`, run: `bass-cut`, arg: [quiet] } });
+    }
+    // Two voices at once: the words clash even when the keys fit.
+    const singing = audible.filter((i) => singingAt(decks[i], t.decks[i].position, 0.5) && mixer.channels[i].mid > -10);
+    if (singing.length >= 2) {
+      const quiet = singing.find((i) => !t.decks[i].master) ?? singing[1];
+      tips.push({ id: "vocals", level: "warn", text: `Both tracks have singing right now, and two voices at once are hard to follow. Lower the mids on deck ${L(quiet)}, or bring it in after this vocal.`, action: { label: `Lower mids ${L(quiet)}`, run: "mid-cut", arg: [quiet] } });
     }
     const unsynced = playing.filter((i) => !t.decks[i].master && !t.decks[i].sync && Math.abs(t.decks[i].phase) > 0.08);
     for (const i of unsynced) {

@@ -27,6 +27,7 @@ pub mod sections;
 pub mod stft;
 pub mod tempo;
 pub mod timbre;
+pub mod vocals;
 pub mod waveform;
 
 use mixit_core::{Beatgrid, GridAnchor};
@@ -39,7 +40,7 @@ pub use sections::{Section, SectionLabel};
 pub use waveform::{Column, Waveform, WaveformLevel};
 
 /// Bumped whenever results change, so libraries know to re-analyse.
-pub const ANALYSIS_VERSION: u32 = 2;
+pub const ANALYSIS_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisOptions {
@@ -132,6 +133,9 @@ pub struct Analysis {
     /// little sound, or for analyses made before profiles existed.
     #[serde(default)]
     pub sound: Vec<f32>,
+    /// Where the track has singing or rapping (see [`vocals::detect`]).
+    #[serde(default)]
+    pub vocals: vocals::Vocals,
 }
 
 /// Where a track can be mixed, in its own grid beats.
@@ -244,6 +248,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
                 color: color_for(CueRole::Load),
             }],
             sound,
+            vocals: vocals::detect(&spec, audible),
         };
     };
 
@@ -344,6 +349,7 @@ pub fn analyze(interleaved: &[f32], sample_rate: u32, opts: &AnalysisOptions) ->
         energy_curve_start: t_first,
         cues,
         sound,
+        vocals: vocals::detect(&spec, audible),
     }
 }
 

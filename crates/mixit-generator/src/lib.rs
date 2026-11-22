@@ -13,9 +13,10 @@
 
 pub mod kit;
 pub mod practice;
+mod voice;
 
 use mixit_core::{Key, Mode};
-use mixit_dsp::rng::Rng;
+pub(crate) use mixit_dsp::rng::Rng;
 use mixit_dsp::svf::{Svf, SvfCoeffs, SvfMode};
 use serde::{Deserialize, Serialize};
 
@@ -62,6 +63,9 @@ pub struct TrackSpec {
     /// 0 = straight, 0.6 = heavy swing on sixteenths.
     pub swing: f64,
     pub seed: u64,
+    /// A singer in the drops and breakdowns: two bars sung in every four.
+    #[serde(default)]
+    pub vocals: bool,
 }
 
 impl TrackSpec {
@@ -88,6 +92,7 @@ impl TrackSpec {
             lead_in: 0.0,
             swing: 0.0,
             seed: 1,
+            vocals: false,
         }
     }
 
@@ -117,6 +122,9 @@ pub struct GroundTruth {
     /// (start seconds, kind).
     pub sections: Vec<(f64, SectionKind)>,
     pub duration: f64,
+    /// Where the singer sings: (start, end) seconds.
+    #[serde(default)]
+    pub vocals: Vec<(f64, f64)>,
 }
 
 pub struct Generated {
@@ -491,6 +499,42 @@ pub fn generate(spec: &TrackSpec) -> Generated {
         bar0 += sec.bars;
     }
 
+    // The singer: two bars sung in every four of each drop and breakdown, on its own
+    // random stream so the rest of the track is the same with or without vocals.
+    let mut vocals = Vec::new();
+    if spec.vocals {
+        let mut vrng = Rng::new(spec.seed ^ 0x0051_06E7);
+        let sc = scale(spec.key.mode);
+        const RHYTHM: [f64; 9] = [1.0, 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, 1.0, 2.0];
+        const MELODY: [usize; 9] = [0, 2, 4, 2, 1, 0, 2, 4, 0];
+        let mut bar0 = 0u32;
+        for sec in &spec.sections {
+            if matches!(sec.kind, SectionKind::Drop | SectionKind::Breakdown) {
+                for block in (0..sec.bars.saturating_sub(1)).step_by(4) {
+                    let gbar = bar0 + block;
+                    let chord_deg = prog[(gbar as usize / 2) % 4];
+                    let b0 = (gbar * 4) as f64;
+                    let t0 = time_at(b0);
+                    let mut syl = Vec::new();
+                    let mut b = b0;
+                    for (k, &len) in RHYTHM.iter().enumerate() {
+                        let deg = chord_deg + MELODY[k];
+                        let midi = (tonic_midi + 24 + sc[deg % 7] + 12 * (deg / 7) as i32) as f64;
+                        let at = time_at(b) - t0;
+                        let dur = time_at((b + len).min(total_beats as f64)) - t0 - at;
+                        syl.push(voice::Syllable { at, len: dur, midi, vowel: (vrng.next_f32() * 5.0) as usize % 5 });
+                        b += len;
+                    }
+                    let end = syl.last().map(|s| s.at + s.len).unwrap_or(0.0);
+                    let v = voice::sing(sr, &syl, &mut vrng);
+                    mix.add(t0, 0.0, 0.5, &v);
+                    vocals.push((t0, t0 + end));
+                }
+            }
+            bar0 += sec.bars;
+        }
+    }
+
     // Normalise to a −1 dBFS peak.
     let peak = mix.l.iter().chain(mix.r.iter()).fold(0.0f32, |m, v| m.max(v.abs())).max(1e-6);
     let g = 10f32.powf(-1.0 / 20.0) / peak;
@@ -508,6 +552,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
             downbeats,
             sections,
             duration,
+            vocals,
         },
     }
 }

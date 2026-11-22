@@ -227,6 +227,10 @@ export function runCommand(run: string, arg?: number[]) {
     setValue(`mixer.${String.fromCharCode(65 + arg[0])}.eq.low`, -26);
     return;
   }
+  if (run === "mid-cut" && arg) {
+    setValue(`mixer.${String.fromCharCode(65 + arg[0])}.eq.mid`, -18);
+    return;
+  }
   if (run === "global.record") {
     toggleRecording();
     return;

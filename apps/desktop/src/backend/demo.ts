@@ -48,6 +48,8 @@ export interface DemoTrack {
   period: number;
   wave: Uint8Array;
   cues: T.CueDto[];
+  /** Where the track has a voice: [start, end] seconds. */
+  vocals: [number, number][];
 }
 
 interface TrackOverride {
@@ -117,6 +119,14 @@ function makeTrack(id: number, o?: TrackOverride): DemoTrack {
     { role: "mixOut", slot: null, seconds: mixOut, loopSeconds: 32 * period, label: "Mix out", color: 0xe67e22 },
   ];
   const energy = Math.round(3 + r() * 6);
+  // Singing in the breakdown and the first half of each drop, on most tracks but few
+  // techno ones (its own random stream, so the rest of the demo stays as it was).
+  const vr = rng(id * 104_729 + 1);
+  const sings = !o && vr() < (genre === "Techno" ? 0.2 : 0.65);
+  const vocals: [number, number][] = sings
+    ? sections.filter((s) => s.label === "Breakdown" || s.label === "Drop").map((s) => [s.start + 2 * period, s.label === "Drop" ? s.start + (s.end - s.start) / 2 : s.end - 2 * period] as [number, number])
+    : [];
+  const vocalPct = Math.round((100 * vocals.reduce((a, [s, e]) => a + e - s, 0)) / duration);
   return {
     row: {
       id,
@@ -131,6 +141,7 @@ function makeTrack(id: number, o?: TrackOverride): DemoTrack {
       bpm,
       key: keyDto(key),
       energy,
+      vocals: vocalPct,
       lufs: -9 - r() * 4,
       rating: r() < 0.3 ? 4 + Math.round(r()) : Math.floor(r() * 4),
       color: null,
@@ -147,6 +158,7 @@ function makeTrack(id: number, o?: TrackOverride): DemoTrack {
     period,
     wave,
     cues,
+    vocals,
   };
 }
 
@@ -529,6 +541,7 @@ export class DemoBackend implements Backend {
       sections: t.sections,
       cues: [...t.cues, ...this.savedCues(t)],
       audible: [0, t.row.duration - 1],
+      vocals: t.vocals,
     };
   }
 
@@ -1958,6 +1971,13 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
       case "energy":
         f = (t) => num(t.energy, val);
         break;
+      case "vocals":
+      case "vocal":
+      case "voice": {
+        const v = val.toLowerCase();
+        f = ["yes", "y", "some"].includes(v) ? (t) => (t.vocals ?? -1) >= 10 : ["no", "n", "none", "instrumental"].includes(v) ? (t) => t.vocals != null && t.vocals < 5 : (t) => num(t.vocals ?? null, val);
+        break;
+      }
       case "rating":
         f = (t) => num(t.rating, val);
         break;

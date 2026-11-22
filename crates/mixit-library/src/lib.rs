@@ -113,6 +113,8 @@ pub struct Track {
     pub added_at: i64,
     pub missing: bool,
     pub grid_locked: bool,
+    /// Percent of the track with singing or rapping, from analysis.
+    pub vocals: Option<u8>,
 }
 
 impl Track {
@@ -162,7 +164,7 @@ const TRACK_COLS: &str = "t.id, t.path, t.hash, t.file_size, t.file_mtime, t.tit
     t.album_artist, t.genre, t.label, t.remixer, t.comment, t.year, t.track_number, t.duration, t.sample_rate, \
     t.bitrate_kbps, t.channels, t.has_artwork, t.tag_bpm, t.tag_key, t.bpm, t.key_index, t.energy, t.lufs, \
     t.auto_gain_db, t.analysis_version, t.analysis_state, t.analysis_error, t.rating, t.color, t.play_count, \
-    t.last_played, t.added_at, t.missing, t.grid_locked";
+    t.last_played, t.added_at, t.missing, t.grid_locked, t.vocals";
 
 fn track_from_row(r: &Row) -> rusqlite::Result<Track> {
     Ok(Track {
@@ -203,6 +205,7 @@ fn track_from_row(r: &Row) -> rusqlite::Result<Track> {
         added_at: r.get(34)?,
         missing: r.get::<_, i64>(35)? != 0,
         grid_locked: r.get::<_, i64>(36)? != 0,
+        vocals: r.get(37)?,
     })
 }
 
@@ -802,7 +805,7 @@ impl Library {
         self.conn.execute(
             "UPDATE tracks SET bpm = ?2, key_index = ?3, key_order = ?4, energy = ?5, lufs = ?6, auto_gain_db = ?7,
                 analysis_version = ?8, analysis_state = 1, analysis_error = NULL,
-                duration = CASE WHEN duration > 0 THEN duration ELSE ?9 END, sound = ?10
+                duration = CASE WHEN duration > 0 THEN duration ELSE ?9 END, sound = ?10, vocals = ?11
              WHERE id = ?1",
             params![
                 id,
@@ -815,6 +818,7 @@ impl Library {
                 a.version,
                 a.duration,
                 (!a.sound.is_empty()).then(|| sound_to_bytes(&a.sound)),
+                (a.vocals.share * 100.0).round() as i64,
             ],
         )?;
         tx.commit()?;
