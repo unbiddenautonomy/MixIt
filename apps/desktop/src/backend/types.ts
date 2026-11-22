@@ -515,7 +515,7 @@ export interface HistoryEntry {
 }
 
 export interface JobProgress {
-  kind: "scan" | "analyze" | "render" | "import";
+  kind: "scan" | "analyze" | "render" | "import" | "copy";
   done: number;
   total: number;
   message: string;

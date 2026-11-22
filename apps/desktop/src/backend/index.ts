@@ -129,6 +129,12 @@ export interface Backend {
   addToPlaylist(id: number, tracks: number[]): Promise<void>;
   removeFromPlaylist(id: number, indices: number[]): Promise<void>;
   reorderPlaylist(id: number, from: number[], to: number): Promise<void>;
+  /** Moves a playlist or folder into a folder (null for the top), at a position among what is there. */
+  movePlaylist(id: number, parent: number | null, position: number): Promise<void>;
+  /** Replaces a list's tracks, in order. */
+  setPlaylistTracks(id: number, tracks: number[]): Promise<void>;
+  /** Copies the tracks' files into dest/name/ with a playlist file beside them (a job, with progress). */
+  copyFiles(ids: number[], dest: string, name: string, numbered: boolean): Promise<void>;
   orderPlaylist(id: number, energy: "steady" | "up" | "down"): Promise<void>;
   history(): Promise<HistoryEntry[]>;
   /** Past sets, newest first, and which one is this session. */

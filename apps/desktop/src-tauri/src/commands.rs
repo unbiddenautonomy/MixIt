@@ -1130,6 +1130,43 @@ pub fn playlist_reorder(state: State<'_, AppState>, id: i64, from: Vec<usize>, t
     state.library.lock().reorder_playlist(id, &from, to).map_err(err)
 }
 
+/// Moves a playlist or folder into a folder (or to the top), at a position.
+#[tauri::command]
+pub fn playlist_move(state: State<'_, AppState>, id: i64, parent: Option<i64>, position: i64) -> R<()> {
+    state.library.lock().move_playlist(id, parent, position).map_err(err)
+}
+
+/// Replaces a list's tracks (shuffle, remove duplicates, and the like).
+#[tauri::command]
+pub fn playlist_set_tracks(state: State<'_, AppState>, id: i64, tracks: Vec<i64>) -> R<()> {
+    state.library.lock().set_playlist_tracks(id, &tracks).map_err(err)
+}
+
+/// Copies tracks' files into `dest/<name>/` with an M3U8 beside them, for a USB stick.
+#[tauri::command]
+pub fn tracks_copy_files(app: AppHandle, ids: Vec<i64>, dest: String, name: String, numbered: bool) -> R<()> {
+    spawn_library_job(app, "copy", move |app, lib, progress| {
+        let cancel = &app.state::<AppState>().job_cancel;
+        let r = lib
+            .copy_files(&ids, Path::new(&dest), &name, numbered, cancel, |done, total, title| {
+                progress(done, total, if title.is_empty() { "Copying".into() } else { format!("Copying {title}") })
+            })
+            .map_err(err)?;
+        let mut msg = format!("Copied {} of {} tracks to {}", r.copied + r.kept, ids.len(), r.folder.display());
+        if !r.failed.is_empty() {
+            msg.push_str(&format!(
+                " ({} could not be copied: {})",
+                r.failed.len(),
+                r.failed.iter().take(2).map(|f| f.1.clone()).collect::<Vec<_>>().join("; ")
+            ));
+        }
+        if r.cancelled {
+            msg.push_str(", stopped before the end");
+        }
+        Ok(msg)
+    })
+}
+
 /// Reorders a playlist into the smoothest tempo, key and energy path.
 #[tauri::command]
 pub fn playlist_order_set(state: State<'_, AppState>, id: i64, energy: Option<String>, start: Option<i64>) -> R<()> {

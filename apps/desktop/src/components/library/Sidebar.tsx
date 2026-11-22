@@ -12,7 +12,7 @@ import { clock, plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
-import { copySetTracklist, refreshPlaylists, refreshRows, refreshSessions, refreshTags, saveSetAsPlaylist, tagTracks } from "./data";
+import { copyPlaylistFiles, copySetTracklist, duplicatePlaylist, refreshPlaylists, refreshRows, refreshSessions, refreshTags, saveSetAsPlaylist, tagTracks, tidyPlaylist } from "./data";
 import { setLabel } from "../../lib/history";
 import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { editSmartPlaylist } from "./SmartPlaylistDialog";
@@ -256,43 +256,79 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
               </ContextMenu.Item>
             )}
             {p.kind !== "folder" && (
-              <ContextMenu.Item
-                className="menu-item"
-                onSelect={async () => {
-                  const path = await backend().pickSave(`${p.name}.m3u8`, ["m3u8", "m3u"]);
-                  if (path) {
-                    await backend().exportPlaylist(p.id, path);
-                    toast.success(`Exported ${p.name}`);
-                  }
-                }}
-              >
-                Export as M3U…
+              <ContextMenu.Item className="menu-item" onSelect={() => void duplicatePlaylist(p.id)}>
+                Duplicate
               </ContextMenu.Item>
             )}
-            <ContextMenu.Item
-              className="menu-item"
-              onSelect={async () => {
-                const path = await backend().pickSave(`${p.name}.xml`, ["xml"]);
-                if (path) {
-                  await backend().exportRekordbox(path, p.id);
-                  toast.success(`Exported ${p.name} for rekordbox`);
-                }
-              }}
-            >
-              Export for rekordbox…
-            </ContextMenu.Item>
-            <ContextMenu.Item
-              className="menu-item"
-              onSelect={async () => {
-                const path = await backend().pickSave(`${p.name}.nml`, ["nml"]);
-                if (path) {
-                  await backend().exportTraktor(path, p.id);
-                  toast.success(`Exported ${p.name} for Traktor`);
-                }
-              }}
-            >
-              Export for Traktor…
-            </ContextMenu.Item>
+            {p.kind === "list" && (
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className="menu-item">Tidy up</ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent className="menu">
+                    <ContextMenu.Item className="menu-item" onSelect={() => void tidyPlaylist(p.id, "shuffle")}>
+                      Shuffle
+                    </ContextMenu.Item>
+                    <ContextMenu.Item className="menu-item" onSelect={() => void tidyPlaylist(p.id, "duplicates")}>
+                      Take out repeats
+                    </ContextMenu.Item>
+                    <ContextMenu.Item className="menu-item" onSelect={() => void tidyPlaylist(p.id, "missing")}>
+                      Take out missing files
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
+            )}
+            <MoveToMenu p={p} />
+            <ContextMenu.Sub>
+              <ContextMenu.SubTrigger className="menu-item">Export</ContextMenu.SubTrigger>
+              <ContextMenu.Portal>
+                <ContextMenu.SubContent className="menu">
+                  {p.kind !== "folder" && (
+                    <ContextMenu.Item className="menu-item" onSelect={() => void copyPlaylistFiles(p.id)}>
+                      Copy music to a folder or USB stick…
+                    </ContextMenu.Item>
+                  )}
+                  {p.kind !== "folder" && (
+                    <ContextMenu.Item
+                      className="menu-item"
+                      onSelect={async () => {
+                        const path = await backend().pickSave(`${p.name}.m3u8`, ["m3u8", "m3u"]);
+                        if (path) {
+                          await backend().exportPlaylist(p.id, path);
+                          toast.success(`Exported ${p.name}`);
+                        }
+                      }}
+                    >
+                      As an M3U playlist…
+                    </ContextMenu.Item>
+                  )}
+                  <ContextMenu.Item
+                    className="menu-item"
+                    onSelect={async () => {
+                      const path = await backend().pickSave(`${p.name}.xml`, ["xml"]);
+                      if (path) {
+                        await backend().exportRekordbox(path, p.id);
+                        toast.success(`Exported ${p.name} for rekordbox`);
+                      }
+                    }}
+                  >
+                    For rekordbox…
+                  </ContextMenu.Item>
+                  <ContextMenu.Item
+                    className="menu-item"
+                    onSelect={async () => {
+                      const path = await backend().pickSave(`${p.name}.nml`, ["nml"]);
+                      if (path) {
+                        await backend().exportTraktor(path, p.id);
+                        toast.success(`Exported ${p.name} for Traktor`);
+                      }
+                    }}
+                  >
+                    For Traktor…
+                  </ContextMenu.Item>
+                </ContextMenu.SubContent>
+              </ContextMenu.Portal>
+            </ContextMenu.Sub>
             {p.kind !== "folder" && (
               <ContextMenu.Item
                 className="menu-item"
@@ -540,5 +576,45 @@ function NewPlaylist({ kind, done }: { kind: "list" | "smart" | "folder"; done: 
         </button>
       </div>
     </div>
+  );
+}
+
+/** Moves a playlist or folder into another folder, or back to the top. */
+function MoveToMenu({ p }: { p: PlaylistDto }) {
+  const playlists = useLibrary((s) => s.playlists);
+  // Folders it may go into: not itself, nor anything inside it.
+  const inside = (id: number | null): boolean => id != null && (id === p.id || inside(playlists.find((x) => x.id === id)?.parent ?? null));
+  const folders = playlists.filter((f) => f.kind === "folder" && !inside(f.id) && f.id !== p.parent);
+  if (!folders.length && p.parent == null) return null;
+  const path = (f: PlaylistDto): string => {
+    const up = playlists.find((x) => x.id === f.parent);
+    return up ? `${path(up)} / ${f.name}` : f.name;
+  };
+  const move = async (parent: number | null) => {
+    try {
+      await backend().movePlaylist(p.id, parent, 1 << 30);
+      await refreshPlaylists();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  return (
+    <ContextMenu.Sub>
+      <ContextMenu.SubTrigger className="menu-item">Move to</ContextMenu.SubTrigger>
+      <ContextMenu.Portal>
+        <ContextMenu.SubContent className="menu">
+          {p.parent != null && (
+            <ContextMenu.Item className="menu-item" onSelect={() => void move(null)}>
+              The top (no folder)
+            </ContextMenu.Item>
+          )}
+          {folders.map((f) => (
+            <ContextMenu.Item key={f.id} className="menu-item" onSelect={() => void move(f.id)}>
+              {path(f)}
+            </ContextMenu.Item>
+          ))}
+        </ContextMenu.SubContent>
+      </ContextMenu.Portal>
+    </ContextMenu.Sub>
   );
 }

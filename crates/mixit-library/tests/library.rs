@@ -848,3 +848,88 @@ fn imports_a_virtualdj_library() {
     assert_eq!((again.cues, again.grids), (0, 0));
     assert_eq!(lib.playlists().unwrap().len(), pls.len());
 }
+
+#[test]
+fn copies_a_playlist_to_a_usb_stick() {
+    use mixit_library::m3u::safe_file_name;
+    use std::sync::atomic::AtomicBool;
+    let tmp = TempDir::new("copy");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(music.join("a")).unwrap();
+    std::fs::create_dir_all(music.join("b")).unwrap();
+    let one = write_track(&music.join("a"), "track.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let two = write_track(&music.join("b"), "track.wav", Style::Techno, 128.0, Key::new(4, Mode::Minor));
+    let lib = Library::open_in_memory().unwrap();
+    let ida = lib.import_file(&one).unwrap();
+    let idb = lib.import_file(&two).unwrap();
+    let id = |i: scan::Imported| match i {
+        scan::Imported::Added(i)
+        | scan::Imported::Updated(i)
+        | scan::Imported::Moved(i)
+        | scan::Imported::Unchanged(i) => i,
+    };
+    let (a, b) = (id(ida), id(idb));
+    lib.edit_track(
+        a,
+        &TrackEdit { title: Some("Night: Drive?".into()), artist: Some("Nova".into()), ..Default::default() },
+    )
+    .unwrap();
+    let gone = lib.insert_track(&NewTrack { path: music.join("gone.mp3"), ..Default::default() }).unwrap();
+    lib.set_missing(gone, true).unwrap();
+
+    let usb = tmp.0.join("USB");
+    let stop = AtomicBool::new(false);
+    let mut seen = 0;
+    // Same file names from two folders: the second gets "(2)".
+    let r = lib.copy_files(&[a, b, gone], &usb, "Friday / Late", false, &stop, |_, _, _| seen += 1).unwrap();
+    assert_eq!((r.copied, r.kept, r.failed.len(), r.cancelled), (2, 0, 1, false), "{r:?}");
+    assert!(seen >= 3);
+    assert_eq!(r.folder, usb.join("Friday _ Late"));
+    assert!(r.folder.join("track.wav").is_file() && r.folder.join("track (2).wav").is_file());
+    let m3u = std::fs::read_to_string(&r.playlist).unwrap();
+    assert!(m3u.contains("Nova - Night: Drive?\ntrack.wav\n") && m3u.contains("\ntrack (2).wav\n"), "{m3u}");
+    // The copied playlist reads back as the same tracks.
+    let (ids, missing) = lib.import_m3u(&r.playlist).unwrap();
+    assert_eq!(ids.len(), 2);
+    assert!(missing.is_empty());
+
+    // Numbered names in playlist order; a second copy keeps what is already there.
+    let n = lib.copy_files(&[b, a], &usb, "Numbered", true, &stop, |_, _, _| {}).unwrap();
+    assert!(
+        n.folder.join("01 track.wav").is_file()
+            || n.folder.join(format!("01 {}.wav", lib.track(b).unwrap().display_title())).is_file()
+    );
+    assert!(
+        n.folder.join("02 Nova - Night_ Drive_.wav").is_file(),
+        "{:?}",
+        std::fs::read_dir(&n.folder).unwrap().flatten().map(|e| e.file_name()).collect::<Vec<_>>()
+    );
+    let again = lib.copy_files(&[b, a], &usb, "Numbered", true, &stop, |_, _, _| {}).unwrap();
+    assert_eq!((again.copied, again.kept), (0, 2));
+
+    assert_eq!(safe_file_name("CON"), "_CON");
+    assert_eq!(safe_file_name("a/b\\c:d. "), "a_b_c_d");
+}
+
+#[test]
+fn playlists_move_between_folders() {
+    let lib = Library::open_in_memory().unwrap();
+    let gigs = lib.create_playlist("Gigs", PlaylistKind::Folder, None, None).unwrap();
+    let old = lib.create_playlist("Old", PlaylistKind::Folder, Some(gigs), None).unwrap();
+    let a = lib.create_playlist("A", PlaylistKind::List, None, None).unwrap();
+    let b = lib.create_playlist("B", PlaylistKind::List, Some(gigs), None).unwrap();
+    lib.move_playlist(a, Some(gigs), 0).unwrap();
+    let names = |parent: Option<i64>| -> Vec<String> {
+        let mut v: Vec<_> = lib.playlists().unwrap().into_iter().filter(|p| p.parent == parent).collect();
+        v.sort_by_key(|p| p.position);
+        v.into_iter().map(|p| p.name).collect()
+    };
+    assert_eq!(names(Some(gigs)), ["A", "Old", "B"]);
+    lib.move_playlist(a, Some(gigs), 99).unwrap();
+    assert_eq!(names(Some(gigs)), ["Old", "B", "A"]);
+    lib.move_playlist(b, None, 0).unwrap();
+    assert_eq!(names(None), ["B", "Gigs"]);
+    assert!(lib.move_playlist(gigs, Some(old), 0).is_err(), "not inside itself");
+    assert!(lib.move_playlist(gigs, Some(gigs), 0).is_err());
+    assert!(lib.move_playlist(a, Some(b), 0).is_err(), "only folders hold playlists");
+}

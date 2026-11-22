@@ -5,7 +5,8 @@ import type { TrackRow } from "../../backend/types";
 import { useApp } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
-import { ask } from "../shell/Dialogs";
+import { ask, choose } from "../shell/Dialogs";
+import { plural } from "../../lib/format";
 import { starterCategory, tagQuery } from "../../lib/tags";
 import { historyTracklist } from "../../lib/history";
 
@@ -185,6 +186,87 @@ export async function writeCuesForSerato(ids: number[]) {
     else toast.warning(`Cues written to ${r.written} of ${ids.length} files`, { description: r.failed.slice(0, 3).map(([, why]) => why).join("\n") + (r.failed.length > 3 ? `\n…and ${r.failed.length - 3} more` : "") });
   } catch (e) {
     toast.error(String(e));
+  }
+}
+
+// ---------------------------------------------------------------- playlist tools
+
+/** A copy of a playlist (a smart one keeps its rules) beside the original. */
+export async function duplicatePlaylist(id: number) {
+  const p = useLibrary.getState().playlists.find((x) => x.id === id);
+  if (!p || p.kind === "folder") return;
+  try {
+    const name = `${p.name} copy`;
+    const tracks = p.kind === "list" ? (await backend().playlistTracks(id)).map((t) => t.id) : undefined;
+    await backend().createPlaylist(name, p.kind, { parent: p.parent, query: p.query, tracks });
+    await refreshPlaylists();
+    toast.success(`Made “${name}”`);
+  } catch (e) {
+    fail(e);
+  }
+}
+
+export type Tidy = "shuffle" | "duplicates" | "missing";
+
+/** The new order of a list for a tidy-up: shuffled, without repeats, or without missing files. */
+export function tidyOrder(rows: TrackRow[], how: Tidy, random: () => number = Math.random): number[] {
+  if (how === "shuffle") {
+    const ids = rows.map((r) => r.id);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    return ids;
+  }
+  if (how === "missing") return rows.filter((r) => !r.missing).map((r) => r.id);
+  const seen = new Set<number>();
+  return rows.filter((r) => !seen.has(r.id) && !!seen.add(r.id)).map((r) => r.id);
+}
+
+/** Shuffles a list, or takes out repeated tracks or tracks whose files are missing. */
+export async function tidyPlaylist(id: number, how: Tidy) {
+  try {
+    const rows = await backend().playlistTracks(id);
+    const next = tidyOrder(rows, how);
+    const gone = rows.length - next.length;
+    if (how !== "shuffle" && gone === 0) {
+      toast.message(how === "duplicates" ? "No track is in this playlist twice" : "Every file in this playlist is there");
+      return;
+    }
+    await backend().setPlaylistTracks(id, next);
+    await refreshPlaylists();
+    if (useLibrary.getState().source.type === "playlist") await refreshRows();
+    toast.success(how === "shuffle" ? "Shuffled" : `Took out ${gone} ${how === "duplicates" ? (gone === 1 ? "repeat" : "repeats") : gone === 1 ? "missing track" : "missing tracks"}`);
+  } catch (e) {
+    fail(e);
+  }
+}
+
+/** Copies a playlist's music files to a folder or USB stick, with a playlist file beside them. */
+export async function copyPlaylistFiles(id: number) {
+  const p = useLibrary.getState().playlists.find((x) => x.id === id);
+  if (!p) return;
+  if (backend().kind === "web") {
+    toast.message("Copying files needs the desktop app", { description: "A web page cannot copy files on your computer." });
+    return;
+  }
+  try {
+    const rows = p.kind === "smart" && p.query ? await backend().search(p.query) : await backend().playlistTracks(id);
+    if (!rows.length) {
+      toast.message("This playlist is empty");
+      return;
+    }
+    const way = await choose({
+      title: `Copy “${p.name}” to a folder or USB stick`,
+      body: `MixIt makes a folder called “${p.name}” there, copies the ${plural(rows.length, "music file")} into it and adds a playlist file, so the set plays on other gear or another computer. Numbered names keep the order in any player.`,
+      options: ["Keep the file names", "Number them in order"],
+    });
+    if (way == null) return;
+    const dest = await backend().pickFolders("Choose where to copy the music (a USB stick, for example)");
+    if (!dest?.[0]) return;
+    await backend().copyFiles(rows.map((r) => r.id), dest[0], p.name, way === 1);
+  } catch (e) {
+    fail(e);
   }
 }
 
