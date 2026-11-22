@@ -15,6 +15,7 @@ import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, writeTagsToFiles } from "./data";
 import { BatchInspector } from "./BatchInspector";
 import { TagEditor } from "./TagEditor";
+import { editTracksWithUndo } from "../../lib/libraryUndo";
 
 export function Inspector() {
   const selected = useLibrary((s) => s.selected);
@@ -49,7 +50,8 @@ function OneTrack() {
   const t = d.track;
   const save = async (edit: TrackEdit) => {
     try {
-      const row = await backend().editTrack(t.id, edit);
+      const row = await editTracksWithUndo([t], edit, `Edit ${t.title}`, undefined, false);
+      if (!row) return;
       setD({ ...d, track: row });
       useLibrary.setState((s) => ({ rows: s.rows.map((r) => (r.id === row.id ? row : r)) }));
     } catch (e) {

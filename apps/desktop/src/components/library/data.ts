@@ -9,6 +9,7 @@ import { ask, choose } from "../shell/Dialogs";
 import { plural } from "../../lib/format";
 import { starterCategory, tagQuery } from "../../lib/tags";
 import { historyTracklist } from "../../lib/history";
+import { withPlaylistUndo } from "../../lib/libraryUndo";
 
 let seq = 0;
 
@@ -233,10 +234,10 @@ export async function tidyPlaylist(id: number, how: Tidy) {
       toast.message(how === "duplicates" ? "No track is in this playlist twice" : "Every file in this playlist is there");
       return;
     }
-    await backend().setPlaylistTracks(id, next);
+    const what = how === "shuffle" ? "Shuffled" : `Took out ${gone} ${how === "duplicates" ? (gone === 1 ? "repeat" : "repeats") : gone === 1 ? "missing track" : "missing tracks"}`;
+    await withPlaylistUndo(id, how === "shuffle" ? "Shuffle" : how === "duplicates" ? "Take out repeats" : "Take out missing files", () => backend().setPlaylistTracks(id, next), what);
     await refreshPlaylists();
     if (useLibrary.getState().source.type === "playlist") await refreshRows();
-    toast.success(how === "shuffle" ? "Shuffled" : `Took out ${gone} ${how === "duplicates" ? (gone === 1 ? "repeat" : "repeats") : gone === 1 ? "missing track" : "missing tracks"}`);
   } catch (e) {
     fail(e);
   }

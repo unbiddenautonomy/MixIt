@@ -18,6 +18,7 @@ import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { editSmartPlaylist } from "./SmartPlaylistDialog";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
+import { deletePlaylistWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
 
 const same = (a: Source, b: Source) =>
   a.type === b.type &&
@@ -235,8 +236,7 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
               <ContextMenu.Item
                 className="menu-item"
                 onSelect={async () => {
-                  await backend().orderPlaylist(p.id, useLibrary.getState().energy);
-                  toast.success(`Ordered ${p.name} for smooth mixing`);
+                  await withPlaylistUndo(p.id, `Order ${p.name} for mixing`, () => backend().orderPlaylist(p.id, useLibrary.getState().energy), `Ordered ${p.name} for smooth mixing`);
                   refreshRows();
                 }}
               >
@@ -346,9 +346,9 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
             <ContextMenu.Item
               className="menu-item text-red-300"
               onSelect={async () => {
-                const ok = await ask({ title: `Delete “${p.name}”?`, body: "The playlist goes away. Its tracks stay in your library.", confirm: "Delete playlist", danger: true });
-                if (!ok) return;
-                await backend().deletePlaylist(p.id);
+                // A folder takes everything in it along, so it asks; a playlist can be undone.
+                if (p.kind === "folder" && !(await ask({ title: `Delete the folder “${p.name}”?`, body: "The folder and every playlist in it go away. Their tracks stay in your library, and Undo brings it all back.", confirm: "Delete folder", danger: true }))) return;
+                await deletePlaylistWithUndo(p.id);
                 if (same(source, { type: "playlist", id: p.id })) select({ type: "all" });
                 refreshPlaylists();
               }}
