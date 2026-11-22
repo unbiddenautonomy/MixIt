@@ -92,6 +92,8 @@ pub struct Settings {
     /// Raising a channel fader from the bottom starts its deck; closing it stops the
     /// deck and goes back to the cue point.
     pub fader_start: bool,
+    /// Loops the end of the only track playing so the music never stops.
+    pub safety_loop: bool,
     /// A text file that gets the track now playing, for streaming software to show.
     pub now_playing_file: Option<String>,
     /// The line written there, with {artist} {title} {album} {genre} {label} {bpm} {key}.
@@ -120,6 +122,7 @@ impl Default for Settings {
             mic_channel: 0,
             mic_stereo: false,
             fader_start: false,
+            safety_loop: true,
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
         }

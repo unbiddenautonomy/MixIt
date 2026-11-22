@@ -33,6 +33,7 @@ const emptyDeck: DeckTele = {
   compGrDb: 0,
   duckDb: 0,
   gateOpen: false,
+  safetyLoop: false,
 };
 
 export const emptyTelemetry: Telemetry = {

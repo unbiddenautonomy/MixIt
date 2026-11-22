@@ -223,6 +223,11 @@ pub struct Deck {
     roll_slip_was: bool,
     /// Slicer pad being held.
     slice: Option<u8>,
+    /// The safety loop now holding the end of the track, if any.
+    safety: Option<Loop>,
+    /// Set once the safety loop has been used on this pass through the track (so leaving
+    /// it lets the track end); cleared when the track is played from before it again.
+    safety_spent: bool,
 
     // Slip, reverse, scratch.
     slip: bool,
@@ -290,6 +295,8 @@ impl Deck {
             roll: false,
             roll_slip_was: false,
             slice: None,
+            safety: None,
+            safety_spent: false,
             slip: false,
             ghost: 0.0,
             reverse: false,
@@ -587,6 +594,8 @@ impl Deck {
                 self.fade.set_open(false);
                 self.reader = Reader::new();
                 self.reader.head = cue;
+                self.safety = None;
+                self.safety_spent = false;
                 self.primed = false;
                 self.pending_seek = None;
                 self.dip.set_open(true);
@@ -973,6 +982,68 @@ impl Deck {
         }
     }
 
+    /// Bars the safety loop holds: the 16 beats (8 or 4 in a short track) that end on the
+    /// last bar line before the music fades or stops.
+    pub fn safety_region(&self) -> Option<Loop> {
+        let t = self.track.as_ref()?;
+        let g = &t.grid;
+        if g.bpm <= 1.0 {
+            return None;
+        }
+        let bar = g.beats_per_bar.max(1) as f64;
+        let end = g.floor_boundary(t.music_end, bar);
+        let first = g.frame_at(g.beat_at(0.0).ceil());
+        [16.0, 8.0, 4.0].iter().find_map(|&beats| {
+            let start = g.offset_by_beats(end, -beats);
+            (start >= first.max(0.0) && end - start > 0.5 * self.sr).then_some(Loop { start, end, active: true })
+        })
+    }
+
+    /// The safety loop to start now, if the deck is playing forward into its last bars with
+    /// no loop of its own and the safety loop has not already been used on this pass.
+    pub fn safety_due(&self) -> Option<Loop> {
+        if !self.playing
+            || !self.running
+            || self.reverse
+            || self.scratching
+            || self.brake.is_some()
+            || self.rate <= 0.0
+            || self.safety_spent
+            || self.reader.lp.is_some_and(|l| l.active)
+        {
+            return None;
+        }
+        let l = self.safety_region()?;
+        let a = self.audible();
+        // Far enough before the loop end that the wrap is never missed.
+        (a >= l.start && a < l.end - 2.0 * BLOCK as f64 * self.rate.max(1.0)).then_some(l)
+    }
+
+    /// Starts the safety loop.
+    pub fn engage_safety(&mut self, l: Loop, ev: &mut EventSink) {
+        self.set_loop(Some(l), ev);
+        self.after_loop_change();
+        self.safety = Some(l);
+        self.safety_spent = true;
+    }
+
+    /// Forgets the safety loop once it is gone, and arms it again when the track is
+    /// played from before it (a jump back or a cue).
+    pub fn safety_rearm(&mut self) {
+        if let Some(s) = self.safety {
+            if !self.reader.lp.is_some_and(|l| l.active && l.start == s.start && l.end == s.end) {
+                self.safety = None;
+            }
+        }
+        if self.safety_spent && self.safety.is_none() {
+            if let Some(l) = self.safety_region() {
+                if self.audible() < l.start - 0.5 * self.sr {
+                    self.safety_spent = false;
+                }
+            }
+        }
+    }
+
     fn set_loop(&mut self, l: Option<Loop>, ev: &mut EventSink) {
         self.reader.lp = l;
         ev.send(Event::LoopChanged { deck: self.id, looping: self.loop_info() });
@@ -1345,6 +1416,7 @@ impl Deck {
             cue: t.cue,
             looping: self.loop_info(),
             remaining: ((frames - a) / self.sr).max(0.0),
+            safety_loop: self.safety.is_some(),
             peak: [0.0; 2],
             rms: 0.0,
             ..DeckTelemetry::default()

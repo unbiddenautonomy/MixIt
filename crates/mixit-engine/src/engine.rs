@@ -63,6 +63,8 @@ pub struct Engine {
     quantize: Quantize,
     master: Option<DeckId>,
     clock_explicit: bool,
+    /// See [`GlobalCommand::SetSafetyLoop`].
+    safety_loop: bool,
     clock_bpm: f64,
     clock_beat: f64,
     rx: rtrb::Consumer<Timed>,
@@ -123,6 +125,7 @@ impl Engine {
             quantize: Quantize::Beat,
             master: None,
             clock_explicit: false,
+            safety_loop: false,
             clock_bpm: 120.0,
             clock_beat: 0.0,
             rx,
@@ -375,6 +378,7 @@ impl Engine {
                 GlobalCommand::SetTelemetryRate(r) => {
                     self.tel_interval = ((self.sr as f32 / r.max(1.0)) as u64).max(64)
                 }
+                GlobalCommand::SetSafetyLoop(on) => self.safety_loop = on,
             },
         }
     }
@@ -446,7 +450,8 @@ impl Engine {
             self.mixer.strips[i].fx_ctx = ctx;
         }
 
-        // 3. Decks and mixer.
+        // 3. The safety loop, then decks and mixer.
+        self.safety_check();
         self.mixer.begin(n);
         for i in 0..self.decks.len() {
             let env = self.envs[i];
@@ -473,6 +478,23 @@ impl Engine {
         let master_playing = self.master.is_some_and(|m| self.decks[m.index()].is_playing());
         if !master_playing {
             self.clock_beat += self.clock_bpm / 60.0 / self.sr * n as f64;
+        }
+    }
+
+    /// Starts the safety loop on a deck nearing its end when it is the only one heard.
+    fn safety_check(&mut self) {
+        for i in 0..self.decks.len() {
+            self.decks[i].safety_rearm();
+        }
+        if !self.safety_loop {
+            return;
+        }
+        let heard = |e: &Engine, j: usize| e.decks[j].is_playing() && e.decks[j].is_audible() && e.mixer.on_air(j);
+        for i in 0..self.decks.len() {
+            let Some(l) = self.decks[i].safety_due() else { continue };
+            if heard(self, i) && !(0..self.decks.len()).any(|j| j != i && heard(self, j)) {
+                self.decks[i].engage_safety(l, &mut self.events);
+            }
         }
     }
 

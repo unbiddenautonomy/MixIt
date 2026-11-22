@@ -32,6 +32,7 @@ export function engineStateActions(): [string, ActionInput][] {
     pick(`${m}.duck_source`, c.duckSource);
     val(`${m}.duck`, c.duck);
   });
+  on("global.safety_loop", settings?.safetyLoop !== false);
   val("mixer.glue", mixer.glue);
   val("mixer.space.level", mixer.spaceLevel);
   val("mixer.space.size", mixer.spaceSize);

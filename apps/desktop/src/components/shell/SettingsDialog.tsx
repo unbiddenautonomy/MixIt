@@ -175,6 +175,9 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Fader start" hint="Like a club mixer: raising a channel's volume fader from the bottom starts its deck, and pulling it all the way down stops the deck and takes it back to its cue point.">
         <Toggle on={!!s.faderStart} onChange={(v) => updateSettings({ faderStart: v })} label="Start and stop decks with their faders" />
       </Field>
+      <Field label="Safety loop" hint="If the only track playing reaches its end and nothing is mixed in, MixIt loops its last bars on the beat so the music never stops. Mix in the next track, or press Let it end.">
+        <Toggle on={s.safetyLoop !== false} onChange={(v) => updateSettings({ safetyLoop: v })} label="Never let the music stop" />
+      </Field>
       <NowPlaying s={s} />
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />

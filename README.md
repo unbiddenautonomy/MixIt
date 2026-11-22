@@ -13,6 +13,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Two or four decks with beat-accurate sync, tempo master, key lock (Signalsmith Stretch), key shift and one-click "match key".
 - Three-band EQ with kills and isolator mode, DJ filter, gain, auto-gain from measured loudness, crossfader curves, master limiter, headphone cue and split cue.
 - Hot cues, beat-quantised loops, loop roll, beat jump, slip mode, reverse, brake and spin-up, censor.
+- A safety loop: if the only track playing reaches its end with nothing mixed in, its last bars loop on the beat so the music never stops.
 - Instant doubles (copy a playing track to another deck, in time) and fader start (a channel fader starts and stops its deck).
 - A now playing text file for streams (OBS and the like), with your own format.
 - A set clock: choose your set length or end time, watch it count down, and get warned before a track runs past the end.

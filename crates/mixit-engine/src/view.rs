@@ -50,6 +50,7 @@ pub struct DeckTele {
     pub comp_gr_db: f32,
     pub duck_db: f32,
     pub gate_open: bool,
+    pub safety_loop: bool,
 }
 
 impl DeckTele {
@@ -90,6 +91,7 @@ impl DeckTele {
             comp_gr_db: d.comp_gr_db,
             duck_db: d.duck_db,
             gate_open: d.gate_open,
+            safety_loop: d.safety_loop,
         }
     }
 }

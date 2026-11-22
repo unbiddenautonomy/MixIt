@@ -195,6 +195,10 @@ interface SimDeck {
   sliceBeats: number;
   keypadCue: number;
   keypadRange: number;
+  /** The safety loop is holding the end of the track. */
+  safety: boolean;
+  /** The safety loop has been used on this pass through the track. */
+  safetySpent: boolean;
 }
 
 function deckState(): SimDeck {
@@ -211,6 +215,8 @@ function deckState(): SimDeck {
     cue: 0,
     cueHeld: false,
     loop: { start: 0, end: 0, active: false, beats: 0 },
+    safety: false,
+    safetySpent: false,
     loopSize: 4,
     jump: 4,
     hot: Array(16).fill(null),
@@ -241,6 +247,7 @@ export class DemoBackend implements Backend {
   protected crossfader = 0;
   protected masterDb = 0;
   protected recording = false;
+  protected safetyLoop = false;
   protected recorded = 0;
   protected pads: T.PadInfo[] = defaultPads();
   /** Pad index to performance.now() when it stops (Infinity while looping or held). */
@@ -266,6 +273,7 @@ export class DemoBackend implements Backend {
     micChannel: 0,
     micStereo: false,
     faderStart: false,
+    safetyLoop: true,
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
     micVoice: true,
@@ -371,12 +379,40 @@ export class DemoBackend implements Backend {
     return (pos - d.track.firstBeat) / d.track.period;
   }
 
+  /** The last 16 beats before the final bar line (the demo's tracks play at full level to the end). */
+  protected safetyRegion(d: SimDeck): { start: number; end: number } | null {
+    const t = d.track;
+    if (!t) return null;
+    const bar = 4 * t.period;
+    const end = t.firstBeat + Math.floor((t.row.duration - t.firstBeat) / bar) * bar;
+    const start = end - 16 * t.period;
+    return start > t.firstBeat ? { start, end } : null;
+  }
+
+  /** Like the engine: loops the end of the only track heard so the music does not stop. */
+  protected safetyCheck() {
+    const heard = (d: SimDeck) => !!d.track && d.playing && d.fader > 0.05;
+    this.decks.forEach((d, i) => {
+      if (d.safety && !d.loop.active) d.safety = false;
+      const r = this.safetyRegion(d);
+      if (!r) return;
+      if (d.safetySpent && !d.safety && d.position < r.start - 0.5) d.safetySpent = false;
+      if (!this.safetyLoop || !heard(d) || d.loop.active || d.safetySpent) return;
+      if (d.position < r.start || d.position >= r.end - 0.1) return;
+      if (this.decks.some((o, j) => j !== i && heard(o))) return;
+      d.loop = { start: r.start, end: r.end, active: true, beats: 16 };
+      d.safety = true;
+      d.safetySpent = true;
+    });
+  }
+
   protected tick() {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.frame += Math.round(dt * SR);
     if (this.recording) this.recorded += dt;
+    this.safetyCheck();
     const tele: T.DeckTele[] = this.decks.map((d, i) => {
       const t = d.track;
       if (t && d.playing) {
@@ -433,6 +469,7 @@ export class DemoBackend implements Backend {
         compGrDb: this.studio[i].compOn && lvl > 0.05 ? Math.max(0, 20 * Math.log10(lvl) - this.studio[i].comp.thresholdDb) * (1 - 1 / this.studio[i].comp.ratio) : 0,
         duckDb: 0,
         gateOpen: this.studio[i].gateOn && lvl > 0.01,
+        safetyLoop: d.safety,
       };
     });
     tele.forEach((d, i) => {
@@ -715,6 +752,9 @@ export class DemoBackend implements Backend {
             if (d.loop.active) d.loop = { ...d.loop, end: d.loop.start + d.loopSize * beat, beats: d.loopSize };
           }
           break;
+        case "let_end":
+          if (press) d.loop = { ...d.loop, active: false };
+          break;
         case "loop.reloop":
           if (press && d.loop.end > d.loop.start) d.loop = { ...d.loop, active: !d.loop.active };
           break;
@@ -777,6 +817,8 @@ export class DemoBackend implements Backend {
       else if (c === "level" && !Number.isNaN(value)) this.mic.level = value;
       else if (c === "gain" && !Number.isNaN(value)) this.mic.gain = value;
       else if (c === "talkover_depth" && !Number.isNaN(value)) this.mic.depth = value;
+    } else if (id === "global.safety_loop") {
+      this.safetyLoop = toggle(this.safetyLoop);
     } else if (id === "global.record" && press) {
       this.recording = !this.recording;
     }
@@ -2126,6 +2168,7 @@ function demoRegistry(): T.ActionSpec[] {
     add(`deck.${l}.tempo`, "Tempo", g, cont(-1, 1, 0), "Speeds the track up or down within the tempo range.");
     add(`deck.${l}.key_sync`, "Match key", g, { type: "trigger" }, "Moves this track's key the smallest step that sounds good with the leading deck's key.");
     add(`deck.${l}.loop.auto`, "Loop", g, { type: "toggle" }, "Loops the selected number of beats from here, on the beat.", k[7] ?? null);
+    add(`deck.${l}.let_end`, "Let it end", g, { type: "trigger" }, "Leaves the safety loop (or any loop) so the track plays out to its end.");
     add(`deck.${l}.loop.halve`, "Halve loop", g, { type: "trigger" }, "Halves the loop length.", k[8] ?? null);
     add(`deck.${l}.loop.double`, "Double loop", g, { type: "trigger" }, "Doubles the loop length.", k[9] ?? null);
     add(`deck.${l}.beatjump.back`, "Beat jump back", g, { type: "trigger" }, "Jumps back by the selected number of beats, staying in time.", k[10] ?? null);
@@ -2194,6 +2237,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);
   add("app.edit_track", "Edit track", "App", { type: "trigger" }, "Opens the track editor for the selected deck: fix the beat grid, name and colour cues, choose where the track starts, and turn a passage into a loop or a sampler pad.", "Mod+Shift+E");
   add("global.record", "Record", "Global", { type: "toggle" }, "Records your mix to a WAV file.", "Mod+R");
+  add("global.safety_loop", "Safety loop", "Global", { type: "toggle" }, "When the only track playing is about to end and nothing is mixed in, its last bars loop on the beat so the music never stops.");
   add("app.palette", "Command palette", "App", { type: "trigger" }, "Search every action.", "Mod+K");
   add("app.clip_copy", "Copy clips", "App", { type: "trigger" }, "Copies the selected clips in Arrange, to paste somewhere else in the mix.", "Mod+C");
   add("app.clip_cut", "Cut clips", "App", { type: "trigger" }, "Removes the selected clips in Arrange and keeps them to paste.", "Mod+X");

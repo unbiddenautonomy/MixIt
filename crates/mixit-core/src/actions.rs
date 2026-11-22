@@ -525,6 +525,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         );
         b.add(id("loop.reloop"), "Reloop", &g, trig(), "Jumps back into the last loop.", false, None, None);
         b.add(
+            id("let_end"),
+            "Let it end",
+            &g,
+            trig(),
+            "Leaves the safety loop (or any loop) so the track plays out to its end.",
+            false,
+            None,
+            Some("safety-loop"),
+        );
+        b.add(
             id("loop.roll"),
             "Loop roll",
             &g,
@@ -1230,6 +1240,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         false,
         None,
         None,
+    );
+    b.add(
+        "global.safety_loop",
+        "Safety loop",
+        gg,
+        ActionKind::Toggle,
+        "When the only track playing is about to end and nothing is mixed in, its last bars loop on the beat so the music never stops.",
+        false,
+        None,
+        Some("safety-loop"),
     );
     b.add(
         "global.record",
