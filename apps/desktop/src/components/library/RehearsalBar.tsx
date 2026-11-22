@@ -2,9 +2,9 @@
 // where it is with the transition marked, jump to the mix, close. Sits under the
 // library like the preview player, which plays it.
 import { Headphones, Loader2, Pause, Play, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { setupCanvas } from "../../lib/waveform";
-import { seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
+import { changeAt, nextChange, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn } from "../ui/Button";
 import { previewPosition } from "./PreviewBar";
@@ -16,6 +16,7 @@ export function RehearsalBar() {
   const title = useRehearse((s) => s.title);
   const summary = useRehearse((s) => s.summary);
   const mixAt = useRehearse((s) => s.mixAt);
+  const many = useRehearse((s) => s.changes.length > 1);
   const playing = useTelemetry((s) => !!s.t.preview?.playing);
   if (key === null) return null;
   return (
@@ -33,11 +34,17 @@ export function RehearsalBar() {
         <Headphones size={14} className="shrink-0 text-sky-300" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[12px] font-medium text-zinc-100">{title}</div>
-          <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? "Preparing the mix…" : `${summary}, the way Auto DJ mixes it`}</div>
+          <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? (many ? "Preparing every change… a long set takes a little while" : "Preparing the mix…") : many ? <NowHearing /> : `${summary}, the way Auto DJ mixes it`}</div>
         </div>
-        <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => seekMix(Math.max(0, mixAt - 4))} title="Jump to a few seconds before the transition starts">
-          Jump to the mix
-        </Btn>
+        {many ? (
+          <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => nextChange(previewPosition())} title="Jump to a few seconds before the next change" data-testid="next-change">
+            Next change
+          </Btn>
+        ) : (
+          <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => seekMix(Math.max(0, mixAt - 4))} title="Jump to a few seconds before the transition starts">
+            Jump to the mix
+          </Btn>
+        )}
         <button type="button" onClick={stopMix} aria-label="Stop hearing the mix" title="Stop and close" className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-100">
           <X size={14} />
         </button>
@@ -45,6 +52,18 @@ export function RehearsalBar() {
       <MixStrip />
     </div>
   );
+}
+
+/** Which change of the set is playing, updated as it plays. */
+function NowHearing() {
+  const changes = useRehearse((s) => s.changes);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setI(changeAt(previewPosition())), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  const c = changes[i];
+  return <span data-testid="now-hearing">{c ? `Change ${i + 1} of ${changes.length}: ${c.label}` : ""}</span>;
 }
 
 function MixStrip() {
@@ -63,8 +82,7 @@ function MixStrip() {
         g.fillRect(0, r.height / 2 - 1, r.width, 2);
         // The transition: where both tracks play.
         g.fillStyle = "rgba(56,189,248,0.35)";
-        const x0 = (s.mixAt / dur) * r.width;
-        g.fillRect(x0, 2, Math.max(2, ((s.mixEnd - s.mixAt) / dur) * r.width), r.height - 4);
+        for (const m of s.changes.length ? s.changes : [{ at: s.mixAt, end: s.mixEnd }]) g.fillRect((m.at / dur) * r.width, 2, Math.max(2, ((m.end - m.at) / dur) * r.width), r.height - 4);
         if (s.status === "ready") {
           const x = (previewPosition() / dur) * r.width;
           g.fillStyle = "#fafafa";
