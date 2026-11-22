@@ -5,7 +5,8 @@ import { enqueueIds } from "../autodj/AutoDj";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
-import { AlertTriangle, ArrowDown, ArrowUp, Loader2, Star } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Columns3, Loader2, Star } from "lucide-react";
+import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -23,13 +24,17 @@ import { editTrack } from "../editor/TrackEditor";
 import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
 import { tagStyle } from "../../lib/tags";
+import { isShown, resetColumns, setShown, setWidth, track, useColumns, type ColumnLevel } from "../../lib/columns";
 
 interface Column {
   key: string;
   label: string;
   sort: SortKey;
   width: string;
+  /** Shown from Pro view on (unless you choose otherwise). */
   pro?: boolean;
+  /** Off until you turn it on. */
+  extra?: boolean;
   align?: "right" | "center";
   cell: (r: TrackRow, ctx: Ctx) => ReactNode;
 }
@@ -121,10 +126,101 @@ const COLUMNS: Column[] = [
       </span>
     ),
   },
-  { key: "lufs", label: "LUFS", sort: null, width: "48px", align: "right", pro: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.lufs != null ? r.lufs.toFixed(1) : "–"}</span> },
+  { key: "album", label: "Album", sort: "album", width: "minmax(90px,1fr)", extra: true, cell: (r) => <span className="truncate text-zinc-500">{r.album}</span> },
+  { key: "label", label: "Label", sort: "label", width: "minmax(80px,0.8fr)", extra: true, cell: (r) => <span className="truncate text-zinc-500">{r.label}</span> },
+  { key: "year", label: "Year", sort: "year", width: "48px", align: "right", extra: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.year ?? ""}</span> },
+  { key: "comment", label: "Comment", sort: "comment", width: "minmax(100px,1.2fr)", extra: true, cell: (r) => <span className="truncate text-zinc-500" title={r.comment}>{r.comment}</span> },
+  { key: "played", label: "Last played", sort: "lastPlayed", width: "86px", align: "right", extra: true, cell: (r) => <span className="text-[11px] text-zinc-500">{r.lastPlayed ? new Date(r.lastPlayed * 1000).toLocaleDateString() : "never"}</span> },
+  { key: "lufs", label: "LUFS", sort: "lufs", width: "48px", align: "right", pro: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.lufs != null ? r.lufs.toFixed(1) : "–"}</span> },
   { key: "plays", label: "Plays", sort: "playCount", width: "44px", align: "right", pro: true, cell: (r) => <span className="font-mono text-[11px] text-zinc-500">{r.playCount || ""}</span> },
   { key: "added", label: "Added", sort: "addedAt", width: "78px", align: "right", pro: true, cell: (r) => <span className="text-[11px] text-zinc-500">{new Date(r.addedAt * 1000).toLocaleDateString()}</span> },
 ];
+
+const LEVEL = (c: Column): ColumnLevel => (c.extra ? "extra" : c.pro ? "pro" : "always");
+
+function ColumnChoices({ pro, Item, Sep }: { pro: boolean; Item: typeof ContextMenu.CheckboxItem | typeof Dropdown.CheckboxItem; Sep: typeof ContextMenu.Separator | typeof Dropdown.Separator }) {
+  const prefs = useColumns();
+  return (
+    <>
+      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Columns</div>
+      {COLUMNS.filter((c) => c.key !== "title" && c.key !== "n").map((c) => {
+        const on = isShown(c.key, LEVEL(c), pro, prefs);
+        return (
+          <Item key={c.key} className="menu-item" checked={on} onSelect={(e: Event) => { e.preventDefault(); setShown(c.key, !on); }} data-testid="column-choice">
+            <span className="mr-2 inline-block w-3 text-sky-300">{on ? "✓" : ""}</span>
+            {c.label}
+          </Item>
+        );
+      })}
+      <Sep className="menu-sep" />
+      <Item className="menu-item" checked={false} onSelect={() => resetColumns()}>
+        <span className="mr-2 inline-block w-3" />
+        Back to the default columns and widths
+      </Item>
+    </>
+  );
+}
+
+/** Right-click the header to choose columns. */
+function ColumnsMenu({ pro, children }: { pro: boolean; children: ReactNode }) {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="menu">
+          <ColumnChoices pro={pro} Item={ContextMenu.CheckboxItem} Sep={ContextMenu.Separator} />
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+}
+
+/** The same choices from a button at the end of the header, for anyone who does not right-click. */
+function ColumnsButton({ pro }: { pro: boolean }) {
+  return (
+    <Dropdown.Root>
+      <Dropdown.Trigger asChild>
+        <button type="button" aria-label="Choose columns" title="Choose which columns show" className="mx-auto flex size-5 items-center justify-center rounded text-zinc-500 hover:bg-white/10 hover:text-zinc-200" data-testid="columns-button">
+          <Columns3 size={12} />
+        </button>
+      </Dropdown.Trigger>
+      <Dropdown.Portal>
+        <Dropdown.Content className="menu" align="end" sideOffset={4}>
+          <ColumnChoices pro={pro} Item={Dropdown.CheckboxItem} Sep={Dropdown.Separator} />
+        </Dropdown.Content>
+      </Dropdown.Portal>
+    </Dropdown.Root>
+  );
+}
+
+/** Drag a header's right edge to resize its column; double-click to put it back. */
+function ResizeHandle({ col, label }: { col: string; label: string }) {
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${label}`}
+      title="Drag to resize. Double-click for the usual width."
+      className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize after:absolute after:left-1/2 after:top-1.5 after:h-4 after:w-px after:bg-white/0 hover:after:bg-sky-400/70"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cell = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+        const x0 = e.clientX;
+        const move = (ev: PointerEvent) => setWidth(col, cell.width + ev.clientX - x0);
+        const up = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+      }}
+      onDoubleClick={() => setWidth(col, null)}
+      onClick={(e) => e.stopPropagation()}
+      data-testid="column-resize"
+    />
+  );
+}
 
 function EnergyBar({ v }: { v: number | null }) {
   if (v == null) return <span className="text-zinc-600">–</span>;
@@ -191,8 +287,10 @@ export function TrackTable() {
   const notation = useNotation();
   const ref = useReference();
   const rowTags = useLibrary((s) => s.rowTags);
-  const cols = COLUMNS.filter((c) => pro || !c.pro);
-  const template = cols.map((c) => c.width).join(" ");
+  const prefs = useColumns();
+  const cols = COLUMNS.filter((c) => isShown(c.key, c.extra ? "extra" : c.pro ? "pro" : "always", pro, prefs));
+  // A last narrow track holds the columns button in the header (and stays empty in rows).
+  const template = `${cols.map((c) => track(c.key, c.width, prefs)).join(" ")} 24px`;
   const sorted = useMemo(() => sortRows(rows, sort, sortDir), [rows, sort, sortDir]);
   const selSet = useMemo(() => new Set(selected), [selected]);
   const parent = useRef<HTMLDivElement>(null);
@@ -232,9 +330,9 @@ export function TrackTable() {
     return () => el.removeEventListener("keydown", onKey);
   }, [sorted, v]);
 
-  const header = (c: Column) => (
+  const header = (c: Column, i: number) => (
+    <div key={c.key} className="relative flex h-full min-w-0 items-center">
     <button
-      key={c.key}
       type="button"
       disabled={!c.sort}
       onClick={() => {
@@ -247,13 +345,18 @@ export function TrackTable() {
       {c.label}
       {sort === c.sort && c.sort && (sortDir === 1 ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
     </button>
+    {i < cols.length - 1 && <ResizeHandle col={c.key} label={c.label} />}
+    </div>
   );
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="grid h-7 shrink-0 items-center border-b border-white/[0.06]" style={{ gridTemplateColumns: template }}>
-        {cols.map(header)}
-      </div>
+      <ColumnsMenu pro={pro}>
+        <div className="grid h-7 shrink-0 items-center border-b border-white/[0.06]" style={{ gridTemplateColumns: template }} data-testid="table-header">
+          {cols.map(header)}
+          <ColumnsButton pro={pro} />
+        </div>
+      </ColumnsMenu>
       <div ref={parent} tabIndex={0} className="relative min-h-0 flex-1 overflow-y-auto outline-none" data-testid="track-table">
         {sorted.length === 0 && !loading && <Empty source={source.type} />}
         <div style={{ height: v.getTotalSize(), position: "relative" }}>
