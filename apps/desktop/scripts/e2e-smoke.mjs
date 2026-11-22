@@ -418,6 +418,8 @@ try {
       await window.mixit.backend().action("deck.B.play", { type: "press" });
       await window.mixit.backend().action("deck.B.play", { type: "release" });
     });
+    // Play is a toggle: let the decks report stopped before the next step reads them.
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
   });
 
   await step("a suggestion can be heard mixed in after the seed track", async () => {
