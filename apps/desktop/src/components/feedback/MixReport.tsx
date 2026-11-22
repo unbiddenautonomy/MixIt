@@ -137,6 +137,7 @@ function Body({ report, project, onEdit }: { report: MixReport; project: MixProj
                     <th className="px-2 py-1.5 text-center font-medium" title="The kicks hit together">Beats</th>
                     <th className="px-2 py-1.5 text-center font-medium" title="Bars and 8-bar phrases lined up">Phrase</th>
                     <th className="px-2 py-1.5 text-center font-medium" title="Only one bassline at a time">Bass</th>
+                    <th className="px-2 py-1.5 text-center font-medium" title="Only one singer up front at a time">Voices</th>
                     <th className="px-2 py-1.5 text-center font-medium" title="The keys fit together">Key</th>
                   </tr>
                 </thead>
@@ -228,6 +229,9 @@ function TransitionRow({ t }: { t: TransitionCheck }) {
       </td>
       <td className="px-2 py-1.5 text-center">
         <Mark ok={t.bassClash < 2} title={`${t.bassClash.toFixed(1)} s with two basslines`} />
+      </td>
+      <td className="px-2 py-1.5 text-center">
+        <Mark ok={(t.vocalClash ?? 0) < 3} title={`${(t.vocalClash ?? 0).toFixed(1)} s with two singers`} />
       </td>
       <td className="px-2 py-1.5 text-center">
         <Mark ok={t.keysFit} title={t.fromKey && t.toKey ? `${t.fromKey} → ${t.toKey}` : "Key unknown"} />

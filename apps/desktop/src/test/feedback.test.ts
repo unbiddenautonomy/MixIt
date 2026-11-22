@@ -13,6 +13,8 @@ interface Opts {
   bassSwap?: boolean;
   gap?: boolean;
   keys?: [number, number];
+  sing?: boolean; // both tracks sing all the way through
+  duck?: boolean; // B's mids down while it comes in
 }
 
 /** A plays clock beats 0..96, B comes in over 64..80 and plays to 160. */
@@ -30,6 +32,8 @@ function mix(o: Opts = {}): Capture {
     const aLow = o.bassSwap === false ? 0 : b < 80 ? 0 : -26;
     if (a) a.low = aLow;
     const bb = b >= (o.gap ? 64 : 64) ? deck({ token: 2, beat: bBeat, bpm: bBpm, volume: o.gap ? 1 : ramp(b, 64, 72), low }) : null;
+    for (const d of [a, bb]) if (d && o.sing) d.singing = true;
+    if (bb && o.duck && b < 96) bb.mid = -12;
     frames.push({ t, clockBpm: 124, decks: [a, bb, null, null], master: { peak: 0.7, clipped: false, limiterDb: 0, lufs: -10 } });
   }
   const keys = o.keys ?? [9, 9];
@@ -91,4 +95,17 @@ describe("phrase-aligned transitions", async () => {
     // Not enough track left: no phrase start.
     expect(phraseStart(37.5, 0, 4, 10)).toBeNull();
   });
+
+  it("notices two singers at once, and not when one is pulled back", () => {
+    const r = mixReport(mix({ sing: true }))!;
+    expect(r.transitions[0].vocalClash).toBeGreaterThan(3);
+    const f = r.findings.find((x) => x.id === "vocals");
+    expect(f?.lab).toBe("vocals");
+    const ducked = mixReport(mix({ sing: true, duck: true }))!;
+    expect(ducked.transitions[0].vocalClash).toBeLessThan(1);
+    expect(ducked.findings.some((x) => x.id === "vocals")).toBe(false);
+    // Older captures without vocal data say nothing.
+    expect(mixReport(mix())!.transitions[0].vocalClash).toBe(0);
+  });
 });
+

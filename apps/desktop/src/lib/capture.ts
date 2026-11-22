@@ -35,6 +35,8 @@ export interface DeckFrame {
   pan?: number;
   space?: number;
   echo?: number;
+  /** The track has singing at this moment (from its vocal analysis; missing in older captures). */
+  singing?: boolean;
 }
 
 export interface CaptureFrame {
@@ -314,14 +316,16 @@ export class MixCapture {
     private sampleRate: number,
   ) {}
 
-  /** Adds a telemetry snapshot (thinned to CAPTURE_RATE). `trackFor` names what a token plays. */
-  add(tele: Telemetry, mixer: MixerState, trackFor: (deck: number) => TrackRef | null) {
+  /** Adds a telemetry snapshot (thinned to CAPTURE_RATE). `trackFor` names what a token
+   * plays; `singing` says whether a deck's track has a voice at a position (seconds). */
+  add(tele: Telemetry, mixer: MixerState, trackFor: (deck: number) => TrackRef | null, singing?: (deck: number, seconds: number) => boolean) {
     if (this.frame0 === null) this.frame0 = tele.frame;
     const t = (tele.frame - this.frame0) / this.sampleRate;
     if (t - this.lastT < 1 / CAPTURE_RATE - 1e-6) return;
     this.lastT = t;
     const fr = sampleFrame(t, tele, mixer);
     fr.decks.forEach((d, i) => {
+      if (d && singing?.(i, tele.decks[i].position)) d.singing = true;
       if (d && !(d.token in this.tracks)) {
         const ref = trackFor(i);
         if (ref) this.tracks[d.token] = ref;

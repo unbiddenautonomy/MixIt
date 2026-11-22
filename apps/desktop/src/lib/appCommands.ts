@@ -1,5 +1,6 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
+import { singingAt } from "./coach";
 import { startAutoDj, stopAutoDj, useAutoDj } from "../store/autodj";
 import { togglePreview, useTrackPreview } from "../store/trackPreview";
 import { toggleSequencer } from "../store/sequencer";
@@ -66,7 +67,7 @@ function startCapture() {
   const c = new MixCapture(name, useApp.getState().audio?.sampleRate ?? 48_000);
   capture = c;
   captureOff?.();
-  captureOff = useTelemetry.subscribe((s) => c.add(s.t, useApp.getState().mixer, trackRefFor));
+  captureOff = useTelemetry.subscribe((s) => c.add(s.t, useApp.getState().mixer, trackRefFor, (d, secs) => singingAt(useApp.getState().decks[d], secs)));
 }
 
 function stopCapture(): { project: MixProject | null; report: MixReport | null; tracklist: TracklistEntry[]; name: string } {
