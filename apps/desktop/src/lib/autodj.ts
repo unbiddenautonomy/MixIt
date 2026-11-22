@@ -5,6 +5,7 @@
 import type { KeyDto, TrackDetail } from "../backend/types";
 import { bestShift, compatibility, keyFromIndex } from "./keys";
 import type { TransitionId } from "./transition";
+import { vocalClearStart } from "./vocalTiming";
 
 /** Transition lengths Auto DJ picks from, longest first. */
 export const LENGTHS = [64, 32, 16, 8];
@@ -228,6 +229,24 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
     const nextPhrase = Math.ceil((nowBeat + 0.25) / phrase) * phrase;
     const nextBar = Math.ceil((nowBeat + 0.25) / bpb) * bpb;
     start = nextPhrase + Math.max(beats, bpb) <= endBeat ? nextPhrase : nextBar;
+  }
+  // Not over the middle of a sung line: move to the nearest clear phrase (or bar) when one
+  // is close, earlier or later.
+  const clear = vocalClearStart({
+    regions: out.vocals,
+    secondsAt: (b) => secondsAtBeat(out, b),
+    candidate: start,
+    beats,
+    beatsPerBar: bpb,
+    endBeat,
+    earliest: nowBeat + 0.25,
+  });
+  if (clear.moved) {
+    const bars = Math.round(Math.abs(clear.start - start) / bpb);
+    reasons.push(
+      `The current track is singing at the planned point, so the mix moves ${bars} bar${bars === 1 ? "" : "s"} ${clear.start > start ? "later" : "earlier"}, where it doesn't cut into a sung line.`,
+    );
+    start = clear.start;
   }
 
   const sync = !(farTempo && (kind === "echoOut" || kind === "cut" || kind === "brake"));
