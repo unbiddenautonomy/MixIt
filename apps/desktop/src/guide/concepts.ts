@@ -547,6 +547,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "set-clock",
+    title: "Keeping to your set time",
+    group: "Effects and tricks",
+    summary: "Tell MixIt when your set ends and it counts down and warns you before a track runs over.",
+    body: [
+      "Click Set length in the bar at the top and choose how long you play, or type the time you finish, such as 02:00. The bar then shows the time left, turning amber in the last ten minutes and red in the last three.",
+      "The coach keeps an eye on it: it tells you when the track playing would run past the end of your set, or when the next track is longer than the time that will be left, so you can mix out early or pick a shorter one. Build a set starts with the time you have left as its length.",
+    ],
+  },
+  {
     id: "now-playing",
     title: "Showing the track on a stream",
     group: "Your library",

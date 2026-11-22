@@ -213,6 +213,16 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("the set clock counts down an hour", async () => {
+    await page.click('[data-testid="set-clock"]');
+    await page.click('[data-testid="set-length-60"]');
+    await page.waitForSelector('[data-testid="set-clock"]:has-text("left")', { timeout: 3000 });
+    const label = await page.textContent('[data-testid="set-clock"]');
+    expect(/(59|1:00):\d\d left/.test(label ?? ""), `set clock shows ${label}`);
+    await page.click("text=Clear");
+    await page.keyboard.press("Escape");
+  });
+
   await step("settings open, with fader start under Mixing", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ settingsOpen: true }));
     await page.waitForSelector('[role="dialog"] >> text=Settings', { timeout: 5000 });

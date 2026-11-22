@@ -1,6 +1,7 @@
 // "Build a set": MixIt picks tracks for the time you have, with the energy moving the way
 // you choose (warm-up, build, peak, journey, cool-down) and every change of track mixable.
 // You see the set and its energy against the shape, try another, then keep it as a playlist.
+import { setMinutesLeft, useSetClock } from "../../lib/setClock";
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import { Loader2, RefreshCw, X } from "lucide-react";
@@ -58,7 +59,11 @@ function ShapeLine({ shape, w = 64, h = 22 }: { shape: SetShape; w?: number; h?:
 function Builder({ req }: { req: Req }) {
   const playlists = useLibrary((s) => s.playlists);
   const notation = useNotation();
-  const [minutes, setMinutes] = useState(60);
+  // With a set clock running, the time you have left (in the lengths offered).
+  const [minutes, setMinutes] = useState(() => {
+    const left = setMinutesLeft(useSetClock.getState().endsAt);
+    return left == null ? 60 : LENGTHS.reduce((best, [m]) => (Math.abs(m - left) < Math.abs(best - left) ? m : best), 60);
+  });
   const [shape, setShape] = useState<SetShape>("build");
   const [from, setFrom] = useState<number | "all">(req.playlist ?? "all");
   const [query, setQuery] = useState("");
