@@ -1391,6 +1391,15 @@ pub async fn sampler_reset(app: AppHandle) -> R<Vec<PadInfo>> {
     .map_err(err)?
 }
 
+/// Puts the step sequencer's patterns and settings on the engine.
+#[tauri::command]
+pub fn sampler_sequence(state: State<'_, AppState>, sequencer: mixit_engine::view::SequencerDto) {
+    let mut a = state.audio.lock();
+    for c in mixit_engine::view::sequencer_commands(&sequencer, crate::sampler::PADS) {
+        a.send(Command::Sampler(c));
+    }
+}
+
 #[tauri::command]
 pub fn sampler_stop_all(state: State<'_, AppState>) {
     state.audio.lock().send(Command::Sampler(mixit_engine::SamplerCommand::StopAll));

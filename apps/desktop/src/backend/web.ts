@@ -818,6 +818,10 @@ export class WebAudioBackend extends DemoBackend {
     return Promise.all(pads.map((p) => (p.source.type === "kit" ? this.loadKit(p.pad, p.source.id) : this.samplerClear(p.pad))));
   }
 
+  async samplerSequence(sequencer: T.SequencerDto) {
+    this.engine.send({ op: "sequence", sequencer });
+  }
+
   async samplerStopAll() {
     this.engine.send({ op: "action", id: "sampler.stop_all", input: { type: "press" } });
   }

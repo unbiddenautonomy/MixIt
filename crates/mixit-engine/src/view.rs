@@ -175,6 +175,8 @@ pub struct TelemetryDto {
     pub overruns: u64,
     /// Bit n set while pad n plays.
     pub sampler_playing: u32,
+    /// Step the sampler's sequencer is on, or -1 when it is off.
+    pub sequencer_step: i16,
     /// Spectrum-analyser bands (dB, see `mixit_dsp::studio::Spectrum`) while one is open.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub spectrum: Option<Vec<f32>>,
@@ -194,6 +196,7 @@ impl TelemetryDto {
             load,
             overruns,
             sampler_playing: t.sampler_playing,
+            sequencer_step: t.sequencer_step,
             spectrum: None,
         }
     }
@@ -483,5 +486,71 @@ mod tests {
         assert_eq!(ops[2], EditOpDto::InsertSilence { at: 1.0, seconds: 0.5 });
         let v = SoundViewDto::new(&[0.5, -0.5, -0.25, 0.25], 48_000, 2);
         assert_eq!(v.peaks.len(), 16);
+    }
+}
+
+/// The sampler's step sequencer as the UI edits it: one row of steps per pad.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SequencerDto {
+    pub on: bool,
+    /// Steps in the pattern (1 to 64).
+    pub steps: u8,
+    /// Length of one step in beats (0.25 = sixteenth notes).
+    pub step_beats: f64,
+    /// 0 = straight, 0.5 = full triplet feel.
+    pub swing: f32,
+    /// `pads[p][s]`: whether pad `p` plays on step `s`.
+    pub pads: Vec<Vec<bool>>,
+}
+
+/// The commands that put a sequencer state on the engine (patterns first, then the
+/// settings, so a pattern that starts running is complete on its first step).
+pub fn sequencer_commands(d: &SequencerDto, pads: usize) -> Vec<crate::SamplerCommand> {
+    let mut out = Vec::with_capacity(pads + 1);
+    for pad in 0..pads {
+        let mut bits = 0u64;
+        if let Some(row) = d.pads.get(pad) {
+            for (s, on) in row.iter().enumerate().take(64) {
+                if *on {
+                    bits |= 1 << s;
+                }
+            }
+        }
+        out.push(crate::SamplerCommand::SeqPattern { pad, steps: bits });
+    }
+    out.push(crate::SamplerCommand::SeqSettings {
+        on: d.on,
+        steps: if d.steps == 0 { 16 } else { d.steps.min(64) },
+        step_beats: if d.step_beats > 0.0 { d.step_beats } else { 0.25 },
+        swing: d.swing,
+    });
+    out
+}
+
+#[cfg(test)]
+mod sequencer_tests {
+    use super::*;
+    use crate::SamplerCommand;
+
+    #[test]
+    fn a_pattern_becomes_bits_then_settings() {
+        let d = SequencerDto {
+            on: true,
+            steps: 16,
+            step_beats: 0.25,
+            swing: 0.2,
+            pads: vec![vec![true, false, false, false, true], vec![], vec![false, true]],
+        };
+        let cmds = sequencer_commands(&d, 4);
+        assert_eq!(cmds.len(), 5);
+        assert!(matches!(cmds[0], SamplerCommand::SeqPattern { pad: 0, steps: 0b10001 }));
+        assert!(matches!(cmds[1], SamplerCommand::SeqPattern { pad: 1, steps: 0 }));
+        assert!(matches!(cmds[2], SamplerCommand::SeqPattern { pad: 2, steps: 0b10 }));
+        assert!(matches!(cmds[4], SamplerCommand::SeqSettings { on: true, steps: 16, .. }));
+        let json: SequencerDto = serde_json::from_str(r#"{"on":false,"pads":[[true]]}"#).unwrap();
+        assert!(
+            matches!(sequencer_commands(&json, 1)[1], SamplerCommand::SeqSettings { steps: 16, step_beats, .. } if step_beats == 0.25)
+        );
     }
 }

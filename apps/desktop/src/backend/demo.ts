@@ -169,6 +169,9 @@ interface SimDeck {
   filter: number;
   trim: number;
   slip: boolean;
+  /** Slicer pad or roll held: where the track would be, and when that was. */
+  held: { pos: number; at: number; pad: string } | null;
+  sliceBeats: number;
 }
 
 function deckState(): SimDeck {
@@ -194,6 +197,8 @@ function deckState(): SimDeck {
     filter: 0,
     trim: 0,
     slip: false,
+    held: null,
+    sliceBeats: 8,
   };
 }
 
@@ -294,6 +299,37 @@ export class DemoBackend implements Backend {
     return 1 + d.tempo * d.range + d.nudge * 0.04;
   }
 
+  /** Slicer and roll pads: a loop while held, then back to where the track would be. */
+  protected padHold(d: SimDeck, kind: string, n: number, press: boolean, release: boolean) {
+    const t = d.track;
+    if (!t) return;
+    const key = `${kind}${n}`;
+    const now = performance.now();
+    const rate = this.rate(this.decks.indexOf(d));
+    if (press) {
+      const here = d.held ? d.held.pos + ((now - d.held.at) / 1000) * rate : d.position;
+      const beat = this.beatAt(d, here);
+      let start: number;
+      let len: number;
+      if (kind === "slice") {
+        len = d.sliceBeats / 8;
+        const domain = Math.floor(beat / d.sliceBeats) * d.sliceBeats;
+        start = domain + n * len;
+        d.position = t.firstBeat + (start + (((beat - domain) % len) + len) % len) * t.period;
+      } else {
+        len = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4][n];
+        start = Math.floor(beat / Math.min(1, len)) * Math.min(1, len);
+        d.position = t.firstBeat + start * t.period;
+      }
+      d.held = { pos: here, at: now, pad: key };
+      d.loop = { start: t.firstBeat + start * t.period, end: t.firstBeat + (start + len) * t.period, active: true, beats: len };
+    } else if (release && d.held?.pad === key) {
+      d.position = d.held.pos + (d.playing ? ((now - d.held.at) / 1000) * rate : 0);
+      d.held = null;
+      d.loop = { ...d.loop, active: false };
+    }
+  }
+
   protected beatAt(d: SimDeck, pos: number) {
     if (!d.track) return 0;
     return (pos - d.track.firstBeat) / d.track.period;
@@ -379,6 +415,7 @@ export class DemoBackend implements Backend {
     const duckDb = this.mic.onAir && this.mic.talkover && speaking ? this.mic.depth : 0;
     const m = (Math.min(1.2, mix) * Math.pow(10, duckDb / 20) + (this.mic.onAir ? voice * this.mic.level : 0)) * Math.pow(10, (this.masterDb + this.studio[4].outputDb) / 20);
     const limited = Math.min(m, 0.98);
+    this.sequencerTick(dt, this.master !== null ? tele[this.master].bpm || 124 : 124);
     this.emit<T.Telemetry>("telemetry", {
       frame: this.frame,
       decks: tele,
@@ -414,6 +451,7 @@ export class DemoBackend implements Backend {
       load: 0.08 + Math.random() * 0.02,
       overruns: 0,
       samplerPlaying: this.samplerMask(),
+      sequencerStep: this.seqStep,
       spectrum:
         this.scope === "off"
           ? undefined
@@ -499,6 +537,10 @@ export class DemoBackend implements Backend {
       if (!d) return;
       const t = d.track;
       const beat = t?.period ?? 0.5;
+      if (t && (p[2] === "slice" || p[2] === "roll") && /^[1-8]$/.test(p[3] ?? "")) {
+        this.padHold(d, p[2], Number(p[3]) - 1, press, release);
+        return;
+      }
       switch (p.slice(2).join(".")) {
         case "play":
           if (press && t) {
@@ -578,6 +620,9 @@ export class DemoBackend implements Backend {
               d.loop = { start, end: start + d.loopSize * beat, active: true, beats: d.loopSize };
             } else d.loop = { ...d.loop, active: false };
           }
+          break;
+        case "slice.size":
+          if (!Number.isNaN(value)) d.sliceBeats = [4, 8, 16][value] ?? 8;
           break;
         case "loop.size":
           if (!Number.isNaN(value)) {
@@ -1210,6 +1255,33 @@ export class DemoBackend implements Backend {
 
   // ---------------------------------------------------------------- sampler
 
+  protected seq: T.SequencerDto = { on: false, steps: 16, stepBeats: 0.25, swing: 0, pads: [] };
+  protected seqStep = -1;
+  protected seqBeat = 0;
+
+  /** Steps the simulated sequencer on the clock and triggers the pads of each new step. */
+  protected sequencerTick(dt: number, bpm: number) {
+    if (!this.seq.on) {
+      this.seqStep = -1;
+      return;
+    }
+    const md = this.master !== null ? this.decks[this.master] : null;
+    this.seqBeat = md?.track && md.playing ? this.beatAt(md, md.position) : this.seqBeat + (dt * bpm) / 60;
+    const n = Math.max(1, this.seq.steps);
+    const step = ((Math.floor(this.seqBeat / this.seq.stepBeats) % n) + n) % n;
+    if (step === this.seqStep) return;
+    this.seqStep = step;
+    this.seq.pads.forEach((row, pad) => {
+      const p = this.pads[pad];
+      if (row[step] && p && p.source.type !== "empty") this.padEnds.set(pad, performance.now() + Math.min(p.seconds, 0.3) * 1000);
+    });
+  }
+
+  async samplerSequence(sequencer: T.SequencerDto) {
+    if (sequencer.on && !this.seq.on) this.seqStep = -1;
+    this.seq = { ...sequencer, pads: sequencer.pads.map((r) => [...r]) };
+  }
+
   protected samplerMask(): number {
     const now = performance.now();
     let m = 0;
@@ -1441,8 +1513,14 @@ export const DEMO_KIT: T.KitSound[] = [
   { id: "scratch", name: "Scratch", bpm: null, mode: 0, color: 0x84cc16 },
   { id: "hat_loop", name: "Hi-hat loop", bpm: 124, mode: 2, color: 0x8b5cf6 },
   { id: "sub_drop", name: "Sub drop", bpm: null, mode: 0, color: 0x64748b },
+  { id: "snare", name: "Snare", bpm: null, mode: 0, color: 0xf59e0b },
+  { id: "hat", name: "Hi-hat", bpm: null, mode: 0, color: 0x8b5cf6 },
+  { id: "open_hat", name: "Open hi-hat", bpm: null, mode: 0, color: 0x6366f1 },
+  { id: "rim", name: "Rim", bpm: null, mode: 0, color: 0x10b981 },
+  { id: "tom", name: "Tom", bpm: null, mode: 0, color: 0xdc2626 },
+  { id: "shaker", name: "Shaker", bpm: null, mode: 0, color: 0x0ea5e9 },
 ];
-const KIT_SECONDS: Record<string, number> = { kick: 0.5, clap: 0.38, air_horn: 1.35, siren: 2.4, riser: 3.87, impact: 2.8, laser: 0.46, drum_loop: 1.94, snare_build: 3.87, scratch: 0.6, hat_loop: 1.94, sub_drop: 2 };
+const KIT_SECONDS: Record<string, number> = { kick: 0.5, clap: 0.38, air_horn: 1.35, siren: 2.4, riser: 3.87, impact: 2.8, laser: 0.46, drum_loop: 1.94, snare_build: 3.87, scratch: 0.6, hat_loop: 1.94, sub_drop: 2, snare: 0.25, hat: 0.06, open_hat: 0.35, rim: 0.08, tom: 0.45, shaker: 0.12 };
 
 export function emptyPad(pad: number): T.PadInfo {
   return { pad, name: "", source: { type: "empty" }, seconds: 0, bpm: null, mode: 0, gainDb: 0, pan: 0, sync: true, quantized: false, color: 0x52525b, error: null };
@@ -1481,6 +1559,11 @@ function demoRegistry(): T.ActionSpec[] {
     add(`deck.${l}.beatjump.back`, "Beat jump back", g, { type: "trigger" }, "Jumps back by the selected number of beats, staying in time.", k[10] ?? null);
     add(`deck.${l}.beatjump.fwd`, "Beat jump forward", g, { type: "trigger" }, "Jumps forward by the selected number of beats.", k[11] ?? null);
     for (let h = 1; h <= 8; h++) add(`deck.${l}.hotcue.${h}`, `Hot cue ${h}`, g, { type: "momentary" }, "Empty: saves this spot. Set: jumps there instantly.", h <= 4 ? k[2 + h] ?? null : null);
+    for (let h = 1; h <= 8; h++) {
+      add(`deck.${l}.slice.${h}`, `Slicer pad ${h}`, g, { type: "momentary" }, "Cuts the bar the track is in into 8 slices and plays this one while held, in time. Let go and the track carries on where it would have been.", null, false);
+      add(`deck.${l}.roll.${h}`, `Roll ${["1/32", "1/16", "1/8", "1/4", "1/2", "1", "2", "4"][h - 1]}`, g, { type: "momentary" }, "Repeats a short slice while held (a stutter); on release the track carries on as if it never stopped.", null, false);
+    }
+    add(`deck.${l}.slice.size`, "Slicer length", g, { type: "choice", options: ["1 bar", "2 bars", "4 bars"], default: 1 }, "How much music the 8 slicer pads cover: 1, 2 or 4 bars.", null, false);
     add(`deck.${l}.eject`, "Eject", g, { type: "trigger" }, "Unloads the track (only when paused).");
     const m = `Mixer ${l}`;
     add(`mixer.${l}.fader`, "Volume", m, cont(0, 1, 1), "How loud this deck is in the mix.");
@@ -1529,6 +1612,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.sequencer", "Step sequencer", "App", { type: "toggle" }, "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.", null);
   add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);
   add("app.assistant", "Mix assistant", "App", { type: "toggle" }, "Listens to your mix and tells you what to fix (clashing bass, clipping, loudness, harsh or muddy tone), with a button that fixes it.", null);
   add("app.tour", "Take the 2-minute tour", "App", { type: "trigger" }, "Walks you through your first mix: play two tracks in time and blend from one into the other.", null);

@@ -111,6 +111,8 @@ pub struct Telemetry {
     pub recording: bool,
     pub recorded_frames: u64,
     pub sampler_playing: u32,
+    /// Step the sequencer is on (-1 when it is off).
+    pub sequencer_step: i16,
     /// Objects that could not be handed back for freeing (should stay 0).
     pub leaked: u32,
     pub dropped_commands: u32,

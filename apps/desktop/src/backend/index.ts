@@ -26,6 +26,7 @@ import type {
   SoundView,
   PlaylistDto,
   Settings,
+  SequencerDto,
   SuggestionRow,
   Telemetry,
   TrackDetail,
@@ -136,6 +137,8 @@ export interface Backend {
   /** Puts the built-in kit back on every pad. */
   samplerReset(): Promise<PadInfo[]>;
   samplerStopAll(): Promise<void>;
+  /** Puts the step sequencer's patterns and settings on the engine. */
+  samplerSequence(sequencer: SequencerDto): Promise<void>;
 
   /** Generates the practice tracks for the guide's labs and adds them to the library. */
   addPracticeTracks(): Promise<void>;

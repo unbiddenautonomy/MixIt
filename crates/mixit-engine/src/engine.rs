@@ -508,6 +508,7 @@ impl Engine {
             recording: self.recording,
             recorded_frames: self.recorded,
             sampler_playing: self.sampler.playing_mask(),
+            sequencer_step: self.sampler.sequencer_step(),
             leaked: self.trash.leaked,
             dropped_commands: self.dropped_commands + self.events.dropped,
             ..Telemetry::default()

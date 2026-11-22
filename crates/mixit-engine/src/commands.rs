@@ -110,6 +110,16 @@ pub enum DeckCommand {
     /// Loop roll: a slip loop while held.
     LoopRollDown(f64),
     LoopRollUp,
+    /// Slicer pad held: the bar (or `beats` long stretch) the track is in is cut into
+    /// `count` slices and slice `index` loops while held, as a slip roll; the track carries
+    /// on underneath and comes back on release.
+    SliceDown {
+        index: u8,
+        count: u8,
+        beats: f64,
+    },
+    /// Slicer pad released (only the pad that is playing ends the slice).
+    SliceUp(u8),
     /// Tempo fader, −1 … +1 of the tempo range.
     SetTempo(f64),
     /// Tempo range as a fraction (0.08 = ±8 %).
@@ -236,6 +246,20 @@ pub enum SamplerCommand {
     /// Waits for the next beat boundary before starting.
     SetQuantized(usize, bool),
     SetVolume(f32),
+    /// Step sequencer: which steps pad `pad` plays (bit n = step n).
+    SeqPattern {
+        pad: usize,
+        steps: u64,
+    },
+    /// Step sequencer settings: running, number of steps (1..=64), the length of a step in
+    /// beats (0.25 = sixteenth notes) and swing (0 = straight … 0.5 = full triplet feel,
+    /// delaying every second step).
+    SeqSettings {
+        on: bool,
+        steps: u8,
+        step_beats: f64,
+        swing: f32,
+    },
 }
 
 pub enum GlobalCommand {

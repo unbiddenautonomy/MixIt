@@ -1,5 +1,5 @@
-// The performance pads under each deck: hot cues, loops, beat jump, FX and (Pro) the
-// beat grid tools.
+// The performance pads under each deck: hot cues, loops, beat jump, the slicer, rolls,
+// FX and (Pro) the beat grid tools.
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, X } from "lucide-react";
 import { backend } from "../../backend";
@@ -7,13 +7,13 @@ import type { CueDto } from "../../backend/types";
 import { choose, press, release, setOn, tap } from "../../lib/actions";
 import { clock, hex } from "../../lib/format";
 import { beatsIn, HOT_CUE_COLORS } from "../../lib/waveform";
-import { JUMP_LABELS, LOOP_LABELS, useApp, usePro } from "../../store/app";
+import { JUMP_LABELS, LOOP_LABELS, ROLL_BEATS, SLICE_BARS, useApp, usePro } from "../../store/app";
 import { livePosition, useDeckTele } from "../../store/telemetry";
 import { ActionBtn, Btn } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { FxUnit } from "./FxUnit";
 
-type Tab = "cues" | "loop" | "jump" | "fx" | "grid";
+type Tab = "cues" | "loop" | "jump" | "slicer" | "roll" | "fx" | "grid";
 
 export function Pads({ deck, compact = false }: { deck: number; compact?: boolean }) {
   const pro = usePro();
@@ -23,6 +23,8 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
     { id: "cues", label: "Hot cues" },
     { id: "loop", label: "Loop" },
     { id: "jump", label: "Jump" },
+    { id: "slicer", label: "Slicer" },
+    { id: "roll", label: "Roll" },
     { id: "fx", label: "FX" },
     ...(pro ? [{ id: "grid" as Tab, label: "Grid" }] : []),
   ];
@@ -47,6 +49,8 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
       {current === "cues" && <HotCues deck={deck} compact={compact} />}
       {current === "loop" && <Loops deck={deck} pro={pro} />}
       {current === "jump" && <Jump deck={deck} />}
+      {current === "slicer" && <Slicer deck={deck} compact={compact} />}
+      {current === "roll" && <Rolls deck={deck} compact={compact} />}
       {current === "fx" && <FxUnit unit={deck} />}
       {current === "grid" && <Grid deck={deck} />}
     </div>
@@ -310,5 +314,73 @@ export function EjectButton({ deck }: { deck: number }) {
         <X size={12} />
       </Btn>
     </Ctl>
+  );
+}
+
+/** Which of the 8 slices the track is in now (or -1), for lighting the pad. */
+function useSliceNow(deck: number, beats: number): number {
+  return useDeckTele(deck, (d) => (d.loaded && d.playing ? Math.floor((((d.beat % beats) + beats) % beats) / (beats / 8)) : -1));
+}
+
+function Slicer({ deck, compact }: { deck: number; compact: boolean }) {
+  const L = String.fromCharCode(65 + deck);
+  const size = useApp((s) => s.mixer.sliceSize[deck] ?? 1);
+  const bars = SLICE_BARS[size] ?? 2;
+  const now = useSliceNow(deck, bars * 4);
+  const loaded = useDeckTele(deck, (d) => d.loaded);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className={clsx("grid gap-1", compact ? "grid-cols-8" : "grid-cols-4")}>
+        {Array.from({ length: 8 }, (_, i) => (
+          <Ctl key={i} id={`deck.${L}.slice.${i + 1}`}>
+            <ActionBtn
+              id={`deck.${L}.slice.${i + 1}`}
+              size={compact ? "sm" : "md"}
+              disabled={!loaded}
+              className={clsx("w-full font-mono", now === i && "!border-[var(--accent)]/70 !bg-[var(--accent)]/15")}
+              aria-label={`Slice ${i + 1}`}
+            >
+              {i + 1}
+            </ActionBtn>
+          </Ctl>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+        <Ctl id={`deck.${L}.slice.size`}>
+          <span className="flex gap-0.5">
+            {SLICE_BARS.map((b, i) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => choose(`deck.${L}.slice.size`, i)}
+                className={clsx("rounded px-1.5 py-0.5 font-mono", i === size ? "bg-white/15 text-zinc-100" : "hover:text-zinc-200")}
+              >
+                {b} bar{b > 1 ? "s" : ""}
+              </button>
+            ))}
+          </span>
+        </Ctl>
+        <span className="truncate">Hold a pad to play that slice in time; let go and the track carries on.</span>
+      </div>
+    </div>
+  );
+}
+
+function Rolls({ deck, compact }: { deck: number; compact: boolean }) {
+  const L = String.fromCharCode(65 + deck);
+  const loaded = useDeckTele(deck, (d) => d.loaded);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className={clsx("grid gap-1", compact ? "grid-cols-8" : "grid-cols-4")}>
+        {ROLL_BEATS.map((b, i) => (
+          <Ctl key={i} id={`deck.${L}.roll.${i + 1}`}>
+            <ActionBtn id={`deck.${L}.roll.${i + 1}`} size={compact ? "sm" : "md"} disabled={!loaded} className="w-full font-mono" aria-label={`Roll ${fmtBeats(b)}`}>
+              {b >= 1 ? b : `1/${Math.round(1 / b)}`}
+            </ActionBtn>
+          </Ctl>
+        ))}
+      </div>
+      <div className="text-[11px] text-zinc-500">Hold to stutter the beat (numbers are beats). Short rolls build tension before a drop.</div>
+    </div>
   );
 }
