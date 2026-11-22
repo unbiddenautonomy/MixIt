@@ -1,13 +1,14 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListPlus, ListX, Play, Shuffle, SkipForward, Square, Trash2, Wand2, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListPlus, ListX, Play, Shuffle, SkipForward, SlidersHorizontal, Square, Trash2, Wand2, Zap } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
 import { Fragment, useMemo, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
-import { clock } from "../../lib/format";
-import { keyLabel } from "../../lib/keys";
+import { clock, inkColor } from "../../lib/format";
+import { keyColor, keyLabel } from "../../lib/keys";
 import { useTransition, type TransitionId } from "../../lib/transition";
 import { useApp } from "../../store/app";
 import { chooseTransition, clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
@@ -179,33 +180,58 @@ function Controls() {
           ))}
         </select>
       </Field>
-      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="Shifts the next track's key by a semitone or two (with key lock) when the keys would clash.">
-        <input type="checkbox" checked={options.keyMatch} onChange={(e) => set({ keyMatch: e.target.checked })} />
-        Fix clashing keys
-      </label>
-      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When a track ends too soon after its mix-out point for a full mix, its last 8 or 16 beats loop while the next track comes in, instead of a rushed mix.">
-        <input type="checkbox" checked={options.extend !== false} onChange={(e) => set({ extend: e.target.checked })} data-testid="autodj-extend" />
-        Loop a short ending
-      </label>
-      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="After each mix the new track plays at the old one's tempo. This lets the tempo drift back to the new track's own speed, about half a percent every 8 bars, too slowly for anyone to notice, so the set is not stuck at the first track's tempo.">
-        <input type="checkbox" checked={glide} onChange={(e) => useAutoDj.getState().set({ glide: e.target.checked, ...(e.target.checked ? {} : { gliding: null }) })} data-testid="autodj-glide" />
-        Ease the tempo back
-      </label>
-      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When the queue runs out, Auto DJ picks tracks that mix well from your library.">
-        <input type="checkbox" checked={keepGoing} onChange={(e) => useAutoDj.getState().set({ keepGoing: e.target.checked })} />
-        Keep going with suggestions
-      </label>
-      {keepGoing && (
-        <Segmented
-          value={energy}
-          onChange={(v) => useAutoDj.getState().set({ energy: v })}
-          options={[
-            { value: "down", label: "Calmer" },
-            { value: "steady", label: "Steady" },
-            { value: "up", label: "Build up" },
-          ]}
-        />
-      )}
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <Btn size="sm" tone="ghost" className="self-end" data-testid="autodj-options" title="Key fixing, short endings, tempo, and what happens when the queue runs out">
+            <SlidersHorizontal size={12} /> Options
+            <span className="font-mono text-[10px] text-zinc-500">{[options.keyMatch, options.extend !== false, glide, keepGoing].filter(Boolean).length} on</span>
+          </Btn>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content side="bottom" align="start" sideOffset={6} className="menu z-50 flex w-80 flex-col gap-2.5 p-3" style={{ ["--accent" as string]: "#38bdf8" }}>
+          <label className="flex items-start gap-2 text-[12px] text-zinc-100" title="Shifts the next track's key by a semitone or two (with key lock) when the keys would clash.">
+                <input type="checkbox" className="mt-0.5" checked={options.keyMatch} onChange={(e) => set({ keyMatch: e.target.checked })} />
+                <span className="flex flex-col">
+                  Fix clashing keys
+                  <span className="text-[11px] leading-snug text-zinc-400">Shifts the next track's key a little, with key lock, when the keys would clash.</span>
+                </span>
+              </label>
+          <label className="flex items-start gap-2 text-[12px] text-zinc-100" title="When a track ends too soon after its mix-out point for a full mix, its last 8 or 16 beats loop while the next track comes in, instead of a rushed mix.">
+                <input type="checkbox" className="mt-0.5" checked={options.extend !== false} onChange={(e) => set({ extend: e.target.checked })} data-testid="autodj-extend" />
+                <span className="flex flex-col">
+                  Loop a short ending
+                  <span className="text-[11px] leading-snug text-zinc-400">Loops the last few beats of a track that ends too soon for a full mix.</span>
+                </span>
+              </label>
+          <label className="flex items-start gap-2 text-[12px] text-zinc-100" title="After each mix the new track plays at the old one's tempo. This lets the tempo drift back to the new track's own speed, about half a percent every 8 bars, too slowly for anyone to notice, so the set is not stuck at the first track's tempo.">
+                <input type="checkbox" className="mt-0.5" checked={glide} onChange={(e) => useAutoDj.getState().set({ glide: e.target.checked, ...(e.target.checked ? {} : { gliding: null }) })} data-testid="autodj-glide" />
+                <span className="flex flex-col">
+                  Ease the tempo back
+                  <span className="text-[11px] leading-snug text-zinc-400">Lets the tempo drift back to each new track's own speed, too slowly to notice.</span>
+                </span>
+              </label>
+          <label className="flex items-start gap-2 text-[12px] text-zinc-100" title="When the queue runs out, Auto DJ picks tracks that mix well from your library.">
+                <input type="checkbox" className="mt-0.5" checked={keepGoing} onChange={(e) => useAutoDj.getState().set({ keepGoing: e.target.checked })} />
+                <span className="flex flex-col">
+                  Keep going with suggestions
+                  <span className="text-[11px] leading-snug text-zinc-400">When the queue runs out, Auto DJ picks tracks that mix well from your library.</span>
+                </span>
+              </label>
+          {keepGoing && (
+            <Segmented
+              className="ml-6 self-start"
+              value={energy}
+              onChange={(v) => useAutoDj.getState().set({ energy: v })}
+              options={[
+                { value: "down", label: "Calmer" },
+                { value: "steady", label: "Steady" },
+                { value: "up", label: "Build up" },
+              ]}
+            />
+          )}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
   );
 }
@@ -306,7 +332,9 @@ function QueueRow({ t, i, last }: { t: TrackRow; i: number; last: boolean }) {
         <div className="truncate text-[11px] text-zinc-500">{t.artist}</div>
       </div>
       <span className="w-12 text-right font-mono text-[11px] text-zinc-400">{t.bpm?.toFixed(1) ?? "–"}</span>
-      <span className="w-8 text-right font-mono text-[11px] text-zinc-400">{keyLabel(t.key, notation)}</span>
+      <span className="w-8 text-right font-mono text-[11px] font-semibold" style={{ color: inkColor(keyColor(t.key)) }}>
+        {keyLabel(t.key, notation)}
+      </span>
       <span className="w-10 text-right font-mono text-[11px] text-zinc-500">{clock(t.duration)}</span>
       <div className="flex opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <IconBtn label="Move up" disabled={i === 0} onClick={() => moveInQueue(i, i - 1)}>

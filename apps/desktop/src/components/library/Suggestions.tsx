@@ -15,6 +15,7 @@ import { useTelemetry } from "../../store/telemetry";
 import { PreviewButton } from "./PreviewBar";
 import { hearPair, stopMix, useRehearse } from "../../store/rehearse";
 import type { TrackRow } from "../../backend/types";
+import { cardReasons } from "../../lib/reasons";
 
 const GENERIC_TAGS = new Set(["tempo", "key", "energy", "genre", "keyShift", "rating"]);
 /** Plain words for the reason chips. */
@@ -82,6 +83,8 @@ export function Suggestions() {
           {rows.map((s, i) => {
             const t = s.track;
             const key = s.keyShift ? shiftedKey(t.key, s.keyShift) : t.key;
+            const tempoChip = s.tempoChangePct != null && Math.abs(s.tempoChangePct) >= 0.05;
+            const reasons = cardReasons(s.reasons, { tempo: tempoChip, keyShift: s.keyShift !== 0 });
             return (
               <div
                 key={t.id}
@@ -111,19 +114,24 @@ export function Suggestions() {
                     <div className={clsx("h-full rounded-full", s.score > 0.75 ? "bg-emerald-400" : s.score > 0.5 ? "bg-sky-400" : "bg-zinc-400")} style={{ width: `${Math.round(Math.max(0, Math.min(1, s.score)) * 100)}%` }} />
                   </div>
                   <span className="font-mono text-[10px] text-zinc-500">{Math.round(s.score * 100)}</span>
+                  <span className="font-mono text-[10px] text-zinc-600">{clock(t.duration)}</span>
+                  {seed && <HearButton from={seed} to={t} i={i} />}
                 </div>
                 <div className="flex flex-wrap gap-1 pl-7">
-                  {s.tempoChangePct != null && Math.abs(s.tempoChangePct) >= 0.05 && <Chip tone="zinc">{signedPct(s.tempoChangePct / 100)} tempo</Chip>}
+                  {tempoChip && <Chip tone="zinc">{signedPct((s.tempoChangePct ?? 0) / 100)} tempo</Chip>}
                   {s.keyShift !== 0 && <Chip tone="sky">{s.keyShift > 0 ? `+${s.keyShift}` : s.keyShift} key</Chip>}
                   {s.tags.filter((tag) => !GENERIC_TAGS.has(tag)).map((tag) => (
                     <Chip key={tag} tone={tag === "history" || tag === "sound" ? "emerald" : "zinc"}>
                       {TAG_LABEL[tag] ?? tag}
                     </Chip>
                   ))}
-                  <span className="ml-auto font-mono text-[10px] text-zinc-600">{clock(t.duration)}</span>
-                  {seed && <HearButton from={seed} to={t} i={i} />}
                 </div>
-                {s.reasons.length > 0 && <p className="pl-7 text-[11px] leading-snug text-zinc-400">{s.reasons.join(" · ")}</p>}
+                {reasons.length > 0 && (
+                  // Two lines at most; every reason shows on hover.
+                  <p className="line-clamp-2 pl-7 text-[11px] leading-snug text-zinc-400" title={s.reasons.join(" ")}>
+                    {reasons.join(" · ")}
+                  </p>
+                )}
               </div>
             );
           })}
