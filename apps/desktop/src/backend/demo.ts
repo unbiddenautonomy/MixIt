@@ -249,6 +249,7 @@ export class DemoBackend implements Backend {
     micDevice: null,
     micChannel: 0,
     micStereo: false,
+    faderStart: false,
     micVoice: true,
   };
   /** The simulated mic channel. */

@@ -6,6 +6,7 @@ import type { ActionInput, ActionSpec } from "../backend/types";
 import { MASTER_FX, useApp } from "../store/app";
 import { mirrorMic, startMicRecording, stopMicRecording, toggleMicRecording } from "../store/mic";
 import { mirrorStudio } from "../store/studio";
+import { faderMoved } from "./performance";
 
 function report(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
@@ -52,7 +53,10 @@ function mirror(id: string, input: ActionInput) {
       else if (c === "eq.mid") s.setChannel(deck, { mid: v });
       else if (c === "eq.low") s.setChannel(deck, { low: v });
       else if (c === "filter") s.setChannel(deck, { filter: v });
-      else if (c === "fader") s.setChannel(deck, { fader: v });
+      else if (c === "fader") {
+        faderMoved(deck, ch.fader, v);
+        s.setChannel(deck, { fader: v });
+      }
       else if (c === "pan") s.setChannel(deck, { pan: v });
       else if (c === "punch") s.setChannel(deck, { punch: v });
       else if (c === "warmth") s.setChannel(deck, { warmth: v });

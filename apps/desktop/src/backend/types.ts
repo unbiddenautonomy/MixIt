@@ -338,6 +338,8 @@ export interface Settings {
   /** First input channel (0-based); with micStereo, this one and the next. */
   micChannel: number;
   micStereo: boolean;
+  /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
+  faderStart?: boolean;
   /** Browser only: echo cancelling and noise reduction for a voice. */
   micVoice?: boolean;
 }
