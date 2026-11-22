@@ -80,7 +80,7 @@ export function AutomixDialog() {
           <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-4">
             <Wand2 size={18} className="text-sky-300" />
             <Dialog.Title className="text-base font-semibold text-zinc-50">Automix</Dialog.Title>
-            <Dialog.Description className="ml-2 text-xs text-zinc-400">MixIt plans a whole mix: order, transitions on phrase boundaries, tempo and keys.</Dialog.Description>
+            <Dialog.Description className="ml-2 text-xs text-zinc-400">MixIt plans a whole mix: order, transitions on phrase boundaries, tempo and keys, with blends kept short where two vocals would meet.</Dialog.Description>
           </div>
           <div className="grid min-h-0 flex-1 grid-cols-[1fr_280px] overflow-hidden">
             <div className="min-h-0 overflow-y-auto border-r border-white/[0.06] p-3">

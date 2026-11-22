@@ -1076,7 +1076,14 @@ fn searches_for_vocals_and_instrumentals() {
     assert_eq!(paths("vocals:yes"), vec![s.id]);
     assert_eq!(paths("vocals:no"), vec![i.id]);
     assert_eq!(paths("-vocals:no"), vec![s.id]);
-    // The regions are kept with the analysis.
+    // The regions are kept with the analysis, and automix gets them in grid beats.
     let a = lib.analysis(s.id).unwrap().unwrap();
     assert!(!a.vocals.regions.is_empty());
+    let plan = lib.plan_tracks(&[s.id]).unwrap().remove(0);
+    assert_eq!(plan.vocals.len(), a.vocals.regions.len());
+    // The singer starts on a downbeat of the drop: a whole bar in the track's own beats.
+    let first = g.truth.vocals[0].0;
+    let beat = plan.vocals[0].0;
+    let expect = a.grid.beat_at(first * a.grid.sample_rate as f64);
+    assert!((beat - expect).abs() < 2.0, "first sung beat {beat}, truth {expect}");
 }

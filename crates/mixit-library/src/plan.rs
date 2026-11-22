@@ -34,7 +34,17 @@ pub fn plan_track(track: TrackRef, a: &Analysis) -> PlanTrack {
     if track.duration <= 0.0 {
         track.duration = a.duration;
     }
-    PlanTrack { track, first_beat: mp.first_beat, last_beat: mp.last_beat, mix_in: mp.mix_in, mix_out: mp.mix_out }
+    // Vocal regions in the grid's beats, like the mix points.
+    let sr = a.grid.sample_rate as f64;
+    let vocals = a.vocals.regions.iter().map(|&(s, e)| (a.grid.beat_at(s * sr), a.grid.beat_at(e * sr))).collect();
+    PlanTrack {
+        track,
+        first_beat: mp.first_beat,
+        last_beat: mp.last_beat,
+        mix_in: mp.mix_in,
+        mix_out: mp.mix_out,
+        vocals,
+    }
 }
 
 impl Library {
