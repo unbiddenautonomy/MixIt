@@ -1,7 +1,7 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Play, Shuffle, SkipForward, Square, Trash2, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Play, Shuffle, SkipForward, Square, Trash2, Wand2, Zap } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
@@ -13,6 +13,7 @@ import { useApp } from "../../store/app";
 import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
 import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
+import { mixQueue } from "../../store/queueMix";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
 import { hearNext, hearPair, hearSet, stopMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
@@ -52,7 +53,7 @@ export function AutoDjView() {
         <div className="flex min-w-0 flex-col gap-3">
           {phase !== "off" && <NowNext />}
           <section className={clsx("rounded-xl border border-white/[0.06] bg-black/20", drop.over && "ring-1 ring-sky-400")}>
-            <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Queue</div>
               <span className="font-mono text-[10px] text-zinc-500">{queue.length}</span>
               <span className="font-mono text-[10px] text-zinc-500">{clock(queue.reduce((a, t) => a + t.duration, 0))}</span>
@@ -66,6 +67,17 @@ export function AutoDjView() {
                   data-testid="rehearse-set"
                 >
                   <Headphones size={12} /> Rehearse the set
+                </button>
+              )}
+              {queue.length > 1 && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+                  onClick={() => void mixQueue()}
+                  title="Turn the queue into a finished mix in Arrange, every change as Auto DJ would do it, to fine-tune and render to a file"
+                  data-testid="queue-mix"
+                >
+                  <Wand2 size={12} /> Make a mix
                 </button>
               )}
               {queue.length > 1 && (

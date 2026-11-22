@@ -7,7 +7,7 @@ import type { SectionDto, Telemetry, TrackDetail } from "../backend/types";
 import { valueAt } from "../lib/arrangeOps";
 import { beatAtSeconds, planMix } from "../lib/autodj";
 import { fromCamelot, keyDto } from "../lib/keys";
-import { medley, rehearsal } from "../lib/rehearse";
+import { medley, rehearsal, setMix, tempoAt } from "../lib/rehearse";
 import { useApp } from "../store/app";
 import { changeAt, hearPair, hearSet, musicOnAir, stopMix, useRehearse } from "../store/rehearse";
 import { useAutoDj } from "../store/autodj";
@@ -262,5 +262,62 @@ describe("rehearsing a whole set", () => {
     useAutoDj.setState({ queue: rows.slice(0, 1) });
     await hearSet();
     expect(useRehearse.getState().key).toBeNull();
+  });
+});
+
+describe("a set as one mix", () => {
+  it("plays each track whole into the next, each change as Auto DJ plans it", () => {
+    const ds = [track({ id: 1 }), track({ id: 2, energy: 6 }), track({ id: 3, energy: 7 })];
+    const plans = [planMix(ds[0], ds[1]), planMix(ds[1], ds[2])];
+    const p = setMix(ds, plans);
+    const [a, b, c] = [1, 2, 3].map((n) => p.clips.find((x) => x.track.path === `/Music/${n}.flac`)!);
+    // Track 1 from its start; track 2 comes in where the plan says, from its mix-in point.
+    expect(a.start).toBe(0);
+    expect(a.source_start).toBe(0);
+    expect(b.start).toBeCloseTo(plans[0].outStartBeat, 6);
+    expect(b.source_start).toBeCloseTo(beatAtSeconds(ds[1], plans[0].inCueSeconds), 6);
+    // Track 1 is out once the first transition is over; track 3 comes in on track 2's plan.
+    expect(a.start + a.length).toBeCloseTo(b.start + plans[0].beats, 6);
+    expect(c.start).toBeCloseTo(b.start + plans[1].outStartBeat - b.source_start, 6);
+    expect(c.lane).not.toBe(b.lane);
+    // The last track plays to its end; one marker per change.
+    expect(c.start + c.length).toBeCloseTo(c.start + beatAtSeconds(ds[2], ds[2].track.duration) - c.source_start, 6);
+    expect(p.markers.map((m) => m.label)).toEqual(["Track 1 into Track 2", "Track 2 into Track 3"]);
+    expect(valueAt(a, "Volume", a.start + a.length - 1e-6)).toBeCloseTo(0, 2);
+  });
+
+  it("keeps a synced track at the old tempo through the mix, then eases it back", () => {
+    const ds = [track({ id: 1, bpm: 124 }), track({ id: 2, bpm: 126 })];
+    const plan = planMix(ds[0], ds[1]);
+    expect(plan.sync).toBe(true);
+    const held = setMix(ds, [plan]);
+    expect(tempoAt(held.tempo.segments, plan.outStartBeat + plan.beats + 400)).toBe(124);
+    const p = setMix(ds, [plan], { glide: true });
+    const s = p.tempo.segments;
+    const end = plan.outStartBeat + plan.beats;
+    expect(tempoAt(s, end - 1)).toBe(124);
+    // 2/126 is about 1.6%: 26 bars at 0.0625% a bar, then 126.
+    expect(tempoAt(s, end + 52)).toBeGreaterThan(124.5);
+    expect(tempoAt(s, end + 52)).toBeLessThan(126);
+    expect(tempoAt(s, end + 26 * 4)).toBeCloseTo(126, 9);
+    expect(tempoAt(s, end + 200)).toBe(126);
+  });
+
+  it("stops a glide where the next mix starts, and loops a short ending", () => {
+    const ds = [track({ id: 1, bpm: 120 }), track({ id: 2, bpm: 126 }), track({ id: 3, bpm: 126 })];
+    const p1 = planMix(ds[0], ds[1]);
+    // Mix out of track 2 just after it comes in, while its glide is still running.
+    const early = { ...planMix(ds[1], ds[2]), outStartBeat: beatAtSeconds(ds[1], p1.inCueSeconds) + p1.beats + 16, loopBeats: 16 };
+    const p = setMix(ds, [p1, early], { glide: true });
+    const at = p.markers[1].beat;
+    const t = tempoAt(p.tempo.segments, at);
+    expect(t).toBeGreaterThan(120);
+    expect(t).toBeLessThan(126);
+    // Held through the mix, then a new glide from there to track 3's own tempo.
+    expect(tempoAt(p.tempo.segments, at + early.beats - 1)).toBeCloseTo(t, 9);
+    expect(tempoAt(p.tempo.segments, at + 1000)).toBe(126);
+    // Track 2's last bars loop from its mix point: more than one piece of it.
+    expect(p.clips.filter((x) => x.track.path === "/Music/2.flac").length).toBeGreaterThan(1);
+    expect(p.markers[1].beat).toBeGreaterThanOrEqual(p.markers[0].beat + p1.beats);
   });
 });
