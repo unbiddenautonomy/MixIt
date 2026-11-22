@@ -1048,3 +1048,35 @@ fn builds_a_set_from_a_search() {
     assert!(!ids.is_empty() && ids.len() <= 6);
     assert!(ids.iter().all(|id| house[..6].contains(id)));
 }
+
+#[test]
+fn searches_for_vocals_and_instrumentals() {
+    let tmp = TempDir::new("vocals");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    let mut spec = TrackSpec::short(Style::House, 124.0, Key::new(9, Mode::Minor));
+    spec.sections.truncate(3);
+    spec.vocals = true;
+    let g = generate(&spec);
+    let sung = music.join("sung.wav");
+    write_wav(&sung, &g.audio, 2, g.sample_rate, WavDepth::Pcm16).unwrap();
+    let inst = write_track(&music, "instrumental.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+
+    let lib = Library::open(&tmp.0.join("library.db")).unwrap();
+    lib.add_folder(&music).unwrap();
+    lib.rescan_all(|_, _| {}).unwrap();
+    let cancel = AtomicBool::new(false);
+    lib.analyze_pending(&JobOptions { threads: 2, ..Default::default() }, &cancel, |_, _, _| {}).unwrap();
+
+    let s = lib.track_by_path(&sung).unwrap().unwrap();
+    let i = lib.track_by_path(&inst).unwrap().unwrap();
+    assert!(s.vocals.unwrap() >= 10, "sung track: {:?}% vocals", s.vocals);
+    assert_eq!(i.vocals, Some(0));
+    let paths = |q: &str| lib.search(q, None).unwrap().into_iter().map(|t| t.id).collect::<Vec<_>>();
+    assert_eq!(paths("vocals:yes"), vec![s.id]);
+    assert_eq!(paths("vocals:no"), vec![i.id]);
+    assert_eq!(paths("-vocals:no"), vec![s.id]);
+    // The regions are kept with the analysis.
+    let a = lib.analysis(s.id).unwrap().unwrap();
+    assert!(!a.vocals.regions.is_empty());
+}

@@ -35,6 +35,8 @@ export interface AnalysisView extends GridView {
   sections: { start: number; end: number; bars: number; label: string; energy: number }[];
   cues: { role: string; slot: number | null; seconds: number; loopSeconds: number | null; label: string; color: number | null }[];
   audible: [number, number];
+  vocals?: [number, number][];
+  vocalPercent?: number;
 }
 
 export interface GenerateRequest {

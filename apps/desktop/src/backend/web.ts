@@ -134,6 +134,8 @@ export class WebAudioBackend extends DemoBackend {
     t.period = v.beatPeriod;
     t.sections = v.sections;
     t.cues = v.cues as T.CueDto[];
+    t.vocals = v.vocals ?? [];
+    t.row.vocals = v.vocalPercent ?? null;
     this.emit("library-changed", null);
   }
 
@@ -688,6 +690,7 @@ export class WebAudioBackend extends DemoBackend {
       period: 0.5,
       wave: new Uint8Array(0),
       cues: [],
+      vocals: [],
     };
     this.tracks.push(t);
     this.absorb(t, a);

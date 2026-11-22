@@ -44,6 +44,8 @@ pub struct TrackRow {
     pub bpm: Option<f64>,
     pub key: Option<KeyDto>,
     pub energy: Option<u8>,
+    /// Percent of the track with a voice.
+    pub vocals: Option<u8>,
     pub lufs: Option<f64>,
     pub rating: u8,
     pub color: Option<u32>,
@@ -73,6 +75,7 @@ impl From<&Track> for TrackRow {
             bpm: t.best_bpm(),
             key: t.best_key().map(KeyDto::from),
             energy: t.energy,
+            vocals: t.vocals,
             lufs: t.lufs,
             rating: t.rating,
             color: t.color,
@@ -147,6 +150,8 @@ pub struct TrackDetail {
     /// Analysis suggestions followed by the user's saved cues.
     pub cues: Vec<CueDto>,
     pub audible: (f64, f64),
+    /// Where the track has a voice: (start, end) seconds.
+    pub vocals: Vec<(f64, f64)>,
 }
 
 impl TrackDetail {
@@ -182,6 +187,7 @@ impl TrackDetail {
             sections: vec![],
             cues: vec![],
             audible: (0.0, t.duration),
+            vocals: vec![],
         };
         if let Some(a) = a {
             let g = grid.unwrap_or(&a.grid);
@@ -219,6 +225,7 @@ impl TrackDetail {
                 })
                 .collect();
             d.audible = a.audible;
+            d.vocals = a.vocals.regions.clone();
             for c in &a.cues {
                 let role = match c.role {
                     CueRole::Load => "load",

@@ -10,6 +10,8 @@
 //!   remixer`) match substrings. Numbers (`bpm energy rating year plays duration`)
 //!   accept `120`, `120-128`, `>120`, `>=120`, `<120`, `<=120` and `6+`.
 //!   `bpm:~128` finds tracks mixable with 128 BPM (±6 %, including half and double time).
+//! * `vocals:yes` and `vocals:no` (instrumentals) from the analysis; `vocals:30+` is a
+//!   voice in at least 30 % of the track.
 //! * `key:8A` (Camelot, Open Key like `1m`, or names like `Am`, `F#`) is an exact key;
 //!   `key:~8A` also accepts the harmonically compatible keys.
 //! * `tag:peak`, `missing:yes`, `analysed:no`, `played:never`, `played:<7d`,
@@ -39,6 +41,8 @@ pub enum NumField {
     Year,
     Plays,
     Duration,
+    /// Percent of the track with a voice.
+    Vocals,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -253,6 +257,13 @@ pub fn parse(input: &str) -> Query {
             "rating" | "stars" => parse_cmp(&value, plain_number).map(|c| Term::Num(NumField::Rating, c)),
             "year" => parse_cmp(&value, plain_number).map(|c| Term::Num(NumField::Year, c)),
             "plays" => parse_cmp(&value, plain_number).map(|c| Term::Num(NumField::Plays, c)),
+            // vocals:yes (a voice in at least a tenth), vocals:no (instrumental), vocals:30+.
+            "vocals" | "vocal" | "voice" => match value.to_ascii_lowercase().as_str() {
+                "yes" | "y" | "some" => Some(Cmp::Ge(VOCAL_SOME)),
+                "no" | "n" | "none" | "instrumental" => Some(Cmp::Lt(VOCAL_NONE)),
+                v => parse_cmp(v, plain_number),
+            }
+            .map(|c| Term::Num(NumField::Vocals, c)),
             "duration" | "length" | "len" => parse_cmp(&value, duration_secs).map(|c| Term::Num(NumField::Duration, c)),
             "key" | "k" => {
                 let (compatible, k) = match value.strip_prefix('~') {
@@ -318,6 +329,11 @@ fn fts_escape(word: &str) -> String {
     format!("\"{}\"", word.replace('"', "\"\""))
 }
 
+/// `vocals:yes` means a voice in at least this percent of the track.
+const VOCAL_SOME: f64 = 10.0;
+/// `vocals:no` means a voice in less than this percent (a sample or a shout is allowed).
+const VOCAL_NONE: f64 = 5.0;
+
 fn num_column(f: NumField) -> &'static str {
     match f {
         NumField::Bpm => "COALESCE(t.bpm, t.tag_bpm)",
@@ -326,6 +342,7 @@ fn num_column(f: NumField) -> &'static str {
         NumField::Year => "t.year",
         NumField::Plays => "t.play_count",
         NumField::Duration => "t.duration",
+        NumField::Vocals => "t.vocals",
     }
 }
 
@@ -500,6 +517,10 @@ mod tests {
         assert_eq!(q.terms[5], (true, Term::Field(TextField::Genre, "techno".into())));
         assert_eq!(q.terms[6], (false, Term::Played(TimeFilter::NotWithin(30 * 86_400))));
         assert_eq!(q.sort, Some((SortKey::Energy, true)));
+        let v = parse("vocals:no voice:yes vocals:30+");
+        assert_eq!(v.terms[0], (false, Term::Num(NumField::Vocals, Cmp::Lt(VOCAL_NONE))));
+        assert_eq!(v.terms[1], (false, Term::Num(NumField::Vocals, Cmp::Ge(VOCAL_SOME))));
+        assert_eq!(v.terms[2], (false, Term::Num(NumField::Vocals, Cmp::Ge(30.0))));
         assert!(q.warnings.is_empty());
     }
 

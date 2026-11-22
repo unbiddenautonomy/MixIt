@@ -288,6 +288,7 @@ const HELP: [string, string][] = [
   ["-genre:trance", "a leading - excludes"],
   ["played:never", "never played (also played:<7d, played:>30d)"],
   ["like:42", "sounds like track 42 (right-click a track: Find tracks that sound like this)"],
+  ["vocals:no", "instrumentals; vocals:yes has singing, vocals:30+ sings in at least 30%"],
   ["added:<2w", "added in the last two weeks"],
   ["sort:-energy", "sort (bpm key energy added plays random …)"],
 ];

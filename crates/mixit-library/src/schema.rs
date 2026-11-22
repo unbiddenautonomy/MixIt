@@ -155,6 +155,10 @@ const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE tracks ADD COLUMN sound BLOB;
     "#,
+    // 3: how much of each track has a voice (percent), for `vocals:` searches.
+    r#"
+    ALTER TABLE tracks ADD COLUMN vocals INTEGER;
+    "#,
 ];
 
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;

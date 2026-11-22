@@ -34,6 +34,10 @@ export function Overview({ deck, height = 46 }: { deck: number; height?: number 
         g.globalAlpha = 0.85;
         g.fillRect((s.start / dur) * r.width + 0.5, r.height - 4, Math.max(1, ((s.end - s.start) / dur) * r.width - 1), 4);
       }
+      // Where the track has a voice: a pink line along the top.
+      g.fillStyle = "#f472b6";
+      g.globalAlpha = 0.9;
+      for (const [a, b] of info.detail.vocals ?? []) g.fillRect((a / dur) * r.width, 0, Math.max(1, ((b - a) / dur) * r.width), 2);
       g.globalAlpha = 1;
       bg.current = off;
     };

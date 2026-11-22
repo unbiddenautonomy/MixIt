@@ -21,6 +21,8 @@ export interface TrackRow {
   bpm: number | null;
   key: KeyDto | null;
   energy: number | null;
+  /** Percent of the track with singing or rapping (from analysis). */
+  vocals?: number | null;
   lufs: number | null;
   rating: number;
   color: number | null;
@@ -102,6 +104,8 @@ export interface TrackDetail {
   sections: SectionDto[];
   cues: CueDto[];
   audible: [number, number];
+  /** Where the track has a voice: [start, end] seconds. */
+  vocals?: [number, number][];
 }
 
 /** How a built set's energy moves. */

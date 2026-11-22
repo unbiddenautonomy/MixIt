@@ -276,3 +276,42 @@ fn tracks_of_the_same_style_sound_alike() {
     }
     assert!(right >= 8, "{right} of 10 tracks have a same-style track as their closest match");
 }
+
+/// Share of 0.1 s steps where "has a voice" agrees with the ground truth.
+fn vocal_agreement(found: &[(f64, f64)], truth: &[(f64, f64)], duration: f64) -> f64 {
+    let inside = |t: f64, rs: &[(f64, f64)]| rs.iter().any(|&(a, b)| t >= a && t < b);
+    let steps = (duration / 0.1) as usize;
+    let agree = (0..steps).filter(|&i| inside(i as f64 * 0.1, found) == inside(i as f64 * 0.1, truth)).count();
+    agree as f64 / steps as f64
+}
+
+#[test]
+fn vocals_are_found_where_the_singer_sings() {
+    for (style, bpm, key) in [
+        (Style::House, 122.0, Key::new(9, Mode::Minor)),
+        (Style::Techno, 132.0, Key::new(2, Mode::Minor)),
+        (Style::Trance, 140.0, Key::new(7, Mode::Major)),
+        (Style::DrumAndBass, 172.0, Key::new(5, Mode::Minor)),
+        (Style::HipHop, 90.0, Key::new(0, Mode::Major)),
+    ] {
+        let mut spec = TrackSpec::standard(style, bpm, key);
+        spec.seed = 11;
+        spec.vocals = true;
+        let sung = generate(&spec);
+        let a = run(&sung);
+        let agree = vocal_agreement(&a.vocals.regions, &sung.truth.vocals, sung.truth.duration);
+        assert!(agree > 0.85, "{style:?}: vocals agree {agree:.2} ({:?} vs {:?})", a.vocals.regions, sung.truth.vocals);
+        let truth_share = sung.truth.vocals.iter().map(|r| r.1 - r.0).sum::<f64>() / (a.audible.1 - a.audible.0);
+        assert!(
+            (a.vocals.share as f64 - truth_share).abs() < 0.08,
+            "{style:?}: share {} vs {truth_share:.2}",
+            a.vocals.share
+        );
+        // The singer does not throw the tempo off.
+        assert!((a.bpm - bpm).abs() < 0.1, "{style:?}: {} BPM with vocals", a.bpm);
+
+        spec.vocals = false;
+        let a = run(&generate(&spec));
+        assert!(a.vocals.regions.is_empty(), "{style:?}: a voice in an instrumental: {:?}", a.vocals.regions);
+    }
+}

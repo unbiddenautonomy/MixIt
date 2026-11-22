@@ -186,6 +186,9 @@ pub struct AnalysisView {
     pub sections: Vec<SectionView>,
     pub cues: Vec<CueView>,
     pub audible: (f64, f64),
+    /// Where the track has a voice, and the percent of it with one.
+    pub vocals: Vec<(f64, f64)>,
+    pub vocal_percent: u8,
 }
 
 impl AnalysisView {
@@ -238,6 +241,8 @@ impl AnalysisView {
                 })
                 .collect(),
             audible: a.audible,
+            vocals: a.vocals.regions.clone(),
+            vocal_percent: (a.vocals.share * 100.0).round() as u8,
         }
     }
 }

@@ -1,5 +1,6 @@
 // Everything MixIt knows about one track: editable tags, the analysis (tempo, key,
 // loudness, energy over time, sections) and saved cues.
+import { vocalLabel, vocalWhere } from "../../lib/vocals";
 import { AudioLines, FileDown, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -103,6 +104,13 @@ function OneTrack() {
         <Stat label="True peak" value={d.truePeak != null ? d.truePeak.toFixed(1) : "–"} sub="dBTP" />
         <Stat label="Auto gain" value={d.autoGainDb != null ? `${d.autoGainDb > 0 ? "+" : ""}${d.autoGainDb.toFixed(1)}` : "–"} sub="dB" />
       </div>
+
+      {d.analysed && vocalLabel(d.track.vocals) && (
+        <p className="px-0.5 text-[11px] text-zinc-400" data-testid="inspector-vocals">
+          <span className="text-zinc-200">{vocalLabel(d.track.vocals)}</span>
+          {d.vocals?.length ? <span className="text-zinc-500">: {vocalWhere(d.vocals)}. The pink marks on the deck show where.</span> : null}
+        </p>
+      )}
 
       {d.energyCurve.length > 1 && <EnergyCurve d={d} />}
 

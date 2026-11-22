@@ -534,6 +534,18 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "vocals",
+    title: "Vocals and instrumentals",
+    group: "Your library",
+    summary: "MixIt hears where a track has singing or rapping, so two voices do not clash.",
+    body: [
+      "When MixIt analyses a track it listens for voices: a voice never holds a note quite still, and all of its overtones wobble together. The pink line along the top of a deck's overview shows where the singing is, and the panel on the right says how much of the track has it.",
+      "Two voices at once are hard to follow even when the keys fit, so the coach warns you when both decks are singing and offers to lower the mids on one. Bring the next track in during an instrumental part instead, or let its vocal start after the other ends.",
+      "Search with vocals:no for instrumentals (great for long blends and for talking over), vocals:yes for tracks with singing, or vocals:30+ for tracks that sing in at least 30%. Turn on the Vocals column in the track list to see the share for every track.",
+      "It is worked out from the sound alone, without an online service, so a heavily processed voice can be missed and a wobbly lead synth can now and then count as singing.",
+    ],
+  },
+  {
     id: "now-playing",
     title: "Showing the track on a stream",
     group: "Your library",

@@ -96,6 +96,19 @@ try {
     await sleep(500);
   });
 
+  await step("vocals:no finds instrumentals and the panel says so", async () => {
+    await page.fill('input[placeholder^="Search"]', "vocals:no");
+    await sleep(700);
+    const rows = await libField("rows");
+    expect(rows.length > 0 && rows.every((r) => r.vocals != null && r.vocals < 5), `vocals:no gave ${rows.length} rows`);
+    await page.fill('input[placeholder^="Search"]', "vocals:yes");
+    await sleep(700);
+    await page.locator('[data-testid="track-table"] [data-track]').first().click();
+    await page.waitForSelector('[data-testid="inspector-vocals"]:has-text("Singing")', { timeout: 5000 });
+    await page.fill('input[placeholder^="Search"]', "");
+    await sleep(500);
+  });
+
   await step("the collection overview draws", async () => {
     await page.click("text=At a glance");
     await page.waitForSelector("text=Your collection at a glance");
