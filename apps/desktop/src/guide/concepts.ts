@@ -623,6 +623,8 @@ export const CONCEPTS: Concept[] = [
       "Add tracks to the Auto DJ queue (right-click a track, drag tracks onto Auto DJ in the sidebar, or choose Play with Auto DJ on a playlist) and press Start. MixIt loads each next track on the free deck, cues it at its mix-in point and mixes it in at the top of a phrase near the end of the current track.",
       "It picks the transition from the music: a bass swap when both tracks have heavy bass, a filter fade when the keys clash or the energy drops, an echo out when the tempos are far apart or a track ends abruptly, and a long blend when everything fits. With Fix clashing keys on, it shifts the next track a semitone or two so the melodies agree.",
       "Watch the Next card and the log to learn why each choice was made. Touch any control to take over, press Mix now to mix early, or Stop to carry on by hand.",
+      "To hear a mix before it happens, point at a track in the queue and press Hear this mix under it: MixIt plays the change from that track into the next one in the preview player, exactly as Auto DJ plans it (the same transition, length, key shift and tempo), from a few bars before to a few bars after. While Auto DJ plays, Hear it first on the Next card does the same for the coming mix. The blue part of the strip is the transition; Jump to the mix goes to just before it.",
+      "The preview plays in your headphones when you have set a headphone output in Settings. Without one it would come out of the speakers, so MixIt only plays it then while no music is on air.",
     ],
     controls: ["app.autodj"],
   },

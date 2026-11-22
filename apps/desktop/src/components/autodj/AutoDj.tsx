@@ -1,8 +1,8 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, Info, ListX, Play, SkipForward, Square, Trash2, Zap } from "lucide-react";
-import { useState } from "react";
+import { ArrowDown, ArrowUp, Bot, Headphones, Info, ListX, Loader2, Pause, Play, SkipForward, Square, Trash2, X, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
@@ -12,6 +12,9 @@ import { useTransition } from "../../lib/transition";
 import { useApp } from "../../store/app";
 import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
+import { hearNext, hearPair, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
+import { previewPosition } from "../library/PreviewBar";
+import { setupCanvas } from "../../lib/waveform";
 import { useTelemetry } from "../../store/telemetry";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { Btn, Segmented } from "../ui/Button";
@@ -57,6 +60,7 @@ export function AutoDjView() {
                 </button>
               )}
             </div>
+            <RehearsalBar />
             {queue.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs leading-relaxed text-zinc-500">
                 Drag tracks here, or right-click tracks in the library and choose <b className="text-zinc-300">Add to Auto DJ</b>.
@@ -65,7 +69,7 @@ export function AutoDjView() {
             ) : (
               <ol>
                 {queue.map((t, i) => (
-                  <QueueRow key={t.id} t={t} i={i} last={i === queue.length - 1} />
+                  <QueueRow key={t.id} t={t} i={i} last={i === queue.length - 1} into={queue[i + 1]} />
                 ))}
               </ol>
             )}
@@ -204,9 +208,12 @@ function NowNext() {
               ))}
             </ul>
             {phase === "waiting" && (
-              <div className="mt-2 flex gap-1.5">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <Btn size="sm" onClick={() => void mixNow()}>
                   <Zap size={12} /> Mix now
+                </Btn>
+                <Btn size="sm" tone="ghost" onClick={() => void hearNext()} title="Play this mix in your headphones first, the way Auto DJ will do it" data-testid="hear-next">
+                  <Headphones size={12} /> Hear it first
                 </Btn>
                 <Btn size="sm" tone="ghost" onClick={() => void skipNext()}>
                   <SkipForward size={12} /> Skip this track
@@ -222,10 +229,12 @@ function NowNext() {
   );
 }
 
-function QueueRow({ t, i, last }: { t: TrackRow; i: number; last: boolean }) {
+function QueueRow({ t, i, last, into }: { t: TrackRow; i: number; last: boolean; into?: TrackRow }) {
   const notation = useApp((s) => s.settings?.keyNotation ?? "camelot");
+  const key = into ? `${t.id}-${into.id}` : null;
+  const hearing = useRehearse((s) => key !== null && s.key === key);
   return (
-    <li className="group flex items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 text-xs last:border-b-0 hover:bg-white/[0.03]">
+    <li className="group relative flex items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 text-xs last:border-b-0 hover:bg-white/[0.03]">
       <span className="w-5 text-right font-mono text-[10px] text-zinc-500">{i + 1}</span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-zinc-100">{t.title}</div>
@@ -245,7 +254,110 @@ function QueueRow({ t, i, last }: { t: TrackRow; i: number; last: boolean }) {
           <Trash2 size={12} />
         </IconBtn>
       </div>
+      {into && (
+        <button
+          type="button"
+          onClick={() => (hearing ? stopMix() : void hearPair(t, into))}
+          title={hearing ? "Stop hearing this mix" : `Hear the mix from this track into ${into.title} in your headphones, the way Auto DJ will do it`}
+          aria-label={hearing ? "Stop hearing this mix" : `Hear the mix into ${into.title}`}
+          className={clsx(
+            "absolute -bottom-2.5 left-9 z-10 flex h-5 items-center gap-1 rounded-full border px-1.5 text-[10px] transition-opacity",
+            hearing ? "border-sky-400/50 bg-sky-950 text-sky-200 opacity-100" : "border-white/10 bg-zinc-900 text-zinc-400 opacity-0 hover:text-zinc-100 group-hover:opacity-100 focus-visible:opacity-100",
+          )}
+          data-testid={`hear-mix-${i}`}
+        >
+          <Headphones size={10} /> {hearing ? "Hearing this mix" : "Hear this mix"}
+        </button>
+      )}
     </li>
+  );
+}
+
+/** The mix being heard: play and pause, where it is (the transition marked), jump to the mix. */
+function RehearsalBar() {
+  const key = useRehearse((s) => s.key);
+  const status = useRehearse((s) => s.status);
+  const title = useRehearse((s) => s.title);
+  const summary = useRehearse((s) => s.summary);
+  const mixAt = useRehearse((s) => s.mixAt);
+  const playing = useTelemetry((s) => !!s.t.preview?.playing);
+  if (key === null) return null;
+  return (
+    <div className="flex flex-col gap-1.5 border-b border-white/[0.06] bg-sky-400/[0.06] px-3 py-2" data-testid="rehearsal-bar">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={toggleMix}
+          disabled={status !== "ready"}
+          aria-label={playing ? "Pause the mix" : "Play the mix"}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sky-400 text-zinc-950 hover:brightness-110 disabled:opacity-60"
+        >
+          {status === "loading" ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="translate-x-px" />}
+        </button>
+        <Headphones size={14} className="shrink-0 text-sky-300" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[12px] font-medium text-zinc-100">{title}</div>
+          <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? "Preparing the mix…" : `${summary}, as Auto DJ will play it`}</div>
+        </div>
+        <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => seekMix(Math.max(0, mixAt - 4))} title="Jump to a few seconds before the transition starts">
+          Jump to the mix
+        </Btn>
+        <button type="button" onClick={stopMix} aria-label="Stop hearing the mix" title="Stop and close" className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-100">
+          <X size={14} />
+        </button>
+      </div>
+      <MixStrip />
+    </div>
+  );
+}
+
+function MixStrip() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      const c = ref.current;
+      const s = useRehearse.getState();
+      if (c) {
+        const g = setupCanvas(c);
+        const r = c.getBoundingClientRect();
+        const dur = s.duration || Math.max(1, s.mixEnd + 8);
+        g.clearRect(0, 0, r.width, r.height);
+        g.fillStyle = "rgba(255,255,255,0.06)";
+        g.fillRect(0, r.height / 2 - 1, r.width, 2);
+        // The transition: where both tracks play.
+        g.fillStyle = "rgba(56,189,248,0.35)";
+        const x0 = (s.mixAt / dur) * r.width;
+        g.fillRect(x0, 2, Math.max(2, ((s.mixEnd - s.mixAt) / dur) * r.width), r.height - 4);
+        if (s.status === "ready") {
+          const x = (previewPosition() / dur) * r.width;
+          g.fillStyle = "#fafafa";
+          g.fillRect(x - 0.75, 0, 1.5, r.height);
+        }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const seekAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    seekMix(((e.clientX - r.left) / r.width) * useRehearse.getState().duration);
+  };
+  return (
+    <canvas
+      ref={ref}
+      className="h-5 w-full cursor-pointer rounded"
+      aria-label="Where the mix is: the blue part is the transition. Click to jump."
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        seekAt(e);
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons & 1) seekAt(e);
+      }}
+      data-testid="rehearsal-strip"
+    />
   );
 }
 

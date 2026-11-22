@@ -181,6 +181,9 @@ export interface Backend {
   renderStems(project: MixProject, folder: string, format?: string): Promise<void>;
   /** Beats [fromBeat, toBeat) of the project as a WAV file, for listening in Arrange. */
   previewProject(project: MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer>;
+  /** Renders beats `fromBeat..toBeat` of a project and plays them in the preview player
+   * (where previews are heard), replacing what it held. Returns the passage's seconds. */
+  previewMix(project: MixProject, fromBeat: number, toBeat: number): Promise<number>;
 
   /** Opens a sound for the editor (a pad source: kit sound, file, library track or a
    * slice of one). The original is never changed. */

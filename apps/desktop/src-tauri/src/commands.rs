@@ -1737,6 +1737,47 @@ pub async fn project_preview(
     .map_err(err)?
 }
 
+/// Renders beats `from_beat..to_beat` of a project and plays them in the preview player
+/// (heard where previews go, the headphones when there is a headphone output), so a mix
+/// can be heard before it happens without the audience hearing it. Returns its seconds.
+#[tauri::command]
+pub async fn project_preview_play(app: AppHandle, project: serde_json::Value, from_beat: f64, to_beat: f64) -> R<f64> {
+    let p = project_from_value(project)?.excerpt(from_beat, to_beat);
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let token = state.token();
+        // No library track: a rendered passage (the id is never a track's).
+        *state.preview.lock() = Some((token, -1));
+        let sr = state.audio.lock().sample_rate;
+        state.render_cancel.store(false, Ordering::SeqCst);
+        let opts = mixit_host::project::RenderOptions { sample_rate: sr, tail: 0.5, ..Default::default() };
+        let res = render_with(&app, &p, "Preparing the mix", &opts);
+        emit_job(
+            &app,
+            JobProgress {
+                kind: "render",
+                done: 1000,
+                total: 1000,
+                message: String::new(),
+                finished: true,
+                error: res.as_ref().err().cloned(),
+            },
+        );
+        let (data, sr) = res?;
+        let audio = Arc::new(TrackAudio::new(sr, data));
+        let len = audio.seconds();
+        if state.preview.lock().is_none_or(|(t, _)| t != token) {
+            return Ok(len);
+        }
+        let mut a = state.audio.lock();
+        a.send(Command::Preview(PreviewCommand::Load(audio, 0.0, None)));
+        a.send(Command::Preview(PreviewCommand::Play(true)));
+        Ok(len)
+    })
+    .await
+    .map_err(err)?
+}
+
 // ------------------------------------------------------------------------- exchange
 
 #[tauri::command]

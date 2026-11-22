@@ -144,6 +144,7 @@ pub fn run() {
             sound::sound_save,
             sound::sound_close,
             commands::project_preview,
+            commands::project_preview_play,
             commands::import_rekordbox,
             commands::import_traktor,
             commands::import_serato,

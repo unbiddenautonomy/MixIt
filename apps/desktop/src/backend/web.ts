@@ -522,6 +522,25 @@ export class WebAudioBackend extends DemoBackend {
     return encodeWav(chunks, this.engine.sampleRate).arrayBuffer();
   }
 
+  /** Renders the passage in the worker and plays it in the preview player. */
+  async previewMix(project: T.MixProject, fromBeat: number, toBeat: number): Promise<number> {
+    const token = ++this.previewToken;
+    const chunks: Float32Array[] = [];
+    await this.engine.renderProject({ project, from: fromBeat, to: toBeat, tail: 0.5, autoGain: this.settings.autoGain }, (n) => this.renderTrack(n), (a) => chunks.push(a));
+    const audio = new Float32Array(chunks.reduce((n, c) => n + c.length, 0));
+    let at = 0;
+    for (const c of chunks) {
+      audio.set(c, at);
+      at += c.length;
+    }
+    const seconds = audio.length / 2 / this.engine.sampleRate;
+    if (token === this.previewToken) {
+      await this.engine.loadPreview(audio, 0, null);
+      this.engine.send({ op: "previewPlay", on: true });
+    }
+    return seconds;
+  }
+
   /** Renders the whole mix in the worker and downloads it as a WAV file. Loudness
    * matching needs the whole mix in memory, so it is left to the desktop app here. */
   async renderProject(project: T.MixProject, path: string, _format?: string, targetLufs?: number | null) {

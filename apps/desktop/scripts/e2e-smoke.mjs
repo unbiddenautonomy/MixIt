@@ -314,6 +314,41 @@ try {
     expect(said === true, `no message about waiting; toasts: ${said}`);
   });
 
+  await step("Hear this mix plays a queued transition in the preview player", async () => {
+    const names = await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      // Nothing on air, so the preview may play on the speakers (there is no headphone output here).
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+      const rows = (await b.search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 3);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useApp.getState().set({ workspace: "library" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+      return rows.map((r) => r.title);
+    });
+    await page.hover('[data-testid="hear-mix-0"]', { force: true });
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/as Auto DJ will play it/', { timeout: 10_000 });
+    const bar = await page.textContent('[data-testid="rehearsal-bar"]');
+    expect(bar.includes(`${names[0]} into ${names[1]}`), `the bar says ${bar}`);
+    await sleep(1200);
+    let p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(p.playing && p.position > 0.5, `preview: playing ${p.playing}, at ${p.position}`);
+    const mixAt = await page.evaluate(() => window.mixit.useRehearse.getState().mixAt);
+    await page.click('[data-testid="rehearsal-bar"] >> text="Jump to the mix"');
+    await sleep(300);
+    p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(Math.abs(p.position - (mixAt - 4)) < 1, `jumped to ${p.position}, the mix is at ${mixAt}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
+    await sleep(300);
+    p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(!p.playing, "the preview kept playing after closing");
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
