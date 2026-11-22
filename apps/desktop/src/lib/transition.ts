@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { useApp } from "../store/app";
 import { useTelemetry } from "../store/telemetry";
 import { press, release, setOn, setValue } from "./actions";
+import { singingAt } from "./coach";
+
+/** How far the outgoing deck's mids dip while both decks sing during a blend (dB). */
+export const VOCAL_DIP_DB = -12;
+
+/** Whether both decks are singing now (half a second ahead for the incoming one). */
+export function bothSinging(from: number, to: number): boolean {
+  const t = useTelemetry.getState().t;
+  const decks = useApp.getState().decks;
+  return singingAt(decks[from], t.decks[from].position) && singingAt(decks[to], t.decks[to].position, 0.5);
+}
 
 export type TransitionId = "blend" | "bassSwap" | "filterFade" | "echoOut" | "cut" | "brake";
 
@@ -80,6 +91,7 @@ export async function startTransition(from: number, to: number, kind: Transition
   useTransition.getState().set(run);
   let started = dt.playing;
   let swapped = false;
+  let dipped = false;
   let last: Record<string, number> = {};
   const send = (id: string, v: number) => {
     if (last[id] === undefined || Math.abs(last[id] - v) > 0.004) {
@@ -99,6 +111,14 @@ export async function startTransition(from: number, to: number, kind: Transition
     const x = clamp((beat - startBeat) / run.beats);
     useTransition.getState().set({ ...run, progress: x });
     if (beat >= startBeat) {
+      // Two voices at once: the outgoing deck's mids step back while both sing.
+      if (kind === "blend" || kind === "bassSwap" || kind === "filterFade") {
+        const dip = x < 1 && bothSinging(from, to);
+        if (dip !== dipped) {
+          dipped = dip;
+          setValue(`mixer.${a}.eq.mid`, dip ? VOCAL_DIP_DB : 0);
+        }
+      }
       switch (kind) {
         case "blend":
           send(`mixer.${b}.fader`, smooth(clamp(x * 2)));
@@ -173,6 +193,7 @@ export async function startTransition(from: number, to: number, kind: Transition
     await press(`deck.${b}.master`);
     // Leave the old deck ready for the next track.
     setValue(`mixer.${a}.eq.low`, 0);
+    if (dipped) setValue(`mixer.${a}.eq.mid`, 0);
     setValue(`mixer.${a}.filter`, 0);
     setValue(`mixer.${a}.fader`, 1);
     useApp.getState().set({ targetDeck: from });

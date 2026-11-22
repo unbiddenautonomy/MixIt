@@ -38,6 +38,7 @@ fn make(title: &str, style: Style, bpm: f64, key: Key, seed: u64) -> (PlanTrack,
         last_beat: mp.last_beat,
         mix_in: mp.mix_in,
         mix_out: mp.mix_out,
+        vocals: vec![],
     };
     (plan, Source { audio: Arc::new(TrackAudio::new(g.sample_rate, g.audio)), analysis: a })
 }

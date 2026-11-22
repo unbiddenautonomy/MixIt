@@ -6,6 +6,8 @@ import { coachTips, singingAt } from "../lib/coach";
 import { vocalLabel, vocalWhere } from "../lib/vocals";
 import { emptyTelemetry } from "../store/telemetry";
 import { useApp } from "../store/app";
+import { useTelemetry } from "../store/telemetry";
+import { bothSinging } from "../lib/transition";
 
 describe("vocals", () => {
   it("names how much of a track sings", () => {
@@ -45,5 +47,21 @@ describe("vocals", () => {
     // Once deck B's mids are down, it stops warning.
     mixer.channels[1].mid = -18;
     expect(coachTips(t, [decks[0], decks[1], null, null], mixer, 2).some((x) => x.id === "vocals")).toBe(false);
+  });
+
+  it("a live blend knows when both decks sing", async () => {
+    const b = new DemoBackend();
+    const rows = await b.search("vocals:yes");
+    const [d0, d1] = await Promise.all(rows.slice(0, 2).map((r) => b.trackDetail(r.id)));
+    useApp.setState({ decks: [{ deck: 0, detail: d0 }, { deck: 1, detail: d1 }, null, null] as unknown as ReturnType<typeof useApp.getState>["decks"] });
+    const t: Telemetry = structuredClone(emptyTelemetry);
+    const at = (i: number, position: number) => (t.decks[i] = { ...structuredClone(t.decks[i]), position });
+    at(0, d0.vocals![0][0] + 1);
+    at(1, d1.vocals![0][0] - 0.3); // about to sing
+    useTelemetry.setState({ t });
+    expect(bothSinging(0, 1)).toBe(true);
+    at(1, 0);
+    useTelemetry.setState({ t: { ...t } });
+    expect(bothSinging(0, 1)).toBe(false);
   });
 });
