@@ -18,7 +18,7 @@ import { sortRows, useLibrary, type SortKey } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshPlaylists, refreshRows, refreshStats } from "./data";
+import { refreshPlaylists, refreshRows, refreshStats, writeTagsToFiles } from "./data";
 import { editTrack } from "../editor/TrackEditor";
 import { PreviewButton } from "./PreviewBar";
 import { togglePreview } from "../../store/trackPreview";
@@ -322,6 +322,11 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
           >
             What mixes well after this?
           </ContextMenu.Item>
+          {backend().kind !== "web" && (
+            <ContextMenu.Item className="menu-item" onSelect={() => void writeTagsToFiles(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>
+              {ids().length > 1 ? `Write tags to ${ids().length} files` : "Write tags to the file"}
+            </ContextMenu.Item>
+          )}
           <ContextMenu.Item className="menu-item" onSelect={() => void editTrack(track.id)}>
             Edit track (beat grid, cues, start point)
           </ContextMenu.Item>

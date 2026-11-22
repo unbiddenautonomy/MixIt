@@ -498,6 +498,13 @@ export interface TrackEdit {
   color?: number | null;
   bpm?: number | null;
   energy?: number | null;
+  year?: number | null;
+}
+
+export interface WriteTagsResult {
+  written: number;
+  /** [track id, why] for files that could not be written. */
+  failed: [number, string][];
 }
 
 // --- Mix projects (crates/mixit-project, serialised as-is) ---

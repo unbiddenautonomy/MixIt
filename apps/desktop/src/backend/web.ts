@@ -717,6 +717,11 @@ export class WebAudioBackend extends DemoBackend {
     await super.removeTracks(ids);
   }
 
+  /** A page cannot change files on the computer: the desktop app writes tags. */
+  async writeTags(ids: number[]): Promise<T.WriteTagsResult> {
+    return { written: 0, failed: ids.map((id) => [id, "In the browser MixIt cannot change your files. Use the desktop app to write tags."]) };
+  }
+
   async saveProject(path: string, project: T.MixProject) {
     download(new Blob([JSON.stringify(project, null, 1)], { type: "application/json" }), stem(path) + ".mixit");
   }

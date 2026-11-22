@@ -536,6 +536,16 @@ impl Library {
         Ok(())
     }
 
+    /// Records a file's new size, time and hash after MixIt changed it (wrote its tags),
+    /// so the next scan sees it as unchanged instead of reading it again.
+    pub fn set_file_info(&self, id: TrackId, size: u64, mtime: i64, hash: Option<&str>) -> Result<()> {
+        self.conn.execute(
+            "UPDATE tracks SET file_size = ?2, file_mtime = ?3, hash = COALESCE(?4, hash) WHERE id = ?1",
+            params![id, size as i64, mtime, hash],
+        )?;
+        Ok(())
+    }
+
     /// Points a track at a new file (relocating a moved or renamed file).
     pub fn relocate(&self, id: TrackId, path: &Path) -> Result<()> {
         self.conn

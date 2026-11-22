@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use mixit_core::TrackId;
+use mixit_core::key::KeyNotation;
 use serde::{Deserialize, Serialize};
 
 use crate::{Library, NewTrack, Result};
@@ -136,6 +137,28 @@ impl Library {
         }
         tx.commit()?;
         Ok(found)
+    }
+
+    /// Writes the track's details from the library into its file's tags: title, artist,
+    /// album, genre, label, comment, year, tempo and key (in `notation`). The file's new
+    /// size, time and hash are recorded so a rescan does not read it again.
+    pub fn write_file_tags(&self, id: TrackId, notation: KeyNotation) -> Result<()> {
+        let t = self.track(id)?;
+        let update = mixit_io::TagUpdate {
+            title: Some(t.title.clone()),
+            artist: Some(t.artist.clone()),
+            album: Some(t.album.clone()),
+            genre: Some(t.genre.clone()),
+            comment: Some(t.comment.clone()),
+            label: Some(t.label.clone()),
+            year: t.year,
+            bpm: t.bpm.or(t.tag_bpm).map(|b| (b * 100.0).round() / 100.0),
+            key: t.key.map(|k| k.display(notation)),
+        };
+        mixit_io::write_tags(&t.path, &update)?;
+        let (size, mtime) = file_info(&t.path)?;
+        let hash = mixit_io::hash_file(&t.path)?.to_hex();
+        self.set_file_info(id, size, mtime, Some(&hash))
     }
 
     /// Scans a folder recursively. `progress(done_files, path)` is called per file.

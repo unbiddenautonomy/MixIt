@@ -1,6 +1,6 @@
 // Everything MixIt knows about one track: editable tags, the analysis (tempo, key,
 // loudness, energy over time, sections) and saved cues.
-import { Sparkles, X } from "lucide-react";
+import { FileDown, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -12,9 +12,16 @@ import { DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { loadOnDeck } from "../deck/Deck";
-import { refreshRows } from "./data";
+import { refreshRows, writeTagsToFiles } from "./data";
+import { BatchInspector } from "./BatchInspector";
 
 export function Inspector() {
+  const selected = useLibrary((s) => s.selected);
+  if (selected.length > 1) return <BatchInspector ids={selected} />;
+  return <OneTrack />;
+}
+
+function OneTrack() {
   const id = useLibrary((s) => s.inspect);
   const [d, setD] = useState<TrackDetail | null>(null);
   const notation = useNotation();
@@ -131,6 +138,16 @@ export function Inspector() {
         <Field label="Comment">
           <Editable value={t.comment} placeholder="–" onSave={(comment) => save({ comment })} />
         </Field>
+        <Field label="Year">
+          <Editable
+            value={t.year != null ? String(t.year) : ""}
+            placeholder="–"
+            onSave={(v) => {
+              if (/^\d{4}$/.test(v)) void save({ year: Number(v) });
+              else if (v) toast.error("A year is four digits, like 2024.");
+            }}
+          />
+        </Field>
         <Field label="BPM">
           <Editable value={t.bpm ? t.bpm.toFixed(2) : ""} placeholder="–" onSave={(v) => save({ bpm: v ? Number(v) : null })} />
         </Field>
@@ -140,6 +157,11 @@ export function Inspector() {
         {d.tuningCents !== 0 && <Field label="Tuning">{`${d.tuningCents > 0 ? "+" : ""}${d.tuningCents.toFixed(0)} cents`}</Field>}
         <Field label="Plays">{t.playCount}</Field>
         <div className="break-all pt-1 font-mono text-[10px] leading-snug text-zinc-600">{t.path}</div>
+        {backend().kind !== "web" && !t.missing && (
+          <button type="button" onClick={() => void writeTagsToFiles([t.id])} className="mt-1 flex items-center gap-1 self-start text-[11px] text-sky-300 hover:underline" title="Put these details into the file, so other apps and DJ gear show them">
+            <FileDown size={11} /> Write tags to the file
+          </button>
+        )}
       </Group>
     </aside>
   );

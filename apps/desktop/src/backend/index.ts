@@ -34,6 +34,7 @@ import type {
   TrackEdit,
   TrackRow,
   WaveformData,
+  WriteTagsResult,
 } from "./types";
 
 export type Unlisten = () => void;
@@ -76,6 +77,10 @@ export interface Backend {
   trackDetail(id: number): Promise<TrackDetail>;
   editTrack(id: number, edit: TrackEdit): Promise<TrackRow>;
   removeTracks(ids: number[]): Promise<void>;
+  /** The same edit on several tracks: only the fields given change. */
+  editTracks(ids: number[], edit: TrackEdit): Promise<void>;
+  /** Writes the library's details (title, artist, genre, tempo, key…) into the tracks' files. */
+  writeTags(ids: number[], notation: "camelot" | "openKey" | "standard"): Promise<WriteTagsResult>;
   /** Tracks whose files cannot be found. */
   missingTracks(): Promise<TrackRow[]>;
   /** Looks through a folder for missing tracks' files (same name, or same audio). Returns how many were found. */

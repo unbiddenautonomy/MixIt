@@ -101,3 +101,44 @@ fn rejects_non_audio() {
     std::fs::write(&p, b"this is not audio at all").unwrap();
     assert!(decode_file(&p).is_err());
 }
+
+#[test]
+fn writes_tags_into_wav_and_flac() {
+    let dir = tmpdir("tags-write");
+    let x = stereo_sine(4_800, 440.0, 48_000);
+    for name in ["t.wav", "t.flac"] {
+        let p = dir.join(name);
+        if name.ends_with(".wav") {
+            write_wav(&p, &x, 2, 48_000, WavDepth::Pcm16).unwrap();
+        } else {
+            write_flac(&p, &x, 2, 48_000, 16).unwrap();
+        }
+        let u = TagUpdate {
+            title: Some("Night Drive".into()),
+            artist: Some("Ann".into()),
+            genre: Some("House".into()),
+            label: Some("Own".into()),
+            year: Some(2024),
+            bpm: Some(124.5),
+            key: Some("8A".into()),
+            ..Default::default()
+        };
+        write_tags(&p, &u).unwrap();
+        let t = read_tags(&p).unwrap();
+        assert_eq!(t.title.as_deref(), Some("Night Drive"), "{name}");
+        assert_eq!(t.artist.as_deref(), Some("Ann"), "{name}");
+        assert_eq!(t.genre.as_deref(), Some("House"), "{name}");
+        assert_eq!(t.label.as_deref(), Some("Own"), "{name}");
+        assert_eq!(t.year, Some(2024), "{name}");
+        assert_eq!(t.key.as_deref(), Some("8A"), "{name}");
+        assert!(t.bpm.is_some_and(|b| (b - 124.5).abs() < 0.6), "{name}: {:?}", t.bpm);
+        // Only what is given changes; an empty text removes a field.
+        write_tags(&p, &TagUpdate { genre: Some(String::new()), ..Default::default() }).unwrap();
+        let t = read_tags(&p).unwrap();
+        assert_eq!(t.genre, None, "{name}");
+        assert_eq!(t.title.as_deref(), Some("Night Drive"), "{name}");
+        // The audio is untouched.
+        let d = decode_file(&p).unwrap();
+        assert_eq!(d.frames(), 4_800, "{name}");
+    }
+}

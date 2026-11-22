@@ -913,6 +913,22 @@ export class DemoBackend implements Backend {
     this.emit("library-changed", null);
   }
 
+  async editTracks(ids: number[], edit: T.TrackEdit) {
+    const patch = Object.fromEntries(Object.entries(edit).filter(([, v]) => v !== undefined));
+    for (const id of ids) Object.assign(this.find(id).row, patch);
+    this.emit("library-changed", null);
+  }
+
+  /** The demo has no files to write: it reports them written, and missing ones as failed. */
+  async writeTags(ids: number[]): Promise<T.WriteTagsResult> {
+    const failed: [number, string][] = [];
+    for (const id of ids) {
+      const t = this.find(id);
+      if (t.row.missing) failed.push([id, `file not found: ${t.row.path}`]);
+    }
+    return { written: ids.length - failed.length, failed };
+  }
+
   // ---------------------------------------------------------------- preview player
 
   /** The simulated preview player: only a position that moves. */

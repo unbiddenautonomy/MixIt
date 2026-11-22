@@ -336,3 +336,40 @@ fn finds_missing_files_in_a_folder() {
     assert!(!lib.track(tb).unwrap().missing);
     assert!(lib.find_missing_in(&tmp.0).unwrap().is_empty());
 }
+
+#[test]
+fn writes_library_details_into_the_files() {
+    let tmp = TempDir::new("write-tags");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    let a = write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let lib = Library::open(&tmp.0.join("library.db")).unwrap();
+    lib.scan_folder(&music, |_, _| {}).unwrap();
+    let id = lib.track_by_path(&a).unwrap().unwrap().id;
+    let edit = TrackEdit {
+        title: Some("Sunrise".into()),
+        artist: Some("Ann".into()),
+        genre: Some("Deep House".into()),
+        label: Some("Own Records".into()),
+        year: Some(Some(2023)),
+        bpm: Some(Some(124.0)),
+        key: Some(Some(Key::new(9, Mode::Minor))),
+        ..Default::default()
+    };
+    lib.edit_track(id, &edit).unwrap();
+    let before = lib.track(id).unwrap().hash;
+    lib.write_file_tags(id, mixit_core::key::KeyNotation::Camelot).unwrap();
+    let tags = mixit_io::read_tags(&a).unwrap();
+    assert_eq!(tags.title.as_deref(), Some("Sunrise"));
+    assert_eq!(tags.artist.as_deref(), Some("Ann"));
+    assert_eq!(tags.genre.as_deref(), Some("Deep House"));
+    assert_eq!(tags.label.as_deref(), Some("Own Records"));
+    assert_eq!(tags.year, Some(2023));
+    assert_eq!(tags.key.as_deref(), Some("8A"));
+    assert!(tags.bpm.is_some_and(|b| (b - 124.0).abs() < 0.01));
+    // The new file is recorded, so a rescan leaves it (and the edits) alone.
+    assert_ne!(lib.track(id).unwrap().hash, before);
+    let r = lib.scan_folder(&music, |_, _| {}).unwrap();
+    assert_eq!((r.unchanged, r.updated.len()), (1, 0));
+    assert_eq!(lib.track(id).unwrap().title, "Sunrise");
+}
