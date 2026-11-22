@@ -5,10 +5,10 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { TrackDetail, TrackRow } from "../backend/types";
-import { planMix, type MixPlan } from "../lib/autodj";
+import type { MixPlan } from "../lib/autodj";
 import { medley, rehearsal } from "../lib/rehearse";
 import { useApp } from "./app";
-import { useAutoDj } from "./autodj";
+import { planFor, useAutoDj } from "./autodj";
 import { queueStart } from "./queueFlow";
 import { useTelemetry } from "./telemetry";
 import { resolveRoute, sendSettings, useTrackPreview } from "./trackPreview";
@@ -82,7 +82,7 @@ export async function hearPair(a: TrackRow, b: TrackRow) {
   try {
     const [out, inc] = await Promise.all([backend().trackDetail(a.id), backend().trackDetail(b.id)]);
     if (my !== request) return;
-    await hearMix(key, out, inc, planMix(out, inc, useAutoDj.getState().options));
+    await hearMix(key, out, inc, planFor(out, inc));
   } catch (e) {
     if (my !== request) return;
     useRehearse.setState(IDLE);
@@ -103,7 +103,7 @@ export const MAX_CHANGES = 24;
 
 /** Every change in the Auto DJ queue (from the track waiting or playing), one after another. */
 export async function hearSet() {
-  const { queue, options } = useAutoDj.getState();
+  const { queue } = useAutoDj.getState();
   const start = queueStart();
   const rows = [...(start ? [start] : []), ...queue].slice(0, MAX_CHANGES + 1);
   if (rows.length < 2) {
@@ -119,7 +119,7 @@ export async function hearSet() {
   try {
     const details = await Promise.all(rows.map((r) => backend().trackDetail(r.id)));
     if (my !== request) return;
-    const steps = details.slice(1).map((inc, i) => ({ out: details[i], inc, plan: planMix(details[i], inc, options) }));
+    const steps = details.slice(1).map((inc, i) => ({ out: details[i], inc, plan: planFor(details[i], inc) }));
     const m = medley(steps);
     const changes = m.changes.map((c, i) => ({ ...c, label: `${c.label}: ${steps[i].plan.summary.toLowerCase()}` }));
     useRehearse.setState({ summary: `${n} change${n === 1 ? "" : "s"}, a few bars either side of each`, mixAt: changes[0].at, mixEnd: changes[0].end, changes });

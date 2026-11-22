@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { backend } from "../backend";
 import type { TrackDetail, TrackRow } from "../backend/types";
 import { press, setOn, setValue } from "../lib/actions";
-import { DEFAULT_OPTIONS, planMix, type MixPlan, type PlanOptions } from "../lib/autodj";
-import { startTransition, useTransition } from "../lib/transition";
+import { DEFAULT_OPTIONS, planMix, transitionName, type MixPlan, type PlanOptions } from "../lib/autodj";
+import { startTransition, useTransition, type TransitionId } from "../lib/transition";
 import { GLIDE_MIN_PCT, glideBars, glideFader } from "../lib/glide";
 import { useApp } from "./app";
 import { useTelemetry } from "./telemetry";
@@ -44,6 +44,8 @@ interface AutoDjState {
   glide: boolean;
   /** The glide under way: on which deck, from which fader, since which beat. */
   gliding: { deck: number; start: number; range: number; fromBeat: number; sent: number } | null;
+  /** Transitions chosen by hand for single changes ("<out id>-<in id>"), over Auto DJ's choice. */
+  choices: Record<string, TransitionId>;
   log: LogEntry[];
   set: (p: Partial<AutoDjState>) => void;
 }
@@ -59,6 +61,7 @@ export const useAutoDj = create<AutoDjState>((set) => ({
   energy: "steady",
   glide: true,
   gliding: null,
+  choices: {},
   log: [],
   set: (p) => set(p),
 }));
@@ -69,6 +72,39 @@ const st = () => useAutoDj.getState();
 
 function note(text: string) {
   useAutoDj.setState((s) => ({ log: [{ at: Date.now(), text }, ...s.log].slice(0, 40) }));
+}
+
+// ------------------------------------------------------------------ choices
+
+/** The plan for the change from `out` into `inc` with Auto DJ's settings and any transition
+ * chosen by hand for that change. */
+export function planFor(out: TrackDetail, inc: TrackDetail, nowBeat = -Infinity): MixPlan {
+  const s = st();
+  const chosen = s.choices[`${out.track.id}-${inc.track.id}`];
+  if (!chosen) return planMix(out, inc, s.options, nowBeat);
+  const plan = planMix(out, inc, { ...s.options, style: chosen }, nowBeat);
+  const name = transitionName(chosen).toLowerCase();
+  return { ...plan, reasons: [`You chose ${/^[aeiou]/.test(name) ? "an" : "a"} ${name} for this change.`, ...plan.reasons] };
+}
+
+/** Chooses the transition for the change from track `a` into track `b` (null: Auto DJ picks). */
+export function chooseTransition(a: number, b: number, kind: TransitionId | null) {
+  const key = `${a}-${b}`;
+  useAutoDj.setState((s) => {
+    const choices = { ...s.choices };
+    if (kind) choices[key] = kind;
+    else delete choices[key];
+    return { choices };
+  });
+  // The coming mix is already planned: plan it again with the new choice.
+  const s = st();
+  const cur = s.current !== null ? useApp.getState().decks[s.current] : null;
+  if (s.next && s.phase === "waiting" && cur && cur.detail.track.id === a && s.next.track.id === b) {
+    const now = useTelemetry.getState().t.decks[s.current!]?.beat ?? -Infinity;
+    const plan = planFor(cur.detail, s.next.detail, now);
+    useAutoDj.setState({ next: { ...s.next, plan } });
+    note(`New plan for ${s.next.track.title}: ${plan.summary.toLowerCase()}.`);
+  }
 }
 
 // ------------------------------------------------------------------ queue
@@ -220,7 +256,7 @@ async function prepareNext(replace = false) {
     useApp.getState().setDeck(info);
     if (st().phase === "off") return;
     const now = useTelemetry.getState().t.decks[s.current]?.beat ?? -Infinity;
-    const plan = planMix(cur.detail, info.detail, st().options, now);
+    const plan = planFor(cur.detail, info.detail, now);
     const D = L(deck);
     await backend().seek(deck, plan.inCueSeconds);
     await setOn(`deck.${D}.keylock`, true);

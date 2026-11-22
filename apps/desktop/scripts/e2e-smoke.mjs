@@ -549,6 +549,24 @@ try {
     });
   });
 
+  await step("a transition chosen for one change is what Hear this mix plays", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.selectOption('[data-testid="choose-mix-0"]', "cut");
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    const st = await page.evaluate(() => ({ summary: window.mixit.useRehearse.getState().summary, choices: window.mixit.useAutoDj.getState().choices }));
+    expect(st.summary === "Cut on the bar" && Object.values(st.choices).join() === "cut", `heard ${JSON.stringify(st)}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.selectOption('[data-testid="choose-mix-0"]', "");
+    expect(Object.keys(await page.evaluate(() => window.mixit.useAutoDj.getState().choices)).length === 0, "Auto did not clear the choice");
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

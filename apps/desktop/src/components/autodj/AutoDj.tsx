@@ -8,9 +8,9 @@ import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
 import { clock } from "../../lib/format";
 import { keyLabel } from "../../lib/keys";
-import { useTransition } from "../../lib/transition";
+import { useTransition, type TransitionId } from "../../lib/transition";
 import { useApp } from "../../store/app";
-import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
+import { chooseTransition, clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
 import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
 import { mixQueue } from "../../store/queueMix";
@@ -344,6 +344,8 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
   const t = transition(a, b);
   const key = `${a.id}-${b.id}`;
   const hearing = useRehearse((s) => s.key === key);
+  const chosen = useAutoDj((s) => s.choices[key]);
+  const transitions = useApp((s) => s.transitions);
   const g = GRADE[t.grade];
   const why = t.reasons.length ? t.reasons.map((r, k) => (k ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join(", ") : "Keys fit, tempos close, energy flows";
   const library = useLibrary((s) => s.rows);
@@ -367,6 +369,21 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
           <GitMerge size={10} /> Add {bridge.track.title} between
         </button>
       )}
+      <select
+        value={chosen ?? ""}
+        onChange={(e) => chooseTransition(a.id, b.id, (e.target.value || null) as TransitionId | null)}
+        title="How Auto DJ mixes into this track. Auto lets it choose from the music; pick one to decide yourself. Hear this mix, Rehearse the set and Make a mix follow your choice."
+        aria-label={`Transition into ${b.title}`}
+        className={clsx("h-5 shrink-0 rounded border border-white/10 bg-zinc-900 px-0.5 text-[10px] outline-none", chosen ? "text-sky-200" : "text-zinc-400")}
+        data-testid={`choose-mix-${i}`}
+      >
+        <option value="">Auto</option>
+        {transitions.map((x) => (
+          <option key={x.id} value={x.id}>
+            {x.name}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         onClick={() => (hearing ? stopMix() : void hearPair(a, b))}

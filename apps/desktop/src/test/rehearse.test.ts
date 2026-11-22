@@ -10,7 +10,7 @@ import { fromCamelot, keyDto } from "../lib/keys";
 import { medley, rehearsal, setMix, tempoAt } from "../lib/rehearse";
 import { useApp } from "../store/app";
 import { changeAt, hearPair, hearSet, musicOnAir, stopMix, useRehearse } from "../store/rehearse";
-import { useAutoDj } from "../store/autodj";
+import { chooseTransition, planFor, useAutoDj } from "../store/autodj";
 import { emptyTelemetry, useTelemetry } from "../store/telemetry";
 import { previewTrack, useTrackPreview } from "../store/trackPreview";
 
@@ -319,5 +319,32 @@ describe("a set as one mix", () => {
     // Track 2's last bars loop from its mix point: more than one piece of it.
     expect(p.clips.filter((x) => x.track.path === "/Music/2.flac").length).toBeGreaterThan(1);
     expect(p.markers[1].beat).toBeGreaterThanOrEqual(p.markers[0].beat + p1.beats);
+  });
+});
+
+describe("choosing the transition for one change", () => {
+  it("overrides Auto DJ's choice for that change only, and says so", () => {
+    const [a, b, c] = [track({ id: 1, energy: 8 }), track({ id: 2, energy: 8 }), track({ id: 3, energy: 8 })];
+    useAutoDj.setState({ choices: {}, phase: "off", next: null });
+    expect(planFor(a, b).kind).toBe("bassSwap");
+    chooseTransition(1, 2, "echoOut");
+    const p = planFor(a, b);
+    expect(p.kind).toBe("echoOut");
+    expect(p.reasons[0]).toBe("You chose an echo out for this change.");
+    expect(planFor(b, c).kind).toBe("bassSwap");
+    expect(planFor(b, a).kind).toBe("bassSwap");
+    chooseTransition(1, 2, null);
+    expect(planFor(a, b).kind).toBe("bassSwap");
+    expect(useAutoDj.getState().choices).toEqual({});
+  });
+
+  it("plans the coming mix again when it is already waiting on a deck", () => {
+    const [a, b] = [track({ id: 1, energy: 8 }), track({ id: 2, energy: 8 })];
+    useApp.setState({ decks: [{ deck: 0, token: 1, detail: a, sampleRate: 44100 }, { deck: 1, token: 1, detail: b, sampleRate: 44100 }, null, null] });
+    useAutoDj.setState({ choices: {}, phase: "waiting", current: 0, next: { deck: 1, track: b.track, detail: b, plan: planFor(a, b) }, log: [] });
+    chooseTransition(1, 2, "blend");
+    expect(useAutoDj.getState().next!.plan.kind).toBe("blend");
+    expect(useAutoDj.getState().log[0].text).toMatch(/New plan for Track 2: blend over \d+ beats/);
+    useAutoDj.setState({ choices: {}, phase: "off", current: null, next: null });
   });
 });
