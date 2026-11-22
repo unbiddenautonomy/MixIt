@@ -168,3 +168,23 @@ describe("Auto DJ plans around the singing", () => {
     expect(p.outStartBeat).toBeGreaterThan(430);
   });
 });
+
+describe("Hear Mix it first", () => {
+  it("plans what Mix it would do now, from where the incoming deck is cued", async () => {
+    const { mixItPlan } = await import("../lib/smartMix");
+    const t = structuredClone(emptyTelemetry);
+    t.decks[0] = { ...t.decks[0], loaded: true, playing: true, position: 10, beat: 20, bpm: 120, baseBpm: 120, remaining: 200, beatsPerBar: 4 };
+    t.decks[1] = { ...t.decks[1], loaded: true, playing: false, position: 3, beat: 0, bpm: 120, baseBpm: 120, remaining: 200, beatsPerBar: 4 };
+    useTelemetry.setState({ t });
+    const detail = (vocals: [number, number][]) => ({ track: { id: 1, title: "x", duration: 210 }, bpm: 120, beats: [], downbeats: [], beatsPerBar: 4, firstBeat: 0, cues: [], sections: [], vocals, audible: [0, 210] }) as unknown as TrackDetail;
+    useApp.setState({ decks: [{ deck: 0, detail: detail([[15, 22]]) } as unknown as DeckInfo, { deck: 1, detail: detail([]) } as unknown as DeckInfo, null, null] });
+    // A blend by hand: same start as Mix it (past deck A's line), the chosen length.
+    const m = mixItPlan(0, 1, "blend", 16)!;
+    expect(m.plan).toMatchObject({ kind: "blend", beats: 16, outStartBeat: 64, inCueSeconds: 3, keyShift: 0, loopBeats: 0, sync: true });
+    expect(mixItPlan(0, 1, "cut", 16)!.plan.beats).toBe(0);
+    // Nothing to hear when deck A is stopped or from a deck into itself.
+    expect(mixItPlan(0, 0, "blend", 16)).toBeNull();
+    useTelemetry.setState({ t: { ...t, decks: t.decks.map((d, i) => (i === 0 ? { ...d, playing: false } : d)) } });
+    expect(mixItPlan(0, 1, "smart", 16)).toBeNull();
+  });
+});

@@ -7,7 +7,9 @@ import { Headphones, SlidersHorizontal, SlidersVertical, Sparkles, Square } from
 import { useMemo, useState } from "react";
 import { choose, setOn, setValue } from "../../lib/actions";
 import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
-import { smartMix } from "../../lib/smartMix";
+import { mixItPlan, smartMix } from "../../lib/smartMix";
+import { hearMix } from "../../store/rehearse";
+import { toast } from "sonner";
 import { useApp, usePro } from "../../store/app";
 import { useDeckTele, useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
@@ -273,6 +275,22 @@ function MixIt({ count }: { count: number }) {
           ))}
         </select>
       )}
+      <Ctl label="Hear it first" explain="Plays this mix in your headphones before you do it: a few bars before the transition, the transition just as Mix it would run it, and a few bars after, so you can check it sounds right. The audience hears nothing.">
+        <Btn
+          tone="ghost"
+          disabled={!pair || pair[0] === pair[1]}
+          onClick={() => {
+            if (!pair) return;
+            const m = mixItPlan(pair[0], pair[1], kind, len);
+            if (!m) toast("Play the deck you are mixing out of first, with an analysed track on both decks.");
+            else void hearMix("mixer", m.out, m.inc, m.plan);
+          }}
+          aria-label="Hear this mix first"
+          data-testid="hear-mix-it"
+        >
+          <Headphones size={13} />
+        </Btn>
+      </Ctl>
       <Ctl label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it at the top of the next 8-bar phrase so both tracks line up, and moves the faders and EQs like a DJ would. Touch any control to take over.">
         <Btn tone="accent" className="whitespace-nowrap" style={{ ["--accent" as string]: pair ? DECK_COLORS[pair[1]] : "#a1a1aa" }} disabled={!pair} onClick={() => pair && (kind === "smart" ? (pair[0] === pair[1] ? startTransition(pair[0], pair[1], "blend", 32) : void smartMix(pair[0], pair[1])) : startTransition(pair[0], pair[1], kind, kind === "cut" ? 0 : len))} data-testid="mix-it">
           <Sparkles size={13} />

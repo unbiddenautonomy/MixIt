@@ -492,6 +492,42 @@ try {
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
   });
 
+  await step("Hear it first plays Mix it's mix in the headphones, never on the speakers", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      await b.seek(0, 40);
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    // On the speakers, with deck A on air, the audience would hear it: it refuses.
+    await page.click('[data-testid="hear-mix-it"]');
+    await page.waitForFunction(() => /audience would hear it/.test(document.querySelector("[data-sonner-toaster]")?.textContent ?? ""), null, { timeout: 3000 });
+    expect((await page.evaluate(() => window.mixit.useRehearse.getState().key)) === null, "a preview started on the speakers");
+    await page.evaluate(async () => {
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      useTrackPreview.setState({ route: "headphones" });
+    });
+    await page.click('[data-testid="hear-mix-it"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 5000 });
+    const st = await page.evaluate(() => window.mixit.useRehearse.getState());
+    expect(st.key === "mixer" && st.duration > st.mixEnd && st.mixEnd > st.mixAt && /over \d+ beats|Cut|Brake/.test(st.summary), `rehearsal ${JSON.stringify(st)}`);
+    expect(!(await page.evaluate(() => window.mixit.useTransition.getState().running)), "hearing it started the real mix");
+    await page.evaluate(async () => {
+      const { stopMix } = await import("/src/store/rehearse.ts");
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      stopMix();
+      useTrackPreview.setState({ route: "auto" });
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
