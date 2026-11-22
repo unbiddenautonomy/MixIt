@@ -85,6 +85,31 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  e2e:
+    name: Browser test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - run: npm ci
+      - name: Playwright and Chromium
+        run: npm i --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Keep pictures of failed steps
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failures
+          path: apps/desktop/e2e-fail-*.png
+          if-no-files-found: ignore
+
   desktop:
     name: Desktop app (${{ matrix.os }})
     needs: ui

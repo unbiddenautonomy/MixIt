@@ -7,3 +7,4 @@ dist/
 /.mixit-cache/
 *.mixit-tmp
 /apps/desktop/public/mixit.wasm
+/apps/desktop/e2e-fail-*.png
