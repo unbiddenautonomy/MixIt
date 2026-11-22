@@ -330,6 +330,8 @@ try {
       window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
       return rows.map((r) => r.title);
     });
+    // Telemetry lags the stop: wait until no deck is on air, or the preview refuses to play.
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
     await page.hover('[data-testid="hear-mix-0"]', { force: true });
     await page.click('[data-testid="hear-mix-0"]');
     await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
