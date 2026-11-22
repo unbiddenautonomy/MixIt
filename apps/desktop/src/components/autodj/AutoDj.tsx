@@ -352,9 +352,9 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
   const queueLen = useAutoDj((s) => s.queue.length);
   const bridge = useMemo(() => (t.grade === "rough" ? bridgeChoices(i, 1)[0] : undefined), [a.id, b.id, t.grade, library, queueLen]);
   return (
-    <li className="flex items-center gap-2 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
       <span className={clsx("size-1.5 shrink-0 rounded-full", g.dot)} />
-      <span className="min-w-0 flex-1 truncate" title={why}>
+      <span className="min-w-[8rem] flex-1 basis-0 truncate" title={why}>
         <span className="text-zinc-400">{g.label}</span>
         {t.reasons.length > 0 && `: ${why.charAt(0).toLowerCase()}${why.slice(1)}`}
       </span>
@@ -363,10 +363,10 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
           type="button"
           onClick={() => addBridge(i, bridge.track)}
           title={`Put ${bridge.track.title} in between: it goes well with both tracks`}
-          className="flex shrink-0 items-center gap-1 rounded px-1 text-rose-200 hover:bg-white/10"
+          className="flex min-w-0 max-w-[14rem] items-center gap-1 rounded px-1 text-rose-200 hover:bg-white/10"
           data-testid={`bridge-${i}`}
         >
-          <GitMerge size={10} /> Add {bridge.track.title} between
+          <GitMerge size={10} className="shrink-0" /> <span className="truncate">Add {bridge.track.title} between</span>
         </button>
       )}
       <select
