@@ -109,7 +109,13 @@ function mirror(id: string, input: ActionInput) {
     const deck = p[1].charCodeAt(0) - 65;
     if (p[2] === "loop" && p[3] === "size") s.setMixer({ loopSize: s.mixer.loopSize.map((x, i) => (i === deck ? v : x)) });
     if (p[2] === "slice" && p[3] === "size") s.setMixer({ sliceSize: s.mixer.sliceSize.map((x, i) => (i === deck ? v : x)) });
+    if (p[2] === "keypad" && p[3] === "cue") s.setMixer({ keypadCue: s.mixer.keypadCue.map((x, i) => (i === deck ? v : x)) });
+    if (p[2] === "keypad" && p[3] === "range") s.setMixer({ keypadRange: s.mixer.keypadRange.map((x, i) => (i === deck ? v : x)) });
     if (p[2] === "beatjump" && p[3] === "size") s.setMixer({ jumpSize: s.mixer.jumpSize.map((x, i) => (i === deck ? v : x)) });
+  } else if (p[0] === "deck" && p[2] === "hotcue" && /^\d+$/.test(p[3] ?? "") && p.length === 4 && input.type === "press") {
+    // A hot cue press also picks it for the key pads (as the engine does).
+    const deck = p[1].charCodeAt(0) - 65;
+    s.setMixer({ keypadCue: s.mixer.keypadCue.map((x, i) => (i === deck ? Number(p[3]) - 1 : x)) });
   } else if (p[0] === "deck" && p[2] === "loop" && (p[3] === "halve" || p[3] === "double") && input.type === "press") {
     const deck = p[1].charCodeAt(0) - 65;
     const d = p[3] === "halve" ? -1 : 1;

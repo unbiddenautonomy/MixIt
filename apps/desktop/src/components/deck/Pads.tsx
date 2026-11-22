@@ -4,16 +4,17 @@ import clsx from "clsx";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, X } from "lucide-react";
 import { backend } from "../../backend";
 import type { CueDto } from "../../backend/types";
-import { choose, press, release, setOn, tap } from "../../lib/actions";
+import { choose, press, release, setOn, setValue, tap } from "../../lib/actions";
 import { clock, hex } from "../../lib/format";
 import { beatsIn, HOT_CUE_COLORS } from "../../lib/waveform";
-import { JUMP_LABELS, LOOP_LABELS, ROLL_BEATS, SLICE_BARS, useApp, usePro } from "../../store/app";
+import { JUMP_LABELS, KEYPAD_RANGES, LOOP_LABELS, ROLL_BEATS, SLICE_BARS, useApp, useNotation, usePro } from "../../store/app";
+import { keyColor, keyDto, keyFromIndex, keyLabel, transpose } from "../../lib/keys";
 import { livePosition, useDeckTele } from "../../store/telemetry";
 import { ActionBtn, Btn } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { FxUnit } from "./FxUnit";
 
-type Tab = "cues" | "loop" | "jump" | "slicer" | "roll" | "fx" | "grid";
+type Tab = "cues" | "loop" | "jump" | "slicer" | "roll" | "keys" | "fx" | "grid";
 
 export function Pads({ deck, compact = false }: { deck: number; compact?: boolean }) {
   const pro = usePro();
@@ -25,6 +26,7 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
     { id: "jump", label: "Jump" },
     { id: "slicer", label: "Slicer" },
     { id: "roll", label: "Roll" },
+    { id: "keys", label: "Keys" },
     { id: "fx", label: "FX" },
     ...(pro ? [{ id: "grid" as Tab, label: "Grid" }] : []),
   ];
@@ -51,6 +53,7 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
       {current === "jump" && <Jump deck={deck} />}
       {current === "slicer" && <Slicer deck={deck} compact={compact} />}
       {current === "roll" && <Rolls deck={deck} compact={compact} />}
+      {current === "keys" && <KeyPads deck={deck} compact={compact} />}
       {current === "fx" && <FxUnit unit={deck} />}
       {current === "grid" && <Grid deck={deck} />}
     </div>
@@ -381,6 +384,92 @@ function Rolls({ deck, compact }: { deck: number; compact: boolean }) {
         ))}
       </div>
       <div className="text-[11px] text-zinc-500">Hold to stutter the beat (numbers are beats). Short rolls build tension before a drop.</div>
+    </div>
+  );
+}
+
+/** Key pads: play a hot cue in 8 different keys, a semitone apart, like a keyboard. */
+function KeyPads({ deck, compact }: { deck: number; compact: boolean }) {
+  const L = String.fromCharCode(65 + deck);
+  const cue = useApp((s) => s.mixer.keypadCue[deck] ?? 0);
+  const range = useApp((s) => s.mixer.keypadRange[deck] ?? 1);
+  const cues = useApp((s) => s.decks[deck]?.detail.cues);
+  const key = useApp((s) => s.decks[deck]?.detail.key ?? null);
+  const notation = useNotation();
+  const loaded = useDeckTele(deck, (d) => d.loaded);
+  const shift = useDeckTele(deck, (d) => Math.round(d.keyShift));
+  const base = KEYPAD_RANGES[range]?.[1] ?? -3;
+  const hot = (i: number) => cues?.find((c) => c.role === "hot" && c.slot === i);
+  const chosen = hot(cue);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className={clsx("grid gap-1", compact ? "grid-cols-8" : "grid-cols-4")}>
+        {Array.from({ length: 8 }, (_, i) => {
+          const id = `deck.${L}.keypad.${i + 1}`;
+          const st = base + i;
+          const k = key ? keyDto(transpose(keyFromIndex(key.index), st)) : null;
+          return (
+            <Ctl key={i} id={id}>
+              <button
+                type="button"
+                disabled={!loaded}
+                aria-label={`Key pad ${st > 0 ? "+" : ""}${st}`}
+                onPointerDown={async (e) => {
+                  if (e.button !== 0) return;
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  if (!chosen) await backend().setHotCue(deck, cue, quantized(deck, livePosition(deck)), null, HOT_CUE_COLORS[cue]);
+                  press(id);
+                }}
+                onPointerUp={() => release(id)}
+                className={clsx(
+                  "flex h-9 w-full min-w-0 flex-col items-center justify-center rounded-lg border font-mono transition active:scale-[0.97] disabled:opacity-40",
+                  shift === st ? "border-white/60 bg-white/15 text-zinc-50" : "border-white/[0.08] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.07]",
+                )}
+                style={k ? { borderBottomColor: keyColor(k), borderBottomWidth: 2 } : undefined}
+              >
+                <span className="text-[11px] font-bold leading-none">{st > 0 ? `+${st}` : st}</span>
+                {k && !compact && <span className="text-[9px] leading-tight opacity-70">{keyLabel(k, notation)}</span>}
+              </button>
+            </Ctl>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+        <Ctl id={`deck.${L}.keypad.cue`}>
+          <span className="flex items-center gap-0.5">
+            From cue
+            {Array.from({ length: 8 }, (_, i) => {
+              const c = hot(i);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => choose(`deck.${L}.keypad.cue`, i)}
+                  className={clsx("size-5 rounded font-mono text-[10px]", i === cue ? "ring-1 ring-white" : "", c ? "text-zinc-950" : "text-zinc-500 hover:text-zinc-200")}
+                  style={c ? { background: hex(c.color, hex(HOT_CUE_COLORS[i])) } : undefined}
+                  title={c ? `Play from hot cue ${i + 1}` : `Hot cue ${i + 1} is empty: the first key pad you press saves it where the track is`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </span>
+        </Ctl>
+        <Ctl id={`deck.${L}.keypad.range`}>
+          <span className="flex gap-0.5">
+            {KEYPAD_RANGES.map(([name], i) => (
+              <button key={name} type="button" onClick={() => choose(`deck.${L}.keypad.range`, i)} className={clsx("rounded px-1.5 py-0.5", i === range ? "bg-white/15 text-zinc-100" : "hover:text-zinc-200")}>
+                {name}
+              </button>
+            ))}
+          </span>
+        </Ctl>
+        {shift !== 0 && (
+          <button type="button" className="rounded px-1.5 py-0.5 hover:text-zinc-200" onClick={() => setValue(`deck.${L}.key_shift`, 0)} title="Back to the track's own key">
+            Reset key
+          </button>
+        )}
+      </div>
     </div>
   );
 }

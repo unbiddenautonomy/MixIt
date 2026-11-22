@@ -128,6 +128,10 @@ pub const ROLL_SIZES: [(&str, f64); 8] = [
     ("4", 4.0),
 ];
 
+/// Key pad ranges for `deck.X.keypad.range`: the semitone offset of pad 1 (pads go up
+/// one semitone each).
+pub const KEYPAD_RANGES: [(&str, i8); 3] = [("Low", -7), ("Middle", -3), ("High", 0)];
+
 /// Which deck a channel ducks under (`mixer.X.duck_source`).
 pub const DUCK_SOURCES: [&str; 5] = ["Off", "Deck A", "Deck B", "Deck C", "Deck D"];
 
@@ -444,6 +448,38 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
                 Some("loop-roll"),
             );
         }
+        for n in 1..=8 {
+            b.add(
+                id(&format!("keypad.{n}")),
+                format!("Key pad {n}"),
+                &g,
+                mom(),
+                "Plays from the chosen hot cue in another key, one semitone per pad, so you can play a melody with it.",
+                false,
+                None,
+                Some("key-pads"),
+            );
+        }
+        b.add(
+            id("keypad.cue"),
+            "Key pad cue",
+            &g,
+            choice(&["1", "2", "3", "4", "5", "6", "7", "8"], 0),
+            "The hot cue the key pads play from. Pressing a hot cue also picks it.",
+            false,
+            None,
+            Some("key-pads"),
+        );
+        b.add(
+            id("keypad.range"),
+            "Key pad range",
+            &g,
+            choice(&KEYPAD_RANGES.map(|(l, _)| l), 1),
+            "Which keys the 8 pads cover: lower, around the track's own key, or higher.",
+            false,
+            None,
+            Some("key-pads"),
+        );
         b.add(
             id("slice.size"),
             "Slicer length",

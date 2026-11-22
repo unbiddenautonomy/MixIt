@@ -341,6 +341,18 @@ export const CONCEPTS: Concept[] = [
     glossary: ["slicer", "loop-roll"],
   },
   {
+    id: "key-pads",
+    title: "Key pads",
+    group: "Effects and tricks",
+    summary: "Play a hot cue in eight different keys, like notes on a keyboard.",
+    body: [
+      "Pick a hot cue (a vocal shout or a synth stab works best), open the Keys tab and press the pads: each one plays the cue a semitone higher than the last, with key lock on so the tempo stays put. Tap them in a rhythm to play a melody.",
+      "Middle covers three semitones below the track's key to four above; Low and High move the pads down or up. Under each pad is the key it plays, so you can stay on keys that fit the other track. Reset key brings the track back to its own key.",
+    ],
+    controls: ["deck.A.keypad.1", "deck.A.keypad.cue", "deck.A.keypad.range"],
+    glossary: ["key-pads"],
+  },
+  {
     id: "sequencer",
     title: "Step sequencer",
     group: "Effects and tricks",
