@@ -81,6 +81,7 @@ export const CONCEPTS: Concept[] = [
     body: [
       "Count along with the kick: 1, 2, 3, 4. That is one bar. Dance music changes something every 8 or 16 bars, a phrase: a new drum part, a breakdown, the drop.",
       "The red lines in the waveform mark phrases. Starting the next track exactly on one makes the change sound intentional. Starting it mid-phrase is the most common reason a mix feels 'off' even when the beats are in time.",
+      "Each deck counts for you: the lights next to the tempo show the beat of the bar (red on beat 1), the number shows the bar of the 8-bar phrase, and underneath it says how many bars until the next part, such as 'Drop in 6 bars'.",
     ],
     controls: ["deck.A.play"],
     lab: "phrase-drop",
