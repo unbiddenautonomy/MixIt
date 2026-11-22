@@ -60,6 +60,12 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
               g.fillText(`${Math.floor(k / d.beatsPerBar) + 1}`, x + 3, 10);
             }
           }
+          // Singing: a pink band along the top, so a vocal coming up is easy to see.
+          g.fillStyle = "rgba(244,114,182,0.85)";
+          for (const [a, b] of d.vocals ?? []) {
+            if (b < t0 || a > t1) continue;
+            g.fillRect(px(a), 0, px(b) - px(a), 3);
+          }
           // Cues.
           for (const cu of d.cues) {
             if (cu.seconds < t0 || cu.seconds > t1) continue;

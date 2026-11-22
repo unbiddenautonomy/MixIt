@@ -118,6 +118,7 @@ export const SORTS: { key: string; label: string }[] = [
   { key: "energy", label: "Energy, calm first" },
   { key: "-energy", label: "Energy, highest first" },
   { key: "key", label: "Key" },
+  { key: "vocals", label: "Instrumentals first" },
   { key: "-added", label: "Newest first" },
   { key: "-rating", label: "Best rated first" },
   { key: "played", label: "Least recently played first" },

@@ -138,7 +138,7 @@ const COLUMNS: Column[] = [
   {
     key: "vocals",
     label: "Vocals",
-    sort: null,
+    sort: "vocals",
     width: "64px",
     extra: true,
     cell: (r) => (r.vocals == null ? <span className="text-zinc-600">–</span> : <span className="text-zinc-400" title={vocalLabel(r.vocals) ?? ""}>{r.vocals < 5 ? "None" : `${r.vocals}%`}</span>),

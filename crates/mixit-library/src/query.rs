@@ -100,6 +100,8 @@ pub enum SortKey {
     Plays,
     Duration,
     Year,
+    /// Share of the track with a voice.
+    Vocals,
     Random,
 }
 
@@ -291,6 +293,7 @@ pub fn parse(input: &str) -> Query {
                     "bpm" | "tempo" => Some(SortKey::Bpm),
                     "key" => Some(SortKey::Key),
                     "energy" => Some(SortKey::Energy),
+                    "vocals" | "vocal" => Some(SortKey::Vocals),
                     "rating" => Some(SortKey::Rating),
                     "added" | "new" => Some(SortKey::Added),
                     "played" | "last" => Some(SortKey::Played),
@@ -486,6 +489,7 @@ pub fn to_sql(q: &Query, now: i64) -> (String, Vec<Value>, String) {
                 // Camelot order: 1A, 1B, 2A … so neighbours sit together.
                 SortKey::Key => "t.key_order",
                 SortKey::Energy => "t.energy",
+                SortKey::Vocals => "t.vocals",
                 SortKey::Rating => "t.rating",
                 SortKey::Added => "t.added_at",
                 SortKey::Played => "t.last_played",
@@ -515,6 +519,7 @@ mod tests {
         assert_eq!(q.terms[5], (true, Term::Field(TextField::Genre, "techno".into())));
         assert_eq!(q.terms[6], (false, Term::Played(TimeFilter::NotWithin(30 * 86_400))));
         assert_eq!(q.sort, Some((SortKey::Energy, true)));
+        assert_eq!(parse("sort:-vocals").sort, Some((SortKey::Vocals, true)));
         let v = parse("vocals:no voice:yes vocals:30+");
         assert_eq!(v.terms[0], (false, Term::Num(NumField::Vocals, Cmp::Lt(VOCAL_NONE))));
         assert_eq!(v.terms[1], (false, Term::Num(NumField::Vocals, Cmp::Ge(VOCAL_SOME))));
