@@ -474,6 +474,9 @@ enum LibCmd {
         /// Another set from the same choices (any number but 0).
         #[arg(long, default_value_t = 0)]
         variety: u64,
+        /// Singing: any | breathe (never three singers in a row) | instrumental
+        #[arg(long, default_value = "any")]
+        vocals: String,
         /// Save the set as a playlist with this name.
         #[arg(long)]
         save: Option<String>,
@@ -1259,12 +1262,20 @@ fn library(ctx: &Ctx, c: LibCmd) -> Result<()> {
             print!("{}", track_table(&tracks, n));
             Ok(())
         }
-        LibCmd::BuildSet { minutes, shape, from, playlist, start, variety, save } => {
+        LibCmd::BuildSet { minutes, shape, from, playlist, start, variety, vocals, save } => {
             let shape = mixit_library::setbuild::SetShape::parse(&shape)
                 .ok_or_else(|| anyhow!("unknown shape {shape}: warm-up, build, peak, journey, cool-down or steady"))?;
+            let vocals = mixit_library::setbuild::VocalPlan::parse(&vocals)
+                .ok_or_else(|| anyhow!("unknown vocals {vocals}: any, breathe or instrumental"))?;
             let within = playlist.map(|p| find_playlist(&lib, &p)).transpose()?.map(|p| p.id);
-            let opts =
-                mixit_library::setbuild::BuildOptions { minutes, shape, seed: start, variety, ..Default::default() };
+            let opts = mixit_library::setbuild::BuildOptions {
+                minutes,
+                shape,
+                seed: start,
+                variety,
+                vocals,
+                ..Default::default()
+            };
             let ids = lib.build_set(&from, within, &opts)?;
             if ids.is_empty() {
                 bail!("nothing to build from: analyse your tracks first, or widen the search");

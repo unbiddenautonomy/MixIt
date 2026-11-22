@@ -1295,6 +1295,9 @@ export class DemoBackend implements Backend {
   /** A greedy version of the desktop's set builder (setbuild.rs): every change mixable, the energy on the shape. */
   async buildSet(req: T.BuildSetRequest): Promise<T.TrackRow[]> {
     let pool = (await this.search(req.query)).filter((r) => r.bpm && !r.missing && r.duration > 0);
+    // Instrumentals only: every track known to have a voice stays out (the chosen opener still plays).
+    if (req.vocals === "instrumental") pool = pool.filter((r) => r.vocals == null || r.vocals < 5 || r.id === req.seed);
+    const sings = (r: T.TrackRow) => (r.vocals ?? 0) >= 10;
     if (req.playlist != null) {
       const keep = new Set((await this.playlistTracks(req.playlist)).map((r) => r.id));
       pool = pool.filter((r) => keep.has(r.id));
@@ -1323,6 +1326,8 @@ export class DemoBackend implements Backend {
       let best: { r: T.TrackRow; v: number } | null = null;
       for (const r of pool) {
         if (set.includes(r)) continue;
+        // Room for the voices: no third singer in a row.
+        if (req.vocals === "breathe" && sings(r) && set.length >= 2 && set.slice(-2).every(sings)) continue;
         const tr = transition(last, r);
         const tempo = Math.abs(r.bpm! / last.bpm! - 1);
         if (tempo > 0.06 && Math.abs(r.bpm! / (last.bpm! * 2) - 1) > 0.06 && Math.abs(r.bpm! / (last.bpm! / 2) - 1) > 0.06) continue;

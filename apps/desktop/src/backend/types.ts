@@ -122,7 +122,11 @@ export interface BuildSetRequest {
   seed?: number | null;
   /** 0 for the best set; another number for a different one from the same tracks. */
   variety?: number;
+  /** Singing: whatever mixes best, never three singers in a row, or instrumentals only. */
+  vocals?: VocalPlan;
 }
+
+export type VocalPlan = "any" | "breathe" | "instrumental";
 
 /** A track that sounds like another: `score` 0..1. */
 export interface SoundMatch {

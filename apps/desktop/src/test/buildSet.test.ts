@@ -28,6 +28,19 @@ describe("building a set in the demo", () => {
     expect(other.map((r) => r.id)).not.toEqual(set.map((r) => r.id));
   }, 30_000);
 
+  it("leaves the singers out, or gives them room", async () => {
+    const b = new DemoBackend();
+    const sings = (r: { vocals?: number | null }) => (r.vocals ?? 0) >= 10;
+    const any = await b.buildSet({ query: "", minutes: 90, shape: "steady" });
+    expect(any.some(sings)).toBe(true);
+    const inst = await b.buildSet({ query: "", minutes: 60, shape: "steady", vocals: "instrumental" });
+    expect(inst.length).toBeGreaterThan(0);
+    expect(inst.every((r) => r.vocals != null && r.vocals < 5)).toBe(true);
+    const room = await b.buildSet({ query: "", minutes: 90, shape: "steady", vocals: "breathe" });
+    expect(room.some(sings)).toBe(true);
+    for (let i = 2; i < room.length; i++) expect(sings(room[i - 2]) && sings(room[i - 1]) && sings(room[i])).toBe(false);
+  }, 30_000);
+
   it("keeps to a playlist", async () => {
     const b = new DemoBackend();
     const pl = (await b.playlists()).find((p) => p.kind === "list" && p.count >= 5)!;

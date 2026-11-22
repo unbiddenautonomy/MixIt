@@ -140,10 +140,11 @@ try {
     );
   });
 
-  await step("Build a set fills an hour and saves it", async () => {
+  await step("Build a set fills an hour of instrumentals and saves it", async () => {
     await page.click('button[title^="Build a set"]');
     await page.waitForSelector('[data-testid="build-set-dialog"]');
     await page.click('[data-testid="shape-journey"]');
+    await page.click('[data-testid="set-vocals"] button:has-text("Instrumentals only")');
     await page.click('[data-testid="build-go"]');
     await page.waitForSelector('[data-testid="built-set"]');
     const n = await page.locator('[data-testid="built-set"] li').count();
@@ -154,6 +155,8 @@ try {
     const s = await lib();
     expect(s.playlists.length === before + 1, "no playlist saved");
     expect(s.source.type === "playlist" && s.rows.length === n, `saved list shows ${s.rows.length} rows`);
+    const singing = s.rows.filter((r) => r.vocals == null || r.vocals >= 5).length;
+    expect(singing === 0, `${singing} tracks with singing in an instrumental set`);
   });
 
   await step("Tidy details shows changes before applying them", async () => {
