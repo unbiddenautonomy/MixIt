@@ -1066,7 +1066,9 @@ pub fn sounds_like(state: State<'_, AppState>, track_id: i64, limit: Option<usiz
 /// Builds a set from the tracks `query` finds (within `playlist` if given): `minutes` long, its energy following
 /// `shape` ("warmUp" | "build" | "peak" | "journey" | "coolDown" | "steady"), opening
 /// with `seed` when given. `variety` other than 0 gives another set from the same tracks.
+/// `vocals` is "any" (default), "breathe" (never three singers in a row) or "instrumental".
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn build_set(
     state: State<'_, AppState>,
     query: String,
@@ -1075,13 +1077,18 @@ pub fn build_set(
     shape: String,
     seed: Option<i64>,
     variety: Option<u64>,
+    vocals: Option<String>,
 ) -> R<Vec<TrackRow>> {
     let shape = mixit_library::setbuild::SetShape::parse(&shape).ok_or_else(|| format!("unknown set shape {shape}"))?;
+    let vocals = vocals.as_deref().unwrap_or("any");
+    let vocals =
+        mixit_library::setbuild::VocalPlan::parse(vocals).ok_or_else(|| format!("unknown vocal plan {vocals}"))?;
     let opts = mixit_library::setbuild::BuildOptions {
         minutes,
         shape,
         seed,
         variety: variety.unwrap_or(0),
+        vocals,
         ..Default::default()
     };
     let lib = state.library.lock();

@@ -8,7 +8,35 @@
 use mixit_core::TrackId;
 use serde::{Deserialize, Serialize};
 
-use crate::suggest::{self, Candidate, EnergyDirection, SuggestOptions};
+use crate::suggest::{self, Candidate, EnergyDirection, SuggestOptions, VOCAL_NONE, VOCAL_SOME};
+
+/// What the set does with singing.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VocalPlan {
+    /// Singing or not, whatever mixes best.
+    #[default]
+    Any,
+    /// Never three singers in a row: an instrumental now and then gives the voices room.
+    Breathe,
+    /// Only tracks without singing (a tool set, or for talking or singing over).
+    Instrumental,
+}
+
+impl VocalPlan {
+    pub fn parse(s: &str) -> Option<VocalPlan> {
+        Some(match s.to_ascii_lowercase().replace(['-', '_', ' '], "").as_str() {
+            "any" | "" => VocalPlan::Any,
+            "breathe" | "room" | "balanced" | "mix" => VocalPlan::Breathe,
+            "instrumental" | "instrumentals" | "none" | "no" => VocalPlan::Instrumental,
+            _ => return None,
+        })
+    }
+}
+
+fn sings(c: &Candidate) -> bool {
+    c.vocals.is_some_and(|v| v >= VOCAL_SOME)
+}
 
 /// How the energy should move through the set.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,6 +121,9 @@ pub struct BuildOptions {
     /// 0 builds the best set; another number shakes the choices a little for a different
     /// set from the same tracks ("Try another").
     pub variety: u64,
+    /// What to do with singing.
+    #[serde(default)]
+    pub vocals: VocalPlan,
 }
 
 impl Default for BuildOptions {
@@ -105,6 +136,7 @@ impl Default for BuildOptions {
             tempo_tolerance_pct: 6.0,
             heard: 0.8,
             variety: 0,
+            vocals: VocalPlan::Any,
         }
     }
 }
@@ -153,6 +185,12 @@ pub fn build_set(pool: &[PoolTrack], opts: &BuildOptions) -> Vec<usize> {
     let index_of: std::collections::HashMap<TrackId, usize> =
         pool.iter().enumerate().map(|(i, t)| (t.candidate.id, i)).collect();
     let cands: Vec<Candidate> = pool.iter().map(|t| t.candidate.clone()).collect();
+    // "Instrumentals only" leaves out every track known to have a voice in it (the
+    // opener the DJ chose always plays).
+    let allowed: Vec<bool> = cands
+        .iter()
+        .map(|c| opts.vocals != VocalPlan::Instrumental || c.vocals.is_none_or(|v| v < VOCAL_NONE))
+        .collect();
 
     // The opener: the seed, or a track at the shape's starting energy near the pool's
     // usual tempo (so the set has somewhere to go), better rated first.
@@ -170,7 +208,11 @@ pub fn build_set(pool: &[PoolTrack], opts: &BuildOptions) -> Vec<usize> {
         Some(i) => i,
         None => {
             let target = opts.shape.target(0.0, steady);
+            if !allowed.contains(&true) {
+                return vec![];
+            }
             (0..pool.len())
+                .filter(|&i| allowed[i])
                 .max_by(|&a, &b| {
                     let s = |i: usize| {
                         let c = &cands[i];
@@ -213,13 +255,21 @@ pub fn build_set(pool: &[PoolTrack], opts: &BuildOptions) -> Vec<usize> {
                 .into_iter()
                 .filter_map(|s| {
                     let j = *index_of.get(&s.id)?;
-                    if st.seq.contains(&j) {
+                    if st.seq.contains(&j) || !allowed[j] {
                         return None;
                     }
                     let mut v = 0.6 * s.score + 0.4 * energy_fit(cands[j].energy, target) + jitter(opts.variety, j);
                     // The same artist twice in a row rarely makes a good set.
                     if !pool[j].artist.is_empty() && pool[j].artist.eq_ignore_ascii_case(&pool[last].artist) {
                         v -= 0.1;
+                    }
+                    // Giving the voices room: no third singer in a row.
+                    if opts.vocals == VocalPlan::Breathe
+                        && sings(&cands[j])
+                        && st.seq.len() >= 2
+                        && st.seq[st.seq.len() - 2..].iter().all(|&k| sings(&cands[k]))
+                    {
+                        return None;
                     }
                     Some((j, v))
                 })
@@ -338,6 +388,39 @@ mod tests {
         let b = build_set(&p, &BuildOptions { variety: 7, ..Default::default() });
         assert_eq!(a, build_set(&p, &BuildOptions::default()), "the same options give the same set");
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn instrumentals_only_and_room_for_the_voices() {
+        let mut p = pool();
+        // Two of every three tracks sing.
+        for (i, t) in p.iter_mut().enumerate() {
+            t.candidate.vocals = Some(if i % 3 == 0 { 0 } else { 40 });
+        }
+        let any = build_set(&p, &BuildOptions { minutes: 60.0, ..Default::default() });
+        let sung = |set: &[usize]| set.iter().filter(|&&i| sings(&p[i].candidate)).count();
+        assert!(sung(&any) > 0);
+
+        let inst =
+            build_set(&p, &BuildOptions { minutes: 60.0, vocals: VocalPlan::Instrumental, ..Default::default() });
+        assert!(!inst.is_empty());
+        assert_eq!(sung(&inst), 0, "no singing in an instrumental set");
+
+        let room = build_set(&p, &BuildOptions { minutes: 60.0, vocals: VocalPlan::Breathe, ..Default::default() });
+        let heard: f64 = room.iter().map(|&i| p[i].duration * 0.8).sum();
+        assert!(heard >= 3_400.0, "still fills the time: {heard} s");
+        for w in room.windows(3) {
+            assert!(!w.iter().all(|&i| sings(&p[i].candidate)), "three singers in a row");
+        }
+        assert!(sung(&room) > 0, "the voices are still there");
+    }
+
+    #[test]
+    fn vocal_plans_parse() {
+        assert_eq!(VocalPlan::parse("instrumental"), Some(VocalPlan::Instrumental));
+        assert_eq!(VocalPlan::parse("breathe"), Some(VocalPlan::Breathe));
+        assert_eq!(VocalPlan::parse("ANY"), Some(VocalPlan::Any));
+        assert_eq!(VocalPlan::parse("loud"), None);
     }
 
     #[test]

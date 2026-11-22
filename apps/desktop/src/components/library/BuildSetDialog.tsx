@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { backend } from "../../backend";
-import type { SetShape, TrackRow } from "../../backend/types";
+import type { SetShape, TrackRow, VocalPlan } from "../../backend/types";
 import { bpm as fmtBpm, clock, inkColor, plural } from "../../lib/format";
 import { keyColor, keyLabel } from "../../lib/keys";
 import { transition } from "../../lib/setFlow";
@@ -35,6 +35,12 @@ export function BuildSetHost() {
   const req = useBuild((s) => s.req);
   return req ? <Builder req={req} /> : null;
 }
+
+const VOCAL_PLANS: { value: VocalPlan; label: string; title: string }[] = [
+  { value: "any", label: "Any", title: "Singing or not, whatever mixes best" },
+  { value: "breathe", label: "Give them room", title: "Never three singing tracks in a row: an instrumental now and then lets the voices breathe" },
+  { value: "instrumental", label: "Instrumentals only", title: "Only tracks without singing, to talk or sing over" },
+];
 
 const LENGTHS: [number, string][] = [
   [30, "30 min"],
@@ -69,6 +75,7 @@ function Builder({ req }: { req: Req }) {
   const [query, setQuery] = useState("");
   const [seed, setSeed] = useState<TrackRow | null>(req.seed);
   const [variety, setVariety] = useState(0);
+  const [vocals, setVocals] = useState<VocalPlan>("any");
   const [set, setSet] = useState<TrackRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
@@ -80,7 +87,7 @@ function Builder({ req }: { req: Req }) {
   const build = async (v = variety) => {
     setBusy(true);
     try {
-      const rows = await backend().buildSet({ query: query.trim(), playlist: from === "all" ? null : from, minutes, shape, seed: seed?.id ?? null, variety: v });
+      const rows = await backend().buildSet({ query: query.trim(), playlist: from === "all" ? null : from, minutes, shape, seed: seed?.id ?? null, variety: v, vocals });
       setSet(rows);
       setName(`${shapeInfo.label}, ${minutes} min`);
       if (!rows.length) toast.message("No set could be built", { description: "Nothing analysed matches. Analyse your tracks first, or choose from more of them." });
@@ -92,7 +99,7 @@ function Builder({ req }: { req: Req }) {
   };
 
   // A new choice makes the old set stale.
-  useEffect(() => setSet(null), [minutes, shape, from, query, seed]);
+  useEffect(() => setSet(null), [minutes, shape, from, query, seed, vocals]);
 
   const heard = set ? set.reduce((a, r) => a + r.duration * 0.8, 0) : 0;
   const rough = useMemo(() => (set ? set.slice(1).filter((r, i) => transition(set[i], r).grade === "rough").length : 0), [set]);
@@ -164,6 +171,11 @@ function Builder({ req }: { req: Req }) {
             ))}
           </div>
           <p className="-mt-1 text-[11px] text-zinc-500">{shapeInfo.about}</p>
+
+          <label className="flex items-center gap-2 text-xs" data-testid="set-vocals">
+            <span className="text-zinc-500">Singing</span>
+            <Segmented value={vocals} onChange={setVocals} options={VOCAL_PLANS} />
+          </label>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
             <label className="flex min-w-0 flex-1 items-center gap-2">

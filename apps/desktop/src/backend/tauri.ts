@@ -81,7 +81,7 @@ export class TauriBackend implements Backend {
   previewClose() { return invoke<void>("preview_close"); }
   saveText(path: string, text: string) { return invoke<void>("save_text", { path, text }); }
   buildSet(req: T.BuildSetRequest) {
-    return invoke<T.TrackRow[]>("build_set", { query: req.query, playlist: req.playlist ?? null, minutes: req.minutes, shape: req.shape, seed: req.seed ?? null, variety: req.variety ?? null });
+    return invoke<T.TrackRow[]>("build_set", { query: req.query, playlist: req.playlist ?? null, minutes: req.minutes, shape: req.shape, seed: req.seed ?? null, variety: req.variety ?? null, vocals: req.vocals ?? null });
   }
   soundsLike(trackId: number, limit?: number) {
     return invoke<T.SoundMatch[]>("sounds_like", { trackId, limit: limit ?? null });
