@@ -1,11 +1,13 @@
 // The bar across the top: workspaces, the master clock and level, recording, engine
 // health, and the Easy/Pro, explain, coach, palette and settings switches.
 import clsx from "clsx";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Popover from "@radix-ui/react-popover";
-import { AlarmClock, AlertTriangle, BookOpen, Circle, Command, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlarmClock, AlertTriangle, BookOpen, Check, Circle, Command, Compass, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
-import { isMac } from "../../lib/actions";
+import { isMac, shortcutLabel, findAction } from "../../lib/actions";
+import { startTour } from "../../guide/tour";
 import { clock } from "../../lib/format";
 import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../../lib/setClock";
 import { useApp, type Workspace } from "../../store/app";
@@ -63,30 +65,17 @@ export function TopBar() {
             aria-label="Sampler and master FX"
           >
             <Grid2x2 size={14} />
+            <span className="hidden xl:inline">Pads</span>
           </Btn>
         </Ctl>
         <AssistantButton />
         <Ctl id="app.guide" side="bottom">
           <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">
             <BookOpen size={14} />
-            <span className="hidden xl:inline">Guide</span>
+            <span className="hidden lg:inline">Guide</span>
           </Btn>
         </Ctl>
-        <Ctl id="app.explain" side="bottom" label="Explain mode" explain="Shows what every control does. Hover anything. Hold ? for a quick look.">
-          <Btn size="sm" tone="ghost" active={explain} onClick={() => useApp.getState().set({ explain: !explain })} aria-label="Explain mode">
-            <HelpCircle size={14} />
-          </Btn>
-        </Ctl>
-        <Ctl id="app.coach" side="bottom">
-          <Btn size="sm" tone="ghost" active={settings?.coach} onClick={() => updateSettings({ coach: !settings?.coach })} aria-label="Coach">
-            <GraduationCap size={14} />
-          </Btn>
-        </Ctl>
-        <Ctl id="app.palette" side="bottom">
-          <Btn size="sm" tone="ghost" onClick={() => useApp.getState().set({ paletteOpen: true })} aria-label="Command palette">
-            <Command size={14} />
-          </Btn>
-        </Ctl>
+        <HelpMenu explain={explain} coach={!!settings?.coach} />
         <Ctl id="app.settings" side="bottom">
           <Btn size="sm" tone="ghost" onClick={() => useApp.getState().set({ settingsOpen: true })} aria-label="Settings">
             <Gear size={14} />
@@ -94,6 +83,46 @@ export function TopBar() {
         </Ctl>
       </div>
     </header>
+  );
+}
+
+/**
+ * One menu for the ways MixIt helps you learn: explain mode, coach tips, the tour and
+ * the command palette. They used to be four unlabelled icons in the bar.
+ */
+function HelpMenu({ explain, coach }: { explain: boolean; coach: boolean }) {
+  const key = (id: string) => shortcutLabel(findAction(id)?.shortcut);
+  const item = (icon: ReactNode, label: string, hint: string, onSelect: () => void, on?: boolean, shortcut?: string) => (
+    <DropdownMenu.Item className="menu-item items-start" onSelect={onSelect}>
+      <span className="mt-0.5 w-4 shrink-0 text-zinc-400">{icon}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-center gap-2 text-zinc-100">
+          {label}
+          {on && <Check size={12} className="text-[var(--accent-ink)]" />}
+        </span>
+        <span className="text-[11px] leading-snug text-zinc-400">{hint}</span>
+      </span>
+      {shortcut && <kbd className="mt-0.5 rounded border border-white/15 bg-white/5 px-1.5 py-px font-mono text-[10px] text-zinc-300">{shortcut}</kbd>}
+    </DropdownMenu.Item>
+  );
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Btn size="sm" tone="ghost" active={explain} aria-label="Help" data-testid="help-menu">
+          <HelpCircle size={14} />
+          <span className="hidden lg:inline">Help</span>
+        </Btn>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="end" sideOffset={6} className="menu w-72">
+          {item(<HelpCircle size={13} />, "Explain mode", "Hover any control to see what it does.", () => useApp.getState().set({ explain: !explain }), explain, key("app.explain"))}
+          {item(<GraduationCap size={13} />, "Coach tips", "Tips while you mix, like keys that clash.", () => updateSettings({ coach: !coach }), coach, key("app.coach"))}
+          <DropdownMenu.Separator className="menu-sep" />
+          {item(<Compass size={13} />, "Take the tour", "A short walk round the screen.", () => startTour())}
+          {item(<Command size={13} />, "Find any action", "Search every command by name.", () => useApp.getState().set({ paletteOpen: true }), undefined, key("app.palette"))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
