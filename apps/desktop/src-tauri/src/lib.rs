@@ -66,6 +66,7 @@ pub fn run() {
             commands::preview_seek,
             commands::preview_settings,
             commands::preview_close,
+            commands::save_text,
             commands::library_add,
             commands::library_import,
             commands::library_rescan,

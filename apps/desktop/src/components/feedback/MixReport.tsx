@@ -11,18 +11,30 @@ import { labById } from "../../guide/labs";
 import { conceptById } from "../../guide/concepts";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
+import { backend } from "../../backend";
+import { cueSheet, stemOf, timestamp, tracklistText, type TracklistEntry } from "../../lib/tracklist";
+import { toast } from "sonner";
+
+export interface ReportTracklist {
+  entries: TracklistEntry[];
+  /** The mix's name, for the CUE sheet's title. */
+  name: string;
+  /** Already written beside the recording. */
+  saved: boolean;
+}
 
 interface ReportState {
   report: MixReport | null;
   project: MixProject | null;
   path: string | null;
+  tracklist: ReportTracklist | null;
   open: boolean;
 }
 
-export const useReport = create<ReportState>(() => ({ report: null, project: null, path: null, open: false }));
+export const useReport = create<ReportState>(() => ({ report: null, project: null, path: null, tracklist: null, open: false }));
 
-export function showReport(report: MixReport, project: MixProject | null, path: string | null) {
-  useReport.setState({ report, project, path, open: true });
+export function showReport(report: MixReport, project: MixProject | null, path: string | null, tracklist: ReportTracklist | null = null) {
+  useReport.setState({ report, project, path, tracklist, open: true });
 }
 
 function openLab(id: string) {
@@ -137,6 +149,7 @@ function Body({ report, project, onEdit }: { report: MixReport; project: MixProj
             </div>
           </section>
         )}
+        <Tracklist />
       </div>
       <div className="flex items-center gap-2 border-t border-white/[0.06] px-5 py-3">
         <p className="flex-1 text-xs text-zinc-500">{project ? "Every move you made was captured, so you can fix a transition in Arrange instead of mixing again." : "Record a longer mix to get it as an editable project too."}</p>
@@ -220,5 +233,62 @@ function TransitionRow({ t }: { t: TransitionCheck }) {
         <Mark ok={t.keysFit} title={t.fromKey && t.toKey ? `${t.fromKey} → ${t.toKey}` : "Key unknown"} />
       </td>
     </tr>
+  );
+}
+
+/** The tracks heard in the recording and when, ready to paste into a mix site or save as a CUE sheet. */
+function Tracklist() {
+  const tl = useReport((s) => s.tracklist);
+  const path = useReport((s) => s.path);
+  if (!tl || tl.entries.length === 0) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(tracklistText(tl.entries));
+      toast.success("Tracklist copied");
+    } catch {
+      toast.error("Could not copy. Select the list and copy it instead.");
+    }
+  };
+  const save = async () => {
+    const b = backend();
+    // In a browser the recording went to the downloads under this name.
+    const file = path?.replace(/, in your downloads$/, "") || `${tl.name}.wav`;
+    const base = stemOf(file);
+    try {
+      await b.saveText(`${base}.cue`, cueSheet(tl.entries, file, tl.name));
+      useReport.setState({ tracklist: { ...tl, saved: true } });
+      toast.success("CUE sheet saved", { description: b.kind === "tauri" ? `${base}.cue` : "In your downloads, next to the recording." });
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  return (
+    <section className="flex flex-col gap-1.5" data-testid="report-tracklist">
+      <div className="flex items-center gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tracklist</h3>
+        <span className="text-[11px] text-zinc-500">{tl.saved ? "Saved beside the recording as a CUE sheet and a text file." : "Players and mix sites use a CUE sheet to show and skip between the tracks."}</span>
+        <div className="ml-auto flex gap-1">
+          <Btn size="sm" onClick={() => void copy()}>
+            Copy
+          </Btn>
+          {!tl.saved && (
+            <Btn size="sm" onClick={() => void save()}>
+              Save CUE sheet
+            </Btn>
+          )}
+        </div>
+      </div>
+      <ol className="rounded-lg border border-white/[0.06] text-xs">
+        {tl.entries.map((e, i) => (
+          <li key={i} className="flex gap-3 px-2 py-1 odd:bg-white/[0.02]">
+            <span className="w-14 shrink-0 font-mono text-zinc-500">{timestamp(e.at)}</span>
+            <span className="min-w-0 truncate text-zinc-200">
+              {e.title}
+              {e.artist && <span className="text-zinc-500"> · {e.artist}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

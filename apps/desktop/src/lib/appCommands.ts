@@ -17,6 +17,7 @@ import { refreshRows } from "../components/library/data";
 import { confirmDiscard, openProject, redoProject, saveProject, setProject, undoProject } from "../components/arrange/projectIo";
 import type { MixProject, TrackRef } from "../backend/types";
 import { buildProject, MixCapture } from "./capture";
+import { cueSheet, stemOf, tracklistFromCapture, tracklistText, type TracklistEntry } from "./tracklist";
 import { HOT_CUE_COLORS } from "./waveform";
 import { act, setValue, tap } from "./actions";
 import { toProjectKey } from "./arrangeOps";
@@ -67,14 +68,27 @@ function startCapture() {
   captureOff = useTelemetry.subscribe((s) => c.add(s.t, useApp.getState().mixer, trackRefFor));
 }
 
-function stopCapture(): { project: MixProject | null; report: MixReport | null } {
+function stopCapture(): { project: MixProject | null; report: MixReport | null; tracklist: TracklistEntry[]; name: string } {
   captureOff?.();
   captureOff = null;
   const c = capture;
   capture = null;
-  if (!c) return { project: null, report: null };
+  if (!c) return { project: null, report: null, tracklist: [], name: "Mix" };
   const cap = c.capture();
-  return { project: buildProject(cap), report: mixReport(cap) };
+  return { project: buildProject(cap), report: mixReport(cap), tracklist: tracklistFromCapture(cap), name: cap.name };
+}
+
+/** Writes the tracklist beside a recording on the desktop: a CUE sheet and a text list. */
+async function saveTracklist(path: string, name: string, list: TracklistEntry[]): Promise<boolean> {
+  if (!list.length || !path || backend().kind !== "tauri") return false;
+  const base = stemOf(path);
+  try {
+    await backend().saveText(`${base}.cue`, cueSheet(list, path, name));
+    await backend().saveText(`${base}.txt`, tracklistText(list));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Opens a captured live mix in Arrange (asking first if the open project has unsaved edits). */
@@ -92,9 +106,11 @@ export async function toggleRecording() {
       const captured = stopCapture();
       const report = captured.report;
       const project = captured.project ? await withLiveSound(captured.project).catch(() => captured.project) : null;
-      if (report) showReport(report, project, path);
+      const listed = await saveTracklist(path, captured.name, captured.tracklist);
+      if (report) showReport(report, project, path, { entries: captured.tracklist, name: captured.name, saved: listed });
+      const also = listed ? ` The tracklist (${captured.tracklist.length} tracks) is saved beside it as a CUE sheet.` : "";
       toast.success("Recording saved", {
-        description: project ? `${path}. Every move you made was captured too: open it in Arrange to fix a transition or a fade.` : path,
+        description: project ? `${path}.${also} Every move you made was captured too: open it in Arrange to fix a transition or a fade.` : `${path}.${also}`,
         action: project ? { label: "Edit in Arrange", onClick: () => void openCapturedMix(project) } : undefined,
         duration: project ? 15_000 : undefined,
       });

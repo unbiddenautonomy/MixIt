@@ -1126,6 +1126,17 @@ pub fn record_stop(state: State<'_, AppState>) -> R<String> {
     Ok(p.to_string_lossy().into_owned())
 }
 
+/// Writes a tracklist or CUE sheet (only `.cue`, `.txt` and `.m3u8` files).
+#[tauri::command]
+pub fn save_text(path: String, text: String) -> R<()> {
+    let p = PathBuf::from(&path);
+    let ext = p.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
+    if !["cue", "txt", "m3u8"].contains(&ext.as_str()) {
+        return Err(format!("not a text file MixIt writes: {path}"));
+    }
+    std::fs::write(&p, text).map_err(|e| format!("{path}: {e}"))
+}
+
 // ------------------------------------------------------------------------- mix projects
 
 #[derive(Deserialize)]

@@ -1210,6 +1210,13 @@ export class DemoBackend implements Backend {
     return "~/Music/MixIt/Recordings/demo.wav";
   }
 
+  /** Files the demo "wrote", for tests. */
+  readonly savedTexts = new Map<string, string>();
+
+  async saveText(path: string, text: string) {
+    this.savedTexts.set(path, text);
+  }
+
   async automix(tracks: number[], options: T.AutomixRequest): Promise<T.MixProject> {
     const rows = tracks.map((i) => this.find(i));
     // The median tempo keeps most tracks close to their own speed.
