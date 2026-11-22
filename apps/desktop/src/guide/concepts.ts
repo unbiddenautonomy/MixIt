@@ -519,7 +519,7 @@ export const CONCEPTS: Concept[] = [
     body: [
       "When MixIt analyses a track it also notes how it sounds: how bright or dark it is, how much bass, mids and highs it has, how noisy or clean the sounds are, how hard the drums hit and how many kicks, snares and hats land each second.",
       "Find tracks that sound like this (in a track's right-click menu, or Sounds like in the panel on the right) compares that with every other analysed track and lists the closest first. The Match column says how alike they are: 80 or more is very close.",
-      "It is a good way to dig up tracks you forgot you had, or to keep a set's character while you change tempo or key. Suggestions use it too: a next track that sounds alike gets a small lift and says so.",
+      "Keep as smart playlist (at the top of the list) saves it as a playlist that fills itself, with the search like:42 (42 being the track's number); you can type like: into any search too. It is a good way to dig up tracks you forgot you had, or to keep a set's character while you change tempo or key. Suggestions use it too: a next track that sounds alike gets a small lift and says so.",
       "Tracks analysed before this feature are analysed again in the background, so give a large library a little while.",
     ],
   },

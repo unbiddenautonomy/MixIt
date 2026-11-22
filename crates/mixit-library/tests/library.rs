@@ -967,6 +967,21 @@ fn finds_tracks_that_sound_alike() {
     // A track that was never analysed has no matches yet.
     let none = lib.sounds_like(9_999, 5).unwrap();
     assert!(none.is_empty());
+
+    // The search language: like:<id>, best match first, and a smart playlist that uses it.
+    let found = lib.search(&format!("like:{h}"), None).unwrap();
+    assert!(
+        !found.is_empty() && found[0].id == first.id,
+        "{:?}",
+        found.iter().map(|t| t.path.clone()).collect::<Vec<_>>()
+    );
+    assert!(found.iter().all(|t| t.id != h));
+    let not = lib.search(&format!("-like:{h}"), None).unwrap();
+    assert!(not.iter().all(|t| !found.iter().any(|f| f.id == t.id)));
+    assert_eq!(found.len() + not.len(), 4);
+    let smart = lib.create_playlist("Like house", PlaylistKind::Smart, None, Some(&format!("like:{h}"))).unwrap();
+    assert_eq!(lib.playlist_tracks(smart).unwrap()[0], first.id);
+    assert_eq!(lib.search(&format!("like:{h}"), Some(1)).unwrap().len(), 1);
 }
 
 #[test]

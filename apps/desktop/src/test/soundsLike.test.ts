@@ -52,3 +52,21 @@ describe("suggestions from past sets", () => {
     expect(hit.reasons.some((r) => r.includes("past set") || r.includes("times before"))).toBe(true);
   }, 30_000);
 });
+
+describe("like: in searches", () => {
+  it("lists tracks that sound alike, best first, and excludes them with -like:", async () => {
+    const b = new DemoBackend();
+    const all = await b.search("");
+    const seed = all.find((r) => r.analysis === "done" && r.genre)!;
+    const like = await b.search(`like:${seed.id}`);
+    expect(like.length).toBeGreaterThan(0);
+    expect(like.some((r) => r.id === seed.id)).toBe(false);
+    const ranked = await b.soundsLike(seed.id, 500);
+    expect(like[0].id).toBe(ranked[0].track.id);
+    const not = await b.search(`-like:${seed.id}`);
+    expect(not.length + like.length).toBe(all.length);
+    // It combines with the rest of the language.
+    const fast = await b.search(`like:${seed.id} bpm:>125`);
+    expect(fast.every((r) => (r.bpm ?? 0) > 125 && like.some((x) => x.id === r.id))).toBe(true);
+  }, 30_000);
+});

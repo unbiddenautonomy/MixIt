@@ -147,6 +147,9 @@ impl Track {
     }
 }
 
+/// Similarity from which a track counts as sounding like another in `like:` searches.
+pub const LIKE_MATCH: f64 = 0.6;
+
 fn sound_to_bytes(v: &[f32]) -> Vec<u8> {
     v.iter().flat_map(|x| x.to_le_bytes()).collect()
 }
@@ -664,12 +667,38 @@ impl Library {
     }
 
     pub fn search_query(&self, q: &query::Query, limit: Option<usize>) -> Result<Vec<Track>> {
+        let likes: Vec<(bool, TrackId)> = q
+            .terms
+            .iter()
+            .filter_map(|(neg, t)| if let query::Term::Like(id) = t { Some((*neg, *id)) } else { None })
+            .collect();
         let (wh, params, order) = query::to_sql(q, now());
-        let lim = limit.map(|l| format!(" LIMIT {l}")).unwrap_or_default();
+        // "like:" filters after the query, so the limit waits until then.
+        let lim = limit.filter(|_| likes.is_empty()).map(|l| format!(" LIMIT {l}")).unwrap_or_default();
         let sql = format!("SELECT {TRACK_COLS} FROM tracks t WHERE {wh} ORDER BY {order}{lim}");
         let mut st = self.conn.prepare(&sql)?;
         let rows = st.query_map(rusqlite::params_from_iter(params), track_from_row)?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
+        let mut out: Vec<Track> = rows.collect::<rusqlite::Result<_>>()?;
+        if likes.is_empty() {
+            return Ok(out);
+        }
+        let mut first: Option<std::collections::HashMap<TrackId, f64>> = None;
+        for (neg, id) in likes {
+            let alike: std::collections::HashMap<TrackId, f64> =
+                self.sounds_like(id, usize::MAX)?.into_iter().filter(|(_, s)| *s >= LIKE_MATCH).collect();
+            out.retain(|t| alike.contains_key(&t.id) != neg);
+            if !neg && first.is_none() {
+                first = Some(alike);
+            }
+        }
+        // Best match first, unless the search asks for another order.
+        if let (Some(m), None) = (&first, q.sort) {
+            out.sort_by(|a, b| m[&b.id].partial_cmp(&m[&a.id]).unwrap_or(std::cmp::Ordering::Equal));
+        }
+        if let Some(l) = limit {
+            out.truncate(l);
+        }
+        Ok(out)
     }
 
     /// Ranks library tracks to follow `current` (see [`suggest`]).

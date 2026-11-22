@@ -10,7 +10,7 @@ import { plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
-import { refreshAll, refreshPlaylists, refreshRows, refreshStats } from "./data";
+import { keepSoundsLike, refreshAll, refreshPlaylists, refreshRows, refreshStats } from "./data";
 import { Inspector } from "./Inspector";
 import { newSmart, Sidebar } from "./Sidebar";
 import { Suggestions } from "./Suggestions";
@@ -137,6 +137,11 @@ function Toolbar() {
       )}
       <div className="ml-auto flex items-center gap-1.5">
         {source.type === "playlist" && <SetFlowToggle />}
+        {source.type === "similar" && (
+          <Btn size="sm" onClick={() => void keepSoundsLike()} title="A smart playlist that keeps every track sounding like this one, including tracks you add later" data-testid="keep-sounds-like">
+            <Wand2 size={12} /> Keep as smart playlist
+          </Btn>
+        )}
         {job && (
           <div className="flex items-center gap-2 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-zinc-300">
             <Loader2 size={12} className="animate-spin text-sky-300" />
@@ -282,6 +287,7 @@ const HELP: [string, string][] = [
   ['tag:"peak time"', "tracks with your tag (quote tags with spaces)"],
   ["-genre:trance", "a leading - excludes"],
   ["played:never", "never played (also played:<7d, played:>30d)"],
+  ["like:42", "sounds like track 42 (right-click a track: Find tracks that sound like this)"],
   ["added:<2w", "added in the last two weeks"],
   ["sort:-energy", "sort (bpm key energy added plays random …)"],
 ];
