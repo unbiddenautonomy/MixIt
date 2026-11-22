@@ -50,7 +50,8 @@ async function step(name, fn) {
     results.push({ name, ok: false, error: String(e?.message ?? e) });
     // A picture of the page as it failed (CI keeps these).
     await page?.screenshot({ path: `e2e-fail-${results.length}.png` }).catch(() => {});
-    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n")[0]}`);
+    // The first lines, with Playwright's call log (what it was waiting for).
+    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n").slice(0, 16).join("\n       ")}`);
   }
 }
 
