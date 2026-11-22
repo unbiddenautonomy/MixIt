@@ -51,4 +51,13 @@ describe("smart playlist rules", () => {
     const fresh = await b.search("added:<14d");
     expect(fresh).toEqual([]);
   }, 30_000);
+
+  it("vocals rules turn into searches and back", () => {
+    expect(ruleTerm({ field: "vocals", op: "no", a: "" })).toBe("vocals:no");
+    expect(ruleTerm({ field: "vocals", op: "yes", a: "" })).toBe("vocals:yes");
+    expect(ruleTerm({ field: "vocals", op: "atleast", a: "30" })).toBe("vocals:30+");
+    expect(ruleTerm({ field: "vocals", op: "atleast", a: "" })).toBeNull();
+    for (const q of ["vocals:no", "vocals:yes", "vocals:30+"]) expect(toQuery(fromQuery(q))).toBe(q);
+  });
 });
+

@@ -3,7 +3,7 @@
 // either way can be edited either way.
 import { searchTerms } from "./search";
 
-export type RuleField = "genre" | "artist" | "title" | "album" | "label" | "comment" | "bpm" | "key" | "energy" | "rating" | "year" | "tag" | "played" | "added";
+export type RuleField = "genre" | "artist" | "title" | "album" | "label" | "comment" | "bpm" | "key" | "energy" | "rating" | "year" | "tag" | "played" | "added" | "vocals";
 
 export interface Rule {
   field: RuleField;
@@ -92,6 +92,15 @@ export const FIELDS: Record<RuleField, FieldSpec> = {
     ],
     placeholder: "30",
   },
+  vocals: {
+    label: "Vocals",
+    ops: [
+      { op: "yes", label: "has singing", values: 0 },
+      { op: "no", label: "is instrumental", values: 0 },
+      { op: "atleast", label: "sings in at least", values: 1, unit: "% of the track" },
+    ],
+    placeholder: "30",
+  },
   added: {
     label: "Added",
     ops: [
@@ -159,6 +168,9 @@ export function ruleTerm(r: Rule): string | null {
       if (r.op === "between") return n(a) && n(b) ? `year:${num(a)}-${num(b)}` : null;
       if (!n(a)) return null;
       return r.op === "from" ? `year:>=${num(a)}` : `year:<${num(a)}`;
+    case "vocals":
+      if (r.op === "yes" || r.op === "no") return `vocals:${r.op}`;
+      return n(a) ? `vocals:${num(a)}+` : null;
     case "played":
       if (r.op === "never") return "played:never";
       if (!n(a)) return null;
@@ -217,6 +229,12 @@ export function termRule(term: string): Rule | null {
     if ((r = v.match(new RegExp(`^${NUM}-${NUM}$`)))) return { field: "year", op: "between", a: r[1], b: r[2] };
     if ((r = v.match(new RegExp(`^>=${NUM}$`)))) return { field: "year", op: "from", a: r[1] };
     if ((r = v.match(new RegExp(`^<${NUM}$`)))) return { field: "year", op: "before", a: r[1] };
+    return null;
+  }
+  if (field === "vocals" || field === "vocal" || field === "voice") {
+    const w = v.toLowerCase();
+    if (w === "yes" || w === "no") return { field: "vocals", op: w, a: "" };
+    if ((r = v.match(new RegExp(`^${NUM}\\+$`)))) return { field: "vocals", op: "atleast", a: r[1] };
     return null;
   }
   if (field === "played" || field === "added") {

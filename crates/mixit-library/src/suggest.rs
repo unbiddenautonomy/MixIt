@@ -30,6 +30,8 @@ pub struct Candidate {
     pub rating: u8,
     /// Sound profile in standard units (`timbre::Normaliser::apply`); empty when unknown.
     pub sound: Vec<f32>,
+    /// Percent of the track with a voice, when analysed.
+    pub vocals: Option<u8>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -91,6 +93,8 @@ pub enum Reason {
     SoundsAlike(f64),
     /// You played it right after this track this many times before.
     MixedBefore(u32),
+    /// No singing, after a track that sings: nothing for the voices to clash with.
+    Instrumental,
 }
 
 impl Reason {
@@ -115,6 +119,7 @@ impl Reason {
             Reason::HighlyRated => "One of your highly rated tracks.".into(),
             Reason::MixedBefore(1) => "You played it after this track in a past set.".into(),
             Reason::MixedBefore(n) => format!("You played it after this track {n} times before."),
+            Reason::Instrumental => "An instrumental: no second voice to clash with this track's singing.".into(),
             Reason::SoundsAlike(s) => {
                 format!("Sounds alike ({:.0} % match): similar instruments and groove.", s * 100.0)
             }
@@ -150,6 +155,11 @@ fn tempo_fit(bpm: f64, target: f64, half_double: bool) -> (f64, f64) {
     }
     best
 }
+
+/// A track sings when a voice is in at least this percent of it (`vocals:yes`)…
+pub(crate) const VOCAL_SOME: u8 = 10;
+/// …and is instrumental below this (`vocals:no`; a sample or a shout is allowed).
+pub(crate) const VOCAL_NONE: u8 = 5;
 
 pub fn suggest(current: &Candidate, pool: &[Candidate], opts: &SuggestOptions) -> Vec<Suggestion> {
     let mut out: Vec<Suggestion> = Vec::new();
@@ -235,6 +245,10 @@ pub fn suggest(current: &Candidate, pool: &[Candidate], opts: &SuggestOptions) -
         if let Some(&n) = opts.played_after.get(&c.id).filter(|n| **n > 0) {
             score += 0.03 * n.min(3) as f64;
             reasons.push(Reason::MixedBefore(n));
+        }
+        if current.vocals.is_some_and(|v| v >= VOCAL_SOME) && c.vocals.is_some_and(|v| v < VOCAL_NONE) {
+            score += 0.02;
+            reasons.push(Reason::Instrumental);
         }
         if c.rating >= 4 {
             score += 0.01 * c.rating as f64;
@@ -331,7 +345,28 @@ mod tests {
             genre: "House".into(),
             rating: 0,
             sound: vec![],
+            vocals: None,
         }
+    }
+
+    #[test]
+    fn instrumentals_follow_a_singer() {
+        let am = Key::new(9, Mode::Minor);
+        let mut cur = cand(1, 124.0, am, 6);
+        cur.vocals = Some(40);
+        let mut sung = cand(2, 124.0, am, 6);
+        sung.vocals = Some(35);
+        let mut inst = cand(3, 124.0, am, 6);
+        inst.vocals = Some(0);
+        let s = suggest(&cur, &[sung.clone(), inst.clone()], &SuggestOptions::default());
+        assert_eq!(s[0].id, 3, "the instrumental comes first");
+        assert!(s[0].reasons.contains(&Reason::Instrumental));
+        assert!(!s[1].reasons.contains(&Reason::Instrumental));
+        // After an instrumental, nothing changes.
+        cur.vocals = Some(0);
+        let s = suggest(&cur, &[sung, inst], &SuggestOptions::default());
+        assert!(s.iter().all(|x| !x.reasons.contains(&Reason::Instrumental)));
+        assert!((s[0].score - s[1].score).abs() < 1e-9);
     }
 
     #[test]

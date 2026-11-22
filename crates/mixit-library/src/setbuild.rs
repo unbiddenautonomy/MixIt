@@ -281,6 +281,7 @@ mod tests {
                     genre: String::new(),
                     rating: 0,
                     sound: vec![],
+                    vocals: None,
                 },
                 duration: 300.0,
                 artist: format!("Artist {}", i % 9),

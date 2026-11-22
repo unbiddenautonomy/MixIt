@@ -1272,6 +1272,11 @@ export class DemoBackend implements Backend {
         reasons.push(times === 1 ? "You played it after this track in a past set." : `You played it after this track ${times} times before.`);
         tags.push("history");
       }
+      if ((cur.vocals ?? 0) >= 10 && c.vocals != null && c.vocals < 5) {
+        score += 0.02;
+        reasons.push("An instrumental: no second voice to clash with this track's singing.");
+        tags.push("instrumental");
+      }
       const alike = this.alike(cur, c);
       score += 0.08 * (alike - 0.5);
       if (alike >= 0.7) {

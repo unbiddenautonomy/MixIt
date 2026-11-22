@@ -329,10 +329,8 @@ fn fts_escape(word: &str) -> String {
     format!("\"{}\"", word.replace('"', "\"\""))
 }
 
-/// `vocals:yes` means a voice in at least this percent of the track.
-const VOCAL_SOME: f64 = 10.0;
-/// `vocals:no` means a voice in less than this percent (a sample or a shout is allowed).
-const VOCAL_NONE: f64 = 5.0;
+const VOCAL_SOME: f64 = crate::suggest::VOCAL_SOME as f64;
+const VOCAL_NONE: f64 = crate::suggest::VOCAL_NONE as f64;
 
 fn num_column(f: NumField) -> &'static str {
     match f {
