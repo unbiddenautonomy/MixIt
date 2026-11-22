@@ -2248,6 +2248,13 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
   add("app.sequencer", "Step sequencer", "App", { type: "toggle" }, "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.", null);
   add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);
+  add("app.mix_it", "Mix it", "App", { type: "trigger" }, "Runs a whole transition into the other deck on the beat, picking the transition, length and key shift the way Auto DJ does.", "T");
+  add("app.hear_mix", "Hear the mix first", "App", { type: "trigger" }, "Plays the coming mix in your headphones before the audience hears it: Auto DJ's next mix, or what Mix it would do now.", "H");
+  add("app.mix_now", "Mix now", "App", { type: "trigger" }, "Starts Auto DJ's next mix right away instead of waiting for the planned point.", null);
+  add("app.rehearse_set", "Rehearse the set", "App", { type: "trigger" }, "Plays every change in the Auto DJ queue one after another in your headphones, a few bars either side of each.", null);
+  add("app.make_mix", "Make a mix from the queue", "App", { type: "trigger" }, "Turns the Auto DJ queue into a finished mix in Arrange, every change as Auto DJ would do it, ready to render.", null);
+  add("app.best_order", "Best order for the queue", "App", { type: "trigger" }, "Reorders the Auto DJ queue so every change is as easy to mix as it can be, with the energy going your way.", null);
+  add("app.save_queue", "Save the queue as a playlist", "App", { type: "trigger" }, "Keeps the Auto DJ queue as a playlist in its order, to play again or share.", null);
   add("app.assistant", "Mix assistant", "App", { type: "toggle" }, "Listens to your mix and tells you what to fix (clashing bass, clipping, loudness, harsh or muddy tone), with a button that fixes it.", null);
   add("app.tour", "Take the 2-minute tour", "App", { type: "trigger" }, "Walks you through your first mix: play two tracks in time and blend from one into the other.", null);
   add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);

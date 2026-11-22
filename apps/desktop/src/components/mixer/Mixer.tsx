@@ -6,7 +6,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { Headphones, SlidersHorizontal, SlidersVertical, Sparkles, Square } from "lucide-react";
 import { useMemo, useState } from "react";
 import { choose, setOn, setValue } from "../../lib/actions";
-import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
+import { startTransition, cancelTransition, transitionPair, useTransition, type TransitionId } from "../../lib/transition";
 import { mixItPlan, smartMix } from "../../lib/smartMix";
 import { hearMix } from "../../store/rehearse";
 import { toast } from "sonner";
@@ -199,19 +199,7 @@ function Crossfader() {
   );
 }
 
-/** Picks the outgoing (playing, preferably master) and incoming (loaded, not playing) decks. */
-export function transitionPair(count: number): [number, number] | null {
-  const t = useTelemetry.getState().t;
-  const idx = Array.from({ length: count }, (_, i) => i);
-  const playing = idx.filter((i) => t.decks[i]?.playing);
-  const from = playing.find((i) => t.decks[i].master) ?? playing[0];
-  if (from === undefined) {
-    const loaded = idx.find((i) => t.decks[i]?.loaded);
-    return loaded === undefined ? null : [loaded, loaded];
-  }
-  const to = idx.find((i) => i !== from && t.decks[i]?.loaded && !t.decks[i].playing) ?? idx.find((i) => i !== from && t.decks[i]?.loaded);
-  return to === undefined ? null : [from, to];
-}
+export { transitionPair } from "../../lib/transition";
 
 const SMART_EXPLAIN =
   "Picks the transition for these two tracks the way Auto DJ does: a bass swap for two heavy tracks, a filter fade for clashing keys or a big drop in energy, an echo out across very different tempos, a long blend when everything fits. It also picks the length, shifts a clashing key, loops a short ending and waits for a sung line to finish. A message says what it chose and why.";

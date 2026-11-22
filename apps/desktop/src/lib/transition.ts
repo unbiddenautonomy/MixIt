@@ -284,3 +284,17 @@ export function phraseStart(outBeat: number, inBeat: number, beatsPerBar: number
   const start = inPhase + k * phrase;
   return start - outBeat <= Math.max(0, room) ? start : null;
 }
+
+/** Picks the outgoing (playing, preferably master) and incoming (loaded, not playing) decks. */
+export function transitionPair(count: number): [number, number] | null {
+  const t = useTelemetry.getState().t;
+  const idx = Array.from({ length: count }, (_, i) => i);
+  const playing = idx.filter((i) => t.decks[i]?.playing);
+  const from = playing.find((i) => t.decks[i].master) ?? playing[0];
+  if (from === undefined) {
+    const loaded = idx.find((i) => t.decks[i]?.loaded);
+    return loaded === undefined ? null : [loaded, loaded];
+  }
+  const to = idx.find((i) => i !== from && t.decks[i]?.loaded && !t.decks[i].playing) ?? idx.find((i) => i !== from && t.decks[i]?.loaded);
+  return to === undefined ? null : [from, to];
+}

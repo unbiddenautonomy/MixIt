@@ -1,7 +1,11 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
 import { singingAt } from "./coach";
-import { startAutoDj, stopAutoDj, useAutoDj } from "../store/autodj";
+import { mixNow, startAutoDj, stopAutoDj, useAutoDj } from "../store/autodj";
+import { orderQueue, saveQueue } from "../store/queueFlow";
+import { mixQueue } from "../store/queueMix";
+import { hearSet } from "../store/rehearse";
+import { hearComingMix, mixItNow } from "./smartMix";
 import { togglePreview, useTrackPreview } from "../store/trackPreview";
 import { toggleSequencer } from "../store/sequencer";
 import { runArrangeCommand } from "../components/arrange/editing";
@@ -164,6 +168,28 @@ export function runApp(id: string): boolean {
         useLibrary.getState().set({ source: { type: "autodj" } });
         void startAutoDj();
       } else stopAutoDj();
+      return true;
+    case "mix_it":
+      mixItNow();
+      return true;
+    case "hear_mix":
+      hearComingMix();
+      return true;
+    case "mix_now":
+      if (useAutoDj.getState().phase === "off") toast.message("Auto DJ is not playing", { description: "Start Auto DJ first, or press T to Mix it yourself." });
+      else void mixNow();
+      return true;
+    case "rehearse_set":
+      void hearSet();
+      return true;
+    case "make_mix":
+      void mixQueue();
+      return true;
+    case "best_order":
+      orderQueue();
+      return true;
+    case "save_queue":
+      void saveQueue();
       return true;
     case "sequencer":
       s.set({ workspace: "mix", samplerOpen: true, samplerTab: "seq" });
