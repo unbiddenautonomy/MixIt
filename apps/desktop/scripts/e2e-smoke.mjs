@@ -210,6 +210,10 @@ try {
     await page.waitForSelector("[cmdk-input]");
     await page.keyboard.type("Build a set");
     await page.waitForSelector("[cmdk-item]:has-text('Build a set')");
+    await page.fill("[cmdk-input]", "instrumentals");
+    await page.waitForSelector("[cmdk-item]:has-text('Show instrumentals')");
+    await page.fill("[cmdk-input]", "set length");
+    await page.waitForSelector("[cmdk-item]:has-text('Set length: 1 hour')");
     await page.keyboard.press("Escape");
   });
 

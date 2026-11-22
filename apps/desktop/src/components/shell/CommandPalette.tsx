@@ -15,7 +15,8 @@ import { deckCount, DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { loadOnDeck } from "../deck/Deck";
 import { useLibrary } from "../../store/library";
 import { addMusicFolder, DJ_APPS, importFromApp, type DjApp } from "../library/Library";
-import { showSoundsLike } from "../library/data";
+import { refreshRows, showSoundsLike } from "../library/data";
+import { setSetEnd } from "../../lib/setClock";
 import { openBuildSet } from "../library/BuildSetDialog";
 import { openTidy } from "../library/TidyDialog";
 import { instantDouble } from "../../lib/performance";
@@ -49,6 +50,30 @@ function extras(): Extra[] {
         .filter((to) => to !== from)
         .map((to) => ({ id: `x.double.${from}.${to}`, label: `Copy deck ${DECK_LETTERS[from]} to deck ${DECK_LETTERS[to]}, in time`, group: "Mix", run: () => void instantDouble(from, to), keywords: ["instant double", "clone", "duplicate deck"] })),
     ),
+    ...(
+      [
+        ["x.find_instrumentals", "Show instrumentals", "vocals:no", ["no vocals", "instrumental", "without singing"]],
+        ["x.find_vocals", "Show tracks with singing", "vocals:yes", ["vocal", "singing", "voice", "acapella"]],
+      ] as const
+    ).map(([id, label, query, keywords]) => ({
+      id,
+      label,
+      group: "Library",
+      run: () => {
+        s.set({ workspace: "library" });
+        useLibrary.getState().set({ source: { type: "all" }, query, selected: [], anchor: null });
+        void refreshRows();
+      },
+      keywords: [...keywords],
+    })),
+    ...([30, 60, 90, 120] as const).map((m) => ({
+      id: `x.set_clock.${m}`,
+      label: `Set length: ${m < 60 ? `${m} minutes` : m === 60 ? "1 hour" : m === 90 ? "1½ hours" : "2 hours"}`,
+      group: "Mix",
+      run: () => setSetEnd({ minutes: m }),
+      keywords: ["set clock", "timer", "countdown", "time left", "gig"],
+    })),
+    { id: "x.set_clock.off", label: "Clear the set clock", group: "Mix", run: () => setSetEnd(null), keywords: ["set clock", "timer", "countdown"] },
     { id: "x.build_set", label: "Build a set…", group: "Library", run: () => (s.set({ workspace: "library" }), openBuildSet()), keywords: ["set", "plan", "warm-up", "peak", "energy", "playlist", "generate"] },
     {
       id: "x.tidy",
