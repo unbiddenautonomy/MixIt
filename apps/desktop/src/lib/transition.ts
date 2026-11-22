@@ -19,6 +19,9 @@ export function bothSinging(from: number, to: number): boolean {
   return singingAt(decks[from], t.decks[from].position) && singingAt(decks[to], t.decks[to].position, 0.5);
 }
 
+/** The deck loop sizes in beats, in the order of the `loop.size` choice. */
+export const LOOP_CHOICES = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32];
+
 export type TransitionId = "blend" | "bassSwap" | "filterFade" | "echoOut" | "cut" | "brake";
 
 interface Running {
@@ -50,7 +53,7 @@ export function cancelTransition() {
  * it ahead); otherwise it starts at the next phrase that lines both tracks up.
  * `opts.sync: false` lets the incoming track keep its own tempo (for an echo out or cut
  * between very different tempos). */
-export async function startTransition(from: number, to: number, kind: TransitionId, beats: number, opts: { atBeat?: number; sync?: boolean } = {}) {
+export async function startTransition(from: number, to: number, kind: TransitionId, beats: number, opts: { atBeat?: number; sync?: boolean; loopBeats?: number } = {}) {
   const tele = useTelemetry.getState().t;
   const df = tele.decks[from];
   const dt = tele.decks[to];
@@ -103,6 +106,11 @@ export async function startTransition(from: number, to: number, kind: Transition
   let started = dt.playing;
   let swapped = false;
   let dipped = false;
+  // A short ending loops from the start of the transition (Auto DJ plans when).
+  const loopIndex = opts.loopBeats ? LOOP_CHOICES.indexOf(opts.loopBeats) : -1;
+  let looped = false;
+  let prevRaw: number | null = null;
+  let wraps = 0;
   let last: Record<string, number> = {};
   const send = (id: string, v: number) => {
     if (last[id] === undefined || Math.abs(last[id] - v) > 0.004) {
@@ -112,7 +120,12 @@ export async function startTransition(from: number, to: number, kind: Transition
   };
   const step = () => {
     const t = useTelemetry.getState().t;
-    const beat = t.decks[from].beat;
+    // The outgoing deck's beat, counted on through its loop: a loop jumps the deck back,
+    // but the transition keeps going.
+    const raw = t.decks[from].beat;
+    if (prevRaw !== null && looped && raw < prevRaw - 0.5) wraps += opts.loopBeats ?? 0;
+    prevRaw = raw;
+    const beat = raw + wraps;
     const playing = t.decks[from].playing;
     // Start the incoming deck just ahead of the bar (sync aligns the phase).
     if (!started && beat >= startBeat - 0.05 && kind !== "echoOut" && kind !== "brake") {
@@ -122,6 +135,10 @@ export async function startTransition(from: number, to: number, kind: Transition
     const x = clamp((beat - startBeat) / run.beats);
     useTransition.getState().set({ ...run, progress: x });
     if (beat >= startBeat) {
+      if (loopIndex >= 0 && !looped && kind !== "cut" && kind !== "brake") {
+        looped = true;
+        void setValue(`deck.${a}.loop.size`, loopIndex).then(() => setOn(`deck.${a}.loop.auto`, true));
+      }
       // Two voices at once: the outgoing deck's mids step back while both sing.
       if (kind === "blend" || kind === "bassSwap" || kind === "filterFade") {
         const dip = x < 1 && bothSinging(from, to);
@@ -199,6 +216,7 @@ export async function startTransition(from: number, to: number, kind: Transition
     if (kind === "echoOut") {
       setTimeout(() => setOn(`fx.${a}.1.on`, false), 4000);
     }
+    if (looped) await setOn(`deck.${a}.loop.auto`, false);
     const tt = useTelemetry.getState().t;
     if (tt.decks[from].playing && kind !== "brake") await press(`deck.${a}.play`);
     await press(`deck.${b}.master`);

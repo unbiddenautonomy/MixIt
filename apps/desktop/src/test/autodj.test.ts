@@ -167,11 +167,38 @@ describe("Auto DJ plans", () => {
     expect(p.kind).toBe("cut");
     expect(p.beats).toBe(0);
     expect(planMix(track({ energy: 5 }), track({ energy: 5 }), { style: "blend", length: 16, keyMatch: true }).beats).toBe(16);
-    // A 4-bar outro leaves room for 16 beats at most, and the reasons say so.
+    // Without a loop, a 4-bar outro leaves room for 16 beats at most, and the reasons say so.
     const short = track({ bars: [["Intro", 16, 0.3], ["Drop", 64, 1], ["Outro", 4, 0.4]], energy: 5 });
-    const s = planMix(short, track({ energy: 5 }));
+    const s = planMix(short, track({ energy: 5 }), { style: "auto", length: "auto", keyMatch: true, extend: false });
     expect(s.beats).toBeLessThanOrEqual(16);
+    expect(s.loopBeats).toBe(0);
     expect(s.outStartBeat + s.beats).toBeLessThanOrEqual(beatAtSeconds(short, short.audible[1]));
+  });
+
+  it("loops a short ending so the mix still gets its full length", () => {
+    // The outro (beat 320) has 16 beats: too few for a 32-beat blend.
+    const short = track({ bars: [["Intro", 16, 0.3], ["Drop", 64, 1], ["Outro", 4, 0.4]], energy: 5 });
+    const end = beatAtSeconds(short, short.audible[1]);
+    const p = planMix(short, track({ energy: 5 }));
+    expect(p.kind).toBe("blend");
+    expect(p.outStartBeat).toBe(320);
+    expect(p.beats).toBe(32);
+    expect(p.loopBeats).toBe(8);
+    // Only the looped beats have to fit before the music ends.
+    expect(p.outStartBeat + p.loopBeats).toBeLessThanOrEqual(end);
+    expect(p.summary).toBe("Blend over 32 beats, looping the last 8");
+    expect(p.reasons.join(" ")).toMatch(/last 8 beats loop while the next track comes in/);
+    // A track with a long outro needs no loop.
+    expect(planMix(track({ energy: 5 }), track({ energy: 5 })).loopBeats).toBe(0);
+    // Late, the loop moves to the last 8 beats; later still, an ordinary mix of what is left.
+    const later = planMix(short, track({ energy: 5 }), undefined, 326);
+    expect([later.outStartBeat, later.loopBeats]).toEqual([328, 8]);
+    const late = planMix(short, track({ energy: 5 }), undefined, 330);
+    expect(late.loopBeats).toBe(0);
+    expect(late.outStartBeat + late.beats).toBeLessThanOrEqual(end);
+    // With a chosen length, the loop serves that length.
+    const chosen = planMix(short, track({ energy: 5 }), { style: "bassSwap", length: 32, keyMatch: true });
+    expect([chosen.kind, chosen.beats, chosen.loopBeats]).toEqual(["bassSwap", 32, 8]);
   });
 
   it("never plans a mix in the past", () => {

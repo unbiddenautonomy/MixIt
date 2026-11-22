@@ -74,7 +74,21 @@ export function rehearsal(out: TrackDetail, inc: TrackDetail, plan: MixPlan, lea
     next_id: 3,
   };
   project = applyTransition(project, 1, 2, KINDS[plan.kind], beats);
+  if (plan.loopBeats > 0) project = loopOut(project, pre, plan.outStartBeat, plan.loopBeats);
   const spbOut = 60 / outBpm;
   const spbMix = 60 / (plan.sync ? outBpm : inBpm);
   return { project, from: 0, to: pre + after, mixAt: pre * spbOut, mixEnd: pre * spbOut + beats * spbMix };
+}
+
+/** Plays the outgoing clip's `loop` beats from timeline beat `at` (track beat `source`)
+ * over and over to its end, as the deck's loop does: the clip is cut there and repeated,
+ * each piece keeping the transition's automation. */
+function loopOut(p: MixProject, at: number, source: number, loop: number): MixProject {
+  const o = p.clips.find((c) => c.id === 1);
+  if (!o) return p;
+  const end = o.start + o.length;
+  const pieces: Clip[] = [{ ...o, length: Math.min(o.length, at + loop - o.start) }];
+  let id = p.next_id;
+  for (let s = at + loop; s < end - 1e-9; s += loop) pieces.push({ ...o, id: id++, start: s, length: Math.min(loop, end - s), source_start: source });
+  return { ...p, clips: [...pieces, ...p.clips.filter((c) => c.id !== 1)], next_id: id };
 }

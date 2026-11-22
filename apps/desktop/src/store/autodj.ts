@@ -232,7 +232,8 @@ async function runMix(atBeat: number) {
   useAutoDj.setState({ phase: "mixing" });
   mixing = true;
   note(`Mixing into ${track.title}: ${plan.summary.toLowerCase()}.`);
-  await startTransition(s.current, deck, plan.kind, plan.beats, { atBeat, sync: plan.sync });
+  if (plan.loopBeats) note(`Looping the last ${plan.loopBeats} beats of the current track so the mix can run its full ${plan.beats} beats.`);
+  await startTransition(s.current, deck, plan.kind, plan.beats, { atBeat, sync: plan.sync, loopBeats: plan.loopBeats });
   // A transition that could not run (nothing playing) counts as done straight away.
   if (!useTransition.getState().running) finished();
 }

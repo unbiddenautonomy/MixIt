@@ -18,9 +18,15 @@ export interface PlanOptions {
   length: "auto" | number;
   /** Shift the incoming key (with key lock) when the keys clash. */
   keyMatch: boolean;
+  /** Loop the end of a track that runs out too soon after its mix-out point, so the mix
+   * still gets its full length (default on). */
+  extend?: boolean;
 }
 
-export const DEFAULT_OPTIONS: PlanOptions = { style: "auto", length: "auto", keyMatch: true };
+export const DEFAULT_OPTIONS: PlanOptions = { style: "auto", length: "auto", keyMatch: true, extend: true };
+
+/** Loop lengths Auto DJ uses to stretch a short ending, longest first. */
+export const LOOP_LENGTHS = [16, 8];
 
 export interface MixPlan {
   kind: TransitionId;
@@ -35,6 +41,9 @@ export interface MixPlan {
   tempoChangePct: number;
   /** Semitones to shift the incoming key, or 0. */
   keyShift: number;
+  /** Beats of the outgoing track that loop from the start of the transition, so a track
+   * that ends soon still gets a full-length mix (0: no loop). */
+  loopBeats: number;
   /** Whether the incoming track syncs to the outgoing tempo (not across a big gap with
    * an echo out, cut or brake: it plays at its own tempo instead). */
   sync: boolean;
@@ -180,6 +189,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   const mixOutBeat = beatAtSeconds(out, mixOutPoint(out));
   const startCandidate = Math.max(Math.round(mixOutBeat / phrase) * phrase, 0);
   const room = Math.max(bpb, endBeat - startCandidate - bpb);
+  const extend = opts.extend !== false;
 
   // Transition type.
   let kind: TransitionId;
@@ -188,7 +198,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   } else if (farTempo) {
     kind = "echoOut";
     reasons.push(`The tempos are far apart (${Math.round(outBpm)} and ${Math.round(inBpm)} BPM), so the old track echoes out instead of both playing at a stretched tempo.`);
-  } else if (!hasOutro(out) && room < 16) {
+  } else if (!hasOutro(out) && room < (extend ? 8 : 16)) {
     kind = "echoOut";
     reasons.push("The track stops at full power right after the mix-out point, so an echo carries it out.");
   } else if (keyClash) {
@@ -207,28 +217,43 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   if (Math.abs(tempoChangePct) > 0.3 && !farTempo && kind !== "echoOut" && kind !== "cut" && kind !== "brake")
     reasons.push(`The next track is synced from ${Math.round(inBpm * 10) / 10} to ${Math.round(outBpm * 10) / 10} BPM (${tempoChangePct > 0 ? "+" : ""}${tempoChangePct}%) so the beats line up.`);
 
-  // Length: what the music allows.
+  // Length: what the music allows, or with a loop on the outgoing track's last bars.
   let beats: number;
+  let loopBeats = 0;
   if (kind === "cut") beats = 0;
   else if (kind === "brake") beats = 4;
   else if (kind === "echoOut") beats = typeof opts.length === "number" ? Math.min(opts.length, 16) : 8;
   else {
     const intro = introBeats(inc);
     const want = typeof opts.length === "number" ? opts.length : keyClash ? 16 : 32 + (intro >= 64 && kind === "blend" ? 32 : 0);
-    beats = LENGTHS.find((l) => l <= want && l <= room) ?? 8;
-    if (typeof opts.length !== "number" && beats < want) reasons.push(`There is room for ${beats} beats before the track ends (a ${want}-beat mix would run past it).`);
+    const loop = extend && room < Math.min(want, 32) ? (LOOP_LENGTHS.find((l) => l <= room) ?? 0) : 0;
+    if (loop) {
+      loopBeats = loop;
+      beats = Math.min(want, 32);
+      reasons.push(`The track ends ${Math.round(room + bpb)} beats after its mix-out point, so its last ${loop} beats loop while the next track comes in: a full ${beats}-beat mix instead of a rushed one.`);
+    } else {
+      beats = LENGTHS.find((l) => l <= want && l <= room) ?? 8;
+      if (typeof opts.length !== "number" && beats < want) reasons.push(`There is room for ${beats} beats before the track ends (a ${want}-beat mix would run past it).`);
+    }
   }
 
   // Start: the top of a phrase near the mix-out point, early enough to finish before the
   // music ends, and never in the past.
+  // With a loop, only the looped beats have to fit before the end.
+  const fit = () => loopBeats || Math.max(beats, bpb);
   let start = startCandidate;
-  while (start > 0 && start + Math.max(beats, bpb) > endBeat) start -= bpb;
+  while (start > 0 && start + fit() > endBeat) start -= bpb;
   start = Math.max(0, start);
   if (start <= nowBeat + 0.25) {
     // Too late for the planned point: the next bar (or phrase when there is room).
     const nextPhrase = Math.ceil((nowBeat + 0.25) / phrase) * phrase;
     const nextBar = Math.ceil((nowBeat + 0.25) / bpb) * bpb;
-    start = nextPhrase + Math.max(beats, bpb) <= endBeat ? nextPhrase : nextBar;
+    start = nextPhrase + fit() <= endBeat ? nextPhrase : nextBar;
+    // Too late for the loop too: an ordinary mix of what is left.
+    if (loopBeats && start + loopBeats > endBeat) {
+      loopBeats = 0;
+      beats = LENGTHS.find((l) => l <= Math.max(0, endBeat - start)) ?? bpb;
+    }
   }
   // Not over the middle of a sung line: move to the nearest clear phrase (or bar) when one
   // is close, earlier or later.
@@ -236,7 +261,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
     regions: out.vocals,
     secondsAt: (b) => secondsAtBeat(out, b),
     candidate: start,
-    beats,
+    beats: loopBeats || beats,
     beatsPerBar: bpb,
     endBeat,
     earliest: nowBeat + 0.25,
@@ -251,7 +276,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
 
   const sync = !(farTempo && (kind === "echoOut" || kind === "cut" || kind === "brake"));
   if (!sync) reasons.push(`The next track keeps its own tempo of ${Math.round(inBpm)} BPM.`);
-  const summary = kind === "cut" ? "Cut on the bar" : kind === "brake" ? "Brake stop" : `${NAMES[kind]} over ${beats} beats`;
+  const summary = kind === "cut" ? "Cut on the bar" : kind === "brake" ? "Brake stop" : `${NAMES[kind]} over ${beats} beats${loopBeats ? `, looping the last ${loopBeats}` : ""}`;
   return {
     kind,
     beats,
@@ -260,6 +285,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
     inCueSeconds: inCue(inc),
     tempoChangePct,
     keyShift,
+    loopBeats,
     sync,
     summary,
     reasons,
