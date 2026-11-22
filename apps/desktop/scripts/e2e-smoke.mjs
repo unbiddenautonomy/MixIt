@@ -600,6 +600,10 @@ try {
       document.activeElement?.blur?.();
     });
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    // The buttons' tooltips show their keys.
+    await page.hover('[data-testid="mix-it"]');
+    await page.waitForSelector('[role="tooltip"] >> text=/^T$/', { timeout: 3000 });
+    await page.mouse.move(5, 500);
     await page.keyboard.press("h");
     await page.waitForFunction(() => window.mixit.useRehearse.getState().key === "mixer", null, { timeout: 5000 });
     expect(!(await page.evaluate(() => window.mixit.useTransition.getState().running)), "H started the real mix");

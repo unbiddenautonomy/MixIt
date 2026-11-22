@@ -263,7 +263,7 @@ function MixIt({ count }: { count: number }) {
           ))}
         </select>
       )}
-      <Ctl label="Hear it first" explain="Plays this mix in your headphones before you do it: a few bars before the transition, the transition just as Mix it would run it, and a few bars after, so you can check it sounds right. The audience hears nothing.">
+      <Ctl id="app.hear_mix" label="Hear it first" explain="Plays this mix in your headphones before you do it: a few bars before the transition, the transition just as Mix it would run it, and a few bars after, so you can check it sounds right. The audience hears nothing.">
         <Btn
           tone="ghost"
           disabled={!pair || pair[0] === pair[1]}
@@ -279,7 +279,7 @@ function MixIt({ count }: { count: number }) {
           <Headphones size={13} />
         </Btn>
       </Ctl>
-      <Ctl label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it at the top of the next 8-bar phrase so both tracks line up, and moves the faders and EQs like a DJ would. Touch any control to take over.">
+      <Ctl id="app.mix_it" label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it at the top of the next 8-bar phrase so both tracks line up, and moves the faders and EQs like a DJ would. Touch any control to take over.">
         <Btn tone="accent" className="whitespace-nowrap" style={{ ["--accent" as string]: pair ? DECK_COLORS[pair[1]] : "#a1a1aa" }} disabled={!pair} onClick={() => pair && (kind === "smart" ? (pair[0] === pair[1] ? startTransition(pair[0], pair[1], "blend", 32) : void smartMix(pair[0], pair[1])) : startTransition(pair[0], pair[1], kind, kind === "cut" ? 0 : len))} data-testid="mix-it">
           <Sparkles size={13} />
           {pair ? (pair[0] === pair[1] ? `Start ${L(pair[0])}` : `Mix ${L(pair[0])}→${L(pair[1])}`) : "Mix it"}
