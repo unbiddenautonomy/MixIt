@@ -534,6 +534,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "now-playing",
+    title: "Showing the track on a stream",
+    group: "Your library",
+    summary: "Keep a text file with the track playing now, for OBS or other streaming software.",
+    body: [
+      "In Settings, Mixing, choose a file under Now playing for streams. Whenever a new track becomes the one your audience hears, MixIt writes its artist and title there. In OBS add a Text source, tick Read from file and pick the same file, and the track shows on your stream by itself.",
+      "What to write sets the line: {artist} - {title} by default, and you can add {album}, {genre}, {label}, {bpm} or {key}, for example Now playing: {title} by {artist}.",
+    ],
+  },
+  {
     id: "recording",
     title: "Recording and rendering",
     group: "Your library",

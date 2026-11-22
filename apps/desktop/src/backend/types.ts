@@ -340,6 +340,10 @@ export interface Settings {
   micStereo: boolean;
   /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
   faderStart?: boolean;
+  /** Desktop: a text file that gets the track now playing (for streaming software). */
+  nowPlayingFile?: string | null;
+  /** The line written there: {artist} {title} {album} {genre} {label} {bpm} {key}. */
+  nowPlayingFormat?: string;
   /** Browser only: echo cancelling and noise reduction for a voice. */
   micVoice?: boolean;
 }

@@ -110,12 +110,28 @@ fn run(app: AppHandle) {
             }
         }
         if !to_log.is_empty() {
-            if let Some(s) = state.session() {
-                let lib = state.library.lock();
-                for (deck, id) in to_log {
+            // The session and settings first: starting a session locks the library itself.
+            let session = state.session();
+            let (file, format) = {
+                let st = state.settings.lock();
+                (st.now_playing_file.clone(), st.now_playing_format.clone())
+            };
+            let lib = state.library.lock();
+            if let Some(s) = session {
+                for &(deck, id) in &to_log {
                     let _ = lib.log_play(s, id, Some(deck));
                 }
             }
+            // The newest track on air goes to the "now playing" file, if one is set.
+            if let (Some(file), Some(&(_, id))) = (file.filter(|f| !f.trim().is_empty()), to_log.last()) {
+                if let Ok(t) = lib.track(id) {
+                    let line = crate::nowplaying::now_playing_text(&format, &t);
+                    if let Err(e) = crate::nowplaying::write_now_playing(std::path::Path::new(&file), &line) {
+                        let _ = app.emit("error", format!("now playing file {file}: {e}"));
+                    }
+                }
+            }
+            drop(lib);
             let _ = app.emit("history-changed", ());
         }
     }
