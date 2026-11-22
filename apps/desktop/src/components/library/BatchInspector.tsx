@@ -1,6 +1,6 @@
 // Several tracks selected: edit what they share at once (artist, album, genre, label,
 // year, comment, rating, colour), and write the tags into their files.
-import { FileDown, Star, X } from "lucide-react";
+import { FileDown, Sparkles, Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { TrackEdit, TrackRow } from "../../backend/types";
@@ -8,6 +8,7 @@ import { clock, hex, plural } from "../../lib/format";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { refreshRows, writeTagsToFiles } from "./data";
+import { openTidy } from "./TidyDialog";
 import { TagEditor } from "./TagEditor";
 import { editTracksWithUndo } from "../../lib/libraryUndo";
 
@@ -86,6 +87,9 @@ export function BatchInspector({ ids }: { ids: number[] }) {
         <span className="text-zinc-500">Your tags</span>
         <TagEditor ids={ids} />
       </div>
+      <Btn size="sm" onClick={() => openTidy(rows)} title="Fix messy titles, artists and genres: from file names, stray spaces, clutter, SHOUTING">
+        <Sparkles size={12} /> Tidy details…
+      </Btn>
       <Btn size="sm" onClick={() => void writeTagsToFiles(ids)} title="Put the library's details into the files, so other apps and DJ gear show them">
         <FileDown size={12} /> Write tags to {plural(ids.length, "file")}
       </Btn>

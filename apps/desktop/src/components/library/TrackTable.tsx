@@ -28,6 +28,7 @@ import { isShown, resetColumns, setShown, setWidth, track, useColumns, type Colu
 import { editTracksWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
 import { Cover } from "../ui/Cover";
 import { openBuildSet } from "./BuildSetDialog";
+import { openTidy } from "./TidyDialog";
 
 interface Column {
   key: string;
@@ -480,6 +481,9 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
           </ContextMenu.Item>
           <ContextMenu.Item className="menu-item" onSelect={() => openBuildSet({ seed: track })}>
             Build a set starting with this…
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => openTidy(useLibrary.getState().rows.filter((r) => ids().includes(r.id)))} data-testid="menu-tidy">
+            {ids().length > 1 ? `Tidy details of ${ids().length} tracks…` : "Tidy details…"}
           </ContextMenu.Item>
           {backend().kind !== "web" && (
             <ContextMenu.Item className="menu-item" onSelect={() => void writeTagsToFiles(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>

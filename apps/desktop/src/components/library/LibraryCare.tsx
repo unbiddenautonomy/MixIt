@@ -1,7 +1,7 @@
 // Fix library: tracks whose files moved or vanished, and duplicate copies of the same
 // audio. Both are common in a collection that has lived on more than one drive.
 import clsx from "clsx";
-import { Check, CopyX, FileSearch, FolderSearch, Loader2, Star, Trash2 } from "lucide-react";
+import { Check, CopyX, FileSearch, FolderSearch, Loader2, Sparkles, Star, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -12,6 +12,8 @@ import { AUDIO_EXTENSIONS } from "../sampler/SamplerPanel";
 import { ask } from "../shell/Dialogs";
 import { Btn } from "../ui/Button";
 import { refreshCare, refreshStats } from "./data";
+import { openTidy } from "./TidyDialog";
+import { DEFAULT_TIDY, tidyChanges } from "../../lib/tidy";
 
 function report(e: unknown) {
   toast.error(e instanceof Error ? e.message : String(e));
@@ -35,7 +37,52 @@ export function LibraryCare() {
       </p>
       <Missing rows={missing} />
       <Duplicates groups={dupes} />
+      <Messy />
     </div>
+  );
+}
+
+/** Tracks whose titles, artists or genres could be tidied. */
+function Messy() {
+  const [rows, setRows] = useState<TrackRow[] | null>(null);
+  const [changes, setChanges] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    void backend()
+      .search("")
+      .then((all) => {
+        if (!live) return;
+        const ch = tidyChanges(all, DEFAULT_TIDY);
+        const ids = new Set(ch.map((c) => c.id));
+        setRows(all.filter((r) => ids.has(r.id)));
+        setChanges(ch.length);
+      })
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <Section
+      icon={<Sparkles size={14} />}
+      title="Messy details"
+      count={rows ? rows.length : null}
+      actions={
+        rows?.length ? (
+          <Btn size="sm" tone="accent" onClick={() => openTidy(rows)} data-testid="care-tidy">
+            Tidy…
+          </Btn>
+        ) : undefined
+      }
+    >
+      <p className="text-[12px] text-zinc-400">
+        {rows == null
+          ? "Checking titles, artists and genres…"
+          : rows.length
+            ? `${plural(rows.length, "track")} could look better: ${plural(changes ?? 0, "change")} for empty titles that a file name can fill, stray spaces, web clutter, SHOUTING names and genres spelled several ways. You see every change first.`
+            : "Titles, artists and genres look tidy."}
+      </p>
+    </Section>
   );
 }
 
