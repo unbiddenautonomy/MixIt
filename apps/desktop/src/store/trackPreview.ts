@@ -53,7 +53,7 @@ export function resolveRoute(choice: RouteChoice): PreviewRoute {
   return backend().kind === "tauri" && useApp.getState().settings?.cueChannel != null ? "headphones" : "speakers";
 }
 
-function sendSettings() {
+export function sendSettings() {
   const { gain, route, sync } = useTrackPreview.getState();
   void backend().previewSettings(gain, resolveRoute(route)).catch(() => {});
   void backend().previewSync(sync).catch(() => {});

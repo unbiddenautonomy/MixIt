@@ -492,7 +492,7 @@ export class DemoBackend implements Backend {
     const pv = this.previewState;
     let previewEnded = false;
     // In time with the decks: speed is the clock's tempo over the track's own (double or half time when closer).
-    const own = pv ? this.find(pv.trackId).row.bpm : null;
+    const own = pv && pv.trackId >= 0 ? this.find(pv.trackId).row.bpm : null;
     const clock = this.master !== null ? tele[this.master].bpm : (tele.find((d) => d.playing && d.bpm > 0)?.bpm ?? 124);
     const k = own ? [1, 2, 0.5].reduce((b, x) => (Math.abs(clock / (own * x) - 1) < Math.abs(clock / (own * b) - 1) ? x : b)) : 1;
     const step = own && clock > 0 ? clock / (own * k) : 1;
@@ -1767,6 +1767,16 @@ export class DemoBackend implements Backend {
 
   /** A drum-machine sketch of the passage: kick on every beat, hats off-beat and a tone
    * per playing clip, at the project's tempo. */
+  /** Plays the passage in the simulated preview player (as a track that is no library track). */
+  async previewMix(project: T.MixProject, fromBeat: number, toBeat: number): Promise<number> {
+    if (!project.clips.length) throw new Error("The mix has no clips.");
+    for (const c of project.clips) if (!this.tracks.some((t) => t.row.path === c.track.path)) throw new Error(`file not found: ${c.track.path}`);
+    const bpm = project.tempo.segments[0]?.bpm ?? 124;
+    const duration = (Math.max(1, toBeat - fromBeat) * 60) / bpm + 0.5;
+    this.previewState = { trackId: -1, playing: true, position: 0, duration };
+    return duration;
+  }
+
   async previewProject(project: T.MixProject, fromBeat: number, toBeat: number): Promise<ArrayBuffer> {
     const sr = 22050;
     const bpm = project.tempo.segments[0]?.bpm ?? 124;

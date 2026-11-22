@@ -142,6 +142,7 @@ export class TauriBackend implements Backend {
   soundClose(id: number) { return invoke<void>("sound_close", { id }); }
   renderStems(project: T.MixProject, folder: string, format?: string) { return invoke<void>("project_render_stems", { project, folder, format: format ?? null }); }
   previewProject(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<ArrayBuffer>("project_preview", { project, fromBeat, toBeat }); }
+  previewMix(project: T.MixProject, fromBeat: number, toBeat: number) { return invoke<number>("project_preview_play", { project, fromBeat, toBeat }); }
 
   samplerLoad(pad: number, source: T.PadSource) { return invoke<T.PadInfo>("sampler_load", { pad, source }); }
   samplerClear(pad: number) { return invoke<T.PadInfo>("sampler_clear", { pad }); }
