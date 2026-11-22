@@ -1,7 +1,7 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Play, Shuffle, SkipForward, Square, Trash2, Wand2, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListPlus, ListX, Play, Shuffle, SkipForward, Square, Trash2, Wand2, Zap } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
@@ -12,7 +12,7 @@ import { useTransition, type TransitionId } from "../../lib/transition";
 import { useApp } from "../../store/app";
 import { chooseTransition, clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
-import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
+import { addBridge, bridgeChoices, orderQueue, saveQueue } from "../../store/queueFlow";
 import { mixQueue } from "../../store/queueMix";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
 import { hearNext, hearPair, hearSet, stopMix, useRehearse } from "../../store/rehearse";
@@ -92,7 +92,18 @@ export function AutoDjView() {
                 </button>
               )}
               {queue.length > 0 && (
-                <button type="button" className={clsx(queue.length > 1 ? "" : "ml-auto", "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100")} onClick={clearQueue}>
+                <button
+                  type="button"
+                  className={clsx(queue.length > 1 ? "" : "ml-auto", "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
+                  onClick={() => void saveQueue()}
+                  title="Save the queue as a playlist, in this order, to play again or share later"
+                  data-testid="queue-save"
+                >
+                  <ListPlus size={12} /> Save
+                </button>
+              )}
+              {queue.length > 0 && (
+                <button type="button" className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100" onClick={clearQueue}>
                   <ListX size={12} /> Clear
                 </button>
               )}
