@@ -7,6 +7,7 @@
 //! play next; [`scan`] imports folders; [`jobs`] runs analysis in parallel; [`m3u`]
 //! and [`rekordbox`] exchange playlists and collections with other software.
 
+pub mod backup;
 pub mod jobs;
 pub mod m3u;
 pub mod plan;

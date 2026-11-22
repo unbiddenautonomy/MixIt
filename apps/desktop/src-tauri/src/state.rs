@@ -21,6 +21,8 @@ pub struct Paths {
     pub projects: PathBuf,
     /// Generated practice tracks for the guide's labs.
     pub practice: PathBuf,
+    /// Library backups (daily automatic ones and those made by hand).
+    pub backups: PathBuf,
 }
 
 impl Paths {
@@ -33,6 +35,7 @@ impl Paths {
             recordings: music.join("Recordings"),
             projects: music.join("Mixes"),
             practice: music.join("Practice"),
+            backups: data.join("Backups"),
         }
     }
 }

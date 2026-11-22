@@ -53,6 +53,9 @@ export class TauriBackend implements Backend {
   removeTracks(ids: number[]) { return invoke<void>("tracks_remove", { ids }); }
   editTracks(ids: number[], edit: T.TrackEdit) { return invoke<void>("tracks_edit", { ids, edit }); }
   writeTags(ids: number[], notation: "camelot" | "openKey" | "standard") { return invoke<T.WriteTagsResult>("library_write_tags", { ids, notation }); }
+  backups() { return invoke<T.BackupInfo[]>("library_backups"); }
+  backupLibrary(path?: string | null) { return invoke<string>("library_backup", { path: path ?? null }); }
+  restoreLibrary(path: string) { return invoke<string>("library_restore", { path }); }
   listTags() { return invoke<T.TagDto[]>("tags_list"); }
   tagsOf(ids: number[]) { return invoke<[number, string[]][]>("tags_of", { ids }); }
   setTag(ids: number[], name: string, on: boolean, category = "") { return invoke<void>("tags_set", { ids, name, category, on }); }

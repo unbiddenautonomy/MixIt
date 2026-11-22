@@ -11,6 +11,7 @@ import { shortcutLabel } from "../../lib/actions";
 import { keyName } from "../../lib/keyboard";
 import { bindable, defaultShortcut, holderOf, reservedKey, resetAllShortcuts, resetShortcut, setShortcut, useShortcuts } from "../../lib/shortcuts";
 import { ask } from "./Dialogs";
+import { Backups } from "./Backups";
 import { updateSettings } from "../../lib/appCommands";
 import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
@@ -243,6 +244,9 @@ function LibrarySettings() {
         <button type="button" className="mt-1 flex w-fit items-center gap-1.5 rounded-md bg-white/[0.06] px-2 py-1 text-xs text-zinc-200 hover:bg-white/10" onClick={() => addMusicFolder().then(load)}>
           <FolderPlus size={12} /> Add folder
         </button>
+      </Field>
+      <Field label="Backups" hint="Once a day MixIt copies your library (tracks, analysis, cues, beat grids, playlists, tags and history) and keeps the last 10. Your music files are not copied: back those up separately.">
+        <Backups />
       </Field>
       {info && (
         <>
