@@ -6,6 +6,7 @@ import { coachTips, singingAt } from "../lib/coach";
 import { vocalLabel, vocalWhere } from "../lib/vocals";
 import { emptyTelemetry } from "../store/telemetry";
 import { useApp } from "../store/app";
+import { sortRows } from "../store/library";
 import { useTelemetry } from "../store/telemetry";
 import { bothSinging } from "../lib/transition";
 
@@ -72,6 +73,13 @@ describe("vocals", () => {
     const inst = s.filter((x) => x.tags.includes("instrumental"));
     expect(inst.length).toBeGreaterThan(0);
     expect(inst.every((x) => (x.track.vocals ?? 99) < 5)).toBe(true);
+  });
+
+  it("sorts by how much a track sings, not-yet-analysed below instrumentals", () => {
+    const rows = [{ vocals: 40 }, { vocals: null }, { vocals: 0 }, { vocals: 12 }] as unknown as Parameters<typeof sortRows>[0];
+    expect(sortRows(rows, "vocals", 1).map((r) => r.vocals)).toEqual([null, 0, 12, 40]);
+    expect(sortRows(rows, "vocals", -1).map((r) => r.vocals)).toEqual([40, 12, 0, null]);
+    expect(demoSearch(rows, "sort:vocals").length).toBe(4);
   });
 });
 
