@@ -2,14 +2,14 @@
 // jump), play and pause, jumps to its sections, the volume and where it is heard, and
 // loading it on a deck at the point you are listening to.
 import clsx from "clsx";
-import { Headphones, Loader2, Pause, Play, Speaker, X } from "lucide-react";
+import { Headphones, Link2, Loader2, Pause, Play, Speaker, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { backend } from "../../backend";
 import { clock } from "../../lib/format";
 import { drawWave, pyramid, SECTION_COLORS, setupCanvas } from "../../lib/waveform";
 import { DECK_LETTERS, useApp } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
-import { closePreview, resolveRoute, seekPreview, setPreviewGain, setPreviewRoute, togglePreview, useTrackPreview, type RouteChoice } from "../../store/trackPreview";
+import { closePreview, resolveRoute, seekPreview, setPreviewGain, setPreviewRoute, setPreviewSync, togglePreview, useTrackPreview, type RouteChoice } from "../../store/trackPreview";
 import { loadOnDeck } from "../deck/Deck";
 import { useWaveform } from "../deck/useWaveform";
 
@@ -19,7 +19,7 @@ export function previewPosition(): number {
   const p = t.preview;
   if (!p) return 0;
   if (!p.playing) return p.position;
-  return Math.min(p.duration || Infinity, p.position + Math.min(0.05, (performance.now() - at) / 1000));
+  return Math.min(p.duration || Infinity, p.position + Math.min(0.05, (performance.now() - at) / 1000) * (p.rate || 1));
 }
 
 export function PreviewBar() {
@@ -36,6 +36,9 @@ function Bar() {
   const gain = useTrackPreview((s) => s.gain);
   const route = useTrackPreview((s) => s.route);
   const playing = useTelemetry((s) => !!s.t.preview?.playing);
+  const sync = useTrackPreview((s) => s.sync);
+  const synced = useTelemetry((s) => !!s.t.preview?.synced);
+  const ratePct = useTelemetry((s) => Math.round(((s.t.preview?.rate ?? 1) - 1) * 1000) / 10);
   const decks = useApp((s) => s.settings?.decks ?? 2);
   const heard = resolveRoute(route);
 
@@ -81,6 +84,24 @@ function Bar() {
               </button>
             ))}
           <span className="mx-1 h-4 w-px bg-white/[0.06]" />
+          <button
+            type="button"
+            onClick={() => setPreviewSync(!sync)}
+            aria-pressed={sync}
+            title={
+              sync
+                ? synced
+                  ? "Playing in time with the decks: its tempo is matched and its bars line up with the music playing, so you can hear how the two would mix. Click to hear it at its own speed."
+                  : "In time with the decks is on, but this track plays at its own speed: its tempo is too far from the music playing (more than 16%), or it has no beat grid yet."
+                : "Play in time with the decks: match its tempo and line its bars up with the music playing, to hear how the two would sound mixed."
+            }
+            className={clsx("flex h-7 items-center gap-1 rounded-md border px-1.5 text-[11px]", sync ? "border-sky-400/40 bg-sky-400/10 text-sky-200" : "border-white/[0.06] text-zinc-400 hover:text-zinc-100")}
+            data-testid="preview-sync"
+          >
+            <Link2 size={12} />
+            In time
+            {sync && synced && ratePct !== 0 && <span className="tabular-nums text-sky-300/80">{ratePct > 0 ? `+${ratePct.toFixed(1)}` : ratePct.toFixed(1)}%</span>}
+          </button>
           <button
             type="button"
             onClick={() => setPreviewRoute(nextRoute[route])}

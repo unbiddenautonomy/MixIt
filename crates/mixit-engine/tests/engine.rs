@@ -773,7 +773,7 @@ fn key_pads_play_the_cue_in_another_key() {
 fn preview_plays_in_the_headphones_only() {
     let mut r = Rig::new();
     let x = testkit::sine(SR as usize * 2, 440.0, SR as f32, 0.25);
-    r.send(Command::Preview(PreviewCommand::Load(Arc::new(TrackAudio::from_mono(SR, &x)), 0.0)));
+    r.send(Command::Preview(PreviewCommand::Load(Arc::new(TrackAudio::from_mono(SR, &x)), 0.0, None)));
     r.send(Command::Preview(PreviewCommand::Play(true)));
     r.send(Command::Global(GlobalCommand::SetRecording(true)));
     let mut m = vec![0.0f32; 1024];

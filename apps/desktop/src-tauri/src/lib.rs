@@ -65,6 +65,7 @@ pub fn run() {
             commands::preview_play,
             commands::preview_seek,
             commands::preview_settings,
+            commands::preview_sync,
             commands::preview_close,
             commands::save_text,
             commands::tracks_edit,

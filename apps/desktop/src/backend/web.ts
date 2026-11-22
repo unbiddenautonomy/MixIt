@@ -167,7 +167,8 @@ export class WebAudioBackend extends DemoBackend {
     const audio = await this.audioFor(this.find(trackId));
     const duration = audio.length / 2 / this.engine.sampleRate;
     // A newer preview asked for while this one was being made wins.
-    if (token === this.previewToken) await this.engine.loadPreview(audio, Math.min(seconds, duration));
+    const grid = this.analysed.get(trackId)?.view.grid ?? null;
+    if (token === this.previewToken) await this.engine.loadPreview(audio, Math.min(seconds, duration), grid);
     return duration;
   }
 
@@ -181,6 +182,10 @@ export class WebAudioBackend extends DemoBackend {
 
   async previewSettings(gain: number, route: T.PreviewRoute): Promise<void> {
     this.engine.send({ op: "previewSettings", gain, route });
+  }
+
+  async previewSync(on: boolean): Promise<void> {
+    this.engine.send({ op: "previewSync", on });
   }
 
   async previewClose(): Promise<void> {

@@ -170,6 +170,10 @@ export interface PreviewTele {
   duration: number;
   /** It played to the end since the previous snapshot. */
   ended: boolean;
+  /** It plays in time with the decks (sync on and the track has a beat grid). */
+  synced: boolean;
+  /** Playback speed (1 = the track's own tempo). */
+  rate: number;
 }
 
 export type PreviewRoute = "headphones" | "speakers";

@@ -463,7 +463,7 @@ impl Engine {
         self.mic.render(n, &mut self.mixer);
         let mctx = self.master_ctx();
         self.mixer.finish(n, &mctx);
-        self.preview_on = self.preview.render(n);
+        self.preview_on = self.preview.render(n, self.clock_bpm, self.clock_beat);
         if self.mixer.clipped {
             self.mixer.clipped = false;
             self.events.send(Event::Clip);
@@ -534,6 +534,8 @@ impl Engine {
                 position_frames: self.preview.position(),
                 frames: self.preview.frames(),
                 ended: std::mem::take(&mut self.preview.ended),
+                synced: self.preview.is_synced(),
+                rate: self.preview.rate(),
             },
             leaked: self.trash.leaked,
             dropped_commands: self.dropped_commands + self.events.dropped,

@@ -105,6 +105,10 @@ pub struct PreviewTelemetry {
     pub frames: f64,
     /// It played to the end since the previous snapshot.
     pub ended: bool,
+    /// Following the master clock.
+    pub synced: bool,
+    /// Playback speed (1 = the track's own tempo).
+    pub rate: f64,
 }
 
 /// A state snapshot, published several times per second.

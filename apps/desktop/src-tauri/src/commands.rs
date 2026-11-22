@@ -794,11 +794,15 @@ pub async fn preview_load(app: AppHandle, track_id: i64, seconds: f64) -> R<f64>
         let state = app.state::<AppState>();
         let token = state.token();
         *state.preview.lock() = Some((token, track_id));
-        let path = state.library.lock().track(track_id).map_err(err)?.path;
+        let (path, grid) = {
+            let lib = state.library.lock();
+            (lib.track(track_id).map_err(err)?.path, lib.grid(track_id).ok().flatten())
+        };
         if !path.is_file() {
             return Err(format!("file not found: {}", path.display()));
         }
         let sr = state.audio.lock().sample_rate;
+        let grid = grid.filter(|g| g.bpm > 0.0).map(|g| Arc::new(g.resampled(sr)));
         let cache = mixit_io::DecodeCache::new(&state.paths.cache).ok();
         let loaded = mixit_io::load_track(&path, sr, cache.as_ref()).map_err(err)?;
         let audio = Arc::new(TrackAudio::new(sr, loaded.data));
@@ -808,7 +812,7 @@ pub async fn preview_load(app: AppHandle, track_id: i64, seconds: f64) -> R<f64>
         }
         let mut a = state.audio.lock();
         let start = seconds.clamp(0.0, len) * sr as f64;
-        a.send(Command::Preview(PreviewCommand::Load(audio, start)));
+        a.send(Command::Preview(PreviewCommand::Load(audio, start, grid)));
         a.send(Command::Preview(PreviewCommand::Play(true)));
         Ok(len)
     })
@@ -837,6 +841,13 @@ pub fn preview_settings(state: State<'_, AppState>, gain: f32, route: String) ->
     a.send(Command::Preview(PreviewCommand::SetGain(gain)));
     let r = if route == "speakers" { PreviewRoute::Speakers } else { PreviewRoute::Headphones };
     a.send(Command::Preview(PreviewCommand::SetRoute(r)));
+    Ok(())
+}
+
+/// Plays the preview in time with the decks (tempo matched, bars lined up) or at its own speed.
+#[tauri::command]
+pub fn preview_sync(state: State<'_, AppState>, on: bool) -> R<()> {
+    state.audio.lock().send(Command::Preview(PreviewCommand::SetSync(on)));
     Ok(())
 }
 
