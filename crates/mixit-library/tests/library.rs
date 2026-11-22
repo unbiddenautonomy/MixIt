@@ -494,3 +494,116 @@ fn past_sets_are_listed_renamed_and_forgotten() {
     assert!(lib.session_history(friday).unwrap().is_empty());
     assert_eq!(lib.track(ids[0]).unwrap().play_count, 1, "play counts stay");
 }
+
+/// A local folder as Traktor names it: the volume ("C:" on Windows, else none) and the
+/// directory ("/:home/:dj/:Music/:").
+fn traktor_dir(p: &Path) -> (String, String) {
+    let mut volume = String::new();
+    let mut s = String::from("/:");
+    for c in p.components() {
+        match c {
+            std::path::Component::Prefix(pre) => volume = pre.as_os_str().to_string_lossy().into_owned(),
+            std::path::Component::Normal(n) => {
+                s.push_str(&n.to_string_lossy());
+                s.push_str("/:");
+            }
+            _ => {}
+        }
+    }
+    (volume, s)
+}
+
+#[test]
+fn imports_a_traktor_collection() {
+    let tmp = TempDir::new("traktor");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let (vol, dir) = traktor_dir(&music);
+    let key_one = format!("{vol}{dir}one.wav");
+    let key_gone = format!("{vol}{dir}gone.mp3");
+    let nml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<NML VERSION="19"><HEAD COMPANY="www.native-instruments.com" PROGRAM="Traktor"></HEAD>
+<COLLECTION ENTRIES="2">
+<ENTRY MODIFIED_DATE="2024/5/1" TITLE="One &amp; Only" ARTIST="Nova">
+<LOCATION DIR="{dir}" FILE="one.wav" VOLUME="{vol}" VOLUMEID=""></LOCATION>
+<ALBUM TITLE="Night Drives"></ALBUM>
+<INFO BITRATE="1411000" GENRE="Deep House" LABEL="Moon" COMMENT="warm-up opener" PLAYTIME="20" RANKING="204"></INFO>
+<TEMPO BPM="124.000000" BPM_QUALITY="100.000000"></TEMPO>
+<MUSICAL_KEY VALUE="21"></MUSICAL_KEY>
+<CUE_V2 NAME="AutoGrid" DISPL_ORDER="0" TYPE="4" START="250.000000" LEN="0.000000" REPEATS="-1" HOTCUE="0"></CUE_V2>
+<CUE_V2 NAME="Drop" DISPL_ORDER="0" TYPE="0" START="7990.000000" LEN="0.000000" REPEATS="-1" HOTCUE="1"></CUE_V2>
+<CUE_V2 NAME="n.n." DISPL_ORDER="0" TYPE="5" START="2185.000000" LEN="3870.000000" REPEATS="-1" HOTCUE="2"></CUE_V2>
+<CUE_V2 NAME="Start" DISPL_ORDER="0" TYPE="3" START="250.000000" LEN="0.000000" REPEATS="-1" HOTCUE="-1"></CUE_V2>
+</ENTRY>
+<ENTRY TITLE="Gone" ARTIST="Kairo">
+<LOCATION DIR="{dir}" FILE="gone.mp3" VOLUME="{vol}" VOLUMEID=""></LOCATION>
+<INFO GENRE="Techno" PLAYTIME="300"></INFO>
+<TEMPO BPM="130.000000"></TEMPO>
+<MUSICAL_KEY VALUE="4"></MUSICAL_KEY>
+</ENTRY>
+</COLLECTION>
+<PLAYLISTS>
+<NODE TYPE="FOLDER" NAME="$ROOT"><SUBNODES COUNT="2">
+<NODE TYPE="FOLDER" NAME="Gigs"><SUBNODES COUNT="1">
+<NODE TYPE="PLAYLIST" NAME="Friday"><PLAYLIST ENTRIES="2" TYPE="LIST" UUID="x">
+<ENTRY><PRIMARYKEY TYPE="TRACK" KEY="{key_gone}"></PRIMARYKEY></ENTRY>
+<ENTRY><PRIMARYKEY TYPE="TRACK" KEY="{key_one}"></PRIMARYKEY></ENTRY>
+</PLAYLIST></NODE>
+</SUBNODES></NODE>
+<NODE TYPE="SMARTLIST" NAME="Recent"><SMARTLIST UUID="y"><SEARCH_EXPRESSION VERSION="1" QUERY="$IMPORTDATE &gt; 2024"></SEARCH_EXPRESSION></SMARTLIST></NODE>
+</SUBNODES></NODE>
+</PLAYLISTS>
+</NML>"#
+    );
+    let path = tmp.0.join("collection.nml");
+    std::fs::write(&path, nml).unwrap();
+
+    let lib = Library::open_in_memory().unwrap();
+    let rep = lib.import_traktor_nml(&path).unwrap();
+    assert_eq!(rep.tracks, 2);
+    assert_eq!(rep.missing.len(), 1, "{rep:?}");
+    assert_eq!(rep.playlists, 1, "the smart list is left out");
+    assert_eq!(rep.grids, 1);
+
+    let one = lib.track_by_path(&music.join("one.wav")).unwrap().unwrap();
+    assert_eq!(one.title, "One & Only");
+    assert_eq!(one.album, "Night Drives");
+    assert_eq!(one.genre, "Deep House");
+    assert_eq!(one.label, "Moon");
+    assert_eq!(one.comment, "warm-up opener");
+    assert_eq!(one.rating, 4);
+    assert_eq!(one.best_key(), Some(Key::new(9, Mode::Minor)));
+    let g = lib.grid(one.id).unwrap().unwrap();
+    assert!((g.bpm_at(0.0) - 124.0).abs() < 1e-6);
+    assert!((g.frame_at(0.0) - 0.25 * 44_100.0).abs() < 1.0, "the grid starts at the marker");
+
+    let cues = lib.cues(one.id).unwrap();
+    assert_eq!(cues.len(), 3, "{cues:?}");
+    let drop = cues.iter().find(|c| c.label == "Drop").unwrap();
+    assert_eq!((drop.kind, drop.slot), (CueKind::Hot, Some(1)));
+    assert!((drop.seconds - 7.99).abs() < 1e-9);
+    let lp = cues.iter().find(|c| c.slot == Some(2)).unwrap();
+    assert_eq!(lp.label, "", "Traktor's placeholder name is dropped");
+    assert!((lp.loop_seconds.unwrap() - 3.87).abs() < 1e-9);
+    assert!(cues.iter().any(|c| c.kind == CueKind::Main && (c.seconds - 0.25).abs() < 1e-9));
+
+    let gone = lib.track_by_path(&music.join("gone.mp3")).unwrap().unwrap();
+    assert!(gone.missing);
+    assert_eq!(gone.best_key(), Some(Key::new(4, Mode::Major)), "Traktor key 4 is E major");
+
+    let pls = lib.playlists().unwrap();
+    let gigs = pls.iter().find(|p| p.name == "Gigs").unwrap();
+    assert_eq!(gigs.kind, PlaylistKind::Folder);
+    let fri = pls.iter().find(|p| p.name == "Friday").unwrap();
+    assert_eq!(fri.parent, Some(gigs.id));
+    let ids = lib.playlist_tracks(fri.id).unwrap();
+    assert_eq!(ids, vec![gone.id, one.id], "in Traktor's order");
+
+    // Importing again changes nothing that was already set.
+    let again = lib.import_traktor_nml(&path).unwrap();
+    assert_eq!(again.grids, 0);
+    assert_eq!(again.cues, 0);
+    assert_eq!(lib.cues(one.id).unwrap().len(), 3);
+}

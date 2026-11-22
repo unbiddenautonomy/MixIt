@@ -1633,6 +1633,23 @@ pub fn import_rekordbox(app: AppHandle, path: String) -> R<()> {
 }
 
 #[tauri::command]
+pub fn import_traktor(app: AppHandle, path: String) -> R<()> {
+    spawn_library_job(app, "import", move |app, lib, progress| {
+        progress(0, 0, "Reading Traktor collection".into());
+        let r = lib.import_traktor_nml(Path::new(&path)).map_err(err)?;
+        let a = analyse_all(app, lib, progress)?;
+        Ok(format!(
+            "Imported {} tracks, {} playlists, {} cues, {} beat grids ({} files not found). {a}",
+            r.tracks,
+            r.playlists,
+            r.cues,
+            r.grids,
+            r.missing.len()
+        ))
+    })
+}
+
+#[tauri::command]
 pub fn export_rekordbox(state: State<'_, AppState>, path: String, playlist: Option<i64>) -> R<()> {
     let lib = state.library.lock();
     let ids = match playlist {

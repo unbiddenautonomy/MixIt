@@ -16,6 +16,7 @@ pub mod rekordbox;
 pub mod scan;
 mod schema;
 pub mod suggest;
+pub mod traktor;
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};

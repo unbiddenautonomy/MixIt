@@ -194,6 +194,8 @@ export interface Backend {
   addPracticeTracks(): Promise<void>;
 
   importRekordbox(path: string): Promise<void>;
+  /** Imports a Traktor collection.nml: tracks, grids, keys, cues, loops, ratings and playlists. */
+  importTraktor(path: string): Promise<void>;
   exportRekordbox(path: string, playlist?: number | null): Promise<void>;
   exportPlaylist(playlist: number, path: string): Promise<void>;
   importM3u(path: string): Promise<number>;
