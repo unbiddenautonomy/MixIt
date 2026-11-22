@@ -162,11 +162,24 @@ export interface MasterTele {
   clipped: boolean;
 }
 
+/** The library preview player. */
+export interface PreviewTele {
+  loaded: boolean;
+  playing: boolean;
+  position: number;
+  duration: number;
+  /** It played to the end since the previous snapshot. */
+  ended: boolean;
+}
+
+export type PreviewRoute = "headphones" | "speakers";
+
 export interface Telemetry {
   frame: number;
   decks: DeckTele[];
   master: MasterTele;
   mic: MicTele;
+  preview: PreviewTele;
   clockBpm: number;
   masterDeck: number | null;
   recording: boolean;

@@ -11,8 +11,9 @@ use crate::deck::{BLOCK, Deck, DeckEnv};
 use crate::input::{MicChannel, MicCommand};
 use crate::kernels::PlaybackKernels;
 use crate::mixer::{Mixer, ScopeSource, trash_effect};
+use crate::preview::{PreviewRoute, Previewer};
 use crate::sampler::{Sampler, SamplerEnv};
-use crate::telemetry::{Event, EventSink, MasterTelemetry, MicTelemetry, Telemetry};
+use crate::telemetry::{Event, EventSink, MasterTelemetry, MicTelemetry, PreviewTelemetry, Telemetry};
 use crate::trash::{Trash, TrashBin};
 
 #[derive(Clone, Debug)]
@@ -57,6 +58,8 @@ pub struct Engine {
     mixer: Mixer,
     sampler: Sampler,
     mic: MicChannel,
+    preview: Previewer,
+    preview_on: bool,
     quantize: Quantize,
     master: Option<DeckId>,
     clock_explicit: bool,
@@ -115,6 +118,8 @@ impl Engine {
             mixer: Mixer::new(sr, n),
             sampler: Sampler::new(sr, cfg.pads),
             mic: MicChannel::new(sr, cap_tx),
+            preview: Previewer::new(sr, BLOCK),
+            preview_on: false,
             quantize: Quantize::Beat,
             master: None,
             clock_explicit: false,
@@ -186,6 +191,18 @@ impl Engine {
                 master[o + 1] = self.mixer.master_r[i];
                 cue[o] = self.mixer.hp_l[i];
                 cue[o + 1] = self.mixer.hp_r[i];
+            }
+            if self.preview_on {
+                // Straight to the output: never in the master bus, a recording or the meters.
+                let out: &mut [f32] = match self.preview.route {
+                    PreviewRoute::Headphones => &mut *cue,
+                    PreviewRoute::Speakers => &mut *master,
+                };
+                for i in 0..n {
+                    let o = (done + i) * 2;
+                    out[o] = (out[o] + self.preview.out_l[i]).clamp(-1.0, 1.0);
+                    out[o + 1] = (out[o + 1] + self.preview.out_r[i]).clamp(-1.0, 1.0);
+                }
             }
             if self.recording {
                 self.record(n);
@@ -341,6 +358,7 @@ impl Engine {
                 self.sampler.handle(sc, &env, &mut self.trash, &mut self.events);
             }
             Command::Mic(mc) => self.mic.handle(mc, &mut self.trash),
+            Command::Preview(pc) => self.preview.handle(pc, &mut self.trash),
             Command::Global(g) => match g {
                 GlobalCommand::SetQuantize(q) => self.quantize = q,
                 GlobalCommand::SetClockBpm(b) => self.clock_bpm = b.clamp(20.0, 400.0),
@@ -445,6 +463,7 @@ impl Engine {
         self.mic.render(n, &mut self.mixer);
         let mctx = self.master_ctx();
         self.mixer.finish(n, &mctx);
+        self.preview_on = self.preview.render(n);
         if self.mixer.clipped {
             self.mixer.clipped = false;
             self.events.send(Event::Clip);
@@ -509,6 +528,13 @@ impl Engine {
             recorded_frames: self.recorded,
             sampler_playing: self.sampler.playing_mask(),
             sequencer_step: self.sampler.sequencer_step(),
+            preview: PreviewTelemetry {
+                loaded: self.preview.is_loaded(),
+                playing: self.preview.is_playing(),
+                position_frames: self.preview.position(),
+                frames: self.preview.frames(),
+                ended: std::mem::take(&mut self.preview.ended),
+            },
             leaked: self.trash.leaked,
             dropped_commands: self.dropped_commands + self.events.dropped,
             ..Telemetry::default()
@@ -604,6 +630,11 @@ impl Controller {
     /// Sends a mic command.
     pub fn mic(&mut self, cmd: MicCommand) -> Result<(), Command> {
         self.send(Command::Mic(cmd))
+    }
+
+    /// Sends a preview player command.
+    pub fn preview(&mut self, cmd: crate::preview::PreviewCommand) -> Result<(), Command> {
+        self.send(Command::Preview(cmd))
     }
 
     /// Moves captured mic audio (interleaved stereo, see [`MicCommand::Capture`]) into `out`.

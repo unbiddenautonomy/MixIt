@@ -159,6 +159,8 @@ pub struct AppState {
     pub render_cancel: Arc<AtomicBool>,
     pub next_token: Mutex<u64>,
     pub pads: Mutex<Vec<crate::sampler::PadInfo>>,
+    /// The latest preview request: (token, track id).
+    pub preview: Mutex<Option<(u64, i64)>>,
 }
 
 impl AppState {
@@ -183,6 +185,7 @@ impl AppState {
             job_running: Arc::new(AtomicBool::new(false)),
             job_cancel: Arc::new(AtomicBool::new(false)),
             render_cancel: Arc::new(AtomicBool::new(false)),
+            preview: Mutex::new(None),
             next_token: Mutex::new(1),
             pads: Mutex::new(pads),
         };

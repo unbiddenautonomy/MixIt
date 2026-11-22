@@ -12,6 +12,7 @@ import { beginTrackDrag } from "../../lib/dnd";
 import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, suggestionSeed } from "./data";
 import { useTelemetry } from "../../store/telemetry";
+import { PreviewButton } from "./PreviewBar";
 
 const GENERIC_TAGS = new Set(["tempo", "key", "energy", "genre", "keyShift", "rating"]);
 
@@ -86,7 +87,10 @@ export function Suggestions() {
                 className="group flex cursor-default flex-col gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 hover:border-white/[0.12] hover:bg-white/[0.05]"
               >
                 <div className="flex items-start gap-2">
-                  <div className="w-5 pt-0.5 text-right font-mono text-[10px] text-zinc-600">{i + 1}</div>
+                  <div className="relative w-5 pt-0.5 text-right font-mono text-[10px] text-zinc-600">
+                    <span className="group-hover:invisible">{i + 1}</span>
+                    <PreviewButton row={t} className="absolute right-0 top-0" />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px] font-medium text-zinc-100">{t.title}</div>
                     <div className="truncate text-[11px] text-zinc-400">{t.artist}</div>

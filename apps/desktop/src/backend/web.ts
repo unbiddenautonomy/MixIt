@@ -158,6 +158,36 @@ export class WebAudioBackend extends DemoBackend {
     return job.finally(() => this.preparing.delete(id));
   }
 
+  // ---------------------------------------------------------------- preview player
+
+  private previewToken = 0;
+
+  async previewLoad(trackId: number, seconds: number): Promise<number> {
+    const token = ++this.previewToken;
+    const audio = await this.audioFor(this.find(trackId));
+    const duration = audio.length / 2 / this.engine.sampleRate;
+    // A newer preview asked for while this one was being made wins.
+    if (token === this.previewToken) await this.engine.loadPreview(audio, Math.min(seconds, duration));
+    return duration;
+  }
+
+  async previewPlay(on: boolean): Promise<void> {
+    this.engine.send({ op: "previewPlay", on });
+  }
+
+  async previewSeek(seconds: number): Promise<void> {
+    this.engine.send({ op: "previewSeek", seconds });
+  }
+
+  async previewSettings(gain: number, route: T.PreviewRoute): Promise<void> {
+    this.engine.send({ op: "previewSettings", gain, route });
+  }
+
+  async previewClose(): Promise<void> {
+    this.previewToken++;
+    this.engine.send({ op: "previewClose" });
+  }
+
   protected detail(t: DemoTrack): T.TrackDetail {
     const a = this.analysed.get(t.row.id);
     if (!a) return super.detail(t);

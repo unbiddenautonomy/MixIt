@@ -1,6 +1,7 @@
 // App-side commands: the `app.*` registry actions (handled by the UI, not the engine),
 // the coach's one-click fixes, and settings changes.
 import { startAutoDj, stopAutoDj, useAutoDj } from "../store/autodj";
+import { togglePreview, useTrackPreview } from "../store/trackPreview";
 import { toggleSequencer } from "../store/sequencer";
 import { runArrangeCommand } from "../components/arrange/editing";
 import { setAssistantOpen, useAssistant } from "../components/feedback/MixAssistant";
@@ -165,6 +166,15 @@ export function runApp(id: string): boolean {
     case "edit_track":
       openEditor(s.targetDeck);
       return true;
+    case "preview": {
+      // The selected library track; pressing again on the same one pauses it.
+      const lib = useLibrary.getState();
+      const id = lib.selected[0] ?? useTrackPreview.getState().track?.id;
+      const row = lib.rows.find((r) => r.id === id) ?? useTrackPreview.getState().track;
+      if (row) togglePreview(row);
+      else toast.message("Select a track in the library first", { description: "Then press P to hear it in your headphones." });
+      return true;
+    }
     case "workspace":
       s.set({ workspace: WORKSPACES[p[2]] ?? "mix" });
       return true;

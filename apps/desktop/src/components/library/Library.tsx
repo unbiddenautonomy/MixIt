@@ -17,6 +17,7 @@ import { Suggestions } from "./Suggestions";
 import { TrackTable } from "./TrackTable";
 import { AutoDjView } from "../autodj/AutoDj";
 import { LibraryCare } from "./LibraryCare";
+import { PreviewBar } from "./PreviewBar";
 
 export async function addMusicFolder() {
   const dirs = await backend().pickFolders();
@@ -36,6 +37,7 @@ export function Library({ full = false }: { full?: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar />
         {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : <TrackTable />}
+        <PreviewBar />
       </div>
       {source.type !== "autodj" && source.type !== "care" && (full || source.type !== "suggest") && <Inspector />}
     </div>

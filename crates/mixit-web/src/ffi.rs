@@ -250,6 +250,34 @@ pub unsafe extern "C" fn mx_host_load_pad(
     reply(r)
 }
 
+/// Puts audio (taken over) in the preview player and plays it. Options: `{"start": s}`.
+///
+/// # Safety
+/// As [`mx_host_load`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mx_host_load_preview(
+    h: *mut Host,
+    audio: *mut f32,
+    count: usize,
+    opts: *const u8,
+    opts_len: usize,
+) -> i32 {
+    let h = unsafe { &mut *h };
+    let audio = unsafe { take_f32(audio, count) };
+    #[derive(serde::Deserialize)]
+    struct PreviewLoad {
+        #[serde(default)]
+        start: f64,
+    }
+    let r = unsafe { text(opts, opts_len) }
+        .and_then(|t| serde_json::from_str::<PreviewLoad>(t).map_err(|e| e.to_string()))
+        .map(|o| {
+            h.load_preview(audio, o.start);
+            "null".to_string()
+        });
+    reply(r)
+}
+
 // ------------------------------------------------------------------ tools (worker)
 
 /// The action registry and FX names, as the desktop's `app_info` sends them. Replies

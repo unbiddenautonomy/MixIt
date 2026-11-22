@@ -6,7 +6,9 @@ use std::sync::atomic::Ordering;
 
 use mixit_core::{DeckId, Key};
 use mixit_engine::actions::{ActionError, ActionInput};
-use mixit_engine::{Command, CueKind as EngineCue, DeckCommand, DeckTrack, HotCue, TrackAudio};
+use mixit_engine::{
+    Command, CueKind as EngineCue, DeckCommand, DeckTrack, HotCue, PreviewCommand, PreviewRoute, TrackAudio,
+};
 use mixit_library::suggest::{EnergyDirection, SuggestOptions};
 use mixit_library::{Cue, CueKind, Library, PlaylistKind, TrackEdit};
 use mixit_project::MixProject;
@@ -733,6 +735,69 @@ pub fn library_duplicates(state: State<'_, AppState>) -> R<Vec<Vec<TrackRow>>> {
 pub fn library_merge(app: AppHandle, state: State<'_, AppState>, keep: i64, others: Vec<i64>) -> R<()> {
     state.library.lock().merge_tracks(keep, &others).map_err(err)?;
     let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+// ------------------------------------------------------------------ preview player
+
+/// Puts a library track in the preview player and starts it at `seconds`. Returns the
+/// track's length. A newer request made while this one decodes wins.
+#[tauri::command]
+pub async fn preview_load(app: AppHandle, track_id: i64, seconds: f64) -> R<f64> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let token = state.token();
+        *state.preview.lock() = Some((token, track_id));
+        let path = state.library.lock().track(track_id).map_err(err)?.path;
+        if !path.is_file() {
+            return Err(format!("file not found: {}", path.display()));
+        }
+        let sr = state.audio.lock().sample_rate;
+        let cache = mixit_io::DecodeCache::new(&state.paths.cache).ok();
+        let loaded = mixit_io::load_track(&path, sr, cache.as_ref()).map_err(err)?;
+        let audio = Arc::new(TrackAudio::new(sr, loaded.data));
+        let len = audio.seconds();
+        if state.preview.lock().is_none_or(|(t, _)| t != token) {
+            return Ok(len);
+        }
+        let mut a = state.audio.lock();
+        let start = seconds.clamp(0.0, len) * sr as f64;
+        a.send(Command::Preview(PreviewCommand::Load(audio, start)));
+        a.send(Command::Preview(PreviewCommand::Play(true)));
+        Ok(len)
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn preview_play(state: State<'_, AppState>, on: bool) -> R<()> {
+    state.audio.lock().send(Command::Preview(PreviewCommand::Play(on)));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn preview_seek(state: State<'_, AppState>, seconds: f64) -> R<()> {
+    let mut a = state.audio.lock();
+    let sr = a.sample_rate as f64;
+    a.send(Command::Preview(PreviewCommand::Seek(seconds.max(0.0) * sr)));
+    Ok(())
+}
+
+/// Preview volume (0..2, linear) and where it is heard ("headphones" or "speakers").
+#[tauri::command]
+pub fn preview_settings(state: State<'_, AppState>, gain: f32, route: String) -> R<()> {
+    let mut a = state.audio.lock();
+    a.send(Command::Preview(PreviewCommand::SetGain(gain)));
+    let r = if route == "speakers" { PreviewRoute::Speakers } else { PreviewRoute::Headphones };
+    a.send(Command::Preview(PreviewCommand::SetRoute(r)));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn preview_close(state: State<'_, AppState>) -> R<()> {
+    *state.preview.lock() = None;
+    state.audio.lock().send(Command::Preview(PreviewCommand::Unload));
     Ok(())
 }
 

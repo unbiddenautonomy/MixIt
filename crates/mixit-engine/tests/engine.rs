@@ -768,3 +768,43 @@ fn key_pads_play_the_cue_in_another_key() {
     r.run(4_800);
     assert_eq!(r.tel().decks[0].key_shift, 0.0);
 }
+
+#[test]
+fn preview_plays_in_the_headphones_only() {
+    let mut r = Rig::new();
+    let x = testkit::sine(SR as usize * 2, 440.0, SR as f32, 0.25);
+    r.send(Command::Preview(PreviewCommand::Load(Arc::new(TrackAudio::from_mono(SR, &x)), 0.0)));
+    r.send(Command::Preview(PreviewCommand::Play(true)));
+    r.send(Command::Global(GlobalCommand::SetRecording(true)));
+    let mut m = vec![0.0f32; 1024];
+    let mut c = vec![0.0f32; 1024];
+    let (mut master_peak, mut cue_peak) = (0.0f32, 0.0f32);
+    for _ in 0..40 {
+        assert_no_alloc::assert_no_alloc(|| r.engine.process(&mut m, &mut c));
+        master_peak = master_peak.max(m.iter().fold(0.0, |a, x| a.max(x.abs())));
+        cue_peak = cue_peak.max(c.iter().fold(0.0, |a, x| a.max(x.abs())));
+    }
+    assert!(cue_peak > 0.15, "heard in the headphones: {cue_peak}");
+    assert!(master_peak < 1e-6, "not on the speakers: {master_peak}");
+    let t = r.tel();
+    assert!(t.preview.loaded && t.preview.playing);
+    assert!((t.preview.position_frames - 40.0 * 512.0).abs() < 1.0);
+    assert!(t.master.peak[0] < 1e-6, "master meters stay quiet");
+
+    // On the speakers instead: the main output, but still not in the recording.
+    r.send(Command::Preview(PreviewCommand::SetRoute(PreviewRoute::Speakers)));
+    let mut rec_peak = 0.0f32;
+    master_peak = 0.0;
+    for _ in 0..10 {
+        r.engine.process(&mut m, &mut c);
+        master_peak = master_peak.max(m.iter().fold(0.0, |a, x| a.max(x.abs())));
+        let mut buf = Vec::new();
+        r.ctl.drain_recorder(&mut buf);
+        rec_peak = rec_peak.max(buf.iter().fold(0.0, |a, x| a.max(x.abs())));
+    }
+    assert!(master_peak > 0.15);
+    assert!(rec_peak < 1e-6, "recording {rec_peak}");
+    r.send(Command::Preview(PreviewCommand::Unload));
+    r.run(512);
+    assert!(!r.tel().preview.loaded);
+}

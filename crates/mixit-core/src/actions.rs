@@ -1377,6 +1377,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         None,
     );
     b.add(
+        "app.preview",
+        "Preview track",
+        ag,
+        ActionKind::Trigger,
+        "Plays the selected library track in your headphones without loading it on a deck, so you can check it while the music plays. Press again to stop.",
+        true,
+        Some("P"),
+        Some("preview"),
+    );
+    b.add(
         "app.arrange_loop",
         "Loop playback",
         ag,

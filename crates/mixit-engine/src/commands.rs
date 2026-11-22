@@ -36,6 +36,7 @@ pub enum Command {
     Fx(FxTarget, usize, FxCommand),
     Sampler(SamplerCommand),
     Mic(crate::input::MicCommand),
+    Preview(crate::preview::PreviewCommand),
     Global(GlobalCommand),
 }
 

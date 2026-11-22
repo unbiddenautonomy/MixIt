@@ -90,10 +90,15 @@ class MixitProcessor extends AudioWorkletProcessor {
       const [p, l] = this.text(m.json);
       code = this.e.mx_host_call(this.h, p, l);
       this.e.mx_free_bytes(p, l);
-    } else if (m.type === "load" || m.type === "loadPad") {
+    } else if (m.type === "load" || m.type === "loadPad" || m.type === "loadPreview") {
       const a = this.audio(m.audio);
       const [p, l] = this.text(m.json);
-      code = m.type === "load" ? this.e.mx_host_load(this.h, m.deck, a, m.audio.length, p, l) : this.e.mx_host_load_pad(this.h, m.pad, a, m.audio.length, p, l);
+      code =
+        m.type === "load"
+          ? this.e.mx_host_load(this.h, m.deck, a, m.audio.length, p, l)
+          : m.type === "loadPad"
+            ? this.e.mx_host_load_pad(this.h, m.pad, a, m.audio.length, p, l)
+            : this.e.mx_host_load_preview(this.h, a, m.audio.length, p, l);
       this.e.mx_free_bytes(p, l);
     } else if (m.type === "mic") {
       this.mic = !!m.on;
