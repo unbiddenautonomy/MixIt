@@ -26,7 +26,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 **Understand your music**
 - Analysis of tempo and beatgrid (including drifting live recordings), downbeats, key (with confidence and an alternative), tuning, loudness and true peak, energy over time, song sections (intro, build, drop, breakdown, outro) and suggested mix-in and mix-out points.
 - Ranked next-track suggestions with plain-language reasons: tempo, Camelot key compatibility (with key shifts that make a track fit), energy direction, genre, sound and what you played next in past sets.
-- Vocal detection: where each track has singing or rapping, shown on the decks, searchable (`vocals:no` for instrumentals) and used by the coach to warn when two voices clash.
+- Vocal detection: where each track has singing or rapping, shown on the decks, searchable (`vocals:no` for instrumentals) and used by the coach to warn when two voices clash, and by Mix it and Auto DJ to start a transition between sung lines instead of cutting one off.
 - "Sounds like": a sound profile from analysis (tone colour, brightness, bass/mid/high balance, punch, kick, snare and hat density, groove) finds the tracks that sound most alike, whatever their tempo or key; `like:42` in a search or smart playlist does the same.
 - A coach that explains what is happening while you mix and offers one-click fixes, explain mode on every control, and Easy and Pro views.
 

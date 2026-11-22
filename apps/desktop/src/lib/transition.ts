@@ -7,6 +7,7 @@ import { useApp } from "../store/app";
 import { useTelemetry } from "../store/telemetry";
 import { press, release, setOn, setValue } from "./actions";
 import { singingAt } from "./coach";
+import { vocalClearStart } from "./vocalTiming";
 
 /** How far the outgoing deck's mids dip while both decks sing during a blend (dB). */
 export const VOCAL_DIP_DB = -12;
@@ -85,7 +86,17 @@ export async function startTransition(from: number, to: number, kind: Transition
   // outgoing track would run out first, the next bar has to do.
   const bpb = df.beatsPerBar || 4;
   const nextBar = Math.ceil((df.beat + 0.25) / bpb) * bpb;
-  const startBeat = opts.atBeat !== undefined && opts.atBeat > df.beat ? opts.atBeat : (phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar);
+  const planned = opts.atBeat !== undefined && opts.atBeat > df.beat;
+  let startBeat = planned ? opts.atBeat! : (phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar);
+  if (!planned) {
+    // Don't start over the middle of a sung line: wait up to a phrase for it to end.
+    const clear = mixItStart(useApp.getState().decks[from]?.detail.vocals, df, startBeat, beats, nextBar);
+    if (clear.moved) {
+      startBeat = clear.start;
+      const wait = Math.max(0, Math.round(((startBeat - df.beat) * 60) / Math.max(1, df.bpm)));
+      toast(`Deck ${a} is singing, so the mix waits for the line to end: it starts in ${wait} s.`);
+    }
+  }
   const echoBeats = kind === "echoOut" ? Math.min(beats, 8) : 0;
   const run: Running = { from, to, kind, beats: Math.max(beats, 1), startBeat, progress: 0 };
   useTransition.getState().set(run);
@@ -201,6 +212,32 @@ export async function startTransition(from: number, to: number, kind: Transition
   stamp = performance.now();
   last = {};
   raf = requestAnimationFrame(step);
+}
+
+/**
+ * Where Mix it starts once the outgoing deck's singing is taken into account: the planned
+ * start, or up to one phrase later when that gets the transition clear of a sung line.
+ * `d` is the outgoing deck's telemetry; it never starts before `earliest`.
+ */
+export function mixItStart(
+  vocals: [number, number][] | undefined,
+  d: { beat: number; position: number; baseBpm: number; bpm: number; remaining: number; beatsPerBar: number },
+  candidate: number,
+  beats: number,
+  earliest: number,
+) {
+  const bpb = d.beatsPerBar || 4;
+  const perBeat = 60 / Math.max(1, d.baseBpm);
+  return vocalClearStart({
+    regions: vocals,
+    secondsAt: (b) => d.position + (b - d.beat) * perBeat,
+    candidate,
+    beats,
+    beatsPerBar: bpb,
+    endBeat: d.beat + (d.remaining * d.bpm) / 60,
+    earliest: Math.max(candidate, earliest),
+    maxMove: bpb * 8,
+  });
 }
 
 /**

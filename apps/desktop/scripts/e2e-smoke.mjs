@@ -280,6 +280,40 @@ try {
     expect(decks.every((d) => d[1] > 0), "a practice track without vocal parts");
   });
 
+  await step("Mix it waits for deck A's sung line to end", async () => {
+    const r = await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      const d = window.mixit.useApp.getState().decks[0].detail;
+      const period = d.beatPeriod;
+      // A line is sung over the first half of the drop: a bar before the drop, the next
+      // phrase (the drop itself) lands on the line, and the one after it is where it ends.
+      const drop = d.sections.find((s) => s.label === "Drop");
+      const line = d.vocals.find(([s]) => Math.abs(s - (drop.start + 2 * period)) < 0.01);
+      if (!window.mixit.useTelemetry.getState().t.decks[0].playing) {
+        await b.action("deck.A.play", { type: "press" });
+        await b.action("deck.A.play", { type: "release" });
+      }
+      await b.seek(0, drop.start - 4 * period);
+      await new Promise((ok) => setTimeout(ok, 300));
+      const { startTransition, cancelTransition, useTransition } = await import("/src/lib/transition.ts");
+      await startTransition(0, 1, "blend", 16);
+      const t = window.mixit.useTelemetry.getState().t.decks[0];
+      const start = useTransition.getState().running?.startBeat;
+      const startSeconds = t.position + ((start - t.beat) * 60) / t.baseBpm;
+      cancelTransition();
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+      return { start, startSeconds, lineEnd: line[1], playing: t.playing };
+    });
+    expect(r.playing, "deck A was not playing");
+    expect(Math.abs(r.startSeconds - r.lineEnd) < 1.5, `the mix starts at ${r.startSeconds.toFixed(2)} s, the line ends at ${r.lineEnd.toFixed(2)} s`);
+    const said = await page
+      .waitForFunction(() => /Deck A is singing, so the mix waits/.test(document.querySelector("[data-sonner-toaster]")?.textContent ?? ""), null, { timeout: 3000 })
+      .then(() => true)
+      .catch(() => page.evaluate(() => document.querySelector("[data-sonner-toaster]")?.textContent ?? "no toaster"));
+    expect(said === true, `no message about waiting; toasts: ${said}`);
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
