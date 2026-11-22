@@ -5,6 +5,8 @@
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
 import { transition } from "../lib/setFlow";
+import { searchTerms } from "../lib/search";
+export { searchTerms };
 import { applyEdits, DEMO_SR, demoSound, viewOf } from "./demoSound";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 import { toProjectKey } from "../lib/arrangeOps";
@@ -1719,11 +1721,6 @@ export function applyDemoGrid(t: DemoTrack, e: T.GridEdit, locked: Set<number>) 
 }
 
 /** A subset of the library search language, enough for the demo. */
-/** Splits a search into terms; double quotes keep spaces inside one (`tag:"peak time"`). */
-export function searchTerms(query: string): string[] {
-  return query.match(/(?:[^\s"]+|"[^"]*"?)+/g) ?? [];
-}
-
 export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: number) => string[] = () => []): T.TrackRow[] {
   const terms = searchTerms(query.trim());
   let out = rows;
@@ -1737,6 +1734,7 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
     const num = (v: number | null, spec: string) => {
       if (v == null) return false;
       if (spec.startsWith("~")) return Math.abs(v / Number(spec.slice(1)) - 1) <= 0.06 || Math.abs(v / 2 / Number(spec.slice(1)) - 1) <= 0.06 || Math.abs((v * 2) / Number(spec.slice(1)) - 1) <= 0.06;
+      if (spec.endsWith("+")) return v >= Number(spec.slice(0, -1));
       if (spec.startsWith(">=")) return v >= Number(spec.slice(2));
       if (spec.startsWith("<=")) return v <= Number(spec.slice(2));
       if (spec.startsWith(">")) return v > Number(spec.slice(1));
@@ -1782,8 +1780,18 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
         f = (t) => tagsOf(t.id).some((n) => n.toLowerCase() === val.toLowerCase());
         break;
       case "played":
-        f = (t) => (val === "never" ? t.playCount === 0 : t.playCount > 0);
+      case "added": {
+        // never, <Nd (within N days), >Nd (not within N days, never included for played).
+        const m = val.match(/^([<>])(\d+)([hdwmy]?)$/);
+        const unit: Record<string, number> = { h: 3600, "": 86400, d: 86400, w: 604800, m: 2592000, y: 31536000 };
+        const at = (t: T.TrackRow) => (field === "played" ? t.lastPlayed : t.addedAt);
+        if (val === "never") f = (t) => (field === "played" ? t.playCount === 0 : false);
+        else if (m) {
+          const since = Date.now() / 1000 - Number(m[2]) * unit[m[3]];
+          f = m[1] === "<" ? (t) => (at(t) ?? 0) >= since && at(t) != null : (t) => at(t) == null || at(t)! < since;
+        } else f = (t) => (field === "played" ? t.playCount > 0 : true);
         break;
+      }
       case "sort": {
         const k = val.replace(/^-/, "") as keyof T.TrackRow;
         const dir = val.startsWith("-") ? -1 : 1;
@@ -1800,6 +1808,7 @@ export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: numbe
       case "genre":
       case "label":
       case "album":
+      case "comment":
         f = (t) => String(t[field as "artist"]).toLowerCase().includes(val.toLowerCase());
         break;
       default: {

@@ -19,6 +19,7 @@ import { StudioPanel } from "./components/studio/StudioPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
+import { SmartPlaylistHost } from "./components/library/SmartPlaylistDialog";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TrackEditor } from "./components/editor/TrackEditor";
 import { SoundEditor } from "./components/editor/SoundEditor";
@@ -161,6 +162,7 @@ export function App() {
       <AutomixDialog />
       <StudioPanel />
       <DialogHost />
+      <SmartPlaylistHost />
       <Toaster theme={theme} position="bottom-right" richColors closeButton />
     </Tooltip.Provider>
   );

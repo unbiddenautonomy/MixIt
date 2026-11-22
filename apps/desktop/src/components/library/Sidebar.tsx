@@ -14,6 +14,7 @@ import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
 import { refreshPlaylists, refreshRows, refreshTags, tagTracks } from "./data";
 import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
+import { editSmartPlaylist } from "./SmartPlaylistDialog";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 
@@ -70,7 +71,7 @@ export function Sidebar() {
           <IconBtn title="New playlist" onClick={() => setCreating("list")}>
             <Plus size={12} />
           </IconBtn>
-          <IconBtn title="New smart playlist (from a search)" onClick={() => setCreating("smart")}>
+          <IconBtn title="New smart playlist (fills itself with every track that matches your rules)" onClick={() => void newSmart()}>
             <Wand2 size={12} />
           </IconBtn>
           <IconBtn title="New folder" onClick={() => setCreating("folder")}>
@@ -108,6 +109,20 @@ export function Sidebar() {
       ))}
     </nav>
   );
+}
+
+/** Makes a smart playlist with the rule editor, starting from what is typed in the search box. */
+export async function newSmart() {
+  const r = await editSmartPlaylist({ title: "New smart playlist", query: useLibrary.getState().query, confirm: "Make playlist" });
+  if (!r) return;
+  try {
+    const id = await backend().createPlaylist(r.name, "smart", { query: r.query });
+    await refreshPlaylists();
+    useLibrary.getState().set({ source: { type: "playlist", id }, query: "", selected: [] });
+    refreshRows();
+  } catch (e) {
+    toast.error(String(e));
+  }
 }
 
 function IconBtn({ title, onClick, children }: { title: string; onClick: () => void; children: ReactNode }) {
@@ -191,22 +206,19 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
               <ContextMenu.Item
                 className="menu-item"
                 onSelect={async () => {
-                  const q = await askText({
-                    title: `Search for “${p.name}”`,
-                    initial: p.query ?? "",
-                    placeholder: "bpm:120-128 key:~8A energy:6+",
-                    help: "The playlist always holds every track that matches. Examples: genre:house played:never, rating:4+, bpm:~124.",
-                    confirm: "Update playlist",
-                    code: true,
-                  });
-                  if (q != null) {
-                    await backend().setPlaylistQuery(p.id, q);
+                  const r = await editSmartPlaylist({ title: `Edit “${p.name}”`, name: p.name, query: p.query ?? "", confirm: "Update playlist" });
+                  if (!r) return;
+                  try {
+                    if (r.name !== p.name) await backend().renamePlaylist(p.id, r.name);
+                    if (r.query !== p.query) await backend().setPlaylistQuery(p.id, r.query);
                     await refreshPlaylists();
                     refreshRows();
+                  } catch (e) {
+                    toast.error(String(e));
                   }
                 }}
               >
-                Edit search…
+                Edit rules…
               </ContextMenu.Item>
             )}
             {p.kind === "list" && (

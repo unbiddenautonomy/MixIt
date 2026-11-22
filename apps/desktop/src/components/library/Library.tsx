@@ -2,7 +2,7 @@
 // the inspector on the right.
 import * as Popover from "@radix-ui/react-popover";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
-import { FolderPlus, HelpCircle, Import, Loader2, Search, Upload, X, Zap } from "lucide-react";
+import { FolderPlus, HelpCircle, Import, Loader2, Search, Upload, Wand2, X, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -12,7 +12,7 @@ import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { refreshAll, refreshPlaylists, refreshRows, refreshStats } from "./data";
 import { Inspector } from "./Inspector";
-import { Sidebar } from "./Sidebar";
+import { newSmart, Sidebar } from "./Sidebar";
 import { Suggestions } from "./Suggestions";
 import { TrackTable } from "./TrackTable";
 import { AutoDjView } from "../autodj/AutoDj";
@@ -124,6 +124,11 @@ function Toolbar() {
             </button>
           )}
           <QueryHelp />
+          {query.trim() && source.type === "all" && (
+            <button type="button" onClick={() => void newSmart()} title="Make a smart playlist from this search: it keeps every track that matches, now and later" aria-label="Save search as a smart playlist" className="absolute -right-7 flex size-6 items-center justify-center rounded-md text-zinc-500 hover:bg-white/10 hover:text-zinc-100" data-testid="save-smart">
+              <Wand2 size={13} />
+            </button>
+          )}
         </div>
       )}
       <div className="ml-auto flex items-center gap-1.5">
@@ -272,7 +277,7 @@ function QueryHelp() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">The same language makes smart playlists.</p>
+          <p className="mt-2 text-[11px] text-zinc-500">The same language makes smart playlists: press the wand beside the search to keep a search as one.</p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
