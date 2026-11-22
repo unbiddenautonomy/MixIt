@@ -37,6 +37,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Duplicate detection, relocation of moved files, and writing details into the files' tags.
 
 **Arrange and render**
+- Build a set: pick a length and an energy shape (warm-up, build to the peak, peak time, journey, cool-down) and MixIt chooses the tracks from your collection, a playlist or a search, every change mixable.
 - Automix turns a playlist into a finished mix project: smooth order for keys and energy, phrase-aligned transitions, tempo ramps and key matching.
 - A timeline of clips over the tempo map with automation, then render to WAV or FLAC.
 

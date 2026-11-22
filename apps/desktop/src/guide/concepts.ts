@@ -500,6 +500,18 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "build-a-set",
+    title: "Building a set for a night",
+    group: "Your library",
+    summary: "Tell MixIt how long you play and how the energy should move: it picks the tracks, every change easy to mix.",
+    body: [
+      "Press the rising-line button beside Playlists (or right-click a playlist or a track) and choose Build a set. Pick how long you play, where the tracks come from (your whole collection, one playlist, or a search like genre:house) and the shape of the night.",
+      "Warm-up starts calm and rises gently, for opening a night. Build to the peak goes from easy to full power. Peak time stays high with a short breather. Journey rises to a peak two-thirds in and comes back down. Cool-down closes a night. Steady keeps the level.",
+      "MixIt chooses each next track so the tempo is close, the keys fit and the sound flows, while the energy follows your shape. It counts each track as about four-fifths of its length, because the ends overlap when you mix.",
+      "The chart shows each track's energy against the shape. Try another gives a different set from the same choices; Save as playlist keeps it, ready for Automix, Auto DJ or the USB stick.",
+    ],
+  },
+  {
     id: "sounds-like",
     title: "Finding tracks that sound alike",
     group: "Your library",

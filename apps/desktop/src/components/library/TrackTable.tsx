@@ -27,6 +27,7 @@ import { tagStyle } from "../../lib/tags";
 import { isShown, resetColumns, setShown, setWidth, track, useColumns, type ColumnLevel } from "../../lib/columns";
 import { editTracksWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
 import { Cover } from "../ui/Cover";
+import { openBuildSet } from "./BuildSetDialog";
 
 interface Column {
   key: string;
@@ -476,6 +477,9 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
           </ContextMenu.Item>
           <ContextMenu.Item className="menu-item" disabled={track.analysis !== "done"} onSelect={() => showSoundsLike(track)} data-testid="menu-sounds-like">
             Find tracks that sound like this
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => openBuildSet({ seed: track })}>
+            Build a set starting with this…
           </ContextMenu.Item>
           {backend().kind !== "web" && (
             <ContextMenu.Item className="menu-item" onSelect={() => void writeTagsToFiles(ids().filter((id) => !useLibrary.getState().rows.find((r) => r.id === id)?.missing))}>

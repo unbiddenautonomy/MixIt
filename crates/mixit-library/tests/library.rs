@@ -992,3 +992,44 @@ fn suggestions_remember_what_you_played_next() {
     assert!(s[0].reasons.contains(&mixit_library::suggest::Reason::MixedBefore(2)));
     assert!(!s[1].reasons.iter().any(|r| matches!(r, mixit_library::suggest::Reason::MixedBefore(_))));
 }
+
+#[test]
+fn builds_a_set_from_a_search() {
+    use mixit_library::setbuild::{BuildOptions, SetShape};
+    let lib = Library::open_in_memory().unwrap();
+    let keys = ["8A", "9A", "8B", "7A", "9B", "10A"];
+    let mut house = Vec::new();
+    for i in 0..24 {
+        house.push(add(
+            &lib,
+            &format!("House {i}"),
+            &format!("Artist {}", i % 5),
+            "House",
+            122.0 + (i % 5) as f64,
+            keys[i % 6],
+            3 + (i % 6) as u8,
+        ));
+    }
+    let techno = add(&lib, "Techno", "Other", "Techno", 124.0, "8A", 6);
+
+    let ids = lib
+        .build_set("genre:house", None, &BuildOptions { minutes: 40.0, shape: SetShape::Build, ..Default::default() })
+        .unwrap();
+    // 300 s tracks, 80 % heard: 10 tracks fill 40 minutes.
+    assert_eq!(ids.len(), 10, "{ids:?}");
+    assert!(!ids.contains(&techno), "only tracks the search finds");
+    assert!(ids.iter().all(|id| house.contains(id)));
+
+    // A seed opens the set even from outside the search.
+    let ids = lib
+        .build_set("genre:house", None, &BuildOptions { minutes: 20.0, seed: Some(techno), ..Default::default() })
+        .unwrap();
+    assert_eq!(ids[0], techno);
+
+    // Within a playlist.
+    let list = lib.create_playlist("Crate", PlaylistKind::List, None, None).unwrap();
+    lib.set_playlist_tracks(list, &house[..6]).unwrap();
+    let ids = lib.build_set("", Some(list), &BuildOptions { minutes: 120.0, ..Default::default() }).unwrap();
+    assert!(!ids.is_empty() && ids.len() <= 6);
+    assert!(ids.iter().all(|id| house[..6].contains(id)));
+}
