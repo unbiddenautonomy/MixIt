@@ -784,6 +784,72 @@ pub fn library_merge(app: AppHandle, state: State<'_, AppState>, keep: i64, othe
     Ok(())
 }
 
+// ------------------------------------------------------------------ your own tags
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagDto {
+    pub id: i64,
+    pub name: String,
+    pub category: String,
+    pub color: Option<u32>,
+    /// Tracks that carry it.
+    pub count: i64,
+}
+
+/// Every tag in the library with its number of tracks.
+#[tauri::command]
+pub fn tags_list(state: State<'_, AppState>) -> R<Vec<TagDto>> {
+    let tags = state.library.lock().tag_counts().map_err(err)?;
+    Ok(tags
+        .into_iter()
+        .map(|(t, count)| TagDto { id: t.id, name: t.name, category: t.category, color: t.color, count })
+        .collect())
+}
+
+/// The tags of each of these tracks, as (track id, names); tracks without tags are left out.
+#[tauri::command]
+pub fn tags_of(state: State<'_, AppState>, ids: Vec<i64>) -> R<Vec<(i64, Vec<String>)>> {
+    state.library.lock().tags_of(&ids).map_err(err)
+}
+
+/// Puts the tag `name` on the tracks (made in `category` if new), or takes it off.
+#[tauri::command]
+pub fn tags_set(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    ids: Vec<i64>,
+    name: String,
+    category: String,
+    on: bool,
+) -> R<()> {
+    state.library.lock().tag_by_name(&name, &category, &ids, on).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+/// Renames a tag (merging it into one that already has the name).
+#[tauri::command]
+pub fn tag_rename(app: AppHandle, state: State<'_, AppState>, id: i64, name: String) -> R<i64> {
+    let kept = state.library.lock().rename_tag(id, &name).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(kept)
+}
+
+#[tauri::command]
+pub fn tag_info(app: AppHandle, state: State<'_, AppState>, id: i64, category: String, color: Option<u32>) -> R<()> {
+    state.library.lock().set_tag_info(id, &category, color).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn tag_delete(app: AppHandle, state: State<'_, AppState>, id: i64) -> R<()> {
+    state.library.lock().delete_tag(id).map_err(err)?;
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
 // ------------------------------------------------------------------ preview player
 
 /// Puts a library track in the preview player and starts it at `seconds`. Returns the

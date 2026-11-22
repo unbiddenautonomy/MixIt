@@ -270,6 +270,14 @@ export class DemoBackend implements Backend {
       { id: 3, parent: null, name: "Fresh & unplayed", kind: "smart", query: "played:never energy:>5", count: 0, duration: 0, tracks: [] },
       { id: 4, parent: null, name: "Around 124", kind: "smart", query: "bpm:~124", count: 0, duration: 0, tracks: [] },
     ];
+    // A few tags so the tag features have something to show.
+    const seed: [string, string, number[]][] = [
+      ["Vocal", "Vocals", [2, 5, 9, 14, 21, 30]],
+      ["Peak time", "Moment", [3, 22, 24, 27, 33]],
+      ["Warm-up", "Moment", [1, 4, 6, 8]],
+      ["Dark", "Vibe", [3, 11, 27, 40]],
+    ];
+    for (const [name, category, ids] of seed) this.tagIds(name, category, ids, true);
     setInterval(() => this.tick(), 16);
   }
 
@@ -851,7 +859,7 @@ export class DemoBackend implements Backend {
   }
 
   async search(query: string, limit = 5000): Promise<T.TrackRow[]> {
-    return demoSearch(this.tracks.map((t) => t.row), query).slice(0, limit);
+    return demoSearch(this.tracks.map((t) => t.row), query, (id) => this.tagNames(id)).slice(0, limit);
   }
 
   async stats(): Promise<T.LibraryStats> {
@@ -972,6 +980,86 @@ export class DemoBackend implements Backend {
 
   async previewClose(): Promise<void> {
     this.previewState = null;
+  }
+
+  // ---------------------------------------------------------------- your own tags
+
+  protected tagsData: { id: number; name: string; category: string; color: number | null }[] = [];
+  protected trackTagIds = new Map<number, Set<number>>();
+  private nextTagId = 1;
+
+  private tagNamed(name: string) {
+    return this.tagsData.find((t) => t.name.toLowerCase() === name.toLowerCase());
+  }
+
+  /** The tag names of a track, ordered as the library orders them (category, then name). */
+  protected tagNames(trackId: number): string[] {
+    const ids = this.trackTagIds.get(trackId);
+    if (!ids?.size) return [];
+    return this.tagsData
+      .filter((t) => ids.has(t.id))
+      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .map((t) => t.name);
+  }
+
+  private tagIds(name: string, category: string, ids: number[], on: boolean) {
+    const n = name.trim();
+    if (!n) throw new Error("A tag needs a name.");
+    let tag = this.tagNamed(n);
+    if (!tag) {
+      tag = { id: this.nextTagId++, name: n, category, color: null };
+      this.tagsData.push(tag);
+    }
+    for (const id of ids) {
+      const set = this.trackTagIds.get(id) ?? new Set<number>();
+      if (on) set.add(tag.id);
+      else set.delete(tag.id);
+      this.trackTagIds.set(id, set);
+    }
+    return tag.id;
+  }
+
+  async listTags(): Promise<T.TagDto[]> {
+    return this.tagsData
+      .map((t) => ({ ...t, count: [...this.trackTagIds.values()].filter((s) => s.has(t.id)).length }))
+      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }
+
+  async tagsOf(ids: number[]): Promise<[number, string[]][]> {
+    return ids.map((id) => [id, this.tagNames(id)] as [number, string[]]).filter(([, n]) => n.length > 0);
+  }
+
+  async setTag(ids: number[], name: string, on: boolean, category = ""): Promise<void> {
+    this.tagIds(name, category, ids, on);
+    this.emit("library-changed", null);
+  }
+
+  async renameTag(id: number, name: string): Promise<number> {
+    const n = name.trim();
+    if (!n) throw new Error("A tag needs a name.");
+    const tag = this.tagsData.find((t) => t.id === id);
+    if (!tag) throw new Error("No such tag.");
+    const other = this.tagNamed(n);
+    let kept = id;
+    if (other && other.id !== id) {
+      for (const s of this.trackTagIds.values()) if (s.delete(id)) s.add(other.id);
+      this.tagsData = this.tagsData.filter((t) => t.id !== id);
+      kept = other.id;
+    } else tag.name = n;
+    this.emit("library-changed", null);
+    return kept;
+  }
+
+  async tagInfo(id: number, category: string, color: number | null): Promise<void> {
+    const tag = this.tagsData.find((t) => t.id === id);
+    if (tag) Object.assign(tag, { category: category.trim(), color });
+    this.emit("library-changed", null);
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    this.tagsData = this.tagsData.filter((t) => t.id !== id);
+    for (const s of this.trackTagIds.values()) s.delete(id);
+    this.emit("library-changed", null);
   }
 
   async missingTracks(): Promise<T.TrackRow[]> {
@@ -1590,14 +1678,20 @@ export function applyDemoGrid(t: DemoTrack, e: T.GridEdit, locked: Set<number>) 
 }
 
 /** A subset of the library search language, enough for the demo. */
-export function demoSearch(rows: T.TrackRow[], query: string): T.TrackRow[] {
-  const terms = query.trim().split(/\s+/).filter(Boolean);
+/** Splits a search into terms; double quotes keep spaces inside one (`tag:"peak time"`). */
+export function searchTerms(query: string): string[] {
+  return query.match(/(?:[^\s"]+|"[^"]*"?)+/g) ?? [];
+}
+
+export function demoSearch(rows: T.TrackRow[], query: string, tagsOf: (id: number) => string[] = () => []): T.TrackRow[] {
+  const terms = searchTerms(query.trim());
   let out = rows;
   let sort: ((a: T.TrackRow, b: T.TrackRow) => number) | null = null;
   for (const raw of terms) {
     const neg = raw.startsWith("-");
     const term = neg ? raw.slice(1) : raw;
-    const [field, val] = term.includes(":") ? term.split(/:(.*)/s) : [null, term];
+    const [field, quotedVal] = term.includes(":") ? term.split(/:(.*)/s) : [null, term];
+    const val = quotedVal.replace(/^"|"$/g, "");
     let f: (t: T.TrackRow) => boolean;
     const num = (v: number | null, spec: string) => {
       if (v == null) return false;
@@ -1642,6 +1736,10 @@ export function demoSearch(rows: T.TrackRow[], query: string): T.TrackRow[] {
         };
         break;
       }
+      case "tag":
+      case "#":
+        f = (t) => tagsOf(t.id).some((n) => n.toLowerCase() === val.toLowerCase());
+        break;
       case "played":
         f = (t) => (val === "never" ? t.playCount === 0 : t.playCount > 0);
         break;

@@ -14,6 +14,7 @@ import { Btn } from "../ui/Button";
 import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, writeTagsToFiles } from "./data";
 import { BatchInspector } from "./BatchInspector";
+import { TagEditor } from "./TagEditor";
 
 export function Inspector() {
   const selected = useLibrary((s) => s.selected);
@@ -95,6 +96,10 @@ function OneTrack() {
       </div>
 
       {d.energyCurve.length > 1 && <EnergyCurve d={d} />}
+
+      <Group title="Your tags">
+        <TagEditor ids={[t.id]} />
+      </Group>
 
       {d.sections.length > 0 && (
         <Group title="Sections">

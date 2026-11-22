@@ -2,21 +2,23 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Wand2 } from "lucide-react";
+import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Tag, Wand2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
 import { ask, askText } from "../shell/Dialogs";
-import type { PlaylistDto } from "../../backend/types";
+import type { PlaylistDto, TagDto } from "../../backend/types";
 import { clock, plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
-import { refreshPlaylists, refreshRows } from "./data";
+import { refreshPlaylists, refreshRows, refreshTags, tagTracks } from "./data";
+import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 
-const same = (a: Source, b: Source) => a.type === b.type && (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id));
+const same = (a: Source, b: Source) =>
+  a.type === b.type && (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id)) && (a.type !== "tag" || (b.type === "tag" && a.name.toLowerCase() === b.name.toLowerCase()));
 
 export function Sidebar() {
   const source = useLibrary((s) => s.source);
@@ -26,6 +28,7 @@ export function Sidebar() {
   const problems = useLibrary((s) => (s.missing?.length ?? 0) + (s.duplicates?.length ?? 0));
   const djOn = useAutoDj((s) => s.phase !== "off");
   const [creating, setCreating] = useState<null | "list" | "smart" | "folder">(null);
+  const tags = useLibrary((s) => s.tags);
 
   const select = (s: Source) => {
     useLibrary.getState().set({ source: s, selected: [], anchor: null });
@@ -79,6 +82,29 @@ export function Sidebar() {
       {roots.length === 0 && !creating && <p className="px-2 text-[11px] leading-snug text-zinc-500">Drag tracks here or press + to make a playlist.</p>}
       {roots.map((p) => (
         <PlaylistItem key={p.id} p={p} depth={0} kidsOf={children} source={source} select={select} />
+      ))}
+
+      <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        Tags
+        <IconBtn
+          title="New tag"
+          onClick={async () => {
+            const name = await askText({ title: "New tag", placeholder: "vocal, peak time, sunset…", help: "A word or two to find tracks by later. Drag tracks onto it, or add it in a track's details.", confirm: "Make tag" });
+            if (!name?.trim()) return;
+            try {
+              await backend().setTag([], name.trim(), true, STARTER_TAGS.find((t) => t.name.toLowerCase() === name.trim().toLowerCase())?.category ?? "");
+              await refreshTags();
+            } catch (e) {
+              toast.error(String(e));
+            }
+          }}
+        >
+          <Plus size={12} />
+        </IconBtn>
+      </div>
+      {tags.length === 0 && <p className="px-2 text-[11px] leading-snug text-zinc-500">Tag tracks with your own words (vocal, peak time, dark) to find them by feel. Right-click a track, or use its details.</p>}
+      {tags.map((t) => (
+        <TagItem key={t.id} t={t} source={source} select={select} />
       ))}
     </nav>
   );
@@ -266,6 +292,105 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
         <PlaylistItem key={c.id} p={c} depth={depth + 1} kidsOf={kidsOf} source={source} select={select} />
       ))}
     </>
+  );
+}
+
+const TAG_COLORS = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0x8b5cf6, 0xec4899];
+
+function TagItem({ t, source, select }: { t: TagDto; source: Source; select: (s: Source) => void }) {
+  const [renaming, setRenaming] = useState(false);
+  const active = same(source, { type: "tag", name: t.name });
+  const run = async (f: () => Promise<unknown>) => {
+    try {
+      await f();
+      await refreshTags();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div data-testid="sidebar-tag">
+          {renaming ? (
+            <RenameInput
+              initial={t.name}
+              done={(name) => {
+                setRenaming(false);
+                if (!name || name === t.name) return;
+                const merging = useLibrary.getState().tags.some((o) => o.id !== t.id && o.name.toLowerCase() === name.toLowerCase());
+                void run(async () => {
+                  await backend().renameTag(t.id, name);
+                  if (merging) toast.success(`Merged “${t.name}” into “${name}”`);
+                  if (active) select({ type: "tag", name });
+                });
+              }}
+            />
+          ) : (
+            <Item
+              icon={<Tag size={13} style={{ color: tagStyle(t.name, t.color).color }} />}
+              label={t.name}
+              count={t.count}
+              hint={`${t.category ? `${t.category}: ` : ""}${plural(t.count, "track")} tagged “${t.name}”. Drop tracks here to tag them.`}
+              active={active}
+              onClick={() => select({ type: "tag", name: t.name })}
+              dropOk
+              onDrop={(ids) => {
+                void tagTracks(ids, t.name, true).then(() => toast.success(`Tagged ${plural(ids.length, "track")} “${t.name}”`));
+              }}
+            />
+          )}
+        </div>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="menu">
+          <ContextMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
+            Rename
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            className="menu-item"
+            onSelect={async () => {
+              const category = await askText({ title: `Group for “${t.name}”`, initial: t.category, placeholder: "Vibe, Vocals, Moment…", help: "Tags in the same group sit together. Leave it empty for none.", confirm: "Save" });
+              if (category != null) void run(() => backend().tagInfo(t.id, category, t.color));
+            }}
+          >
+            Group…
+          </ContextMenu.Item>
+          <ContextMenu.Sub>
+            <ContextMenu.SubTrigger className="menu-item">Colour</ContextMenu.SubTrigger>
+            <ContextMenu.Portal>
+              <ContextMenu.SubContent className="menu flex gap-1 p-1.5">
+                {TAG_COLORS.map((c) => (
+                  <ContextMenu.Item key={c} aria-label="Tag colour" className="size-4 cursor-pointer rounded-full outline-none ring-white focus:ring-2" style={{ background: `#${c.toString(16).padStart(6, "0")}` }} onSelect={() => void run(() => backend().tagInfo(t.id, t.category, c))} />
+                ))}
+                <ContextMenu.Item aria-label="Automatic colour" className="size-4 cursor-pointer rounded-full border border-white/30 outline-none ring-white focus:ring-2" onSelect={() => void run(() => backend().tagInfo(t.id, t.category, null))} />
+              </ContextMenu.SubContent>
+            </ContextMenu.Portal>
+          </ContextMenu.Sub>
+          <ContextMenu.Item
+            className="menu-item"
+            onSelect={() => {
+              useLibrary.getState().set({ source: { type: "all" }, query: tagQuery(t.name) });
+              refreshRows();
+            }}
+          >
+            Search for it
+          </ContextMenu.Item>
+          <ContextMenu.Separator className="menu-sep" />
+          <ContextMenu.Item
+            className="menu-item text-red-300"
+            onSelect={async () => {
+              const ok = await ask({ title: `Delete the tag “${t.name}”?`, body: `It comes off ${plural(t.count, "track")}. The tracks stay in your library.`, confirm: "Delete tag", danger: true });
+              if (!ok) return;
+              if (active) select({ type: "all" });
+              void run(() => backend().deleteTag(t.id));
+            }}
+          >
+            Delete
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
 

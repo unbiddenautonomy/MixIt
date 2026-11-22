@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type {
+import type { TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -81,6 +81,16 @@ export interface Backend {
   editTracks(ids: number[], edit: TrackEdit): Promise<void>;
   /** Writes the library's details (title, artist, genre, tempo, key…) into the tracks' files. */
   writeTags(ids: number[], notation: "camelot" | "openKey" | "standard"): Promise<WriteTagsResult>;
+  /** Your own tags, with their number of tracks. */
+  listTags(): Promise<TagDto[]>;
+  /** The tag names of each track, as [track id, names] (tracks without tags left out). */
+  tagsOf(ids: number[]): Promise<[number, string[]][]>;
+  /** Puts the tag `name` on the tracks (made in `category` when new), or takes it off. */
+  setTag(ids: number[], name: string, on: boolean, category?: string): Promise<void>;
+  /** Renames a tag; a name another tag has merges the two. Returns the id that remains. */
+  renameTag(id: number, name: string): Promise<number>;
+  tagInfo(id: number, category: string, color: number | null): Promise<void>;
+  deleteTag(id: number): Promise<void>;
   /** Tracks whose files cannot be found. */
   missingTracks(): Promise<TrackRow[]>;
   /** Looks through a folder for missing tracks' files (same name, or same audio). Returns how many were found. */

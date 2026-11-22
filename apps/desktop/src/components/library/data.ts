@@ -6,6 +6,7 @@ import { useApp } from "../../store/app";
 import { useLibrary } from "../../store/library";
 import { useTelemetry } from "../../store/telemetry";
 import { ask } from "../shell/Dialogs";
+import { starterCategory, tagQuery } from "../../lib/tags";
 
 let seq = 0;
 
@@ -32,6 +33,7 @@ export async function refreshRows() {
   try {
     let rows: TrackRow[] = [];
     if (source.type === "all") rows = await backend().search(query);
+    else if (source.type === "tag") rows = await backend().search(`${tagQuery(source.name)} ${query}`.trim());
     else if (source.type === "playlist") {
       const pl = useLibrary.getState().playlists.find((p) => p.id === source.id);
       // Smart lists run their query plus whatever is typed in the search box.
@@ -51,7 +53,10 @@ export async function refreshRows() {
       await refreshSuggestions();
       rows = useLibrary.getState().suggestions.map((s) => s.track);
     }
-    if (my === seq) set({ rows, loading: false });
+    if (my === seq) {
+      set({ rows, loading: false });
+      void refreshRowTags();
+    }
   } catch (e) {
     if (my === seq) set({ loading: false });
     fail(e);
@@ -100,7 +105,7 @@ export async function refreshSuggestions() {
 }
 
 export async function refreshAll() {
-  await Promise.all([refreshPlaylists(), refreshStats(), refreshCare()]);
+  await Promise.all([refreshPlaylists(), refreshStats(), refreshCare(), refreshTags()]);
   await refreshRows();
 }
 
@@ -150,5 +155,42 @@ export async function writeTagsToFiles(ids: number[]) {
     else toast.warning(`Tags written to ${r.written} of ${ids.length} files`, { description: r.failed.slice(0, 3).map(([, why]) => why).join("\n") + (r.failed.length > 3 ? `\n…and ${r.failed.length - 3} more` : "") });
   } catch (e) {
     toast.error(String(e));
+  }
+}
+
+// ---------------------------------------------------------------- your own tags
+
+/** Reloads the list of tags and the tags of the rows on show. */
+export async function refreshTags() {
+  try {
+    useLibrary.getState().set({ tags: await backend().listTags() });
+  } catch {
+    // Kept as they were.
+  }
+  await refreshRowTags();
+}
+
+async function refreshRowTags() {
+  const rows = useLibrary.getState().rows;
+  try {
+    const pairs = await backend().tagsOf(rows.map((r) => r.id));
+    if (useLibrary.getState().rows !== rows) return;
+    useLibrary.getState().set({ rowTags: Object.fromEntries(pairs) });
+  } catch {
+    // Kept as they were.
+  }
+}
+
+/** Puts a tag on tracks or takes it off, then refreshes what shows tags. */
+export async function tagTracks(ids: number[], name: string, on: boolean) {
+  const n = name.trim();
+  if (!n || !ids.length) return;
+  try {
+    const known = useLibrary.getState().tags.find((t) => t.name.toLowerCase() === n.toLowerCase());
+    await backend().setTag(ids, known?.name ?? n, on, known ? known.category : starterCategory(n));
+    await refreshTags();
+    if (useLibrary.getState().source.type === "tag") await refreshRows();
+  } catch (e) {
+    fail(e);
   }
 }
