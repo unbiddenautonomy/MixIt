@@ -126,23 +126,23 @@
  */
 :root[data-theme="lounge"] {
   color-scheme: dark;
-  --accent: #e6c377;
+  --accent: #f0cd7e;
   --ink: 100%;
   --color-zinc-50: #fdf9f3;
   --color-zinc-100: #f6efe6;
   --color-zinc-200: #ebe2d6;
   --color-zinc-300: #d6cbbd;
-  --color-zinc-400: #b0a596;
-  --color-zinc-500: #958a7c;
-  --color-zinc-600: #73695d;
-  --color-zinc-700: #403833;
-  --color-zinc-800: #2a2422;
-  --color-zinc-900: #1a1516;
-  --color-zinc-950: #0d0a0b;
+  --color-zinc-400: #c4b6ad;
+  --color-zinc-500: #ab9c97;
+  --color-zinc-600: #8f7f80;
+  --color-zinc-700: #634c56;
+  --color-zinc-800: #4a3640;
+  --color-zinc-900: #36252e;
+  --color-zinc-950: #241820;
   /* Tailwind's white/x hairlines and washes pick up a faint champagne tint. */
   --color-white: #fff6e6;
-  --knob-face-a: #4a3f37;
-  --knob-face-b: #1a1516;
+  --knob-face-a: #6a5560;
+  --knob-face-b: #2c1f26;
   --knob-edge: rgba(230, 195, 119, 0.18);
   --knob-pointer: #f3dfb0;
   --scroll-thumb: rgba(230, 195, 119, 0.18);
@@ -150,9 +150,9 @@
 :root[data-theme="lounge"] body,
 :root[data-theme="lounge"] .app-root {
   background:
-    radial-gradient(110% 70% at 50% -15%, rgba(140, 36, 62, 0.42), transparent 62%),
-    radial-gradient(90% 60% at 50% 115%, rgba(14, 96, 72, 0.3), transparent 65%),
-    #0d0a0b;
+    radial-gradient(110% 70% at 50% -15%, rgba(190, 44, 82, 0.5), transparent 62%),
+    radial-gradient(90% 60% at 50% 115%, rgba(22, 140, 100, 0.38), transparent 65%),
+    #241820;
 }
 /* A thin gold line under the top bar, like trim on a table edge. */
 :root[data-theme="lounge"] header {
@@ -164,11 +164,19 @@
 /* Panels: glassy, with a fine gold edge and a faint lit top. */
 :root[data-theme="lounge"] .rounded-2xl.border,
 :root[data-theme="lounge"] .rounded-xl.border {
-  border-color: rgba(230, 195, 119, 0.16);
+  border-color: rgba(240, 205, 126, 0.26);
   box-shadow:
     inset 0 1px 0 rgba(255, 236, 200, 0.06),
     0 18px 40px -28px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(6px);
+}
+/* Waveforms and meters keep a deep display so the colours read clearly. */
+:root[data-theme="lounge"] .screen {
+  --color-zinc-950: #120c10;
+  --color-zinc-900: #1c1318;
+}
+:root[data-theme="lounge"] .screen.screen-bg {
+  background-color: #120c10;
 }
 /* The chosen tab in a switch (Mix/Library/Arrange, Easy/Pro) is lit in gold. */
 :root[data-theme="lounge"] .bg-white\/15 {
