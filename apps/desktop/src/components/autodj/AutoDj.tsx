@@ -114,6 +114,7 @@ function Controls() {
   const options = useAutoDj((s) => s.options);
   const keepGoing = useAutoDj((s) => s.keepGoing);
   const energy = useAutoDj((s) => s.energy);
+  const glide = useAutoDj((s) => s.glide);
   const set = (p: Partial<typeof options>) => useAutoDj.getState().set({ options: { ...useAutoDj.getState().options, ...p } });
   const on = phase !== "off";
   return (
@@ -163,6 +164,10 @@ function Controls() {
         <input type="checkbox" checked={options.extend !== false} onChange={(e) => set({ extend: e.target.checked })} data-testid="autodj-extend" />
         Loop a short ending
       </label>
+      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="After each mix the new track plays at the old one's tempo. This lets the tempo drift back to the new track's own speed, about half a percent every 8 bars, too slowly for anyone to notice, so the set is not stuck at the first track's tempo.">
+        <input type="checkbox" checked={glide} onChange={(e) => useAutoDj.getState().set({ glide: e.target.checked, ...(e.target.checked ? {} : { gliding: null }) })} data-testid="autodj-glide" />
+        Ease the tempo back
+      </label>
       <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When the queue runs out, Auto DJ picks tracks that mix well from your library.">
         <input type="checkbox" checked={keepGoing} onChange={(e) => useAutoDj.getState().set({ keepGoing: e.target.checked })} />
         Keep going with suggestions
@@ -196,6 +201,8 @@ function NowNext() {
   const next = useAutoDj((s) => s.next);
   const phase = useAutoDj((s) => s.phase);
   const info = useApp((s) => (current !== null ? s.decks[current] : null));
+  const gliding = useAutoDj((s) => s.gliding !== null && s.gliding.deck === current);
+  const bpmNow = useTelemetry((s) => (current !== null ? (s.t.decks[current]?.bpm ?? 0).toFixed(1) : ""));
   const notation = useApp((s) => s.settings?.keyNotation ?? "camelot");
   const wait = useTelemetry((s) => {
     const x = secondsToMix(s.t);
@@ -212,6 +219,11 @@ function NowNext() {
             <div className="truncate text-xs text-zinc-400">
               {info.detail.track.artist} · {info.detail.bpm?.toFixed(1) ?? "?"} BPM · {keyLabel(info.detail.key, notation)}
             </div>
+            {gliding && (
+              <div className="mt-1 text-[11px] text-sky-300" data-testid="gliding">
+                Easing the tempo back to its own {info.detail.bpm?.toFixed(1)} BPM: now {bpmNow}
+              </div>
+            )}
           </>
         ) : (
           <div className="mt-1 text-xs text-zinc-500">Starting…</div>

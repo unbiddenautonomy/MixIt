@@ -10,6 +10,7 @@ import type { TrackDetail, TrackRow } from "../backend/types";
 import { press, setOn, setValue } from "../lib/actions";
 import { DEFAULT_OPTIONS, planMix, type MixPlan, type PlanOptions } from "../lib/autodj";
 import { startTransition, useTransition } from "../lib/transition";
+import { GLIDE_MIN_PCT, glideBars, glideFader } from "../lib/glide";
 import { useApp } from "./app";
 import { useTelemetry } from "./telemetry";
 
@@ -39,6 +40,10 @@ interface AutoDjState {
   /** When the queue runs out, keep going with suggested tracks. */
   keepGoing: boolean;
   energy: "steady" | "up" | "down";
+  /** After each mix, let the tempo drift slowly back to the new track's own. */
+  glide: boolean;
+  /** The glide under way: on which deck, from which fader, since which beat. */
+  gliding: { deck: number; start: number; range: number; fromBeat: number; sent: number } | null;
   log: LogEntry[];
   set: (p: Partial<AutoDjState>) => void;
 }
@@ -52,6 +57,8 @@ export const useAutoDj = create<AutoDjState>((set) => ({
   options: DEFAULT_OPTIONS,
   keepGoing: true,
   energy: "steady",
+  glide: true,
+  gliding: null,
   log: [],
   set: (p) => set(p),
 }));
@@ -145,7 +152,7 @@ export async function startAutoDj() {
 /** Stops mixing automatically. The music keeps playing; a running transition finishes. */
 export function stopAutoDj() {
   if (st().phase === "off") return;
-  useAutoDj.setState({ phase: "off", next: null });
+  useAutoDj.setState({ phase: "off", next: null, gliding: null });
   unwatch();
   note("Auto DJ is off. The music keeps playing, and you are in control.");
 }
@@ -229,7 +236,7 @@ async function runMix(atBeat: number) {
   const s = st();
   if (!s.next || s.current === null) return;
   const { deck, plan, track } = s.next;
-  useAutoDj.setState({ phase: "mixing" });
+  useAutoDj.setState({ phase: "mixing", gliding: null });
   mixing = true;
   note(`Mixing into ${track.title}: ${plan.summary.toLowerCase()}.`);
   if (plan.loopBeats) note(`Looping the last ${plan.loopBeats} beats of the current track so the mix can run its full ${plan.beats} beats.`);
@@ -245,7 +252,41 @@ function finished() {
   const n = s.next;
   useAutoDj.setState({ current: n.deck, next: null, phase: "playing", played: [...s.played, n.track.id] });
   note(`Now playing ${n.track.title} on deck ${L(n.deck)}.`);
+  startGlide(n.deck);
   void prepareNext();
+}
+
+/** Starts the tempo drifting back to the track's own on `deck`, when it is off by enough. */
+export function startGlide(deck: number) {
+  const d = useTelemetry.getState().t.decks[deck];
+  if (!st().glide || !d?.playing || !(d.tempoRange > 0) || Math.abs(d.rate - 1) * 100 < GLIDE_MIN_PCT) return;
+  const start = (d.rate - 1) / d.tempoRange;
+  if (Math.abs(start) > 1) return; // Beyond the fader: leave it to the DJ.
+  useAutoDj.setState({ gliding: { deck, start, range: d.tempoRange, fromBeat: d.beat, sent: start } });
+  const bars = glideBars(start, d.tempoRange);
+  const own = d.baseBpm;
+  note(`The tempo will drift from ${d.bpm.toFixed(1)} back to this track's own ${own.toFixed(1)} BPM over about ${bars} bars, too slowly to notice.`);
+}
+
+export function glideTick(t: ReturnType<typeof useTelemetry.getState>["t"]) {
+  const g = st().gliding;
+  if (!g) return;
+  const d = t.decks[g.deck];
+  if (!d?.playing) return;
+  // The DJ moved the tempo: they have it.
+  if (Math.abs(d.tempo - g.sent) > 0.02) {
+    useAutoDj.setState({ gliding: null });
+    note("You moved the tempo, so I stopped easing it back.");
+    return;
+  }
+  const bars = (d.beat - g.fromBeat) / (d.beatsPerBar || 4);
+  const f = glideFader(g.start, g.range, bars);
+  if (Math.abs(f - g.sent) * g.range * 100 < 0.02 && f !== 0) return;
+  void setValue(`deck.${L(g.deck)}.tempo`, f);
+  if (f === 0) {
+    useAutoDj.setState({ gliding: null });
+    note(`Back at ${L(g.deck)}'s own tempo of ${d.baseBpm.toFixed(1)} BPM.`);
+  } else useAutoDj.setState({ gliding: { ...g, sent: f } });
 }
 
 // ------------------------------------------------------------------ the watcher
@@ -276,6 +317,7 @@ function unwatch() {
 }
 
 function tick(t: ReturnType<typeof useTelemetry.getState>["t"]) {
+  if (!mixing) glideTick(t);
   const s = st();
   if (s.current === null) return;
   const d = t.decks[s.current];
