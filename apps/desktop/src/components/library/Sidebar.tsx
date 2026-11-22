@@ -2,7 +2,7 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Wand2 } from "lucide-react";
+import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Wand2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -13,6 +13,8 @@ import { useApp } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
 import { refreshPlaylists, refreshRows } from "./data";
+import { enqueueIds } from "../autodj/AutoDj";
+import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 
 const same = (a: Source, b: Source) => a.type === b.type && (a.type !== "playlist" || (b.type === "playlist" && a.id === b.id));
 
@@ -20,6 +22,8 @@ export function Sidebar() {
   const source = useLibrary((s) => s.source);
   const playlists = useLibrary((s) => s.playlists);
   const stats = useLibrary((s) => s.stats);
+  const queued = useAutoDj((s) => s.queue.length);
+  const djOn = useAutoDj((s) => s.phase !== "off");
   const [creating, setCreating] = useState<null | "list" | "smart" | "folder">(null);
 
   const select = (s: Source) => {
@@ -35,6 +39,16 @@ export function Sidebar() {
       <Item icon={<LibIcon size={14} />} label="Collection" count={stats?.tracks} active={same(source, { type: "all" })} onClick={() => select({ type: "all" })} />
       <Item icon={<Sparkles size={14} />} label="Suggestions" active={same(source, { type: "suggest" })} onClick={() => select({ type: "suggest" })} hint="Tracks that mix well after the one playing" />
       <Item icon={<History size={14} />} label="History" active={same(source, { type: "history" })} onClick={() => select({ type: "history" })} />
+      <Item
+        icon={<Bot size={14} className={djOn ? "text-sky-300" : undefined} />}
+        label="Auto DJ"
+        count={queued || undefined}
+        active={same(source, { type: "autodj" })}
+        onClick={() => select({ type: "autodj" })}
+        hint="Let MixIt mix a queue of tracks for you, and see why it mixes the way it does"
+        dropOk
+        onDrop={(ids) => enqueueIds(ids)}
+      />
 
       <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
         Playlists
@@ -208,6 +222,19 @@ function PlaylistItem({ p, depth, kidsOf, source, select }: { p: PlaylistDto; de
             >
               Export for rekordbox…
             </ContextMenu.Item>
+            {p.kind !== "folder" && (
+              <ContextMenu.Item
+                className="menu-item"
+                onSelect={async () => {
+                  const rows = p.kind === "smart" && p.query ? await backend().search(p.query) : await backend().playlistTracks(p.id);
+                  enqueue(rows.filter((r) => !r.missing));
+                  select({ type: "autodj" });
+                  if (useAutoDj.getState().phase === "off") void startAutoDj();
+                }}
+              >
+                Play with Auto DJ
+              </ContextMenu.Item>
+            )}
             <ContextMenu.Separator className="menu-sep" />
             <ContextMenu.Item
               className="menu-item text-red-300"

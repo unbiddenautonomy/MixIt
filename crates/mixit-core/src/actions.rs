@@ -1295,6 +1295,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("guide"),
     );
     b.add(
+        "app.autodj",
+        "Auto DJ",
+        ag,
+        ActionKind::Toggle,
+        "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
         "app.assistant",
         "Mix assistant",
         ag,

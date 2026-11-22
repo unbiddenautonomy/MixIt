@@ -34,7 +34,11 @@ export function cancelTransition() {
   useTransition.getState().set(null);
 }
 
-export async function startTransition(from: number, to: number, kind: TransitionId, beats: number) {
+/** Runs a transition. `opts.atBeat` fixes the outgoing beat where it starts (Auto DJ plans
+ * it ahead); otherwise it starts at the next phrase that lines both tracks up.
+ * `opts.sync: false` lets the incoming track keep its own tempo (for an echo out or cut
+ * between very different tempos). */
+export async function startTransition(from: number, to: number, kind: TransitionId, beats: number, opts: { atBeat?: number; sync?: boolean } = {}) {
   const tele = useTelemetry.getState().t;
   const df = tele.decks[from];
   const dt = tele.decks[to];
@@ -49,7 +53,10 @@ export async function startTransition(from: number, to: number, kind: Transition
   await setValue("mixer.crossfader", 0);
   if (df.playing) {
     await press(`deck.${a}.master`);
-    await setOn(`deck.${b}.sync`, true);
+    if (opts.sync === false) {
+      await setOn(`deck.${b}.sync`, false);
+      await press(`deck.${b}.tempo_reset`);
+    } else await setOn(`deck.${b}.sync`, true);
   }
   await setValue(`mixer.${b}.fader`, 0);
   if (kind === "bassSwap") await setValue(`mixer.${b}.eq.low`, -26);
@@ -67,7 +74,7 @@ export async function startTransition(from: number, to: number, kind: Transition
   // outgoing track would run out first, the next bar has to do.
   const bpb = df.beatsPerBar || 4;
   const nextBar = Math.ceil((df.beat + 0.25) / bpb) * bpb;
-  const startBeat = phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar;
+  const startBeat = opts.atBeat !== undefined && opts.atBeat > df.beat ? opts.atBeat : (phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar);
   const echoBeats = kind === "echoOut" ? Math.min(beats, 8) : 0;
   const run: Running = { from, to, kind, beats: Math.max(beats, 1), startBeat, progress: 0 };
   useTransition.getState().set(run);

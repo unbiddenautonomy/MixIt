@@ -565,3 +565,25 @@ fn ducking_follows_the_other_deck() {
     let after = r.run(12_000);
     assert!((lvl(&after) / alone - 1.0).abs() < 0.05);
 }
+
+#[test]
+fn a_synced_deck_keeps_its_tempo_when_it_becomes_master() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(B, DeckCommand::Load(ramp_track(60.0, 126.0)));
+    r.deck(A, DeckCommand::Play);
+    r.deck(A, DeckCommand::Sync(true));
+    r.deck(B, DeckCommand::Play);
+    r.deck(B, DeckCommand::Sync(true));
+    r.run(48_000);
+    assert!((r.tel().decks[1].bpm - 120.0).abs() < 0.2);
+    // The mix is over: B takes the lead and A stops. B must carry on at 120, not jump
+    // back to its own 126.
+    r.deck(B, DeckCommand::BecomeMaster);
+    r.deck(A, DeckCommand::Pause);
+    r.run(48_000);
+    let t = r.tel();
+    assert_eq!(t.master_deck, Some(B));
+    assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "B jumped to {} BPM", t.decks[1].bpm);
+    assert!((t.clock_bpm - 120.0).abs() < 0.2, "clock at {}", t.clock_bpm);
+}

@@ -536,6 +536,8 @@ export class DemoBackend implements Backend {
           }
           break;
         case "master":
+          // Taking the lead keeps the tempo it was following (as the engine does).
+          if (press && d.sync && this.master !== i) d.tempo = (this.rate(i) - 1) / d.range;
           if (press) this.master = i;
           break;
         case "keylock":
@@ -1527,6 +1529,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
   add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
+  add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);
   add("app.assistant", "Mix assistant", "App", { type: "toggle" }, "Listens to your mix and tells you what to fix (clashing bass, clipping, loudness, harsh or muddy tone), with a button that fixes it.", null);
   add("app.tour", "Take the 2-minute tour", "App", { type: "trigger" }, "Walks you through your first mix: play two tracks in time and blend from one into the other.", null);
   add("app.feedback", "Mix feedback", "App", { type: "trigger" }, "Shows how your last recorded mix went: what went well, what to work on, and every transition checked.", null);

@@ -1,6 +1,7 @@
 // The track list: virtualised (100k tracks scroll smoothly), sortable, multi-select,
 // drag to decks and playlists, double-click or Enter to load. Key and BPM cells light
 // up when a track mixes well with what is playing.
+import { enqueueIds } from "../autodj/AutoDj";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
@@ -298,6 +299,12 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
               Load on deck {l}
             </ContextMenu.Item>
           ))}
+          <ContextMenu.Item className="menu-item" onSelect={() => enqueueIds(ids())}>
+            Add to Auto DJ
+          </ContextMenu.Item>
+          <ContextMenu.Item className="menu-item" onSelect={() => enqueueIds(ids(), "next")}>
+            Play next in Auto DJ
+          </ContextMenu.Item>
           <ContextMenu.Item
             className="menu-item"
             onSelect={() => {
