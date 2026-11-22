@@ -58,6 +58,8 @@ interface TrackOverride {
   bpm: number;
   key: [number, "A" | "B"];
   firstBeat: number;
+  /** Has a singer (in the drops and breakdown, like the generated practice tracks). */
+  vocals?: boolean;
 }
 
 /** The practice tracks the desktop app generates for the labs (see mixit-generator). */
@@ -68,6 +70,8 @@ export const DEMO_PRACTICE: TrackOverride[] = [
   { title: "Practice 4 - Clashing Keys", genre: "House", bpm: 124, key: [3, "B"], firstBeat: 0.02 },
   { title: "Practice 5 - Melodic Trance", genre: "Trance", bpm: 132, key: [5, "A"], firstBeat: 0.02 },
   { title: "Practice 6 - Live Drummer", genre: "House", bpm: 120, key: [11, "B"], firstBeat: 0.42 },
+  { title: "Practice 7 - Vocal House", genre: "House", bpm: 124, key: [8, "A"], firstBeat: 0.02, vocals: true },
+  { title: "Practice 8 - Vocal Deep House", genre: "House", bpm: 124, key: [9, "A"], firstBeat: 0.02, vocals: true },
 ];
 
 function makeTrack(id: number, o?: TrackOverride): DemoTrack {
@@ -122,7 +126,7 @@ function makeTrack(id: number, o?: TrackOverride): DemoTrack {
   // Singing in the breakdown and the first half of each drop, on most tracks but few
   // techno ones (its own random stream, so the rest of the demo stays as it was).
   const vr = rng(id * 104_729 + 1);
-  const sings = !o && vr() < (genre === "Techno" ? 0.2 : 0.65);
+  const sings = o ? !!o.vocals : vr() < (genre === "Techno" ? 0.2 : 0.65);
   const vocals: [number, number][] = sings
     ? sections.filter((s) => s.label === "Breakdown" || s.label === "Drop").map((s) => [s.start + 2 * period, s.label === "Drop" ? s.start + (s.end - s.start) / 2 : s.end - 2 * period] as [number, number])
     : [];
@@ -1883,7 +1887,7 @@ export class DemoBackend implements Backend {
       if (!have.has(o.title)) this.tracks.push(makeTrack(1001 + i, o));
     });
     this.emit("library-changed", null);
-    this.emit<T.JobProgress>("job", { kind: "scan", done: 0, total: 0, message: "Added 6 practice tracks.", finished: true, error: null });
+    this.emit<T.JobProgress>("job", { kind: "scan", done: 0, total: 0, message: `Added ${DEMO_PRACTICE.length} practice tracks.`, finished: true, error: null });
   }
 
   /** Demo covers: an abstract design drawn from the title, so every track looks its own. */

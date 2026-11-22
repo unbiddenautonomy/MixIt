@@ -16,7 +16,7 @@ const playingOn = (...decks: number[]): Telemetry => ({
 describe("guide content", () => {
   it("has unique ids and links that resolve", () => {
     expect(new Set(LABS.map((l) => l.id)).size).toBe(LABS.length);
-    expect(LABS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(LABS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     for (const l of LABS) expect(new Set(l.steps.map((s) => s.id)).size).toBe(l.steps.length);
     const concepts = new Set(CONCEPTS.map((c) => c.id));
     expect(concepts.size).toBe(CONCEPTS.length);
@@ -81,3 +81,38 @@ describe("automation points", () => {
     expect(withPoint(pts, { beat: 12, value: 1, curve: "Linear" }, 0).map((p) => p.beat)).toEqual([8, 12]);
   });
 });
+
+describe("the vocals lab", () => {
+  it("ticks off as the singer comes in and deck B's mids step back", () => {
+    const lab = labById("vocals")!;
+    expect(lab.decks).toEqual(["p7", "p8"]);
+    useGuide.getState().resetLab(lab.id);
+    const detail = (vocals: [number, number][]) => ({ vocals, cues: [], track: { title: "x" } });
+    const base = structuredClone(useApp.getState().mixer);
+    useApp.setState({ decks: [{ deck: 0, detail: detail([[30, 60]]) }, { deck: 1, detail: detail([[10, 40]]) }, null, null] as never });
+    const at = (a: number, b: number | null) => {
+      const t = playingOn(...(b == null ? [0] : [0, 1]));
+      t.decks[0] = { ...t.decks[0], position: a, sync: true };
+      if (b != null) t.decks[1] = { ...t.decks[1], position: b, sync: true };
+      useTelemetry.setState({ t });
+      runLab(lab);
+      return useGuide.getState().done[lab.id];
+    };
+    const mix = (p: (m: typeof base) => void) => {
+      const m = structuredClone(base);
+      for (const c of m.channels) c.fader = 1;
+      p(m);
+      useApp.setState({ mixer: m });
+    };
+    mix(() => {});
+    expect(at(10, null)).toEqual(["play"]);
+    expect(at(35, null)).toEqual(["play", "hear"]);
+    expect(at(36, 15)).toContain("bring-in");
+    mix((m) => (m.channels[1].mid = -12));
+    expect(at(37, 16)).toContain("duck");
+    // Deck A's vocal is over, B's mids are back up and A is faded out.
+    mix((m) => (m.channels[0].fader = 0));
+    expect(at(70, 50)).toContain("swap");
+  });
+});
+

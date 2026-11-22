@@ -46,7 +46,7 @@ export async function ensurePractice(ids: PracticeId[]): Promise<Partial<Record<
   if (ids.every((id) => have[id])) return have;
   const ok = await ask({
     title: "Add the practice tracks?",
-    body: "The labs use six short tracks that MixIt makes for you, each built to teach one thing. They are added to your library in a Practice folder (about 150 MB) and analysed. This takes a minute.",
+    body: "The labs use eight short tracks that MixIt makes for you, each built to teach one thing. They are added to your library in a Practice folder (about 200 MB) and analysed. This takes a minute.",
     confirm: "Add practice tracks",
   });
   if (!ok) return null;
@@ -67,7 +67,10 @@ export async function ensurePractice(ids: PracticeId[]): Promise<Partial<Record<
 
 /** Pauses a deck if it is playing (loading onto a playing deck is refused). */
 async function pause(d: number) {
-  if (useTelemetry.getState().t.decks[d]?.playing) await tap(`deck.${L(d)}.play`);
+  if (!useTelemetry.getState().t.decks[d]?.playing) return;
+  await tap(`deck.${L(d)}.play`);
+  // Wait for the engine to report it stopped: loading refuses a deck that still plays.
+  for (let i = 0; i < 40 && useTelemetry.getState().t.decks[d]?.playing; i++) await new Promise((r) => setTimeout(r, 25));
 }
 
 /** Flat EQs, filters centred, effects off, deck A up and the other lab decks down. */

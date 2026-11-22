@@ -545,6 +545,7 @@ export const CONCEPTS: Concept[] = [
       "Search with vocals:no for instrumentals (great for long blends and for talking over), vocals:yes for tracks with singing, or vocals:30+ for tracks that sing in at least 30%. Turn on the Vocals column in the track list to see the share for every track.",
       "It is worked out from the sound alone, without an online service, so a heavily processed voice can be missed and a wobbly lead synth can now and then count as singing.",
     ],
+    lab: "vocals",
   },
   {
     id: "set-clock",

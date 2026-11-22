@@ -1,7 +1,8 @@
 //! The practice tracks the built-in labs use. Each is chosen to teach something: two
 //! house tracks in neighbouring keys for blends and bass swaps, one in a clashing key,
 //! a melodic track for key lock, and a "live drummer" track whose tempo drifts and whose
-//! first downbeat comes late, for beatgrid work.
+//! first downbeat comes late, for beatgrid work; and two house tracks with a singer, for
+//! mixing around vocals.
 
 use mixit_core::Key;
 
@@ -22,6 +23,8 @@ pub struct PracticeTrack {
     pub camelot: (u8, char),
     pub lead_in: f64,
     pub swing: f64,
+    /// A singer in the drops and breakdowns.
+    pub vocals: bool,
 }
 
 pub const PRACTICE: &[PracticeTrack] = &[
@@ -35,6 +38,7 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (8, 'A'),
         lead_in: 0.0,
         swing: 0.0,
+        vocals: false,
     },
     PracticeTrack {
         id: "p2",
@@ -46,6 +50,7 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (9, 'A'),
         lead_in: 0.0,
         swing: 0.15,
+        vocals: false,
     },
     PracticeTrack {
         id: "p3",
@@ -57,6 +62,7 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (8, 'A'),
         lead_in: 0.0,
         swing: 0.0,
+        vocals: false,
     },
     PracticeTrack {
         id: "p4",
@@ -68,6 +74,7 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (3, 'B'),
         lead_in: 0.0,
         swing: 0.0,
+        vocals: false,
     },
     PracticeTrack {
         id: "p5",
@@ -79,6 +86,7 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (5, 'A'),
         lead_in: 0.0,
         swing: 0.0,
+        vocals: false,
     },
     PracticeTrack {
         id: "p6",
@@ -90,6 +98,31 @@ pub const PRACTICE: &[PracticeTrack] = &[
         camelot: (11, 'B'),
         lead_in: 0.42,
         swing: 0.25,
+        vocals: false,
+    },
+    PracticeTrack {
+        id: "p7",
+        title: "Practice 7 - Vocal House",
+        purpose: "A singer in the drops and breakdown (the pink line), for mixing around vocals.",
+        style: Style::House,
+        bpm: 124.0,
+        end_bpm: None,
+        camelot: (8, 'A'),
+        lead_in: 0.0,
+        swing: 0.0,
+        vocals: true,
+    },
+    PracticeTrack {
+        id: "p8",
+        title: "Practice 8 - Vocal Deep House",
+        purpose: "Mixes with Practice 7 (9A), and sings too: two voices to keep apart.",
+        style: Style::House,
+        bpm: 124.0,
+        end_bpm: None,
+        camelot: (9, 'A'),
+        lead_in: 0.0,
+        swing: 0.1,
+        vocals: true,
     },
 ];
 
@@ -116,6 +149,7 @@ impl PracticeTrack {
             ],
             lead_in: self.lead_in,
             swing: self.swing,
+            vocals: self.vocals,
             seed: 0x9A11 + self.id.as_bytes()[1] as u64,
             ..TrackSpec::standard(self.style, self.bpm, self.key())
         }

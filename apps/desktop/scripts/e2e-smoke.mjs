@@ -237,6 +237,23 @@ try {
     await page.waitForSelector("text=Building a set for a night", { timeout: 5000 });
   });
 
+  await step("the vocals lab loads two singing practice tracks", async () => {
+    await page.keyboard.press("Escape");
+    await page.evaluate(async () => {
+      const { setupLab } = await import("/src/guide/setup.ts");
+      const { labById } = await import("/src/guide/labs.ts");
+      window.__lab = setupLab(labById("vocals"));
+    });
+    // MixIt asks before making the practice tracks.
+    await page.click('button:has-text("Add practice tracks")', { timeout: 5000 });
+    const ok = await page.evaluate(() => window.__lab);
+    expect(ok, "the lab did not set up");
+    await page.waitForFunction(() => window.mixit.useApp.getState().decks[1]?.detail.track.title.startsWith("Practice 8"), null, { timeout: 10_000 }).catch(() => {});
+    const decks = await page.evaluate(() => window.mixit.useApp.getState().decks.slice(0, 2).map((d) => [d?.detail.track.title, d?.detail.vocals?.length ?? 0]));
+    expect(decks[0][0] === "Practice 7 - Vocal House" && decks[1][0] === "Practice 8 - Vocal Deep House", `decks hold ${decks.map((d) => d[0])}`);
+    expect(decks.every((d) => d[1] > 0), "a practice track without vocal parts");
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

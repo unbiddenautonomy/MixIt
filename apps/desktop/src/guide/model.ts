@@ -6,7 +6,7 @@ import type { DeckTele, Telemetry } from "../backend/types";
 import { useApp, type ChannelState } from "../store/app";
 import { useTelemetry } from "../store/telemetry";
 
-export type PracticeId = "p1" | "p2" | "p3" | "p4" | "p5" | "p6";
+export type PracticeId = "p1" | "p2" | "p3" | "p4" | "p5" | "p6" | "p7" | "p8";
 
 export const PRACTICE_TITLES: Record<PracticeId, string> = {
   p1: "Practice 1 - Warm House",
@@ -15,6 +15,8 @@ export const PRACTICE_TITLES: Record<PracticeId, string> = {
   p4: "Practice 4 - Clashing Keys",
   p5: "Practice 5 - Melodic Trance",
   p6: "Practice 6 - Live Drummer",
+  p7: "Practice 7 - Vocal House",
+  p8: "Practice 8 - Vocal Deep House",
 };
 
 export type Memory = Record<string, number | boolean | undefined>;
