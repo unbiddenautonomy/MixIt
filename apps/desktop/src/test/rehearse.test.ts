@@ -186,3 +186,24 @@ describe("hearing a mix in the preview player", () => {
     expect(useRehearse.getState().key).toBeNull();
   });
 });
+
+describe("a looped ending written out", () => {
+  it("repeats the looped beats under the transition, with its automation", () => {
+    const out = track({ id: 1 });
+    const inc = track({ id: 2 });
+    const plan = { ...planMix(out, inc), kind: "blend" as const, beats: 32, loopBeats: 8, outStartBeat: 320 };
+    const r = rehearsal(out, inc, plan);
+    const outs = r.project.clips.filter((c) => c.lane === 0).sort((x, y) => x.start - y.start);
+    // The lead-in plus the first time round, then three more times round the 8 beats.
+    expect(outs.map((c) => [c.start, c.length, c.source_start])).toEqual([
+      [0, 24, 304],
+      [24, 8, 320],
+      [32, 8, 320],
+      [40, 8, 320],
+    ]);
+    expect(new Set(r.project.clips.map((c) => c.id)).size).toBe(r.project.clips.length);
+    // The fade carries on across the pieces.
+    expect(valueAt(outs[2], "Volume", 40)).toBeLessThan(valueAt(outs[1], "Volume", 28));
+    expect(r.to).toBe(16 + 32 + 16);
+  });
+});

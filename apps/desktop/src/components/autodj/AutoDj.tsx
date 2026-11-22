@@ -151,6 +151,10 @@ function Controls() {
         <input type="checkbox" checked={options.keyMatch} onChange={(e) => set({ keyMatch: e.target.checked })} />
         Fix clashing keys
       </label>
+      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When a track ends too soon after its mix-out point for a full mix, its last 8 or 16 beats loop while the next track comes in, instead of a rushed mix.">
+        <input type="checkbox" checked={options.extend !== false} onChange={(e) => set({ extend: e.target.checked })} data-testid="autodj-extend" />
+        Loop a short ending
+      </label>
       <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When the queue runs out, Auto DJ picks tracks that mix well from your library.">
         <input type="checkbox" checked={keepGoing} onChange={(e) => useAutoDj.getState().set({ keepGoing: e.target.checked })} />
         Keep going with suggestions

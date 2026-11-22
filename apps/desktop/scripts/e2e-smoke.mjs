@@ -382,6 +382,44 @@ try {
     await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 
+  await step("a transition loops the end of a short track and still runs its full length", async () => {
+    const plan = await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      const tele = () => window.mixit.useTelemetry.getState().t.decks;
+      for (const [i, d] of tele().entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+      await b.seek(0, tele()[0].duration - 14);
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+      await new Promise((ok) => setTimeout(ok, 300));
+      const d = tele()[0];
+      const atBeat = Math.ceil((d.beat + 1) / 4) * 4;
+      const { startTransition } = await import("/src/lib/transition.ts");
+      // 16 beats of blend over an 8-beat loop: twice round the loop.
+      await startTransition(0, 1, "blend", 16, { atBeat, loopBeats: 8 });
+      return { atBeat, bpm: d.bpm, duration: d.duration };
+    });
+    const loopFor = ((8 * 60) / plan.bpm) * 1000;
+    await sleep(loopFor * 1.4);
+    let a = await page.evaluate(() => window.mixit.useTelemetry.getState().t.decks[0]);
+    const running = await page.evaluate(() => window.mixit.useTransition.getState().running);
+    expect(a.playing && a.looping.active && a.looping.beats === 8, `deck A: playing ${a.playing}, loop ${JSON.stringify(a.looping)}`);
+    expect(running && running.progress > 0.2 && running.progress < 1, `transition ${JSON.stringify(running)}`);
+    // It finishes after the full 16 beats even though deck A keeps jumping back.
+    await page.waitForFunction(() => !window.mixit.useTransition.getState().running, null, { timeout: 20_000 });
+    await sleep(400);
+    const [aa, bb] = await page.evaluate(() => window.mixit.useTelemetry.getState().t.decks.slice(0, 2));
+    expect(!aa.playing && !aa.looping.active, `deck A after the mix: playing ${aa.playing}, loop ${aa.looping.active}`);
+    expect(bb.playing && bb.master, "deck B is not playing as the master");
+    await page.evaluate(async () => {
+      await window.mixit.backend().action("deck.B.play", { type: "press" });
+      await window.mixit.backend().action("deck.B.play", { type: "release" });
+    });
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
