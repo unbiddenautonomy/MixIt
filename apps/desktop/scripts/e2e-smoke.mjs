@@ -349,6 +349,39 @@ try {
     expect(!p.playing, "the preview kept playing after closing");
   });
 
+  await step("the Auto DJ queue grades each change, fills a rough one and finds the best order", async () => {
+    const pair = await page.evaluate(async () => {
+      const { transition } = await import("/src/lib/setFlow.ts");
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.key && !r.missing);
+      for (const a of rows)
+        for (const b of rows) if (a.id !== b.id && transition(a, b).grade === "rough" && Math.abs(a.bpm / b.bpm - 1) < 0.14) return [a, b];
+      return null;
+    });
+    expect(pair, "no rough pair in the demo library");
+    await page.evaluate((q) => window.mixit.useAutoDj.getState().set({ queue: q }), pair);
+    await page.waitForSelector('[data-testid="mix-link-0"][data-grade="rough"]', { timeout: 3000 });
+    await page.click('[data-testid="bridge-0"]');
+    const q = await page.evaluate(() => window.mixit.useAutoDj.getState().queue.map((t) => t.id));
+    expect(q.length === 3 && q[0] === pair[0].id && q[2] === pair[1].id, `queue is ${q}`);
+    const grades = await page.$$eval('[data-testid^="mix-link-"]', (els) => els.map((e) => e.getAttribute("data-grade")));
+    expect(grades.length === 2 && !grades.includes("rough"), `grades ${grades}`);
+    // Best order: a shuffled queue comes out with no more rough changes than it had.
+    const before = await page.evaluate(async () => {
+      const { flow, summary } = await import("/src/lib/setFlow.ts");
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.key && !r.missing).slice(0, 7);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      return summary(flow(rows)).rough;
+    });
+    await page.click('[data-testid="queue-order"]');
+    const after = await page.evaluate(async () => {
+      const { flow, summary } = await import("/src/lib/setFlow.ts");
+      const q = window.mixit.useAutoDj.getState().queue;
+      return { rough: summary(flow(q)).rough, n: q.length };
+    });
+    expect(after.n === 7 && after.rough <= before, `rough changes ${before} before, ${after.rough} after`);
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
