@@ -1,8 +1,8 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, Headphones, Info, ListX, Loader2, Pause, Play, SkipForward, Square, Trash2, X, Zap } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Loader2, Pause, Play, Shuffle, SkipForward, Square, Trash2, X, Zap } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
@@ -12,6 +12,8 @@ import { useTransition } from "../../lib/transition";
 import { useApp } from "../../store/app";
 import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
+import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
+import { flow, summary, transition, type Grade } from "../../lib/setFlow";
 import { hearNext, hearPair, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
 import { previewPosition } from "../library/PreviewBar";
 import { setupCanvas } from "../../lib/waveform";
@@ -43,6 +45,8 @@ export function AutoDjView() {
   const phase = useAutoDj((s) => s.phase);
   const queue = useAutoDj((s) => s.queue);
   const drop = useDropTarget("autodj-queue", { label: "Add to Auto DJ", tracks: (ids) => enqueueIds(ids) });
+  // The change out of the track waiting (or playing) into the queue's first.
+  const start = useAutoDj((s) => (s.next ? s.next.track : s.phase !== "off" && s.current !== null ? (useApp.getState().decks[s.current]?.detail.track ?? null) : null));
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" {...drop.props}>
       <Controls />
@@ -54,8 +58,20 @@ export function AutoDjView() {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Queue</div>
               <span className="font-mono text-[10px] text-zinc-500">{queue.length}</span>
               <span className="font-mono text-[10px] text-zinc-500">{clock(queue.reduce((a, t) => a + t.duration, 0))}</span>
+              <FlowSummary />
+              {queue.length > 1 && (
+                <button
+                  type="button"
+                  className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+                  onClick={() => orderQueue()}
+                  title="Reorder the queue so every change is as easy to mix as it can be (keys that fit, small tempo steps), with the energy going the way you chose"
+                  data-testid="queue-order"
+                >
+                  <Shuffle size={12} /> Best order
+                </button>
+              )}
               {queue.length > 0 && (
-                <button type="button" className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100" onClick={clearQueue}>
+                <button type="button" className={clsx(queue.length > 1 ? "" : "ml-auto", "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100")} onClick={clearQueue}>
                   <ListX size={12} /> Clear
                 </button>
               )}
@@ -68,8 +84,12 @@ export function AutoDjView() {
               </div>
             ) : (
               <ol>
+                {start && <MixLink a={start} b={queue[0]} i={-1} />}
                 {queue.map((t, i) => (
-                  <QueueRow key={t.id} t={t} i={i} last={i === queue.length - 1} into={queue[i + 1]} />
+                  <Fragment key={t.id}>
+                    <QueueRow t={t} i={i} last={i === queue.length - 1} />
+                    {i < queue.length - 1 && <MixLink a={t} b={queue[i + 1]} i={i} />}
+                  </Fragment>
                 ))}
               </ol>
             )}
@@ -229,10 +249,8 @@ function NowNext() {
   );
 }
 
-function QueueRow({ t, i, last, into }: { t: TrackRow; i: number; last: boolean; into?: TrackRow }) {
+function QueueRow({ t, i, last }: { t: TrackRow; i: number; last: boolean }) {
   const notation = useApp((s) => s.settings?.keyNotation ?? "camelot");
-  const key = into ? `${t.id}-${into.id}` : null;
-  const hearing = useRehearse((s) => key !== null && s.key === key);
   return (
     <li className="group relative flex items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 text-xs last:border-b-0 hover:bg-white/[0.03]">
       <span className="w-5 text-right font-mono text-[10px] text-zinc-500">{i + 1}</span>
@@ -254,21 +272,75 @@ function QueueRow({ t, i, last, into }: { t: TrackRow; i: number; last: boolean;
           <Trash2 size={12} />
         </IconBtn>
       </div>
-      {into && (
+    </li>
+  );
+}
+
+const GRADE: Record<Grade, { dot: string; label: string }> = {
+  smooth: { dot: "bg-emerald-400", label: "Smooth change" },
+  ok: { dot: "bg-amber-400", label: "Needs care" },
+  rough: { dot: "bg-rose-500", label: "Rough change" },
+};
+
+/** How many changes in the queue are smooth, need care or are rough. */
+function FlowSummary() {
+  const queue = useAutoDj((s) => s.queue);
+  const start = useAutoDj((s) => s.next?.track ?? null);
+  const rows = start ? [start, ...queue] : queue;
+  if (rows.length < 2) return null;
+  const s = summary(flow(rows));
+  return (
+    <span className="flex items-center gap-2 text-[10px] text-zinc-500" title="How easy each change of track is to mix" data-testid="queue-flow">
+      {(["smooth", "ok", "rough"] as const).map((g) =>
+        s[g] ? (
+          <span key={g} className="flex items-center gap-1">
+            <span className={clsx("size-1.5 rounded-full", GRADE[g].dot)} />
+            {s[g]} {g === "ok" ? "need care" : g}
+          </span>
+        ) : null,
+      )}
+    </span>
+  );
+}
+
+/** The change from `a` into `b`: how easy it is and why, hear it, or fill a rough one. */
+function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
+  const t = transition(a, b);
+  const key = `${a.id}-${b.id}`;
+  const hearing = useRehearse((s) => s.key === key);
+  const g = GRADE[t.grade];
+  const why = t.reasons.length ? t.reasons.map((r, k) => (k ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join(", ") : "Keys fit, tempos close, energy flows";
+  const library = useLibrary((s) => s.rows);
+  const queueLen = useAutoDj((s) => s.queue.length);
+  const bridge = useMemo(() => (t.grade === "rough" ? bridgeChoices(i, 1)[0] : undefined), [a.id, b.id, t.grade, library, queueLen]);
+  return (
+    <li className="flex items-center gap-2 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
+      <span className={clsx("size-1.5 shrink-0 rounded-full", g.dot)} />
+      <span className="min-w-0 flex-1 truncate" title={why}>
+        <span className="text-zinc-400">{g.label}</span>
+        {t.reasons.length > 0 && `: ${why.charAt(0).toLowerCase()}${why.slice(1)}`}
+      </span>
+      {bridge && (
         <button
           type="button"
-          onClick={() => (hearing ? stopMix() : void hearPair(t, into))}
-          title={hearing ? "Stop hearing this mix" : `Hear the mix from this track into ${into.title} in your headphones, the way Auto DJ will do it`}
-          aria-label={hearing ? "Stop hearing this mix" : `Hear the mix into ${into.title}`}
-          className={clsx(
-            "absolute -bottom-2.5 left-9 z-10 flex h-5 items-center gap-1 rounded-full border px-1.5 text-[10px] transition-opacity",
-            hearing ? "border-sky-400/50 bg-sky-950 text-sky-200 opacity-100" : "border-white/10 bg-zinc-900 text-zinc-400 opacity-0 hover:text-zinc-100 group-hover:opacity-100 focus-visible:opacity-100",
-          )}
-          data-testid={`hear-mix-${i}`}
+          onClick={() => addBridge(i, bridge.track)}
+          title={`Put ${bridge.track.title} in between: it goes well with both tracks`}
+          className="flex shrink-0 items-center gap-1 rounded px-1 text-rose-200 hover:bg-white/10"
+          data-testid={`bridge-${i}`}
         >
-          <Headphones size={10} /> {hearing ? "Hearing this mix" : "Hear this mix"}
+          <GitMerge size={10} /> Add {bridge.track.title} between
         </button>
       )}
+      <button
+        type="button"
+        onClick={() => (hearing ? stopMix() : void hearPair(a, b))}
+        title={hearing ? "Stop hearing this mix" : `Hear the mix into ${b.title} in your headphones, the way Auto DJ will do it`}
+        aria-label={hearing ? "Stop hearing this mix" : `Hear the mix into ${b.title}`}
+        className={clsx("flex shrink-0 items-center gap-1 rounded px-1", hearing ? "text-sky-200" : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
+        data-testid={`hear-mix-${i}`}
+      >
+        <Headphones size={10} /> {hearing ? "Hearing" : "Hear this mix"}
+      </button>
     </li>
   );
 }
