@@ -18,6 +18,7 @@ import { TrackTable } from "./TrackTable";
 import { AutoDjView } from "../autodj/AutoDj";
 import { LibraryCare } from "./LibraryCare";
 import { PreviewBar } from "./PreviewBar";
+import { SetFlow, SetFlowToggle } from "./SetFlow";
 
 export async function addMusicFolder() {
   const dirs = await backend().pickFolders();
@@ -36,6 +37,7 @@ export function Library({ full = false }: { full?: boolean }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar />
+        <SetFlow />
         {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : <TrackTable />}
         <PreviewBar />
       </div>
@@ -125,6 +127,7 @@ function Toolbar() {
         </div>
       )}
       <div className="ml-auto flex items-center gap-1.5">
+        {source.type === "playlist" && <SetFlowToggle />}
         {job && (
           <div className="flex items-center gap-2 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-zinc-300">
             <Loader2 size={12} className="animate-spin text-sky-300" />

@@ -4,6 +4,7 @@
 
 import type { Backend, Unlisten } from "./index";
 import type * as T from "./types";
+import { transition } from "../lib/setFlow";
 import { applyEdits, DEMO_SR, demoSound, viewOf } from "./demoSound";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 import { toProjectKey } from "../lib/arrangeOps";
@@ -1110,10 +1111,31 @@ export class DemoBackend implements Backend {
     rest.splice(at, 0, ...moving);
     p.tracks = rest;
   }
-  async orderPlaylist(id: number) {
+  /** A greedy path: each next track is the easiest to mix into, rising in energy for "up". */
+  async orderPlaylist(id: number, energy: "steady" | "up" | "down" = "steady") {
     const p = this.playlistsData.find((x) => x.id === id);
-    if (!p) return;
-    p.tracks.sort((a, b) => (this.find(a).row.key?.index ?? 0) - (this.find(b).row.key?.index ?? 0));
+    if (!p || p.tracks.length < 3) return;
+    const rows = p.tracks.map((t) => this.find(t).row);
+    const rank = { smooth: 0, ok: 1, rough: 3 };
+    const cost = (a: T.TrackRow, b: T.TrackRow) => {
+      const t = transition(a, b);
+      let c = rank[t.grade] + Math.abs(t.tempoPct ?? 0) / 6;
+      const de = (b.energy ?? 5) - (a.energy ?? 5);
+      if (energy === "up") c += de < 0 ? -de : de > 2 ? (de - 2) / 2 : 0;
+      if (energy === "down") c += de > 0 ? de : de < -2 ? (-de - 2) / 2 : 0;
+      return c;
+    };
+    const left = [...rows];
+    const pick = energy === "up" ? left.reduce((m, r) => ((r.energy ?? 5) < (m.energy ?? 5) ? r : m)) : energy === "down" ? left.reduce((m, r) => ((r.energy ?? 5) > (m.energy ?? 5) ? r : m)) : left[0];
+    const out = [pick];
+    left.splice(left.indexOf(pick), 1);
+    while (left.length) {
+      const cur = out[out.length - 1];
+      let best = 0;
+      for (let i = 1; i < left.length; i++) if (cost(cur, left[i]) < cost(cur, left[best])) best = i;
+      out.push(left.splice(best, 1)[0]);
+    }
+    p.tracks = out.map((r) => r.id);
   }
   async history() {
     return this.historyData;
