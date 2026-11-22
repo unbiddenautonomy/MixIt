@@ -622,6 +622,22 @@ try {
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
   });
 
+  await step("Try another transition re-renders the mix being heard", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    await page.selectOption('[data-testid="try-another"]', "brake");
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().summary === "Brake stop" && window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    expect((await page.inputValue('[data-testid="choose-mix-0"]')) === "brake", "the queue line does not show the choice");
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [], choices: {} }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

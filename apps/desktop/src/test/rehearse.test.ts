@@ -9,7 +9,7 @@ import { beatAtSeconds, planMix } from "../lib/autodj";
 import { fromCamelot, keyDto } from "../lib/keys";
 import { medley, rehearsal, setMix, tempoAt } from "../lib/rehearse";
 import { useApp } from "../store/app";
-import { changeAt, hearPair, hearSet, musicOnAir, stopMix, useRehearse } from "../store/rehearse";
+import { changeAt, hearPair, hearSet, musicOnAir, retryChange, stopMix, useRehearse } from "../store/rehearse";
 import { chooseTransition, planFor, useAutoDj } from "../store/autodj";
 import { emptyTelemetry, useTelemetry } from "../store/telemetry";
 import { previewTrack, useTrackPreview } from "../store/trackPreview";
@@ -346,5 +346,37 @@ describe("choosing the transition for one change", () => {
     expect(useAutoDj.getState().next!.plan.kind).toBe("blend");
     expect(useAutoDj.getState().log[0].text).toMatch(/New plan for Track 2: blend over \d+ beats/);
     useAutoDj.setState({ choices: {}, phase: "off", current: null, next: null });
+  });
+});
+
+describe("trying another transition while hearing", () => {
+  it("renders the mix again with the new transition, keeps the choice and plays from the change", async () => {
+    const b = new DemoBackend();
+    setBackendForTests(b);
+    useTelemetry.setState({ t: structuredClone(emptyTelemetry) });
+    useTrackPreview.setState({ route: "speakers" });
+    const rows = (await b.search("")).filter((r) => r.bpm && r.duration > 120).slice(0, 3);
+    useAutoDj.setState({ queue: rows, phase: "off", next: null, current: null, choices: {} });
+    await hearPair(rows[0], rows[1]);
+    expect(useRehearse.getState().changes[0].ids).toEqual([rows[0].id, rows[1].id]);
+    const seek = vi.spyOn(b, "previewSeek");
+    await retryChange(0, "cut");
+    let s = useRehearse.getState();
+    expect(s).toMatchObject({ key: `${rows[0].id}-${rows[1].id}`, status: "ready", summary: "Cut on the bar", title: `${rows[0].title} into ${rows[1].title}` });
+    expect(useAutoDj.getState().choices).toEqual({ [`${rows[0].id}-${rows[1].id}`]: "cut" });
+    expect(seek).toHaveBeenLastCalledWith(Math.max(0, s.changes[0].at - 4));
+    // In the whole set, only that change takes the new transition.
+    await hearSet();
+    await retryChange(1, "echoOut");
+    s = useRehearse.getState();
+    expect(s.key).toBe("set");
+    expect(s.changes[0].label).toMatch(/cut on the bar$/);
+    expect(s.changes[1].label).toMatch(/echo out/);
+    expect(seek).toHaveBeenLastCalledWith(Math.max(0, s.changes[1].at - 4));
+    // Back to Auto DJ's choice.
+    await retryChange(1, null);
+    expect(Object.keys(useAutoDj.getState().choices)).toEqual([`${rows[0].id}-${rows[1].id}`]);
+    stopMix();
+    useAutoDj.setState({ queue: [], choices: {} });
   });
 });

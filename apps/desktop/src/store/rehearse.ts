@@ -8,7 +8,8 @@ import type { TrackDetail, TrackRow } from "../backend/types";
 import type { MixPlan } from "../lib/autodj";
 import { medley, rehearsal } from "../lib/rehearse";
 import { useApp } from "./app";
-import { planFor, useAutoDj } from "./autodj";
+import { chooseTransition, planFor, useAutoDj } from "./autodj";
+import type { TransitionId } from "../lib/transition";
 import { queueStart } from "./queueFlow";
 import { useTelemetry } from "./telemetry";
 import { resolveRoute, sendSettings, useTrackPreview } from "./trackPreview";
@@ -24,7 +25,16 @@ interface RehearseState {
   mixAt: number;
   mixEnd: number;
   /** Every transition in what is loaded (one for a single mix, each change for a set). */
-  changes: { at: number; end: number; label: string }[];
+  changes: Change[];
+}
+
+/** One transition in what is loaded: where it starts and ends (seconds), what it is, and
+ * the two tracks (ids), so a different transition can be tried for it. */
+export interface Change {
+  at: number;
+  end: number;
+  label: string;
+  ids?: [number, number];
 }
 
 const IDLE: RehearseState = { key: null, status: "idle", title: "", summary: "", duration: 0, mixAt: 0, mixEnd: 0, changes: [] };
@@ -60,7 +70,7 @@ export async function hearMix(key: string, out: TrackDetail, inc: TrackDetail, p
   // The preview player plays one thing: the mix takes over from a track preview.
   useTrackPreview.setState({ track: null, loading: false, sections: [], cues: [] });
   const r = rehearsal(out, inc, plan);
-  useRehearse.setState({ key, status: "loading", title: `${out.track.title} into ${inc.track.title}`, summary: plan.summary, duration: 0, mixAt: r.mixAt, mixEnd: r.mixEnd, changes: [{ at: r.mixAt, end: r.mixEnd, label: plan.summary }] });
+  useRehearse.setState({ key, status: "loading", title: `${out.track.title} into ${inc.track.title}`, summary: plan.summary, duration: 0, mixAt: r.mixAt, mixEnd: r.mixEnd, changes: [{ at: r.mixAt, end: r.mixEnd, label: plan.summary, ids: [out.track.id, inc.track.id] }] });
   sendSettings();
   try {
     const duration = await backend().previewMix(r.project, r.from, r.to);
@@ -74,7 +84,7 @@ export async function hearMix(key: string, out: TrackDetail, inc: TrackDetail, p
 }
 
 /** Plans the change from `a` into `b` with Auto DJ's settings and plays it. */
-export async function hearPair(a: TrackRow, b: TrackRow) {
+export async function hearPair(a: Pick<TrackRow, "id" | "title">, b: Pick<TrackRow, "id" | "title">): Promise<void> {
   const key = `${a.id}-${b.id}`;
   if (!safeToHear()) return;
   const my = ++request;
@@ -121,7 +131,7 @@ export async function hearSet() {
     if (my !== request) return;
     const steps = details.slice(1).map((inc, i) => ({ out: details[i], inc, plan: planFor(details[i], inc) }));
     const m = medley(steps);
-    const changes = m.changes.map((c, i) => ({ ...c, label: `${c.label}: ${steps[i].plan.summary.toLowerCase()}` }));
+    const changes: Change[] = m.changes.map((c, i) => ({ ...c, label: `${c.label}: ${steps[i].plan.summary.toLowerCase()}`, ids: [steps[i].out.track.id, steps[i].inc.track.id] }));
     useRehearse.setState({ summary: `${n} change${n === 1 ? "" : "s"}, a few bars either side of each`, mixAt: changes[0].at, mixEnd: changes[0].end, changes });
     const duration = await backend().previewMix(m.project, m.from, m.to);
     if (my !== request) return;
@@ -175,3 +185,21 @@ useTrackPreview.subscribe((s, prev) => {
     useRehearse.setState(IDLE);
   }
 });
+
+/**
+ * Tries another transition for change `i` of what is loaded (null: Auto DJ's own choice):
+ * remembers the choice for that change (Auto DJ, Make a mix and the rest use it too),
+ * renders the mix again and plays it from just before that change, to compare.
+ */
+export async function retryChange(i: number, kind: TransitionId | null) {
+  const s = useRehearse.getState();
+  const c = s.changes[i];
+  if (!c?.ids) return;
+  chooseTransition(c.ids[0], c.ids[1], kind);
+  if (s.key === "set") await hearSet();
+  else if (s.key === "next") await hearNext();
+  else await hearPair({ id: c.ids[0], title: s.title.split(" into ")[0] }, { id: c.ids[1], title: s.title.split(" into ").slice(1).join(" into ") });
+  const now = useRehearse.getState();
+  const again = now.changes[i];
+  if (now.status === "ready" && again) seekMix(Math.max(0, again.at - 4));
+}
