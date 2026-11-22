@@ -1,8 +1,9 @@
-// The eight practice labs. Each step says what to do in plain words and, where the app
+// The nine practice labs. Each step says what to do in plain words and, where the app
 // can tell, checks itself off when you do it.
 import { usePreview } from "../components/arrange/preview";
 import { useAssistant } from "../components/feedback/MixAssistant";
 import { useStudio } from "../store/studio";
+import { singingAt } from "../lib/coach";
 import { audible, ch, deckWith, noteJump, noteStart, offBoundary, playing, tele, type Lab } from "./model";
 
 const A = 0;
@@ -440,6 +441,61 @@ export const LABS: Lab[] = [
     ],
     listen: "The track sounds fuller and firmer than before, with no harsh or boomy part sticking out, and the reverb tail fades smoothly.",
     mistake: "Boosting several EQ bands a lot. Cutting what is too much usually sounds cleaner than boosting what is missing, and keeps the level out of the limiter.",
+  },
+  {
+    id: "vocals",
+    number: 9,
+    title: "Mixing around vocals",
+    goal: "Blend two songs that both have singing without the voices talking over each other.",
+    decks: ["p7", "p8"],
+    observe: (c) => {
+      const sings = (d: number) => playing(c, d) && singingAt(c.app.decks[d], tele(c, d)?.position ?? 0);
+      if (sings(A)) c.m.heardA = true;
+      // Both voices up at once, with deck B's mids still full: the clash to avoid.
+      const both = sings(A) && sings(B) && audible(c, A) > 0.3 && audible(c, B) > 0.3;
+      const last = (c.m.tick as number) ?? c.now;
+      if (both && ch(c, B).mid > -6) c.m.clash = ((c.m.clash as number) ?? 0) + Math.min(0.5, c.now - last);
+      if (both && ch(c, B).mid <= -10) c.m.ducked = true;
+      c.m.tick = c.now;
+    },
+    steps: [
+      {
+        id: "play",
+        title: "Play deck A and find the pink line",
+        body: "The pink line along the top of the waveforms marks where the track has singing. MixIt hears it in the analysis.",
+        controls: ["deck.A.play"],
+        check: (c) => playing(c, A),
+      },
+      {
+        id: "hear",
+        title: "Listen as the singer comes in on deck A",
+        body: "The voice starts on the first drop, right where the pink line begins.",
+        check: (c) => !!c.m.heardA,
+      },
+      {
+        id: "bring-in",
+        title: "Sync deck B, start it and raise its fader",
+        body: "Deck B sings too. When both voices play at once the words blur together, even though the keys fit.",
+        controls: ["deck.B.sync", "deck.B.play", "mixer.B.fader"],
+        check: (c) => !!tele(c, B)?.sync && playing(c, B) && audible(c, B) > 0.3,
+      },
+      {
+        id: "duck",
+        title: "While both sing, turn deck B's Mid down",
+        body: "Voices live in the mids. Lowering deck B's Mid (to about -12 dB) moves its singer to the back while deck A's carries on. The coach suggests the same when it hears two voices.",
+        controls: ["mixer.B.eq.mid"],
+        check: (c) => !!c.m.ducked,
+      },
+      {
+        id: "swap",
+        title: "When deck A's vocal ends, bring B's Mid back and fade A out",
+        body: "Wait for the end of deck A's pink line, then turn deck B's Mid back up and pull deck A down. Now deck B's singer has the floor.",
+        controls: ["mixer.B.eq.mid", "mixer.A.fader"],
+        check: (c) => playing(c, B) && ch(c, B).mid >= -3 && audible(c, A) < 0.1 && audible(c, B) > 0.4,
+      },
+    ],
+    listen: "Only one voice at a time is clear and in front. The other track's music keeps going underneath.",
+    mistake: "Letting both singers play at full level. The lab counts the seconds that happened; Mix it and Automix avoid it for you.",
   },
 ];
 

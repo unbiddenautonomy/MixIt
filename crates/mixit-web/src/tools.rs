@@ -311,7 +311,8 @@ mod practice_keys {
     use super::*;
 
     /// The guide's labs rely on the practice tracks reading as their listed tempo and key
-    /// (Lab 4 is about a deliberate clash; the others must not show one).
+    /// (Lab 4 is about a deliberate clash; the others must not show one), and the vocal lab
+    /// relies on hearing exactly the tracks that sing.
     #[test]
     fn practice_tracks_analyse_to_their_listing() {
         for p in mixit_generator::practice::PRACTICE {
@@ -320,6 +321,8 @@ mod practice_keys {
             let camelot = format!("{}{}", p.camelot.0, p.camelot.1);
             assert_eq!(v.key.as_ref().map(|k| k.camelot.as_str()), Some(camelot.as_str()), "{}", p.id);
             assert!((v.grid.bpm - p.bpm).abs() < 0.5 || p.end_bpm.is_some(), "{}: {} BPM", p.id, v.grid.bpm);
+            // The singers are heard, and nobody else sings.
+            assert_eq!(v.vocal_percent >= 10, p.vocals, "{}: {}% vocals", p.id, v.vocal_percent);
         }
     }
 }
