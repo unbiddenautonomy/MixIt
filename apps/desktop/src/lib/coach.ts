@@ -19,7 +19,8 @@ export function singingAt(d: DeckInfo | null | undefined, seconds: number, ahead
   return !!d?.detail.vocals?.some(([a, b]) => seconds >= a - ahead && seconds < b);
 }
 
-export function coachTips(t: Telemetry, decks: (DeckInfo | null)[], mixer: MixerState, count: number): Tip[] {
+/** `setLeft`: seconds left in the set when a set clock runs (see setClock.ts). */
+export function coachTips(t: Telemetry, decks: (DeckInfo | null)[], mixer: MixerState, count: number, setLeft: number | null = null): Tip[] {
   const tips: Tip[] = [];
   const idx = Array.from({ length: count }, (_, i) => i);
   const loaded = idx.filter((i) => t.decks[i]?.loaded && decks[i]);
@@ -91,6 +92,18 @@ export function coachTips(t: Telemetry, decks: (DeckInfo | null)[], mixer: Mixer
     const unsynced = playing.filter((i) => !t.decks[i].master && !t.decks[i].sync && Math.abs(t.decks[i].phase) > 0.08);
     for (const i of unsynced) {
       tips.push({ id: `phase-${i}`, level: "warn", text: `The beats on deck ${L(i)} drift from the master. Nudge it, or turn on Sync.`, action: { label: `Sync ${L(i)}`, run: `deck.${L(i)}.sync` } });
+    }
+  }
+  // The set clock: the track playing or the next one runs past the end of the set.
+  if (setLeft != null && setLeft > 0) {
+    if (curTele.remaining > setLeft + 15) {
+      tips.push({ id: "set-end", level: "warn", text: `Your set ends in ${clock(setLeft)}, before deck ${L(cur)} does (${clock(curTele.remaining)} left). Mix out early, or fade it out at the end.` });
+    } else if (next !== undefined) {
+      const after = setLeft - curTele.remaining;
+      const nextLen = t.decks[next].remaining;
+      if (after > 0 && nextLen > after + 30) {
+        tips.push({ id: "set-fit", level: "info", text: `After this track there are ${clock(after)} of your set left, and deck ${L(next)} runs ${clock(nextLen)}. Mix it in early or pick a shorter track.` });
+      }
     }
   }
   if (t.master.limiterGrDb < -3) {

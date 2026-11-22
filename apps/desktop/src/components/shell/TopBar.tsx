@@ -1,10 +1,13 @@
 // The bar across the top: workspaces, the master clock and level, recording, engine
 // health, and the Easy/Pro, explain, coach, palette and settings switches.
 import clsx from "clsx";
-import { AlertTriangle, BookOpen, Circle, Command, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { AlarmClock, AlertTriangle, BookOpen, Circle, Command, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
 import { isMac } from "../../lib/actions";
 import { clock } from "../../lib/format";
+import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../../lib/setClock";
 import { useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { AssistantButton } from "../feedback/MixAssistant";
@@ -35,6 +38,7 @@ export function TopBar() {
         ]}
       />
       <MasterClock />
+      <SetClock />
       <div className="ml-auto flex items-center gap-2">
         <Health />
         <MicButton />
@@ -133,6 +137,83 @@ function MasterClock() {
         </div>
       </div>
     </Ctl>
+  );
+}
+
+const SET_LENGTHS: [number, string][] = [
+  [30, "30 min"],
+  [60, "1 hour"],
+  [90, "1½ hours"],
+  [120, "2 hours"],
+];
+
+/** How long your set has left: choose a length or an end time, and the bar counts down. */
+function SetClock() {
+  const endsAt = useSetClock((s) => s.endsAt);
+  const [now, setNow] = useState(() => Date.now());
+  const [at, setAt] = useState("");
+  useEffect(() => {
+    setNow(Date.now());
+    if (!endsAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [endsAt]);
+  const left = setSecondsLeft(endsAt, now);
+  const ends = endsAt ? new Date(endsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const validAt = endAt(at) != null;
+  return (
+    <Popover.Root>
+      <Ctl label="Set clock" explain="How long your set has left. Choose a length or the time you finish, and the coach tells you when a track would run past the end.">
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            className={clsx(
+              "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs",
+              left == null ? "border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200" : left < 180 ? "border-red-500/40 bg-red-500/10 text-red-300" : left < 600 ? "border-amber-500/40 bg-amber-500/10 text-amber-200" : "border-white/[0.06] bg-black/30 text-zinc-200",
+            )}
+            aria-label="Set clock"
+            data-testid="set-clock"
+          >
+            <AlarmClock size={13} />
+            {left == null ? <span className="hidden lg:inline">Set length</span> : <span className="font-mono tabular-nums">{setLeftLabel(left)}</span>}
+          </button>
+        </Popover.Trigger>
+      </Ctl>
+      <Popover.Portal>
+        <Popover.Content side="bottom" align="start" sideOffset={8} className="z-50 flex w-72 flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-xs shadow-2xl backdrop-blur" data-testid="set-clock-panel">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">How long is your set?</div>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {SET_LENGTHS.map(([m, label]) => (
+                <Btn key={m} size="sm" onClick={() => setSetEnd({ minutes: m })} data-testid={`set-length-${m}`}>
+                  {label}
+                </Btn>
+              ))}
+            </div>
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Or it ends at</span>
+            <span className="flex gap-1.5">
+              <input className="input h-8 flex-1" placeholder="02:00" value={at} onChange={(e) => setAt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && validAt && setSetEnd({ at })} aria-label="Time the set ends" />
+              <Btn size="sm" disabled={!validAt} onClick={() => setSetEnd({ at })}>
+                Set
+              </Btn>
+            </span>
+          </label>
+          {endsAt && (
+            <div className="flex items-center gap-2 border-t border-white/[0.06] pt-2 text-zinc-400">
+              <span>
+                Ends at {ends}
+                {left != null && `, ${setLeftLabel(left).toLowerCase()}`}
+              </span>
+              <button type="button" className="ml-auto rounded px-1.5 py-0.5 text-zinc-500 hover:bg-white/10 hover:text-zinc-100" onClick={() => setSetEnd(null)}>
+                Clear
+              </button>
+            </div>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 

@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, GraduationCap, Info, TriangleA
 import { useEffect, useState } from "react";
 import { runCommand, updateSettings } from "../../lib/appCommands";
 import { coachTips, type Tip } from "../../lib/coach";
+import { setSecondsLeft, useSetClock } from "../../lib/setClock";
 import { useApp } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn } from "../ui/Button";
@@ -21,7 +22,7 @@ export function Coach() {
     const tick = () => {
       const s = useApp.getState();
       const t = useTelemetry.getState().t;
-      setTips(coachTips(t, s.decks, s.mixer, s.settings?.decks ?? 2));
+      setTips(coachTips(t, s.decks, s.mixer, s.settings?.decks ?? 2, setSecondsLeft(useSetClock.getState().endsAt)));
     };
     tick();
     const id = window.setInterval(tick, 500);
