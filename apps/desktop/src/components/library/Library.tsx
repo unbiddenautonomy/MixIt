@@ -17,6 +17,7 @@ import { Suggestions } from "./Suggestions";
 import { TrackTable } from "./TrackTable";
 import { AutoDjView } from "../autodj/AutoDj";
 import { LibraryCare } from "./LibraryCare";
+import { InsightsView } from "./Insights";
 import { PreviewBar } from "./PreviewBar";
 import { SetFlow, SetFlowToggle } from "./SetFlow";
 import { HistoryBar } from "./HistoryBar";
@@ -40,10 +41,10 @@ export function Library({ full = false }: { full?: boolean }) {
         <Toolbar />
         <SetFlow />
         <HistoryBar />
-        {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : <TrackTable />}
+        {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : source.type === "insights" ? <InsightsView /> : <TrackTable />}
         <PreviewBar />
       </div>
-      {source.type !== "autodj" && source.type !== "care" && (full || source.type !== "suggest") && <Inspector />}
+      {source.type !== "autodj" && source.type !== "care" && source.type !== "insights" && (full || source.type !== "suggest") && <Inspector />}
     </div>
   );
 }
@@ -73,7 +74,7 @@ function Toolbar() {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (
@@ -81,13 +82,13 @@ function Toolbar() {
       <div className="min-w-0">
         <div className="truncate text-[13px] font-semibold text-zinc-100">{title}</div>
       </div>
-      {source.type !== "care" && (
+      {source.type !== "care" && source.type !== "insights" && (
         <span className="font-mono text-[10px] text-zinc-500">
           {rows}
           {selected > 1 && ` · ${selected} selected`}
         </span>
       )}
-      {source.type !== "suggest" && source.type !== "autodj" && source.type !== "care" && (
+      {source.type !== "suggest" && source.type !== "autodj" && source.type !== "care" && source.type !== "insights" && (
         <div className="relative ml-2 flex max-w-md flex-1 items-center">
           <Search size={13} className="pointer-events-none absolute left-2 text-zinc-500" />
           <input

@@ -31,7 +31,7 @@ export async function refreshRows() {
   const my = ++seq;
   const { source, query, set } = useLibrary.getState();
   // The Auto DJ and Fix library pages show their own lists.
-  if (source.type === "autodj" || source.type === "care") return;
+  if (source.type === "autodj" || source.type === "care" || source.type === "insights") return;
   set({ loading: true });
   try {
     let rows: TrackRow[] = [];
