@@ -439,6 +439,10 @@ impl ActionDispatcher {
             ["loop", "in"] => trig(DeckCommand::LoopIn),
             ["loop", "out"] => trig(DeckCommand::LoopOut),
             ["loop", "reloop"] => trig(DeckCommand::Reloop),
+            ["let_end"] => {
+                self.decks[i].loop_on = false;
+                trig(DeckCommand::LoopExit)
+            }
             ["loop", "roll"] => {
                 if press {
                     dc(DeckCommand::LoopRollDown(LOOP_SIZES[st.loop_size]))
@@ -712,6 +716,9 @@ impl ActionDispatcher {
                 }
                 None => vec![],
             }),
+            ["safety_loop"] => {
+                Ok(self.generic_toggle(id, input)?.map(|on| g(GlobalCommand::SetSafetyLoop(on))).unwrap_or_default())
+            }
             ["record"] => {
                 Ok(self.generic_toggle(id, input)?.map(|on| g(GlobalCommand::SetRecording(on))).unwrap_or_default())
             }

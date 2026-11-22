@@ -198,6 +198,8 @@ export interface DeckTele {
   lowRms: number;
   /** Studio compressor gain reduction (dB, positive). */
   compGrDb: number;
+  /** The safety loop is holding the end of the track so the music does not stop. */
+  safetyLoop?: boolean;
   /** How far ducking turned the channel down (dB, positive). */
   duckDb: number;
   gateOpen: boolean;
@@ -348,6 +350,8 @@ export interface Settings {
   micStereo: boolean;
   /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
   faderStart?: boolean;
+  /** Loops the end of the only track playing so the music never stops (on unless turned off). */
+  safetyLoop?: boolean;
   /** Desktop: a text file that gets the track now playing (for streaming software). */
   nowPlayingFile?: string | null;
   /** The line written there: {artist} {title} {album} {genre} {label} {bpm} {key}. */

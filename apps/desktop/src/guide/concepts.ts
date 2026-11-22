@@ -558,6 +558,17 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "safety-loop",
+    title: "The safety loop",
+    group: "Effects and tricks",
+    summary: "If a track is about to end with nothing mixed in, its last bars loop so the music never stops.",
+    body: [
+      "When the only track playing reaches its last bars and no other deck is being heard, MixIt loops the four bars just before the track fades out, on the beat, so the dance floor never hears silence. The deck shows an amber note while it holds.",
+      "Mix in the next track as usual and bring the loop's deck down, or press Let it end to leave the loop and let the track play out. Going back earlier in the track arms it again. You can turn it off in Settings, Mixing.",
+    ],
+    controls: ["global.safety_loop"],
+  },
+  {
     id: "now-playing",
     title: "Showing the track on a stream",
     group: "Your library",

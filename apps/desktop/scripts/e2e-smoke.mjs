@@ -202,6 +202,25 @@ try {
     expect(Math.abs(a.position - b.position) < 0.3, `A at ${a.position}, B at ${b.position}`);
   });
 
+  await step("the safety loop holds the end of a lone track, and Let it end plays it out", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      await b.action("deck.B.play", { type: "press" });
+      await b.action("deck.B.play", { type: "release" });
+      const d = window.mixit.useTelemetry.getState().t.decks[0];
+      await b.seek(0, d.duration - 6);
+    });
+    await page.waitForSelector('[data-testid="safety-note-A"]', { timeout: 5000 });
+    await sleep(7000);
+    let a = await page.evaluate(() => window.mixit.useTelemetry.getState().t.decks[0]);
+    expect(a.playing && a.safetyLoop && a.position < a.duration - 0.5, `deck A: playing ${a.playing}, safety ${a.safetyLoop}, at ${a.position} of ${a.duration}`);
+    await page.click('[data-testid="let-end-A"]');
+    await page.waitForSelector('[data-testid="safety-note-A"]', { state: "detached", timeout: 3000 });
+    await sleep(9000);
+    a = await page.evaluate(() => window.mixit.useTelemetry.getState().t.decks[0]);
+    expect(!a.playing, `deck A should have played out, at ${a.position} of ${a.duration}`);
+  });
+
   await step("Arrange opens", async () => {
     await page.click('button:has-text("Arrange")');
     await sleep(600);

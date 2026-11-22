@@ -121,3 +121,29 @@ fn hot_cue_under_key_lock_is_immediate() {
         assert!(p > 480_000.0 && p < 480_000.0 + 2_048.0 + 300.0, "{name}: {p}");
     }
 }
+
+#[test]
+fn the_safety_loop_holds_under_key_lock() {
+    for (name, make) in stretchers() {
+        // A 30 s track at full level to the end: the last 16 beats before the last bar
+        // line (28 s to 30 s is the last bar, so 22 s to 30 s) loop.
+        let (mut e, mut c) = rig(make.as_ref());
+        let _ = c.send(Command::Global(GlobalCommand::SetSafetyLoop(true)));
+        let _ = c.deck(DeckId::A, DeckCommand::SetKeylock(true));
+        let _ = c.deck(DeckId::A, DeckCommand::SetTempo(0.5)); // +4 %
+        let _ = c.deck(DeckId::A, DeckCommand::Seek(SR as f64 * 20.0));
+        let _ = c.deck(DeckId::A, DeckCommand::Play);
+        for _ in 0..20 {
+            let out = run(&mut e, SR as usize);
+            let t = e.snapshot();
+            assert!(t.decks[0].playing, "{name}: the music stopped");
+            assert!(testkit::tone_level(&out[SR as usize / 2..], 440.0, SR as f32) > 0.1, "{name}: silent");
+        }
+        let t = e.snapshot();
+        let (s, end) = (t.decks[0].looping.start / SR as f64, t.decks[0].looping.end / SR as f64);
+        assert!(t.decks[0].safety_loop, "{name}");
+        assert!((s - 22.0).abs() < 1e-6 && (end - 30.0).abs() < 1e-6, "{name}: {s} to {end}");
+        let pos = t.decks[0].position / SR as f64;
+        assert!((22.0 - 0.2..30.0).contains(&pos), "{name}: position {pos}");
+    }
+}

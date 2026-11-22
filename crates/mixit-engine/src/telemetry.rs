@@ -56,6 +56,8 @@ pub struct DeckTelemetry {
     /// How far ducking turned this channel down (positive dB).
     pub duck_db: f32,
     pub gate_open: bool,
+    /// The safety loop is holding the end of the track so the music does not stop.
+    pub safety_loop: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]

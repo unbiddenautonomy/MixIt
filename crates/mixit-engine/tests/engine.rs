@@ -808,3 +808,97 @@ fn preview_plays_in_the_headphones_only() {
     r.run(512);
     assert!(!r.tel().preview.loaded);
 }
+
+/// 16 s at full level (120 BPM: a bar every 2 s), a 2 s fade, then 2 s of silence.
+fn fading_track() -> Box<DeckTrack> {
+    let n = 20 * SR as usize;
+    let mut x = testkit::sine(n, 330.0, SR as f32, 0.25);
+    for (i, v) in x.iter_mut().enumerate() {
+        let t = i as f32 / SR as f32;
+        *v *= if t < 16.0 {
+            1.0
+        } else if t < 18.0 {
+            1.0 - (t - 16.0) / 2.0
+        } else {
+            0.0
+        };
+    }
+    let audio = Arc::new(TrackAudio::from_mono(SR, &x));
+    Box::new(DeckTrack::new(audio, Arc::new(Beatgrid::constant(SR, 120.0, 0.0))))
+}
+
+fn safety_rig(on: bool) -> Rig {
+    let mut r = Rig::new();
+    r.send(Command::Global(GlobalCommand::SetSafetyLoop(on)));
+    r.deck(A, DeckCommand::Load(fading_track()));
+    r.deck(A, DeckCommand::SetEndBehaviour(EndBehaviour::Stop));
+    r.deck(A, DeckCommand::Seek(10.0 * SR as f64));
+    r.deck(A, DeckCommand::Play);
+    r
+}
+
+#[test]
+fn the_safety_loop_holds_the_last_bars_before_the_fade() {
+    let mut r = safety_rig(true);
+    // The music is at full level up to about 17.5 s; the last bar line before it is 16 s,
+    // so the last 16 beats (8 s) loop: 8 s to 16 s.
+    let region = |t: &Telemetry| (t.decks[0].looping.start / SR as f64, t.decks[0].looping.end / SR as f64);
+    let mut ended = false;
+    for _ in 0..30 {
+        r.run(SR as usize);
+        ended |= r.ctl.events().any(|e| matches!(e, Event::TrackEnded { .. }));
+        let t = r.tel();
+        let pos = t.decks[0].position / SR as f64;
+        assert!(t.decks[0].playing, "the music stopped");
+        assert!((8.0 - 0.01..16.0 + 0.01).contains(&pos), "position {pos:.2} s");
+    }
+    let t = r.tel();
+    assert!(!ended);
+    assert!(t.decks[0].safety_loop && t.decks[0].looping.active);
+    let (s, e) = region(&t);
+    assert!((s - 8.0).abs() < 1e-6 && (e - 16.0).abs() < 1e-6, "loop {s} to {e}");
+    assert!((t.decks[0].looping.beats - 16.0).abs() < 1e-9);
+}
+
+#[test]
+fn without_the_safety_loop_the_track_ends() {
+    let mut r = safety_rig(false);
+    r.run(12 * SR as usize);
+    assert!(r.ctl.events().any(|e| matches!(e, Event::TrackEnded { .. })));
+    let t = r.tel();
+    assert!(!t.decks[0].playing && !t.decks[0].safety_loop);
+}
+
+#[test]
+fn the_safety_loop_stays_out_while_another_track_is_heard() {
+    let mut r = safety_rig(true);
+    r.deck(B, DeckCommand::Load(track(60.0, 440.0, 120.0)));
+    r.deck(B, DeckCommand::Play);
+    r.run(12 * SR as usize);
+    assert!(!r.tel().decks[0].playing, "A should have ended while B plays");
+
+    // With B's fader down, A is alone again and loops.
+    let mut r = safety_rig(true);
+    r.deck(B, DeckCommand::Load(track(60.0, 440.0, 120.0)));
+    r.deck(B, DeckCommand::Play);
+    r.send(Command::Mixer(MixerCommand::SetFader(B, 0.0)));
+    r.run(12 * SR as usize);
+    assert!(r.tel().decks[0].safety_loop);
+}
+
+#[test]
+fn letting_it_end_plays_out_and_a_jump_back_arms_it_again() {
+    let mut r = safety_rig(true);
+    r.run(8 * SR as usize);
+    assert!(r.tel().decks[0].safety_loop);
+    r.deck(A, DeckCommand::LoopExit);
+    r.run(12 * SR as usize);
+    let t = r.tel();
+    assert!(!t.decks[0].playing && !t.decks[0].safety_loop, "the track should have played out");
+
+    r.deck(A, DeckCommand::Seek(2.0 * SR as f64));
+    r.deck(A, DeckCommand::Play);
+    r.run(20 * SR as usize);
+    let t = r.tel();
+    assert!(t.decks[0].playing && t.decks[0].safety_loop, "armed again after going back");
+}

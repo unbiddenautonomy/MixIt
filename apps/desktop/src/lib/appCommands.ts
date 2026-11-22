@@ -37,6 +37,7 @@ export async function updateSettings(patch: Partial<Settings>) {
   try {
     const saved = await backend().saveSettings(next);
     useApp.getState().set({ settings: saved });
+    if ("safetyLoop" in patch) await backend().action("global.safety_loop", { type: "set", value: saved.safetyLoop !== false });
     if ("device" in patch || "bufferFrames" in patch || "sampleRate" in patch || "cueChannel" in patch) {
       useApp.getState().set({ audio: await backend().audioStatus() });
     }

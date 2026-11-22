@@ -465,6 +465,18 @@ impl Mixer {
         }
     }
 
+    /// Whether channel `ch` reaches the master: its fader and crossfader side are up
+    /// (where they are heading, so a fader being pulled down already counts as down).
+    pub fn on_air(&self, ch: usize) -> bool {
+        let Some(s) = self.strips.get(ch) else { return false };
+        let xf = match s.assign {
+            XfAssign::A => self.xf_a.target(),
+            XfAssign::B => self.xf_b.target(),
+            XfAssign::Thru => 1.0,
+        };
+        s.fader.target() * xf > 0.05
+    }
+
     pub fn eq_mode(&self) -> EqMode {
         self.strips.first().map(|s| s.eq.mode()).unwrap_or(EqMode::Classic)
     }

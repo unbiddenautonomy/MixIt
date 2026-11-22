@@ -272,4 +272,7 @@ pub enum GlobalCommand {
     SetRecording(bool),
     /// Telemetry rate in snapshots per second.
     SetTelemetryRate(f32),
+    /// The safety loop: when the only track being heard nears its end with nothing mixed
+    /// in, its last bars loop on the beat until the DJ mixes in or lets it end.
+    SetSafetyLoop(bool),
 }

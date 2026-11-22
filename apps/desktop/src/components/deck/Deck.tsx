@@ -2,7 +2,7 @@
 // Easy view keeps the essentials (play, cue, sync, tempo, hot cues, loop); Pro adds
 // master, key shift, nudge, tempo range, slip, reverse and the grid tools.
 import clsx from "clsx";
-import { ChevronDown, ChevronUp, Disc3, KeyRound, Lock, Minus, Music2, Pause, PencilLine, Play, Plus, RotateCcw, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Disc3, KeyRound, LifeBuoy, Lock, Minus, Music2, Pause, PencilLine, Play, Plus, RotateCcw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -66,6 +66,7 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
     >
       <Header deck={deck} />
       {info ? <Overview deck={deck} height={compact ? 32 : 46} /> : <EmptyDeck letter={L} compact={compact} />}
+      <SafetyNote deck={deck} />
       <div className={clsx("flex min-w-0", compact ? "items-center gap-2" : "gap-3")}>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Transport deck={deck} pro={pro} compact={compact} />
@@ -75,6 +76,22 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
       </div>
       {compact && <Pads deck={deck} compact />}
     </section>
+  );
+}
+
+/** Shown while the safety loop holds the end of the track so the music does not stop. */
+function SafetyNote({ deck }: { deck: number }) {
+  const on = useDeckTele(deck, (d) => !!d.safetyLoop);
+  if (!on) return null;
+  const L = String.fromCharCode(65 + deck);
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100" role="status" data-testid={`safety-note-${L}`}>
+      <LifeBuoy size={13} className="shrink-0 text-amber-300" />
+      <span className="min-w-0 flex-1">Looping the last bars so the music doesn't stop. Mix in the next track, or let it end.</span>
+      <button type="button" onClick={() => void tap(`deck.${L}.let_end`)} className="shrink-0 rounded bg-amber-300/20 px-1.5 py-0.5 font-medium text-amber-100 hover:bg-amber-300/30" data-testid={`let-end-${L}`}>
+        Let it end
+      </button>
+    </div>
   );
 }
 
