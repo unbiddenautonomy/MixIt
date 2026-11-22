@@ -13,7 +13,7 @@ import { bpm as fmtBpm } from "../../lib/format";
 import { keyLabel } from "../../lib/keys";
 import { deckCount, DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { loadOnDeck } from "../deck/Deck";
-import { addMusicFolder } from "../library/Library";
+import { addMusicFolder, DJ_APPS, importFromApp, type DjApp } from "../library/Library";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
 import { LABS } from "../../guide/labs";
@@ -36,6 +36,7 @@ function extras(): Extra[] {
   const s = useApp.getState();
   return [
     { id: "x.add", label: "Add music folder…", group: "Library", run: addMusicFolder, keywords: ["import", "scan"] },
+    ...(Object.keys(DJ_APPS) as DjApp[]).map((app) => ({ id: `x.import.${app}`, label: DJ_APPS[app].menu, group: "Library", run: () => importFromApp(app), keywords: ["import", "collection", "library", "dj", app] })),
     { id: "x.analyse", label: "Analyse new tracks", group: "Library", run: () => backend().analyzePending(), keywords: ["bpm", "key"] },
     { id: "x.rescan", label: "Rescan music folders", group: "Library", run: () => backend().rescan() },
     { id: "x.automix", label: "Automix: make a mix from tracks…", group: "Mix", run: () => s.set({ automixOpen: true }), keywords: ["auto", "dj", "playlist"] },

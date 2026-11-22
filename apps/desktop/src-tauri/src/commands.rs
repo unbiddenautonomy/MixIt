@@ -1670,6 +1670,23 @@ pub fn import_serato(app: AppHandle, path: String) -> R<()> {
 }
 
 #[tauri::command]
+pub fn import_virtualdj(app: AppHandle, path: String) -> R<()> {
+    spawn_library_job(app, "import", move |app, lib, progress| {
+        progress(0, 0, "Reading VirtualDJ library".into());
+        let r = lib.import_virtualdj(Path::new(&path)).map_err(err)?;
+        let a = analyse_all(app, lib, progress)?;
+        Ok(format!(
+            "Imported {} tracks, {} playlists, {} cues, {} beat grids ({} files not found). {a}",
+            r.tracks,
+            r.playlists,
+            r.cues,
+            r.grids,
+            r.missing.len()
+        ))
+    })
+}
+
+#[tauri::command]
 pub fn import_traktor(app: AppHandle, path: String) -> R<()> {
     spawn_library_job(app, "import", move |app, lib, progress| {
         progress(0, 0, "Reading Traktor collection".into());

@@ -18,6 +18,7 @@ mod schema;
 pub mod serato;
 pub mod suggest;
 pub mod traktor;
+pub mod virtualdj;
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};

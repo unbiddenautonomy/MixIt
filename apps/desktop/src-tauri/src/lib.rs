@@ -140,6 +140,7 @@ pub fn run() {
             commands::import_rekordbox,
             commands::import_traktor,
             commands::import_serato,
+            commands::import_virtualdj,
             commands::export_rekordbox,
             commands::export_traktor,
             commands::export_playlist,

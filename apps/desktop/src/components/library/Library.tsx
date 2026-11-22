@@ -160,6 +160,35 @@ function Toolbar() {
   );
 }
 
+export type DjApp = "rekordbox" | "traktor" | "serato" | "virtualdj";
+
+/** Other DJ apps whose libraries MixIt imports, and how each is picked. */
+export const DJ_APPS: Record<DjApp, { name: string; menu: string; pick: () => Promise<string[] | null>; run: (path: string) => Promise<void> }> = {
+  rekordbox: { name: "rekordbox", menu: "Import rekordbox XML…", pick: () => backend().pickFiles(["xml"], "rekordbox collection (XML)"), run: (p) => backend().importRekordbox(p) },
+  traktor: { name: "Traktor", menu: "Import Traktor collection…", pick: () => backend().pickFiles(["nml"], "Traktor collection (collection.nml)"), run: (p) => backend().importTraktor(p) },
+  serato: { name: "Serato", menu: "Import Serato library (the _Serato_ folder)…", pick: () => backend().pickFolders("Choose the _Serato_ folder"), run: (p) => backend().importSerato(p) },
+  virtualdj: { name: "VirtualDJ", menu: "Import VirtualDJ library (the VirtualDJ folder)…", pick: () => backend().pickFolders("Choose the VirtualDJ folder"), run: (p) => backend().importVirtualDj(p) },
+};
+
+/** Asks for another app's library and imports it (tracks, cues, grids, playlists). */
+export async function importFromApp(app: DjApp) {
+  const a = DJ_APPS[app];
+  if (backend().kind === "web") {
+    // The browser gets the collection file but cannot reach the music it points to.
+    toast.message(`Importing from ${a.name} needs the desktop app`, { description: "A web page cannot open the music files a DJ library points to." });
+    return;
+  }
+  try {
+    const picked = await a.pick();
+    if (!picked?.[0]) return;
+    await a.run(picked[0]);
+    await refreshAll();
+    toast.message(`Importing from ${a.name}…`, { description: "Tracks, cues, beat grids and playlists come in first, then MixIt analyses anything new." });
+  } catch (e) {
+    toast.error(String(e));
+  }
+}
+
 function ImportExport() {
   const run = async (f: () => Promise<unknown>, ok: string) => {
     try {
@@ -178,45 +207,11 @@ function ImportExport() {
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Dropdown.Content className="menu" align="end" sideOffset={4}>
-          <Dropdown.Item
-            className="menu-item"
-            onSelect={() =>
-              run(async () => {
-                const f = await backend().pickFiles(["xml"], "rekordbox collection (XML)");
-                if (!f?.[0]) return false;
-                await backend().importRekordbox(f[0]);
-                await refreshAll();
-              }, "Imported from rekordbox")
-            }
-          >
-            <Import size={12} /> Import rekordbox XML…
-          </Dropdown.Item>
-          <Dropdown.Item
-            className="menu-item"
-            onSelect={() =>
-              run(async () => {
-                const f = await backend().pickFiles(["nml"], "Traktor collection (collection.nml)");
-                if (!f?.[0]) return false;
-                await backend().importTraktor(f[0]);
-                await refreshAll();
-              }, "Importing from Traktor")
-            }
-          >
-            <Import size={12} /> Import Traktor collection…
-          </Dropdown.Item>
-          <Dropdown.Item
-            className="menu-item"
-            onSelect={() =>
-              run(async () => {
-                const d = await backend().pickFolders("Choose the _Serato_ folder");
-                if (!d?.[0]) return false;
-                await backend().importSerato(d[0]);
-                await refreshAll();
-              }, "Importing from Serato")
-            }
-          >
-            <Import size={12} /> Import Serato library (the _Serato_ folder)…
-          </Dropdown.Item>
+          {(Object.keys(DJ_APPS) as DjApp[]).map((app) => (
+            <Dropdown.Item key={app} className="menu-item" onSelect={() => void importFromApp(app)}>
+              <Import size={12} /> {DJ_APPS[app].menu}
+            </Dropdown.Item>
+          ))}
           <Dropdown.Item
             className="menu-item"
             onSelect={() =>
