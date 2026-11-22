@@ -134,5 +134,6 @@ describe("theme", () => {
     expect(resolveTheme("system", true)).toBe("light");
     expect(resolveTheme("system", false)).toBe("dark");
     expect(resolveTheme(undefined, true)).toBe("dark");
+    expect(resolveTheme("lounge", true)).toBe("lounge");
   });
 });

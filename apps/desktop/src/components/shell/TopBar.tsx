@@ -28,7 +28,7 @@ export function TopBar() {
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-zinc-950/80 px-3 backdrop-blur" data-tauri-drag-region>
       <div className="flex items-center gap-2 pr-1">
         <Logo />
-        <span className="text-sm font-bold tracking-tight text-zinc-100">MixIt</span>
+        <span className="wordmark text-sm font-bold tracking-tight text-zinc-100">MixIt</span>
       </div>
       <Segmented<Workspace>
         value={workspace}
