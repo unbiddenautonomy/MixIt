@@ -280,3 +280,59 @@ fn rekordbox_locations() {
     let p = Path::new("/Users/me/Música/a b&c.mp3");
     assert_eq!(location_to_path(&path_to_location(p)), p);
 }
+
+#[test]
+fn merge_duplicates_keeps_everything_on_one_track() {
+    let (lib, ids) = sample_library();
+    let (keep, dup) = (ids[0], ids[2]);
+    lib.edit_track(keep, &TrackEdit { rating: Some(2), ..Default::default() }).unwrap();
+    lib.edit_track(dup, &TrackEdit { rating: Some(5), comment: Some("peak time".into()), ..Default::default() })
+        .unwrap();
+    let cue =
+        Cue { kind: CueKind::Hot, slot: Some(0), seconds: 12.0, loop_seconds: None, color: None, label: "In".into() };
+    lib.set_cues(dup, std::slice::from_ref(&cue)).unwrap();
+    let list = lib.create_playlist("Set", PlaylistKind::List, None, None).unwrap();
+    lib.set_playlist_tracks(list, &[ids[1], dup, ids[3]]).unwrap();
+    let tag = lib.tag("warm-up", "").unwrap();
+    lib.tag_tracks(tag, &[dup], true).unwrap();
+    let s = lib.start_session("Friday").unwrap();
+    lib.log_play(s, dup, Some(0)).unwrap();
+
+    lib.merge_tracks(keep, &[dup, keep]).unwrap();
+    assert!(lib.track(dup).is_err(), "the duplicate is gone");
+    let k = lib.track(keep).unwrap();
+    assert_eq!(k.rating, 5);
+    assert_eq!(k.comment, "peak time");
+    assert_eq!(lib.playlist_tracks(list).unwrap(), vec![ids[1], keep, ids[3]], "its place in the playlist is kept");
+    assert!(lib.track_tags(keep).unwrap().iter().any(|t| t.name == "warm-up"));
+    assert_eq!(lib.cues(keep).unwrap(), vec![cue]);
+    assert_eq!(lib.session_track_ids(s).unwrap(), vec![keep]);
+    assert_eq!(lib.track_count().unwrap(), 4);
+}
+
+#[test]
+fn finds_missing_files_in_a_folder() {
+    let tmp = TempDir::new("missing");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    let a = write_track(&music, "one.wav", Style::House, 124.0, Key::new(9, Mode::Minor));
+    let b = write_track(&music, "two.wav", Style::Techno, 128.0, Key::new(4, Mode::Minor));
+    let lib = Library::open(&tmp.0.join("library.db")).unwrap();
+    lib.scan_folder(&music, |_, _| {}).unwrap();
+    let ta = lib.track_by_path(&a).unwrap().unwrap().id;
+    let tb = lib.track_by_path(&b).unwrap().unwrap().id;
+    // The folder moves to another drive and one file is renamed on the way.
+    let usb = tmp.0.join("USB").join("Sets");
+    std::fs::create_dir_all(&usb).unwrap();
+    std::fs::rename(&a, usb.join("one.wav")).unwrap();
+    std::fs::rename(&b, usb.join("Two (final).wav")).unwrap();
+    assert_eq!(lib.missing_tracks().unwrap().len(), 2);
+    let mut found = lib.find_missing_in(&tmp.0.join("USB")).unwrap();
+    found.sort();
+    let mut want = vec![(ta, usb.join("one.wav")), (tb, usb.join("Two (final).wav"))];
+    want.sort();
+    assert_eq!(found, want);
+    assert!(lib.missing_tracks().unwrap().is_empty());
+    assert!(!lib.track(tb).unwrap().missing);
+    assert!(lib.find_missing_in(&tmp.0).unwrap().is_empty());
+}

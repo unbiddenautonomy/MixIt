@@ -69,6 +69,75 @@ impl Library {
         Ok(Imported::Added(self.insert_track(&nt)?))
     }
 
+    /// Looks through a folder for the files of missing tracks and points the tracks at
+    /// them: a file with the same name (and the same size, when several have it), or with
+    /// the same audio when the name changed. Returns the tracks found and where.
+    pub fn find_missing_in(&self, root: &Path) -> Result<Vec<(TrackId, PathBuf)>> {
+        let missing = self.missing_tracks()?;
+        if missing.is_empty() {
+            return Ok(vec![]);
+        }
+        let files: Vec<PathBuf> = walkdir::WalkDir::new(root)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file() && mixit_io::is_audio_file(e.path()))
+            .filter(|e| !e.file_name().to_string_lossy().starts_with("._"))
+            .map(|e| e.into_path())
+            .collect();
+        let name = |p: &Path| p.file_name().map(|n| n.to_string_lossy().to_lowercase());
+        let size = |p: &Path| std::fs::metadata(p).map(|m| m.len()).ok();
+        let taken: HashSet<PathBuf> = self.all_tracks()?.into_iter().filter(|t| !t.missing).map(|t| t.path).collect();
+        let mut used: HashSet<PathBuf> = HashSet::new();
+        let mut found = vec![];
+        let mut unmatched = vec![];
+        for t in &missing {
+            let same_name: Vec<&PathBuf> = files
+                .iter()
+                .filter(|f| name(f) == name(&t.path) && !taken.contains(*f) && !used.contains(*f))
+                .collect();
+            let pick = match same_name.len() {
+                0 => None,
+                1 => Some(same_name[0]),
+                _ => same_name.iter().copied().find(|f| size(f) == Some(t.file_size)).or(Some(same_name[0])),
+            };
+            match pick {
+                Some(f) => {
+                    used.insert(f.clone());
+                    found.push((t.id, f.clone()));
+                }
+                None if t.hash.is_some() => unmatched.push(t),
+                None => {}
+            }
+        }
+        // Renamed files: the same bytes, so the same size and hash. Only files of a
+        // matching size are hashed.
+        if !unmatched.is_empty() {
+            let rest: Vec<&PathBuf> = files.iter().filter(|f| !taken.contains(*f) && !used.contains(*f)).collect();
+            for f in rest {
+                let Some(sz) = size(f) else { continue };
+                if !unmatched.iter().any(|t| t.file_size == sz) {
+                    continue;
+                }
+                let Ok(h) = mixit_io::hash_file(f).map(|h| h.to_hex()) else { continue };
+                if let Some(i) = unmatched.iter().position(|t| t.hash.as_deref() == Some(h.as_str())) {
+                    let t = unmatched.remove(i);
+                    used.insert(f.clone());
+                    found.push((t.id, f.clone()));
+                    if unmatched.is_empty() {
+                        break;
+                    }
+                }
+            }
+        }
+        let tx = self.begin()?;
+        for (id, p) in &found {
+            self.relocate(*id, p)?;
+        }
+        tx.commit()?;
+        Ok(found)
+    }
+
     /// Scans a folder recursively. `progress(done_files, path)` is called per file.
     pub fn scan_folder(&self, root: &Path, mut progress: impl FnMut(usize, &Path)) -> Result<ScanReport> {
         let mut report = ScanReport::default();

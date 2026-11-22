@@ -75,6 +75,16 @@ export interface Backend {
   trackDetail(id: number): Promise<TrackDetail>;
   editTrack(id: number, edit: TrackEdit): Promise<TrackRow>;
   removeTracks(ids: number[]): Promise<void>;
+  /** Tracks whose files cannot be found. */
+  missingTracks(): Promise<TrackRow[]>;
+  /** Looks through a folder for missing tracks' files (same name, or same audio). Returns how many were found. */
+  findMissing(folder: string): Promise<number>;
+  /** Points a track at a file the user picked. */
+  relocateTrack(id: number, path: string): Promise<TrackRow>;
+  /** Groups of tracks with the same audio. */
+  duplicates(): Promise<TrackRow[][]>;
+  /** Folds duplicates into the one to keep: playlists, tags, history and cues move over. */
+  mergeTracks(keep: number, others: number[]): Promise<void>;
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number): Promise<SuggestionRow[]>;
 
   playlists(): Promise<PlaylistDto[]>;

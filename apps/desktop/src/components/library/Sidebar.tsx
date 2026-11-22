@@ -2,7 +2,7 @@
 // smart and folders), with drag-and-drop onto playlists.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import clsx from "clsx";
-import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Wand2 } from "lucide-react";
+import { Bot, FolderPlus, History, Library as LibIcon, ListMusic, Plus, Sparkles, Stethoscope, Wand2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -23,6 +23,7 @@ export function Sidebar() {
   const playlists = useLibrary((s) => s.playlists);
   const stats = useLibrary((s) => s.stats);
   const queued = useAutoDj((s) => s.queue.length);
+  const problems = useLibrary((s) => (s.missing?.length ?? 0) + (s.duplicates?.length ?? 0));
   const djOn = useAutoDj((s) => s.phase !== "off");
   const [creating, setCreating] = useState<null | "list" | "smart" | "folder">(null);
 
@@ -49,6 +50,16 @@ export function Sidebar() {
         dropOk
         onDrop={(ids) => enqueueIds(ids)}
       />
+      {(problems > 0 || same(source, { type: "care" })) && (
+        <Item
+          icon={<Stethoscope size={14} className={problems ? "text-amber-300" : undefined} />}
+          label="Fix library"
+          count={problems || undefined}
+          active={same(source, { type: "care" })}
+          onClick={() => select({ type: "care" })}
+          hint="Find tracks whose files moved, and fold duplicate copies into one"
+        />
+      )}
 
       <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
         Playlists

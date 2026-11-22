@@ -16,6 +16,7 @@ import { Sidebar } from "./Sidebar";
 import { Suggestions } from "./Suggestions";
 import { TrackTable } from "./TrackTable";
 import { AutoDjView } from "../autodj/AutoDj";
+import { LibraryCare } from "./LibraryCare";
 
 export async function addMusicFolder() {
   const dirs = await backend().pickFolders();
@@ -34,9 +35,9 @@ export function Library({ full = false }: { full?: boolean }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar />
-        {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : <TrackTable />}
+        {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : <TrackTable />}
       </div>
-      {source.type !== "autodj" && (full || source.type !== "suggest") && <Inspector />}
+      {source.type !== "autodj" && source.type !== "care" && (full || source.type !== "suggest") && <Inspector />}
     </div>
   );
 }
@@ -65,7 +66,7 @@ function Toolbar() {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? "History" : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? "History" : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (
@@ -73,11 +74,13 @@ function Toolbar() {
       <div className="min-w-0">
         <div className="truncate text-[13px] font-semibold text-zinc-100">{title}</div>
       </div>
-      <span className="font-mono text-[10px] text-zinc-500">
-        {rows}
-        {selected > 1 && ` · ${selected} selected`}
-      </span>
-      {source.type !== "suggest" && source.type !== "autodj" && (
+      {source.type !== "care" && (
+        <span className="font-mono text-[10px] text-zinc-500">
+          {rows}
+          {selected > 1 && ` · ${selected} selected`}
+        </span>
+      )}
+      {source.type !== "suggest" && source.type !== "autodj" && source.type !== "care" && (
         <div className="relative ml-2 flex max-w-md flex-1 items-center">
           <Search size={13} className="pointer-events-none absolute left-2 text-zinc-500" />
           <input

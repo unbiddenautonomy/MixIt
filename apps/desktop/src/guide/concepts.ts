@@ -412,6 +412,16 @@ export const CONCEPTS: Concept[] = [
     ],
   },
   {
+    id: "fix-library",
+    title: "Moved files and duplicates",
+    group: "Your library",
+    summary: "Find music that moved to another folder or drive, and fold copies of the same track into one.",
+    body: [
+      "If you move or rename your music, MixIt marks those tracks as missing. Fix library (in the sidebar, when there is something to fix) lists them. Search a folder and MixIt finds each file by its name, or by its sound when the name changed, and keeps its cues, beat grid and history.",
+      "The same song often ends up in a collection twice. Fix library groups copies with the same audio; keep one and the rest are folded into it, so its playlists, tags, cues and play count all end up on the copy you kept.",
+    ],
+  },
+  {
     id: "recording",
     title: "Recording and rendering",
     group: "Your library",

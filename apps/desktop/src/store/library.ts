@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { LibraryStats, PlaylistDto, SuggestionRow, TrackRow } from "../backend/types";
 
-export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" };
+export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history" } | { type: "suggest" } | { type: "autodj" } | { type: "care" };
 
 export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | null;
 
@@ -20,6 +20,9 @@ interface LibraryState {
   suggestFor: number | null;
   energy: "steady" | "up" | "down";
   inspect: number | null;
+  /** Library care: missing tracks and groups of duplicates (null until checked). */
+  missing: TrackRow[] | null;
+  duplicates: TrackRow[][] | null;
   set: (p: Partial<LibraryState>) => void;
 }
 
@@ -38,6 +41,8 @@ export const useLibrary = create<LibraryState>((set) => ({
   suggestFor: null,
   energy: "steady",
   inspect: null,
+  missing: null,
+  duplicates: null,
   set: (p) => set(p),
 }));
 
