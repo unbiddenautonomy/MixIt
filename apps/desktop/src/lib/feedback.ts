@@ -9,6 +9,8 @@ const HEARD = 0.15;
 /** Both basslines count as playing above this low EQ (dB). */
 const BASS_ON = -10;
 const PHRASE = 32;
+/** A voice counts as up front above this mid EQ (dB). */
+const VOICE_ON = -6;
 
 export type Severity = "good" | "tip" | "problem";
 
@@ -40,6 +42,8 @@ export interface TransitionCheck {
   phraseOffset: number | null;
   /** Seconds with both basslines up. */
   bassClash: number;
+  /** Seconds with both tracks singing, loud and with their mids up. */
+  vocalClash: number;
   keysFit: boolean | null;
   fromKey: string | null;
   toKey: string | null;
@@ -134,12 +138,14 @@ function checkTransition(cap: Capture, o: Overlap): TransitionCheck | null {
     phraseOffset = mod(whole, PHRASE);
   }
   let bassClash = 0;
+  let vocalClash = 0;
   let usedEq = false;
   for (let i = 1; i < fr.length; i++) {
     const f = fr[i];
     const a = f.decks[out]!;
     const b = f.decks[inn]!;
     if (a.low > BASS_ON && b.low > BASS_ON && a.volume > 0.5 && b.volume > 0.5) bassClash += f.t - fr[i - 1].t;
+    if (a.singing && b.singing && a.mid > VOICE_ON && b.mid > VOICE_ON && a.volume > 0.5 && b.volume > 0.5) vocalClash += f.t - fr[i - 1].t;
     if (Math.abs(b.low - fr[i - 1].decks[inn]!.low) > 3 || Math.abs(a.low - fr[i - 1].decks[out]!.low) > 3) usedEq = true;
   }
   const kOut = heardKey(cap, dOut);
@@ -156,6 +162,7 @@ function checkTransition(cap: Capture, o: Overlap): TransitionCheck | null {
     barOffset,
     phraseOffset,
     bassClash,
+    vocalClash,
     keysFit: kOut && kIn ? compatible(kOut, kIn) : null,
     fromKey: kOut ? keyDto(kOut).camelot : null,
     toKey: kIn ? keyDto(kIn).camelot : null,
@@ -228,6 +235,11 @@ export function mixReport(cap: Capture): MixReport | null {
   if (muddy.length) {
     const t = muddy.reduce((a, b) => (b.bassClash > a.bassClash ? b : a));
     add({ id: "bass", severity: "problem", title: `Two basslines at once for ${Math.round(t.bassClash)} seconds`, detail: `When “${t.to}” came in, both tracks had their bass up, which makes the mix muddy and loud. Turn the new track's Low EQ down, then swap the basses on a downbeat.`, at: t.at, lab: "bass-swap", concept: "bass-swap" }, 7 * muddy.length);
+  }
+  const voices = transitions.filter((t) => t.vocalClash >= 3);
+  if (voices.length) {
+    const t = voices.reduce((a, b) => (b.vocalClash > a.vocalClash ? b : a));
+    add({ id: "vocals", severity: "tip", title: `Two singers at once for ${Math.round(t.vocalClash)} seconds`, detail: `“${t.from}” and “${t.to}” were both singing, loud and with their mids up. Two voices blur together even when the keys fit. Bring the new track in during an instrumental part, or turn one track's Mid down until the other's vocal ends.`, at: t.at, lab: "vocals", concept: "vocals" }, 4 * voices.length);
   }
   const clashes = transitions.filter((t) => t.keysFit === false);
   if (clashes.length) {
