@@ -1,8 +1,8 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Loader2, Pause, Play, Shuffle, SkipForward, Square, Trash2, X, Zap } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Play, Shuffle, SkipForward, Square, Trash2, Zap } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
@@ -14,9 +14,7 @@ import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNex
 import { useLibrary } from "../../store/library";
 import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
-import { hearNext, hearPair, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
-import { previewPosition } from "../library/PreviewBar";
-import { setupCanvas } from "../../lib/waveform";
+import { hearNext, hearPair, stopMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { Btn, Segmented } from "../ui/Button";
@@ -76,7 +74,6 @@ export function AutoDjView() {
                 </button>
               )}
             </div>
-            <RehearsalBar />
             {queue.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs leading-relaxed text-zinc-500">
                 Drag tracks here, or right-click tracks in the library and choose <b className="text-zinc-300">Add to Auto DJ</b>.
@@ -346,94 +343,6 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
         <Headphones size={10} /> {hearing ? "Hearing" : "Hear this mix"}
       </button>
     </li>
-  );
-}
-
-/** The mix being heard: play and pause, where it is (the transition marked), jump to the mix. */
-function RehearsalBar() {
-  const key = useRehearse((s) => s.key);
-  const status = useRehearse((s) => s.status);
-  const title = useRehearse((s) => s.title);
-  const summary = useRehearse((s) => s.summary);
-  const mixAt = useRehearse((s) => s.mixAt);
-  const playing = useTelemetry((s) => !!s.t.preview?.playing);
-  if (key === null) return null;
-  return (
-    <div className="flex flex-col gap-1.5 border-b border-white/[0.06] bg-sky-400/[0.06] px-3 py-2" data-testid="rehearsal-bar">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={toggleMix}
-          disabled={status !== "ready"}
-          aria-label={playing ? "Pause the mix" : "Play the mix"}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sky-400 text-zinc-950 hover:brightness-110 disabled:opacity-60"
-        >
-          {status === "loading" ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="translate-x-px" />}
-        </button>
-        <Headphones size={14} className="shrink-0 text-sky-300" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-medium text-zinc-100">{title}</div>
-          <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? "Preparing the mix…" : `${summary}, as Auto DJ will play it`}</div>
-        </div>
-        <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => seekMix(Math.max(0, mixAt - 4))} title="Jump to a few seconds before the transition starts">
-          Jump to the mix
-        </Btn>
-        <button type="button" onClick={stopMix} aria-label="Stop hearing the mix" title="Stop and close" className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-100">
-          <X size={14} />
-        </button>
-      </div>
-      <MixStrip />
-    </div>
-  );
-}
-
-function MixStrip() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    let raf = 0;
-    const draw = () => {
-      const c = ref.current;
-      const s = useRehearse.getState();
-      if (c) {
-        const g = setupCanvas(c);
-        const r = c.getBoundingClientRect();
-        const dur = s.duration || Math.max(1, s.mixEnd + 8);
-        g.clearRect(0, 0, r.width, r.height);
-        g.fillStyle = "rgba(255,255,255,0.06)";
-        g.fillRect(0, r.height / 2 - 1, r.width, 2);
-        // The transition: where both tracks play.
-        g.fillStyle = "rgba(56,189,248,0.35)";
-        const x0 = (s.mixAt / dur) * r.width;
-        g.fillRect(x0, 2, Math.max(2, ((s.mixEnd - s.mixAt) / dur) * r.width), r.height - 4);
-        if (s.status === "ready") {
-          const x = (previewPosition() / dur) * r.width;
-          g.fillStyle = "#fafafa";
-          g.fillRect(x - 0.75, 0, 1.5, r.height);
-        }
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  const seekAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    seekMix(((e.clientX - r.left) / r.width) * useRehearse.getState().duration);
-  };
-  return (
-    <canvas
-      ref={ref}
-      className="h-5 w-full cursor-pointer rounded"
-      aria-label="Where the mix is: the blue part is the transition. Click to jump."
-      onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        seekAt(e);
-      }}
-      onPointerMove={(e) => {
-        if (e.buttons & 1) seekAt(e);
-      }}
-      data-testid="rehearsal-strip"
-    />
   );
 }
 
