@@ -1,5 +1,6 @@
 // The app shell: connects to the backend, wires its events into the stores, installs the
 // keyboard map, and lays out the three workspaces.
+import { clearArtwork } from "./lib/artwork";
 import { installRegistry } from "./lib/shortcuts";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Loader2 } from "lucide-react";
@@ -83,6 +84,8 @@ export function App() {
               else if (j.kind === "analyze" && j.total) toast.success(`Analysed ${j.total} tracks`);
               else if (j.kind === "import" && j.message) toast.success("Import finished", { description: j.message });
               else if (j.kind === "copy" && j.message) (j.message.includes("could not") ? toast.warning : toast.success)("Copy finished", { description: j.message });
+              // A scan or import may have changed the files, and their covers with them.
+              if (j.kind === "scan" || j.kind === "import") clearArtwork();
               refreshStats();
               refreshRows();
             }

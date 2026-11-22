@@ -35,6 +35,11 @@ export class TauriBackend implements Backend {
   deleteHotCue(deck: number, slot: number) { return invoke<void>("delete_hot_cue", { deck, slot }); }
   setMainCue(deck: number, seconds: number) { return invoke<void>("set_main_cue", { deck, seconds }); }
   setLoop(deck: number, start: number, end: number, active: boolean) { return invoke<void>("set_loop", { deck, start, end, active }); }
+  async artwork(trackId: number) {
+    const buf = await invoke<ArrayBuffer>("track_artwork", { id: trackId });
+    const bytes = buf instanceof ArrayBuffer ? buf : new Uint8Array(buf as unknown as number[]).buffer;
+    return bytes.byteLength ? new Blob([bytes]) : null;
+  }
   async waveform(trackId: number) {
     const buf = await invoke<ArrayBuffer>("waveform", { trackId });
     return decodeWaveform(buf instanceof ArrayBuffer ? buf : new Uint8Array(buf as unknown as number[]).buffer);

@@ -139,6 +139,7 @@ function makeTrack(id: number, o?: TrackOverride): DemoTrack {
       missing: false,
       analysis: "done",
       comment: "",
+      hasArt: !o && id % 3 !== 0,
     },
     sections,
     firstBeat,
@@ -1761,6 +1762,12 @@ export class DemoBackend implements Backend {
     this.emit<T.JobProgress>("job", { kind: "scan", done: 0, total: 0, message: "Added 6 practice tracks.", finished: true, error: null });
   }
 
+  /** Demo covers: an abstract design drawn from the title, so every track looks its own. */
+  async artwork(trackId: number): Promise<Blob | null> {
+    const t = this.tracks.find((x) => x.row.id === trackId);
+    if (!t?.row.hasArt) return null;
+    return new Blob([demoCover(t.row.title, t.row.artist)], { type: "image/svg+xml" });
+  }
   async importRekordbox() {}
   async importTraktor() {}
   async importSerato() {}
@@ -2058,4 +2065,17 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.settings", "Settings", "App", { type: "trigger" }, "Audio device, keys and preferences.", "Mod+,");
   add("app.coach", "Coach", "App", { type: "toggle" }, "Tips while you mix.");
   return out;
+}
+
+/** An abstract cover for a demo track: two colours and rings, picked from the title. */
+export function demoCover(title: string, artist: string): string {
+  let h = 2166136261;
+  for (const c of `${title}|${artist}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  const hue = h % 360;
+  const hue2 = (hue + 40 + ((h >> 9) % 120)) % 360;
+  const rings = 3 + ((h >> 3) % 4);
+  const cx = 30 + ((h >> 5) % 40);
+  const cy = 30 + ((h >> 11) % 40);
+  const circles = Array.from({ length: rings }, (_, i) => `<circle cx="${cx}" cy="${cy}" r="${12 + i * 14}" fill="none" stroke="white" stroke-opacity="${0.35 - i * 0.05}" stroke-width="${2 + (i % 2) * 3}"/>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 70% 45%)"/><stop offset="1" stop-color="hsl(${hue2} 75% 22%)"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/>${circles}</svg>`;
 }

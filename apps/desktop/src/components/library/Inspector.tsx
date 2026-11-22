@@ -10,6 +10,7 @@ import { keyColor, keyLabel } from "../../lib/keys";
 import { SECTION_COLORS } from "../../lib/waveform";
 import { DECK_LETTERS, useApp, useNotation } from "../../store/app";
 import { useLibrary } from "../../store/library";
+import { Cover } from "../ui/Cover";
 import { Btn } from "../ui/Button";
 import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, writeTagsToFiles } from "./data";
@@ -61,7 +62,8 @@ function OneTrack() {
 
   return (
     <aside className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-white/[0.06] p-3 text-xs">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
+        <Cover trackId={t.id} has={t.hasArt} title={t.title} artist={t.artist} size={56} />
         <div className="min-w-0 flex-1">
           <Editable value={t.title} placeholder="Title" className="text-sm font-semibold text-zinc-50" onSave={(title) => save({ title })} />
           <Editable value={t.artist} placeholder="Artist" className="text-zinc-400" onSave={(artist) => save({ artist })} />

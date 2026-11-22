@@ -54,6 +54,8 @@ pub struct TrackRow {
     /// "pending" | "done" | "failed"
     pub analysis: &'static str,
     pub comment: String,
+    /// The file has cover art ([`crate::commands::track_artwork`] reads it).
+    pub has_art: bool,
 }
 
 impl From<&Track> for TrackRow {
@@ -84,6 +86,7 @@ impl From<&Track> for TrackRow {
                 mixit_library::AnalysisState::Failed => "failed",
             },
             comment: t.comment.clone(),
+            has_art: t.has_artwork,
         }
     }
 }

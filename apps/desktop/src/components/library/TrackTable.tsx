@@ -26,6 +26,7 @@ import { togglePreview } from "../../store/trackPreview";
 import { tagStyle } from "../../lib/tags";
 import { isShown, resetColumns, setShown, setWidth, track, useColumns, type ColumnLevel } from "../../lib/columns";
 import { editTracksWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
+import { Cover } from "../ui/Cover";
 
 interface Column {
   key: string;
@@ -63,6 +64,7 @@ export function bpmFits(a: number | null, ref: number | null): boolean {
 
 const COLUMNS: Column[] = [
   { key: "n", label: "#", sort: null, width: "36px", align: "right", cell: (_r, c) => <span className="font-mono text-[10px] text-zinc-600">{c.index + 1}</span> },
+  { key: "art", label: "Art", sort: null, width: "32px", align: "center", cell: (r) => <Cover trackId={r.id} has={r.hasArt} title={r.title} artist={r.artist} size={22} rounded="rounded" quiet /> },
   {
     key: "title",
     label: "Title",
