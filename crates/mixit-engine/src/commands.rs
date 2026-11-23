@@ -189,6 +189,9 @@ pub enum MixerCommand {
     SetSplitCue(bool),
     SetAutoGain(bool),
     SetLimiter(bool),
+    /// A/B bypass: true switches EQ, filters, effects, studio and returns out (gliding
+    /// over 15 ms), so the plain music can be compared with the processed mix.
+    SetBypass(bool),
     /// Puts the deck FX rack before (false) or after (true, default) the channel fader.
     SetFxPostFader(DeckId, bool),
     /// A channel's (or, with `None`, the master's) studio insert chain.

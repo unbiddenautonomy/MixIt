@@ -669,6 +669,26 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             None,
             Some("beatgrid"),
         );
+        b.add(
+            id("grid.warp"),
+            "Pin beat here",
+            &g,
+            trig(),
+            "Pins the nearest beat line to the play head. Use it where the lines drift off the kicks on a track whose tempo wanders.",
+            false,
+            None,
+            Some("warp"),
+        );
+        b.add(
+            id("grid.unwarp"),
+            "Remove pin",
+            &g,
+            trig(),
+            "Takes away the pinned beat nearest the play head, so the beat lines around it go back to an even spacing.",
+            false,
+            None,
+            Some("warp"),
+        );
 
         let mg = format!("Mixer {l}");
         let mid = |s: &str| format!("mixer.{l}.{s}");
@@ -1071,6 +1091,16 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         false,
         None,
         Some("limiter"),
+    );
+    b.add(
+        "mixer.bypass",
+        "Hear it plain (A/B)",
+        mg,
+        ActionKind::Toggle,
+        "Turns all EQ, filters and effects off at once so you hear the plain music. Turn it off again to hear what your changes did.",
+        true,
+        Some("Mod+Shift+B"),
+        Some("ab-bypass"),
     );
 
     let sg = "Sampler";

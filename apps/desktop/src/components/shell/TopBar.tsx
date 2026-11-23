@@ -6,7 +6,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { AlarmClock, AlertTriangle, BookOpen, Check, Circle, Command, Compass, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
-import { shortcutLabel, findAction } from "../../lib/actions";
+import { setOn, shortcutLabel, findAction } from "../../lib/actions";
 import { startTour } from "../../guide/tour";
 import { clock } from "../../lib/format";
 import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../../lib/setClock";
@@ -42,6 +42,7 @@ export function TopBar() {
       <MasterClock />
       <SetClock />
       <div className="ml-auto flex items-center gap-2">
+        <AbBypass />
         <Health />
         <MicButton />
         <Record />
@@ -83,6 +84,22 @@ export function TopBar() {
         </Ctl>
       </div>
     </header>
+  );
+}
+
+/**
+ * A/B: hear the music plain (no EQ, filters, effects or studio) and back, to learn what
+ * your changes do. It stays lit while on, so the mix is never left plain by accident.
+ */
+function AbBypass() {
+  const on = useApp((s) => s.mixer.bypass);
+  return (
+    <Ctl id="mixer.bypass" side="bottom">
+      <Btn size="sm" tone="ghost" active={on} onClick={() => setOn("mixer.bypass", !on)} aria-pressed={on} data-testid="ab-bypass" className={on ? "!text-amber-300" : undefined}>
+        <span className="font-mono text-[11px] font-semibold">A/B</span>
+        {on && <span className="text-[11px]">Plain</span>}
+      </Btn>
+    </Ctl>
   );
 }
 

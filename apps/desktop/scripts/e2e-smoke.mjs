@@ -661,6 +661,15 @@ try {
     await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 
+  await step("A/B plays the mix plain and back", async () => {
+    await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix" }));
+    await page.click('[data-testid="ab-bypass"]');
+    await page.waitForFunction(() => window.mixit.useApp.getState().mixer.bypass === true, null, { timeout: 3000 });
+    expect((await page.textContent('[data-testid="ab-bypass"]')).includes("Plain"), "the button does not say the mix is plain");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+B" : "Control+Shift+B");
+    await page.waitForFunction(() => window.mixit.useApp.getState().mixer.bypass === false, null, { timeout: 3000 });
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

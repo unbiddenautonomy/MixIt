@@ -136,6 +136,8 @@ pub struct GridView {
     pub beat_period: f64,
     /// Every beat in seconds, only for a warped grid (a constant one is first beat and period).
     pub beats: Vec<f64>,
+    /// Pinned beats (warp markers), in seconds.
+    pub warps: Vec<f64>,
     /// The beat grid as the engine stores it (opaque to the UI).
     pub grid: mixit_core::Beatgrid,
 }
@@ -158,6 +160,7 @@ impl GridView {
             first_beat: g.frame_at(0.0) / sr,
             beat_period: g.frames_per_beat_at(g.frame_at(0.0)) / sr,
             beats,
+            warps: g.warp_seconds(),
             grid: g.clone(),
         }
     }

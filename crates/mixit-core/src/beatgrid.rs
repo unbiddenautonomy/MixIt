@@ -261,6 +261,20 @@ impl Beatgrid {
         self.recompute_nominal_bpm();
     }
 
+    /// Back to one constant tempo: the first anchor stays, at the grid's average tempo.
+    pub fn straighten(&mut self) {
+        self.anchors.truncate(1);
+    }
+
+    /// Where the warp markers are, in seconds (none on a constant grid).
+    pub fn warp_seconds(&self) -> Vec<f64> {
+        if self.is_constant() {
+            return Vec::new();
+        }
+        let sr = self.sample_rate as f64;
+        self.anchors.iter().map(|a| a.frame / sr).collect()
+    }
+
     /// Nominal tempo of a warped grid: total beats over total time between the outer anchors.
     fn recompute_nominal_bpm(&mut self) {
         if self.anchors.len() >= 2 {
@@ -310,6 +324,13 @@ pub struct GridEdit {
     pub downbeat_at: Option<f64>,
     /// Moves the whole grid, in milliseconds (positive = later).
     pub nudge_ms: Option<f64>,
+    /// Seconds where a beat really is: the nearest beat line is pinned there (a warp
+    /// marker), and the beats since the previous marker are spaced evenly to meet it.
+    pub warp_at: Option<f64>,
+    /// Removes the warp marker nearest these seconds.
+    pub unwarp_at: Option<f64>,
+    /// Drops every warp marker, keeping the first one's position and the average tempo.
+    pub straighten: bool,
     pub locked: Option<bool>,
 }
 
@@ -318,6 +339,8 @@ pub struct GridEdit {
 pub enum GridEditError {
     Locked,
     TempoOutOfRange,
+    /// A warp marker would make beats go backwards in time.
+    Backwards,
 }
 
 impl std::fmt::Display for GridEditError {
@@ -325,6 +348,9 @@ impl std::fmt::Display for GridEditError {
         f.write_str(match self {
             GridEditError::Locked => "The beat grid is locked. Unlock it first.",
             GridEditError::TempoOutOfRange => "That tempo is outside the 20 to 400 BPM MixIt supports.",
+            GridEditError::Backwards => {
+                "A marker there would put beats out of order. Pin a beat closer to the play head."
+            }
         })
     }
 }
@@ -333,7 +359,12 @@ impl Beatgrid {
     /// Applies an editor edit. A locked grid refuses changes unless the same edit unlocks
     /// it. Any change marks the grid as checked by a person (confidence 1).
     pub fn apply_edit(&mut self, e: &GridEdit) -> Result<(), GridEditError> {
-        let changes = e.bpm.is_some() || e.downbeat_at.is_some() || e.nudge_ms.is_some();
+        let changes = e.bpm.is_some()
+            || e.downbeat_at.is_some()
+            || e.nudge_ms.is_some()
+            || e.warp_at.is_some()
+            || e.unwarp_at.is_some()
+            || e.straighten;
         if self.locked && changes && e.locked != Some(false) {
             return Err(GridEditError::Locked);
         }
@@ -347,6 +378,15 @@ impl Beatgrid {
         }
         if let Some(ms) = e.nudge_ms {
             next.nudge(ms / 1000.0 * sr);
+        }
+        if e.straighten {
+            next.straighten();
+        }
+        if let Some(t) = e.unwarp_at {
+            next.remove_warp_anchor(t * sr);
+        }
+        if let Some(t) = e.warp_at {
+            next.add_warp_anchor(t * sr).map_err(|_| GridEditError::Backwards)?;
         }
         if changes {
             next.confidence = 1.0;
@@ -479,5 +519,34 @@ mod tests {
             g.apply_edit(&GridEdit { bpm: Some(1_000.0), ..Default::default() }),
             Err(GridEditError::TempoOutOfRange)
         );
+    }
+
+    #[test]
+    fn pinning_beats_by_hand() {
+        // A live drummer: the grid is right at the start but beat 64 really lands 30 ms
+        // late, and beat 128 60 ms late.
+        let sr = 48_000.0;
+        let mut g = Beatgrid::constant(48_000, 120.0, 0.0);
+        let real = |beat: f64| beat * 24_000.0 + beat / 64.0 * 0.030 * sr;
+        g.apply_edit(&GridEdit { warp_at: Some(real(64.0) / sr), ..Default::default() }).unwrap();
+        g.apply_edit(&GridEdit { warp_at: Some(real(128.0) / sr), ..Default::default() }).unwrap();
+        for beat in [0.0, 32.0, 64.0, 100.0, 128.0] {
+            assert!((g.frame_at(beat) - real(beat)).abs() < 1.0, "beat {beat} on the real kick");
+        }
+        assert_eq!(g.warp_seconds().len(), 3);
+        assert!((g.warp_seconds()[1] - real(64.0) / sr).abs() < 1e-9);
+        // Removing the middle marker spreads the drift over the whole stretch again.
+        g.apply_edit(&GridEdit { unwarp_at: Some(real(60.0) / sr), ..Default::default() }).unwrap();
+        assert_eq!(g.warp_seconds().len(), 2);
+        assert!((g.frame_at(128.0) - real(128.0)).abs() < 1.0);
+        // Straighten keeps the start and the average tempo.
+        let avg = g.bpm;
+        g.apply_edit(&GridEdit { straighten: true, ..Default::default() }).unwrap();
+        assert!(g.is_constant() && g.warp_seconds().is_empty());
+        assert_eq!(g.bpm, avg);
+        assert_eq!(g.frame_at(0.0), 0.0);
+        // A locked grid refuses markers.
+        g.locked = true;
+        assert_eq!(g.apply_edit(&GridEdit { warp_at: Some(1.0), ..Default::default() }), Err(GridEditError::Locked));
     }
 }

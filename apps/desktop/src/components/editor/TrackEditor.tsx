@@ -408,6 +408,21 @@ function GridPanel({ deck, d }: { deck: number; d: TrackDetail }) {
         </Btn>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
+        <Btn size="sm" disabled={locked} onClick={() => edit({ warpAt: livePosition(deck) }, "Beat pinned at the play head")} title="Where the beat lines drift off the kicks: put the play head on a kick, then press this">
+          Pin beat here
+        </Btn>
+        {d.warps.length > 0 && (
+          <>
+            <Btn size="sm" disabled={locked} onClick={() => edit({ unwarpAt: livePosition(deck) }, "Pin removed")} title="Takes away the pin nearest the play head">
+              Remove pin
+            </Btn>
+            <Btn size="sm" disabled={locked} onClick={() => edit({ straighten: true }, "Back to one steady tempo")} title="Takes away every pin: one steady tempo again">
+              Remove all pins
+            </Btn>
+          </>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-zinc-500">Move grid (ms)</span>
         {[-10, -1, 1, 10].map((ms) => (
           <Btn key={ms} size="sm" disabled={locked} onClick={() => edit({ nudgeMs: ms })} title={`${Math.abs(ms)} ms ${ms < 0 ? "earlier" : "later"}`} aria-label={`Move grid ${Math.abs(ms)} ms ${ms < 0 ? "earlier" : "later"}`}>

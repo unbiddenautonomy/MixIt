@@ -124,6 +124,7 @@ function track(sung: [number, number][] = []): TrackDetail {
     firstBeat: first,
     beatPeriod: period,
     beats: [],
+    warps: [],
     key: keyDto(fromCamelot(8, "A")),
     keyConfidence: 1,
     keySecond: null,

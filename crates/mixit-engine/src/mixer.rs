@@ -113,6 +113,9 @@ pub struct ChannelStrip {
     pub ducker: Ducker,
     pub(crate) l: Vec<f32>,
     pub(crate) r: Vec<f32>,
+    /// The signal before processing, for A/B bypass.
+    dry_l: Vec<f32>,
+    dry_r: Vec<f32>,
     /// Whether `l`/`r` hold this block's output (false when the channel was skipped).
     live: bool,
     /// Peak since the last telemetry snapshot (pre-fader).
@@ -153,6 +156,8 @@ impl ChannelStrip {
             ducker: Ducker::new(sr),
             l: vec![0.0; BLOCK],
             r: vec![0.0; BLOCK],
+            dry_l: vec![0.0; BLOCK],
+            dry_r: vec![0.0; BLOCK],
             live: false,
             peak: [0.0; 2],
             sum_sq: 0.0,
@@ -216,6 +221,12 @@ pub struct Mixer {
     pub scope: Vec<f32>,
     pub master_l: Vec<f32>,
     pub master_r: Vec<f32>,
+    /// A/B bypass: 1 = everything processed, 0 = plain (EQ, filter, effects, studio and
+    /// returns switched out). Faders, crossfader and the limiter always work. Advanced
+    /// once per chunk, like the crossfader, and interpolated across it.
+    ab: Smoothed,
+    ab_l: Vec<f32>,
+    ab_r: Vec<f32>,
     pub cue_l: Vec<f32>,
     pub cue_r: Vec<f32>,
     pub hp_l: Vec<f32>,
@@ -257,6 +268,9 @@ impl Mixer {
             scope: vec![0.0; BLOCK],
             master_l: vec![0.0; BLOCK],
             master_r: vec![0.0; BLOCK],
+            ab: Smoothed::new(1.0, 15.0, sr),
+            ab_l: vec![0.0; BLOCK],
+            ab_r: vec![0.0; BLOCK],
             cue_l: vec![0.0; BLOCK],
             cue_r: vec![0.0; BLOCK],
             hp_l: vec![0.0; BLOCK],
@@ -418,6 +432,7 @@ impl Mixer {
                     self.refresh_trim(i, ag);
                 }
             }
+            M::SetBypass(on) => self.ab.set(if on { 0.0 } else { 1.0 }),
             M::SetLimiter(on) => {
                 self.limiter_on = on;
                 self.limiter.set_enabled(on);
@@ -494,9 +509,17 @@ impl Mixer {
         }
     }
 
+    /// The A/B bypass weight at the start and end of this chunk (1 = processed).
+    fn ab_span(&self, n: usize) -> (f32, f32) {
+        let mut end = self.ab.clone();
+        (self.ab.value(), end.advance(n as u32))
+    }
+
     /// Processes one channel into its own buffers (call for every channel, then [`Mixer::sum`]).
     pub fn mix_channel(&mut self, ch: usize, in_l: &[f32], in_r: &[f32], n: usize, active: bool) {
         let scope_here = self.scope_source == ScopeSource::Channel(ch);
+        let (ws, we) = self.ab_span(n);
+        let plain = ws < 1.0 || we < 1.0;
         let s = &mut self.strips[ch];
         // Skip silent, idle channels cheaply (but let FX tails and smoothers finish).
         if !active && !s.fx.is_active() && s.trim.is_steady() && s.fader.is_steady() {
@@ -516,6 +539,10 @@ impl Mixer {
             l[i] *= g;
             r[i] *= g;
         }
+        if plain {
+            s.dry_l[..n].copy_from_slice(l);
+            s.dry_r[..n].copy_from_slice(r);
+        }
         if !s.studio.is_transparent() {
             s.studio.process(l, r);
             s.gr_peak_db = s.gr_peak_db.max(s.studio.meter_gr_db);
@@ -525,6 +552,10 @@ impl Mixer {
         }
         if !s.filter.is_bypassed() {
             s.filter.process(l, r);
+        }
+        if plain {
+            blend(l, &s.dry_l[..n], ws, we);
+            blend(r, &s.dry_r[..n], ws, we);
         }
         if scope_here {
             for i in 0..n {
@@ -546,7 +577,7 @@ impl Mixer {
             }
         }
         if !s.fx_post_fader {
-            s.fx.process(l, r, &s.fx_ctx);
+            fx_ab(&mut s.fx, l, r, &s.fx_ctx, (&mut s.dry_l[..n], &mut s.dry_r[..n]), plain.then_some((ws, we)));
         }
         // Fader, crossfader and pan. The crossfader smoothers are shared, so read them
         // ahead without advancing (they are advanced once per chunk in `finish`).
@@ -565,7 +596,7 @@ impl Mixer {
             r[i] *= g * s.pan_r.next();
         }
         if s.fx_post_fader {
-            s.fx.process(l, r, &s.fx_ctx);
+            fx_ab(&mut s.fx, l, r, &s.fx_ctx, (&mut s.dry_l[..n], &mut s.dry_r[..n]), plain.then_some((ws, we)));
         }
     }
 
@@ -637,6 +668,10 @@ impl Mixer {
         // Crossfader smoothers advance once per chunk (channels interpolated across it).
         self.xf_a.advance(n as u32);
         self.xf_b.advance(n as u32);
+        let (ws, we) = self.ab_span(n);
+        let plain = ws < 1.0 || we < 1.0;
+        self.ab.advance(n as u32);
+        let inv = 1.0 / n as f32;
         // Returns: run while fed or while their tail rings (about 10 s of quiet ends it).
         for rb in &mut self.returns {
             if !rb.fed && rb.quiet_blocks > (10.0 * self.sr / BLOCK as f32) as u32 {
@@ -656,15 +691,26 @@ impl Mixer {
                 rb.quiet_blocks = rb.quiet_blocks.saturating_add(1);
             }
             for i in 0..n {
-                let g = rb.level.next();
+                let mut g = rb.level.next();
+                if plain {
+                    g *= ws + (we - ws) * ((i + 1) as f32 * inv).min(1.0);
+                }
                 self.master_l[i] += mixit_dsp::util::sanitize(l[i]) * g;
                 self.master_r[i] += mixit_dsp::util::sanitize(r[i]) * g;
             }
         }
         let (ml, mr) = (&mut self.master_l[..n], &mut self.master_r[..n]);
+        if plain {
+            self.ab_l[..n].copy_from_slice(ml);
+            self.ab_r[..n].copy_from_slice(mr);
+        }
         self.master_fx.process(ml, mr, master_ctx);
         if !self.master_studio.is_transparent() {
             self.master_studio.process(ml, mr);
+        }
+        if plain {
+            blend(ml, &self.ab_l[..n], ws, we);
+            blend(mr, &self.ab_r[..n], ws, we);
         }
         for i in 0..n {
             let g = self.master.next();
@@ -731,6 +777,36 @@ impl Mixer {
 }
 
 /// Puts a replaced effect in the trash.
+/// `x` = dry + (x - dry) × w, with w gliding from `ws` to `we` across the block.
+fn blend(x: &mut [f32], dry: &[f32], ws: f32, we: f32) {
+    let inv = 1.0 / x.len().max(1) as f32;
+    for (i, (v, d)) in x.iter_mut().zip(dry).enumerate() {
+        let w = ws + (we - ws) * ((i + 1) as f32 * inv).min(1.0);
+        *v = d + (*v - d) * w;
+    }
+}
+
+/// Runs an FX rack, blended toward its input while A/B bypass is on or moving.
+fn fx_ab(
+    fx: &mut FxRack,
+    l: &mut [f32],
+    r: &mut [f32],
+    ctx: &FxContext,
+    dry: (&mut [f32], &mut [f32]),
+    ab: Option<(f32, f32)>,
+) {
+    match ab {
+        None => fx.process(l, r, ctx),
+        Some((ws, we)) => {
+            dry.0.copy_from_slice(l);
+            dry.1.copy_from_slice(r);
+            fx.process(l, r, ctx);
+            blend(l, dry.0, ws, we);
+            blend(r, dry.1, ws, we);
+        }
+    }
+}
+
 pub fn trash_effect(trash: &mut TrashBin, old: Option<Box<dyn mixit_dsp::fx::Effect>>) {
     trash.put_opt(old, Trash::Effect);
 }

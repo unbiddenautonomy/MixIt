@@ -91,6 +91,8 @@ export interface TrackDetail {
   firstBeat: number;
   beatPeriod: number;
   beats: number[];
+  /** Pinned beats (warp markers), in seconds; empty on a steady grid. */
+  warps: number[];
   key: KeyDto | null;
   keyConfidence: number;
   keySecond: KeyDto | null;
@@ -151,6 +153,12 @@ export interface GridEdit {
   downbeatAt?: number;
   /** Moves the whole grid, in milliseconds (positive = later). */
   nudgeMs?: number;
+  /** Seconds where a beat really is: the nearest beat line is pinned there. */
+  warpAt?: number;
+  /** Removes the pinned beat nearest these seconds. */
+  unwarpAt?: number;
+  /** Drops every pinned beat, back to one steady tempo. */
+  straighten?: boolean;
   locked?: boolean;
 }
 

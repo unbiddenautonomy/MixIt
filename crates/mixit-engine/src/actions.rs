@@ -647,6 +647,9 @@ impl ActionDispatcher {
             ["limiter"] => {
                 Ok(self.generic_toggle(id, input)?.map(|on| m(MixerCommand::SetLimiter(on))).unwrap_or_default())
             }
+            ["bypass"] => {
+                Ok(self.generic_toggle(id, input)?.map(|on| m(MixerCommand::SetBypass(on))).unwrap_or_default())
+            }
             ["glue"] => Ok(match Self::value(input, id)? {
                 Some(v) => self.edit_studio(None, |s| {
                     s.comp_on = v > 0.001;

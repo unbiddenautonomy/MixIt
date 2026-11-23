@@ -59,6 +59,8 @@ export interface MixerState {
   eqMode: number;
   splitCue: boolean;
   crossfaderReverse: boolean;
+  /** A/B bypass: EQ, filters, effects and studio switched out to hear the plain music. */
+  bypass: boolean;
   /** Crossfader side per channel: 0 = A, 1 = thru, 2 = B. */
   assign: number[];
   /** Master glue compressor 0..1. */
@@ -188,6 +190,7 @@ export const useApp = create<AppState>((set) => ({
     eqMode: 1,
     splitCue: false,
     crossfaderReverse: false,
+    bypass: false,
     assign: [0, 2, 0, 2],
     glue: 0,
     spaceLevel: -3,

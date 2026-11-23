@@ -6,6 +6,7 @@
 cargo fmt --all
 cargo clippy --all-targets -- -D warnings      # default members (everything but the desktop app)
 cargo test                                     # default members
+MIXIT_SOAK_MINUTES=30 cargo test -p mixit-engine --test soak -- --nocapture   # long random session over every control (cargo test runs 1 minute; MIXIT_SOAK_SEED replays another, MIXIT_SOAK_TRACE prints each step)
 cargo clippy -p mixit-desktop --all-targets -- -D warnings   # needs the webview toolchain
 cargo build --target wasm32-unknown-unknown -p mixit-core -p mixit-dsp -p mixit-engine -p mixit-analysis -p mixit-generator -p mixit-project
 cargo build --target wasm32-unknown-unknown -p mixit-stretch --no-default-features

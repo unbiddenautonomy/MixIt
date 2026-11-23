@@ -60,6 +60,18 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
               g.fillText(`${Math.floor(k / d.beatsPerBar) + 1}`, x + 3, 10);
             }
           }
+          // Pinned beats (warp markers): a small cyan diamond on the beat line.
+          g.fillStyle = "#22d3ee";
+          for (const w of d.warps ?? []) {
+            if (w < t0 || w > t1) continue;
+            const x = px(w);
+            g.beginPath();
+            g.moveTo(x, H - 10);
+            g.lineTo(x + 4, H - 6);
+            g.lineTo(x, H - 2);
+            g.lineTo(x - 4, H - 6);
+            g.fill();
+          }
           // Singing: a pink band along the top, so a vocal coming up is easy to see.
           g.fillStyle = "rgba(244,114,182,0.85)";
           for (const [a, b] of d.vocals ?? []) {
