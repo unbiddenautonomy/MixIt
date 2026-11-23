@@ -568,6 +568,24 @@ try {
     await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 
+  await step("Save keeps the Auto DJ queue as a playlist", async () => {
+    const want = await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => !r.missing).slice(0, 3);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+      return rows.map((r) => r.id);
+    });
+    await page.click('[data-testid="queue-save"]');
+    await page.waitForSelector("text=/Saved the queue as/", { timeout: 5000 });
+    const got = await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      const list = (await b.playlists()).filter((p) => p.name.startsWith("Auto DJ set")).pop();
+      return list ? (await b.playlistTracks(list.id)).map((t) => t.id) : null;
+    });
+    expect(JSON.stringify(got) === JSON.stringify(want), `saved ${JSON.stringify(got)}, queue ${JSON.stringify(want)}`);
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

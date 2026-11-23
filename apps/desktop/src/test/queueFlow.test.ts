@@ -6,7 +6,9 @@ import { fromCamelot, keyDto } from "../lib/keys";
 import { bestOrder, changeCost, orderCost } from "../lib/queueOrder";
 import { flow, summary } from "../lib/setFlow";
 import { useAutoDj } from "../store/autodj";
-import { addBridge, bridgeChoices, orderQueue } from "../store/queueFlow";
+import { addBridge, bridgeChoices, orderQueue, queueListName, saveQueue } from "../store/queueFlow";
+import { setBackendForTests } from "../backend";
+import { DemoBackend } from "../backend/demo";
 import { useLibrary } from "../store/library";
 
 let next = 1;
@@ -101,5 +103,21 @@ describe("the Auto DJ queue", () => {
     useAutoDj.setState({ queue: [a, row(150, [2, "B"])] });
     expect(addBridge(0)).toBeNull();
     expect(toast).toHaveBeenCalledWith(expect.stringMatching(/No track in your library/));
+  });
+});
+
+describe("saving the queue", () => {
+  it("makes a playlist of the queue in its order", async () => {
+    const b = new DemoBackend();
+    setBackendForTests(b);
+    const rows = (await b.search("")).slice(0, 3).reverse();
+    useAutoDj.setState({ queue: rows, phase: "off", next: null, current: null });
+    const id = await saveQueue();
+    expect(id).not.toBeNull();
+    const list = (await b.playlists()).find((p) => p.id === id)!;
+    expect(list.name).toBe(queueListName());
+    expect((await b.playlistTracks(id!)).map((t) => t.id)).toEqual(rows.map((r) => r.id));
+    useAutoDj.setState({ queue: [] });
+    expect(await saveQueue()).toBeNull();
   });
 });

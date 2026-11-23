@@ -1,6 +1,8 @@
 // The Auto DJ queue's flow: put it in the order that mixes best, and fill a rough change
 // with a track from the library that goes with both sides.
 import { toast } from "sonner";
+import { backend } from "../backend";
+import { refreshPlaylists } from "../components/library/data";
 import type { TrackRow } from "../backend/types";
 import { bestOrder, orderCost } from "../lib/queueOrder";
 import { bridges, flow, summary } from "../lib/setFlow";
@@ -63,4 +65,30 @@ export function addBridge(i: number, pick?: TrackRow): TrackRow | null {
     action: { label: "Undo", onClick: () => useAutoDj.setState((s) => ({ queue: s.queue.filter((x) => x.id !== t.id) })) },
   });
   return t;
+}
+
+/** The playlist name for a saved queue: "Auto DJ set, 22 Nov" (from `when`). */
+export function queueListName(when = new Date()): string {
+  return `Auto DJ set, ${when.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+}
+
+/** Saves the queue (after the track waiting or playing, if any) as a playlist, in order. */
+export async function saveQueue(): Promise<number | null> {
+  const { queue } = useAutoDj.getState();
+  const start = queueStart();
+  const ids = [...(start ? [start] : []), ...queue].map((t) => t.id);
+  if (ids.length === 0) {
+    toast("The queue is empty.");
+    return null;
+  }
+  try {
+    const name = queueListName();
+    const id = await backend().createPlaylist(name, "list", { tracks: ids });
+    await refreshPlaylists();
+    toast.success(`Saved the queue as “${name}”`, { description: `${ids.length} track${ids.length === 1 ? "" : "s"} in this order. Rename it in the sidebar, and play it with Auto DJ again any time.` });
+    return id;
+  } catch (e) {
+    toast.error(`Could not save the queue: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
 }
