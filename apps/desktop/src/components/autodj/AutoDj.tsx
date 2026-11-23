@@ -152,8 +152,8 @@ function Controls() {
       <div className="flex items-center gap-2">
         <Bot size={18} className="text-sky-300" />
         <div>
-          <div className="text-sm font-semibold text-zinc-100">Auto DJ</div>
-          <div className="max-w-xs text-[11px] leading-snug text-zinc-400">Mixes the queue for you on decks A and B, and tells you what it does and why.</div>
+          {/* The library header above already says "Auto DJ". */}
+          <div className="max-w-xs text-xs leading-snug text-zinc-300">Mixes the queue for you on decks A and B, and tells you what it does and why.</div>
         </div>
       </div>
       <Ctl id="app.autodj" side="bottom">
