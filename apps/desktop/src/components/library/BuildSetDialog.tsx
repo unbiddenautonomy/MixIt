@@ -4,7 +4,7 @@
 import { setMinutesLeft, useSetClock } from "../../lib/setClock";
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
-import { Loader2, RefreshCw, X } from "lucide-react";
+import { Bot, Loader2, RefreshCw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -14,7 +14,8 @@ import { bpm as fmtBpm, clock, inkColor, plural } from "../../lib/format";
 import { keyColor, keyLabel } from "../../lib/keys";
 import { transition } from "../../lib/setFlow";
 import { SET_SHAPES, shapeTarget } from "../../lib/setShapes";
-import { useNotation } from "../../store/app";
+import { useApp, useNotation } from "../../store/app";
+import { setQueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
 import { Btn, Segmented } from "../ui/Button";
 import { refreshPlaylists, refreshRows } from "./data";
@@ -103,6 +104,16 @@ function Builder({ req }: { req: Req }) {
 
   const heard = set ? set.reduce((a, r) => a + r.duration * 0.8, 0) : 0;
   const rough = useMemo(() => (set ? set.slice(1).filter((r, i) => transition(set[i], r).grade === "rough").length : 0), [set]);
+
+  /** Hands the set to Auto DJ: the queue becomes this set, ready to start or rehearse. */
+  const playIt = () => {
+    if (!set?.length) return;
+    setQueue(set);
+    useApp.getState().set({ workspace: "library" });
+    useLibrary.getState().set({ source: { type: "autodj" } });
+    toast.success(`${plural(set.length, "track")} in the Auto DJ queue`, { description: "Press Start to let Auto DJ mix them, or Rehearse the set to hear every change first." });
+    close();
+  };
 
   const save = async () => {
     if (!set?.length || !name.trim()) return;
@@ -249,9 +260,14 @@ function Builder({ req }: { req: Req }) {
             <div className="ml-auto flex gap-2">
               <Btn onClick={close}>Cancel</Btn>
               {set && set.length > 0 ? (
-                <Btn tone="accent" onClick={() => void save()} disabled={!name.trim()} data-testid="build-save">
-                  Save as playlist
-                </Btn>
+                <>
+                  <Btn onClick={() => void save()} disabled={!name.trim()} data-testid="build-save">
+                    Save as playlist
+                  </Btn>
+                  <Btn tone="accent" onClick={playIt} title="Put this set in the Auto DJ queue, in this order, so Auto DJ can mix it or you can rehearse it first" data-testid="build-autodj">
+                    <Bot size={12} /> Play with Auto DJ
+                  </Btn>
+                </>
               ) : (
                 <Btn tone="accent" onClick={() => void build()} disabled={busy} data-testid="build-go">
                   {busy && <Loader2 size={12} className="animate-spin" />} Build the set

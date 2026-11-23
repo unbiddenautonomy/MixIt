@@ -646,6 +646,21 @@ try {
     await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [], choices: {} }));
   });
 
+  await step("an empty Auto DJ queue can be filled with a set built for you", async () => {
+    await page.evaluate(() => {
+      window.mixit.useAutoDj.getState().set({ queue: [] });
+      window.mixit.useApp.getState().set({ workspace: "library" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="autodj-build"]');
+    await page.click('[data-testid="build-go"]');
+    await page.waitForSelector('[data-testid="build-autodj"]', { timeout: 10_000 });
+    await page.click('[data-testid="build-autodj"]');
+    await page.waitForFunction(() => window.mixit.useAutoDj.getState().queue.length >= 3, null, { timeout: 3000 });
+    await page.waitForSelector('[data-testid="rehearse-set"]', { timeout: 3000 });
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
