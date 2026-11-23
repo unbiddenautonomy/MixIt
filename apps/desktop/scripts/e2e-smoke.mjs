@@ -331,7 +331,7 @@ try {
     });
     await page.hover('[data-testid="hear-mix-0"]', { force: true });
     await page.click('[data-testid="hear-mix-0"]');
-    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/as Auto DJ will play it/', { timeout: 10_000 });
+    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
     const bar = await page.textContent('[data-testid="rehearsal-bar"]');
     expect(bar.includes(`${names[0]} into ${names[1]}`), `the bar says ${bar}`);
     await sleep(1200);
@@ -418,6 +418,30 @@ try {
       await window.mixit.backend().action("deck.B.play", { type: "press" });
       await window.mixit.backend().action("deck.B.play", { type: "release" });
     });
+    // Play is a toggle: let the decks report stopped before the next step reads them.
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("a suggestion can be heard mixed in after the seed track", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+      window.mixit.useApp.getState().set({ workspace: "library" });
+      window.mixit.useLibrary.getState().set({ source: { type: "suggest" } });
+    });
+    await page.waitForSelector('[data-testid="hear-suggestion-0"]', { timeout: 10_000 });
+    await page.click('[data-testid="hear-suggestion-0"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
+    await sleep(800);
+    const p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(p.playing && p.position > 0.3, `preview: playing ${p.playing}, at ${p.position}`);
+    expect((await page.textContent('[data-testid="hear-suggestion-0"]')).includes("Hearing"), "the button does not show it is playing");
+    await page.click('[data-testid="hear-suggestion-0"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
   });
 
   await step("no errors in the console", async () => {

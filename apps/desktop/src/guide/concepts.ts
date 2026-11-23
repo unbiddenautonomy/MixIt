@@ -410,6 +410,7 @@ export const CONCEPTS: Concept[] = [
     body: [
       "The suggestions list ranks your library against the track that is playing: close tempo, compatible key and similar sound score highest. Choose 'up' or 'down' energy to steer where the set goes.",
       "MixIt also remembers your past sets: a track you have played right after this one before gets a lift and says so, because you already know that change works. Tracks that sound alike get a small lift too.",
+      "Not sure which one to pick? Press Hear the mix on a suggestion: MixIt plays the change from the current track into it in your headphones, the way Auto DJ would mix it (transition, length, key shift and tempo), so you can compare a few before choosing.",
       "A set usually builds: start calm, rise to the peak, and give the room a breather now and then.",
     ],
   },

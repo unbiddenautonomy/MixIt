@@ -19,6 +19,7 @@ import { AutoDjView } from "../autodj/AutoDj";
 import { LibraryCare } from "./LibraryCare";
 import { InsightsView } from "./Insights";
 import { PreviewBar } from "./PreviewBar";
+import { RehearsalBar } from "./RehearsalBar";
 import { SetFlow, SetFlowToggle } from "./SetFlow";
 import { HistoryBar } from "./HistoryBar";
 
@@ -43,6 +44,7 @@ export function Library({ full = false }: { full?: boolean }) {
         <HistoryBar />
         {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : source.type === "insights" ? <InsightsView /> : <TrackTable />}
         <PreviewBar />
+        <RehearsalBar />
       </div>
       {source.type !== "autodj" && source.type !== "care" && source.type !== "insights" && (full || source.type !== "suggest") && <Inspector />}
     </div>
