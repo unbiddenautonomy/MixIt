@@ -38,14 +38,16 @@ export function Coach() {
   return (
     <div
       className={clsx(
-        "flex h-10 shrink-0 items-center gap-2.5 rounded-xl border px-3 text-[13px]",
-        tip.level === "warn" ? "border-amber-400/25 bg-amber-400/[0.07] text-amber-100" : tip.level === "good" ? "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-100" : "border-sky-400/20 bg-sky-400/[0.06] text-sky-100",
+        // A calm neutral bar: only the left edge and the icon carry the tip's colour, so a tip
+        // reads as a hint rather than an alarm next to the decks.
+        "flex h-10 shrink-0 items-center gap-2.5 rounded-xl border border-l-2 border-white/[0.06] bg-zinc-900/60 px-3 text-[13px] text-zinc-200",
+        tip.level === "warn" ? "border-l-amber-400/70" : tip.level === "good" ? "border-l-emerald-400/70" : "border-l-sky-400/60",
       )}
       role="status"
       data-testid="coach"
     >
-      <GraduationCap size={15} className="shrink-0 opacity-70" />
-      <Icon size={14} className="shrink-0" />
+      <GraduationCap size={15} className="shrink-0 text-zinc-500" />
+      <Icon size={14} className={clsx("shrink-0", tip.level === "warn" ? "text-amber-400" : tip.level === "good" ? "text-emerald-400" : "text-sky-400")} />
       <span className="min-w-0 flex-1 truncate">{tip.text}</span>
       {tip.action && (
         <Btn size="sm" tone="accent" style={{ ["--accent" as string]: tip.level === "warn" ? "#fbbf24" : "#38bdf8" }} onClick={() => runCommand(tip.action!.run, tip.action!.arg)}>

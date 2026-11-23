@@ -173,7 +173,7 @@ export function App() {
       <SmartPlaylistHost />
       <BuildSetHost />
       <TidyHost />
-      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" richColors closeButton />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" closeButton />
     </Tooltip.Provider>
   );
 }
