@@ -22,7 +22,8 @@ export function Btn({ tone = "default", active, className, children, size = "md"
         "inline-flex select-none items-center justify-center gap-1.5 rounded-lg border font-medium transition-colors duration-75 disabled:pointer-events-none disabled:opacity-40",
         size === "sm" ? "h-7 px-2 text-xs" : size === "lg" ? "h-12 px-4 text-sm" : "h-8 px-3 text-xs",
         tones[tone],
-        active && "!bg-[var(--accent)] !text-zinc-950 !border-transparent shadow-[0_0_16px_-2px_var(--accent)]",
+        // A lit toggle. Quiet (ghost) buttons light softly so a row of them stays calm.
+        active && (tone === "ghost" ? "!bg-[var(--accent)]/15 !text-[var(--accent-ink)] !border-[var(--accent)]/30" : "!bg-[var(--accent)] !text-zinc-950 !border-transparent shadow-[0_0_16px_-2px_var(--accent)]"),
         className,
       )}
     >

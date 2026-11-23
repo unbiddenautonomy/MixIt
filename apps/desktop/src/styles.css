@@ -18,6 +18,14 @@
   --knob-edge: rgba(255, 255, 255, 0.08);
   --knob-pointer: #f4f4f5;
   --scroll-thumb: rgba(255, 255, 255, 0.12);
+  /*
+   * Secondary and hint text. Tailwind's zinc-500 and zinc-600 are too dim for the
+   * small labels they are used for here (about 4:1 and 2.6:1 on the near-black
+   * background), so they are lifted to read comfortably (about 6:1 and 3.9:1).
+   * Only text uses these two shades.
+   */
+  --color-zinc-500: #8e8e98;
+  --color-zinc-600: #6b6b75;
 }
 
 /* Elements whose accent may be overridden inline recompute their ink colour. */
@@ -40,7 +48,7 @@
   --color-zinc-300: #3f3f46;
   --color-zinc-400: #52525b;
   --color-zinc-500: #6b6b74;
-  --color-zinc-600: #9f9fa9;
+  --color-zinc-600: #85858f;
   --color-zinc-700: #c4c4cb;
   --color-zinc-800: #dcdce0;
   --color-zinc-900: #fbfbfc;
