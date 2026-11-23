@@ -24,7 +24,9 @@ import { fadeOf, laneHeard, moveClips, setLaneState, moveMarker, PHRASE_BEATS, r
 import { addMarkerAtCursor, copySelection, cutSelection, deleteSelection, duplicateSelection, paste, select, selectBox, splitAt, toggleLoop, togglePlay } from "./editing";
 import { shortcutLabel } from "../../lib/actions";
 
+/** Smallest lane height; lanes grow to fill the view, up to `LANE_MAX`. */
 const LANE_H = 76;
+const LANE_MAX = 150;
 
 export function clipFromTrack(t: TrackRow, id: number, lane: number, start: number): Clip {
   const bpm = t.bpm ?? 120;
@@ -274,6 +276,25 @@ function Timeline({
     return () => el.removeEventListener("wheel", wheel);
   }, [scroller]);
   const lanesRef = useRef<HTMLDivElement>(null);
+  // Lanes share the height left under the ruler, tempo lane and hint, so a tall window shows
+  // taller clips (and roomier automation lines) instead of an empty area below the lanes.
+  const [laneH, setLaneH] = useState(LANE_H);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const fitLanes = () => {
+      const inr = inner.current;
+      const ln = lanesRef.current;
+      if (!inr || !ln) return;
+      const other = inr.offsetHeight - ln.offsetHeight;
+      const h = Math.floor((el.clientHeight - other - 1) / 4);
+      setLaneH(Math.max(LANE_H, Math.min(LANE_MAX, h)));
+    };
+    fitLanes();
+    const ro = new ResizeObserver(fitLanes);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [scroller]);
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const loop = useArrangeUi((s) => s.loop);
   const looping = useArrangeUi((s) => s.looping);
@@ -304,7 +325,7 @@ function Timeline({
   /** Timeline beat and lane under a point on screen. */
   const at = (clientX: number, clientY: number) => {
     const lr = lanesRef.current!.getBoundingClientRect();
-    return { beat: Math.max(0, (clientX - lr.left - 80) / ppb), lane: Math.max(0, Math.min(lanes - 1, Math.floor((clientY - lr.top) / LANE_H))) };
+    return { beat: Math.max(0, (clientX - lr.left - 80) / ppb), lane: Math.max(0, Math.min(lanes - 1, Math.floor((clientY - lr.top) / laneH))) };
   };
 
   /** On an empty part of a lane: a click moves the play marker there, a drag selects clips in a box. */
@@ -349,7 +370,7 @@ function Timeline({
         {/* Lanes */}
         <div ref={lanesRef}>
           {Array.from({ length: lanes }, (_, lane) => (
-            <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: LANE_H }}>
+            <div key={lane} className="flex border-b border-white/[0.04]" style={{ height: laneH }}>
               <div className="sticky left-0 z-10 flex w-20 shrink-0 items-center gap-1 border-r border-white/[0.06] bg-zinc-950 px-1.5">
                 <span className="flex size-6 items-center justify-center rounded-md text-xs font-black text-zinc-950" style={{ background: DECK_COLORS[lane] }}>
                   {String.fromCharCode(65 + lane)}
@@ -366,7 +387,7 @@ function Timeline({
                 {project.clips
                   .filter((c) => c.lane === lane)
                   .map((c) => (
-                    <ClipBox key={c.id} clip={c} ppb={ppb} selected={selSet.has(c.id)} only={selected.length === 1} show={show} silent={!laneHeard(project, lane)} />
+                    <ClipBox key={c.id} clip={c} ppb={ppb} laneH={laneH} selected={selSet.has(c.id)} only={selected.length === 1} show={show} silent={!laneHeard(project, lane)} />
                   ))}
               </LaneDrop>
             </div>
@@ -529,13 +550,13 @@ type Drag =
   | { mode: "trim"; x: number; length: number }
   | { mode: "fade"; side: "in" | "out"; x: number; beats: number };
 
-function ClipBox({ clip, ppb, selected, only, show, silent }: { clip: Clip; ppb: number; selected: boolean; only: boolean; show: ProjectParam[]; silent: boolean }) {
+function ClipBox({ clip, ppb, laneH, selected, only, show, silent }: { clip: Clip; ppb: number; laneH: number; selected: boolean; only: boolean; show: ProjectParam[]; silent: boolean }) {
   const editing = useAutoEdit((s) => s.param);
   const drag = useRef<Drag | null>(null);
   const menuAt = useRef(clip.start);
   const color = DECK_COLORS[clip.lane] ?? "#a1a1aa";
   const w = clip.length * ppb;
-  const h = LANE_H - 12;
+  const h = laneH - 12;
   const fadeIn = fadeOf(clip, "in");
   const fadeOut = fadeOf(clip, "out");
   const beatAtX = (clientX: number, el: HTMLElement, fine: boolean) => {
@@ -585,7 +606,7 @@ function ClipBox({ clip, ppb, selected, only, show, silent }: { clip: Clip; ppb:
             if (d.mode === "move") {
               const me0 = d.origin.clips.find((c) => c.id === clip.id) ?? me;
               const start = snapClipStart(d.origin, me0, d.start + (e.clientX - d.x) / ppb, mode);
-              const dl = Math.round((e.clientY - d.y) / LANE_H);
+              const dl = Math.round((e.clientY - d.y) / laneH);
               const key = `${start - d.start}:${dl}`;
               if (key === d.last) return;
               d.last = key;
