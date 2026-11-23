@@ -157,6 +157,11 @@ export async function startAutoDj() {
     await prepareNext();
     return;
   }
+  await startFrom(0);
+}
+
+/** Starts the queue on deck A from its next track, skipping up to a few that won't load. */
+async function startFrom(attempt: number) {
   const first = await takeNext(null);
   if (!first) {
     useAutoDj.setState({ phase: "off" });
@@ -181,7 +186,11 @@ export async function startAutoDj() {
     note(`Started ${first.title} on deck A from its first beat.`);
     await prepareNext();
   } catch (e) {
+    note(`Couldn't load ${first.title} (${reason(e)}), so I skipped it.`);
+    if (attempt < 4 && st().queue.length) return startFrom(attempt + 1);
     fail(e);
+    useAutoDj.setState({ phase: "off" });
+    unwatch();
   }
 }
 
@@ -214,9 +223,15 @@ export async function skipNext() {
 async function takeNext(after: number | null): Promise<TrackRow | null> {
   const s = st();
   if (s.queue.length) {
-    const [head, ...rest] = s.queue;
-    useAutoDj.setState({ queue: rest });
-    return head;
+    // A track whose file is gone can't play: skip it rather than stop the set.
+    const skipped = s.queue.filter((t, i) => t.missing && s.queue.slice(0, i).every((x) => x.missing));
+    for (const t of skipped) note(`Skipped ${t.title}: its file is missing (moved or deleted). Find it with Fix library.`);
+    const rest = s.queue.slice(skipped.length);
+    if (rest.length) {
+      useAutoDj.setState({ queue: rest.slice(1) });
+      return rest[0];
+    }
+    useAutoDj.setState({ queue: [] });
   }
   if (!s.keepGoing || after === null) return null;
   try {
@@ -232,7 +247,7 @@ async function takeNext(after: number | null): Promise<TrackRow | null> {
 
 /** Loads the next track on the free deck, cues it and plans the mix. `replace` puts the
  * waiting track back at the head of the queue (for "play next") or drops it (skip). */
-async function prepareNext(replace = false) {
+async function prepareNext(replace = false, attempt = 0) {
   const s = st();
   if (s.current === null || s.phase === "off") return;
   const deck = other(s.current);
@@ -264,9 +279,14 @@ async function prepareNext(replace = false) {
     useAutoDj.setState({ next: { deck, track, detail: info.detail, plan }, phase: "waiting" });
     note(`Loaded ${track.title} on deck ${D}, cued at its ${info.detail.cues.some((c) => c.role === "mixIn") ? "mix-in point" : "first beat"}. Plan: ${plan.summary.toLowerCase()}.`);
   } catch (e) {
-    fail(e);
+    // One track that won't load must not end the set: skip it and take the next.
+    note(`Couldn't load ${track.title} (${reason(e)}), so I skipped it.`);
+    if (attempt < 4 && st().phase !== "off") await prepareNext(false, attempt + 1);
+    else fail(e);
   }
 }
+
+const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/\.$/, "");
 
 async function runMix(atBeat: number) {
   const s = st();
