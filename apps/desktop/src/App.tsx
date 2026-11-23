@@ -149,7 +149,7 @@ export function App() {
 
   return (
     <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
-      <div className="flex h-full flex-col bg-zinc-950 text-zinc-200">
+      <div className="app-root flex h-full flex-col bg-zinc-950 text-zinc-200">
         <TopBar />
         <div className="flex min-h-0 flex-1">
           <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
@@ -173,7 +173,7 @@ export function App() {
       <SmartPlaylistHost />
       <BuildSetHost />
       <TidyHost />
-      <Toaster theme={theme} position="bottom-right" richColors closeButton />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" richColors closeButton />
     </Tooltip.Provider>
   );
 }

@@ -112,7 +112,8 @@ function HotCues({ deck, compact }: { deck: number; compact: boolean }) {
               }}
               className={clsx(
                 "relative flex h-9 w-full min-w-0 flex-col items-start justify-center overflow-hidden rounded-lg border px-2 text-left transition active:scale-[0.97] disabled:opacity-40",
-                c ? "border-transparent text-zinc-950" : "border-white/[0.08] bg-white/[0.03] text-zinc-500 hover:bg-white/[0.07]",
+                // Empty pads stay in the background so the cues you have saved stand out.
+                c ? "border-transparent text-zinc-950" : "border-dashed border-white/[0.08] bg-transparent text-zinc-600 hover:border-white/20 hover:bg-white/[0.04] hover:text-zinc-300",
               )}
               style={c ? { background: color, boxShadow: `0 0 14px -6px ${color}` } : undefined}
             >
