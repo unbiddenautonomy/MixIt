@@ -3,16 +3,15 @@
 import { toast } from "sonner";
 import { backend } from "../backend";
 import { beatToSeconds, confirmDiscard, projectBeats, setProject } from "../components/arrange/projectIo";
-import { planMix } from "../lib/autodj";
 import { clock } from "../lib/format";
 import { setMix } from "../lib/rehearse";
 import { useApp } from "./app";
-import { useAutoDj } from "./autodj";
+import { planFor, useAutoDj } from "./autodj";
 import { queueStart } from "./queueFlow";
 
 /** Turns the queue (from the track waiting or playing) into a mix project and opens Arrange. */
 export async function mixQueue(): Promise<boolean> {
-  const { queue, options, glide } = useAutoDj.getState();
+  const { queue, glide } = useAutoDj.getState();
   const start = queueStart();
   const rows = [...(start ? [start] : []), ...queue];
   if (rows.length < 2) {
@@ -27,7 +26,7 @@ export async function mixQueue(): Promise<boolean> {
       toast.error("Making a mix needs at least two analysed tracks.");
       return false;
     }
-    const plans = ready.slice(1).map((inc, i) => planMix(ready[i], inc, options));
+    const plans = ready.slice(1).map((inc, i) => planFor(ready[i], inc));
     const p = setMix(ready, plans, { glide, name: `Auto DJ set: ${ready[0].track.title} to ${ready[ready.length - 1].track.title}` });
     setProject(p, null);
     useApp.getState().set({ workspace: "arrange" });

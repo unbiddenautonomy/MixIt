@@ -50,7 +50,8 @@ async function step(name, fn) {
     results.push({ name, ok: false, error: String(e?.message ?? e) });
     // A picture of the page as it failed (CI keeps these).
     await page?.screenshot({ path: `e2e-fail-${results.length}.png` }).catch(() => {});
-    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n")[0]}`);
+    // The first lines, with Playwright's call log (what it was waiting for).
+    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n").slice(0, 16).join("\n       ")}`);
   }
 }
 
@@ -547,6 +548,24 @@ try {
       window.mixit.useAutoDj.getState().set({ queue: [] });
       window.mixit.useApp.getState().set({ workspace: "mix", projectDirty: false });
     });
+  });
+
+  await step("a transition chosen for one change is what Hear this mix plays", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.selectOption('[data-testid="choose-mix-0"]', "cut");
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    const st = await page.evaluate(() => ({ summary: window.mixit.useRehearse.getState().summary, choices: window.mixit.useAutoDj.getState().choices }));
+    expect(st.summary === "Cut on the bar" && Object.values(st.choices).join() === "cut", `heard ${JSON.stringify(st)}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.selectOption('[data-testid="choose-mix-0"]', "");
+    expect(Object.keys(await page.evaluate(() => window.mixit.useAutoDj.getState().choices)).length === 0, "Auto did not clear the choice");
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 
   await step("no errors in the console", async () => {
