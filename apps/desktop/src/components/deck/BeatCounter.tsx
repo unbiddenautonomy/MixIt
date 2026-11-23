@@ -41,7 +41,7 @@ export function BeatCounter({ deck }: { deck: number }) {
           </span>
         </div>
         {nextLabel ? (
-          <span className={clsx("flex items-center gap-1 text-[10px] leading-none", soon ? "text-zinc-100" : "text-zinc-500")}>
+          <span className={clsx("flex items-center gap-1 whitespace-nowrap text-[10px] leading-none", soon ? "text-zinc-100" : "text-zinc-500")}>
             <span className="size-1.5 rounded-full" style={{ background: SECTION_COLORS[nextLabel] ?? "#71717a" }} />
             {nextLabel} {left <= 1 ? "next bar" : `in ${left} bars`}
           </span>

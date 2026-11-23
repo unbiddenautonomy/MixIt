@@ -638,11 +638,11 @@ function ClipBox({ clip, ppb, laneH, selected, only, show, silent }: { clip: Cli
                 <polyline key={l.param} points={lanePoints(l, clip, ppb, h)} fill="none" stroke={PARAM_COLORS[l.param]} strokeWidth={1.3} opacity={0.85} />
               ))}
           </svg>
-          <div className="relative flex items-center gap-1 truncate px-1.5 pt-1 font-medium text-zinc-100">
+          <div className="relative flex items-center gap-1 truncate px-1.5 pt-1 font-medium text-zinc-100 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {clip.reverse && <Rewind size={10} className="shrink-0 text-zinc-300" aria-label="Plays backwards" />}
             <span className="truncate">{clip.name || clip.track.title}</span>
           </div>
-          <div className="relative truncate px-1.5 text-[10px] text-zinc-400">
+          <div className="relative truncate px-1.5 text-[10px] text-zinc-300 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {clip.track.artist} · {fmtBpm(clip.track.bpm)}
             {clip.key_shift !== 0 && ` · ${clip.key_shift > 0 ? "+" : ""}${clip.key_shift} st`}
             {clip.gain_db !== 0 && ` · ${clip.gain_db > 0 ? "+" : ""}${clip.gain_db.toFixed(1)} dB`}

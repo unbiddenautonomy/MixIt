@@ -152,17 +152,22 @@ function Header({ deck }: { deck: number }) {
   const key = shiftedKey(info?.detail.key ?? t?.key, keyShift);
 
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
+    // On a narrow deck (most laptop widths, the guide open, four decks) the readouts move to a
+    // second row instead of squeezing the track name away. A container query rather than
+    // natural wrapping, so every deck switches at the same width (deck A's Master badge would
+    // otherwise make it wrap when deck B doesn't).
+    <div className="@container min-w-0">
+    <div className="flex min-w-0 items-center gap-x-2.5 gap-y-2 @max-2xl:flex-wrap">
       <DeckMenu deck={deck} />
       {t && <Cover trackId={t.id} has={t.hasArt} title={t.title} artist={t.artist} size={36} rounded="rounded-lg" />}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-0 @max-2xl:min-w-[7rem]">
         <div className="truncate text-sm font-semibold leading-tight text-zinc-50" title={t?.title}>
           {t ? t.title || "Untitled" : <span className="text-zinc-500">No track</span>}
         </div>
         <div className="truncate text-xs leading-tight text-zinc-400">{t ? t.artist || "Unknown artist" : " "}</div>
       </div>
       {t && (
-        <>
+        <div className="ml-auto flex shrink-0 items-center gap-2.5 @max-2xl:ml-0 @max-2xl:basis-full">
           <Ctl label="Key" explain={keyShift !== 0 ? `Shifted ${keyShift > 0 ? "+" : ""}${keyShift} semitones from ${keyLabel(info?.detail.key ?? t.key, notation)}.` : "The musical key. Keys next to each other on the Camelot wheel mix well."}>
             <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold text-zinc-950" style={{ background: keyColor(key) }}>
               {keylock && pro && <Lock size={10} />}
@@ -183,8 +188,9 @@ function Header({ deck }: { deck: number }) {
             </Btn>
           </Ctl>
           <EjectButton deck={deck} />
-        </>
+        </div>
       )}
+    </div>
     </div>
   );
 }

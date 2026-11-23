@@ -84,7 +84,8 @@ function Toolbar() {
       <div className="min-w-0">
         <div className="truncate text-[13px] font-semibold text-zinc-100">{title}</div>
       </div>
-      {source.type !== "care" && source.type !== "insights" && (
+      {/* Auto DJ shows its own queue count; the library row count there would read as the queue's. */}
+      {source.type !== "care" && source.type !== "insights" && source.type !== "autodj" && (
         <span className="font-mono text-[10px] text-zinc-500">
           {rows}
           {selected > 1 && ` · ${selected} selected`}
