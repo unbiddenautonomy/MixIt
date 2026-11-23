@@ -12,6 +12,7 @@ import { applyEdits, DEMO_SR, demoSound, viewOf } from "./demoSound";
 import { bestShift, compatibility, fromCamelot, keyDto, keyFromIndex, transpose } from "../lib/keys";
 import { toProjectKey } from "../lib/arrangeOps";
 import { DUCK_MAX_DB, WARMTH_MAX_DB, defaultStudio, eqDb, glueComp, punchComp } from "../lib/studio";
+import { fileName } from "../lib/platform";
 
 export const SR = 48_000;
 const DECKS = 4;
@@ -962,7 +963,7 @@ export class DemoBackend implements Backend {
     const existing = this.tracks.find((t) => t.row.path === path);
     if (existing) return existing.row;
     const id = Math.max(...this.tracks.map((t) => t.row.id)) + 1;
-    const title = path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? "Dropped track";
+    const title = fileName(path).replace(/\.[^.]+$/, "") || "Dropped track";
     const t: DemoTrack = { ...base, row: { ...base.row, id, path, title, artist: "", album: "", playCount: 0, lastPlayed: null, addedAt: Math.floor(Date.now() / 1000), rating: 0, color: null, comment: "" } };
     this.tracks.push(t);
     this.emit("library-changed", null);
@@ -1192,7 +1193,7 @@ export class DemoBackend implements Backend {
   async findMissing(folder: string): Promise<number> {
     let n = 0;
     for (const t of this.tracks.filter((x) => x.row.missing)) {
-      const name = t.row.path.split(/[\\/]/).pop() ?? "";
+      const name = fileName(t.row.path);
       if (folder && name) {
         t.row = { ...t.row, path: `${folder.replace(/[\\/]$/, "")}/${name}`, missing: false };
         n++;
@@ -1907,7 +1908,7 @@ export class DemoBackend implements Backend {
     if (source.type === "kit") {
       next = kitPad(pad, source.id);
     } else if (source.type === "file") {
-      const name = source.path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? "Sound";
+      const name = fileName(source.path).replace(/\.[^.]+$/, "") || "Sound";
       next = { ...emptyPad(pad), name, source, seconds: 1.8, color: cur.color };
     } else if (source.type === "track") {
       const t = this.find(source.trackId);

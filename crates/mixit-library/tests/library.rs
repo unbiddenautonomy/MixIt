@@ -909,6 +909,11 @@ fn copies_a_playlist_to_a_usb_stick() {
 
     assert_eq!(safe_file_name("CON"), "_CON");
     assert_eq!(safe_file_name("a/b\\c:d. "), "a_b_c_d");
+    assert_eq!(safe_file_name("com9.final"), "_com9.final");
+    assert_eq!(safe_file_name("LPT7"), "_LPT7");
+    assert_eq!(safe_file_name("COM0"), "COM0");
+    assert_eq!(safe_file_name("Console"), "Console");
+    assert_eq!(safe_file_name("Mr. Brown"), "Mr. Brown");
 }
 
 #[test]

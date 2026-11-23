@@ -10,6 +10,7 @@ import { plural } from "../../lib/format";
 import { starterCategory, tagQuery } from "../../lib/tags";
 import { historyTracklist } from "../../lib/history";
 import { withPlaylistUndo } from "../../lib/libraryUndo";
+import { fileName } from "../../lib/platform";
 
 let seq = 0;
 
@@ -80,7 +81,7 @@ export function showSoundsLike(row: Pick<TrackRow, "id" | "title" | "path" | "an
     toast.message("Analyse this track first", { description: "MixIt learns how a track sounds when it analyses it, then it can find others like it." });
     return;
   }
-  useLibrary.getState().set({ source: { type: "similar", id: row.id, title: row.title || row.path.split(/[\\/]/).pop() || "this track" }, sort: null, matches: {} });
+  useLibrary.getState().set({ source: { type: "similar", id: row.id, title: row.title || fileName(row.path) || "this track" }, sort: null, matches: {} });
   refreshRows();
 }
 

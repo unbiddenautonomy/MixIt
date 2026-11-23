@@ -6,6 +6,7 @@ import { backend } from "../../backend";
 import type { Clip, MixProject } from "../../backend/types";
 import { useApp } from "../../store/app";
 import { ask } from "../shell/Dialogs";
+import { keyLabel } from "../../lib/platform";
 
 export function emptyProject(name = "Untitled mix", bpm = 124): MixProject {
   return { version: 1, name, tempo: { segments: [{ start_beat: 0, bpm, end_bpm: bpm }], time_signatures: [{ start_beat: 0, numerator: 4, denominator: 4 }] }, clips: [], markers: [], master_gain_db: 0, next_id: 1 };
@@ -165,7 +166,7 @@ export async function confirmDiscard(action = "continue"): Promise<boolean> {
   if (!project || !projectDirty) return true;
   return ask({
     title: `Discard changes to “${project.name}”?`,
-    body: `Your edits to this mix are not saved. If you ${action}, they are lost. Save first with ${navigator.platform.includes("Mac") ? "⌘S" : "Ctrl+S"} or the Save button.`,
+    body: `Your edits to this mix are not saved. If you ${action}, they are lost. Save first with ${keyLabel("Mod+S")} or the Save button.`,
     confirm: "Discard changes",
     cancel: "Keep editing",
     danger: true,

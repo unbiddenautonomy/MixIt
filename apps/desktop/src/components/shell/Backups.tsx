@@ -10,6 +10,7 @@ import { plural } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { refreshAll } from "../library/data";
 import { ask } from "./Dialogs";
+import { fileName } from "../../lib/platform";
 
 const KIND: Record<BackupInfo["kind"], string> = { auto: "Daily", manual: "By hand", beforeRestore: "Before a restore" };
 
@@ -86,7 +87,7 @@ export function Backups() {
   const fromFile = async () => {
     const files = await backend().pickFiles(["mixitlib", "db"], "Library backup");
     const path = files?.[0];
-    if (path) await restore(path, path.split(/[\\/]/).pop() ?? "that file", null);
+    if (path) await restore(path, fileName(path) || "that file", null);
   };
 
   return (

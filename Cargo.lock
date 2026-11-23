@@ -2395,7 +2395,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "dirs",
  "mixit-analysis",
  "mixit-core",
  "mixit-engine",
@@ -2424,7 +2423,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
- "dirs",
  "mixit-analysis",
  "mixit-cli",
  "mixit-core",
@@ -2480,6 +2478,7 @@ name = "mixit-host"
 version = "0.1.0"
 dependencies = [
  "cpal",
+ "dirs",
  "hound",
  "mixit-analysis",
  "mixit-core",

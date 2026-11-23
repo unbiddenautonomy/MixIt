@@ -13,6 +13,7 @@ import { editEachWithUndo } from "../../lib/libraryUndo";
 import { DEFAULT_TIDY, editsFor, TIDY_RULES, tidyChanges, type TidyChange, type TidyField, type TidyOptions } from "../../lib/tidy";
 import { Btn } from "../ui/Button";
 import { refreshRows, refreshStats } from "./data";
+import { fileName } from "../../lib/platform";
 
 const useTidy = create<{ rows: TrackRow[] | null }>(() => ({ rows: null }));
 
@@ -124,7 +125,7 @@ function Tidy({ rows }: { rows: TrackRow[] }) {
                     return (
                       <div key={id} className="border-b border-white/[0.04] px-1 py-1.5 last:border-0">
                         <div className="truncate text-[11px] text-zinc-500" title={r?.path}>
-                          {r?.path.split(/[\\/]/).pop()}
+                          {r ? fileName(r.path) : null}
                         </div>
                         {list.map((c) => (
                           <label key={c.field} className="grid cursor-pointer grid-cols-[16px_52px_minmax(0,1fr)_14px_minmax(0,1fr)] items-center gap-2 py-0.5 text-xs">

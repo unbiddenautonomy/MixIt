@@ -30,6 +30,7 @@ import { Cover } from "../ui/Cover";
 import { openBuildSet } from "./BuildSetDialog";
 import { openTidy } from "./TidyDialog";
 import { vocalLabel } from "../../lib/vocals";
+import { fileName } from "../../lib/platform";
 
 interface Column {
   key: string;
@@ -100,7 +101,7 @@ const COLUMNS: Column[] = [
         {!r.missing && <PreviewButton row={r} className="-ml-1" />}
         {r.color != null && <span className="size-2 shrink-0 rounded-full" style={{ background: hex(r.color) }} />}
         {r.missing && <AlertTriangle size={12} className="shrink-0 text-amber-400" aria-label="File missing" />}
-        <span className={clsx("truncate", r.missing ? "text-zinc-500 line-through" : "text-zinc-100")}>{r.title || r.path.split(/[\\/]/).pop()}</span>
+        <span className={clsx("truncate", r.missing ? "text-zinc-500 line-through" : "text-zinc-100")}>{r.title || fileName(r.path)}</span>
       </span>
     ),
   },

@@ -35,8 +35,15 @@ pub fn safe_file_name(s: &str) -> String {
             })
             .collect();
     out = out.trim().trim_end_matches(['.', ' ']).to_string();
-    let reserved = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3"];
-    if out.is_empty() || reserved.contains(&out.to_ascii_uppercase().as_str()) {
+    // Windows refuses its device names as a file name, with or without an extension
+    // ("CON", "com3.wav").
+    let stem = out.split('.').next().unwrap_or("").trim_end().to_ascii_uppercase();
+    let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit()
+            && stem.as_bytes()[3] != b'0');
+    if out.is_empty() || reserved {
         out = format!("_{out}");
     }
     // Long names break on some players and file systems.

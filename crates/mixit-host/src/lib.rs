@@ -14,6 +14,7 @@
 pub mod denormals;
 pub mod input;
 pub mod offline;
+pub mod platform;
 pub mod project;
 pub mod recorder;
 

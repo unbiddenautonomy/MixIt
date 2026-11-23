@@ -6,7 +6,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { AlarmClock, AlertTriangle, BookOpen, Check, Circle, Command, Compass, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
-import { isMac, shortcutLabel, findAction } from "../../lib/actions";
+import { shortcutLabel, findAction } from "../../lib/actions";
 import { startTour } from "../../guide/tour";
 import { clock } from "../../lib/format";
 import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../../lib/setClock";
@@ -34,9 +34,9 @@ export function TopBar() {
         value={workspace}
         onChange={(w) => useApp.getState().set({ workspace: w })}
         options={[
-          { value: "mix", label: "Mix", title: `Decks and mixer (${isMac ? "⌘" : "Ctrl+"}2)` },
-          { value: "library", label: "Library", title: `Your music (${isMac ? "⌘" : "Ctrl+"}1)` },
-          { value: "arrange", label: "Arrange", title: `Build a mix on a timeline (${isMac ? "⌘" : "Ctrl+"}3)` },
+          { value: "mix", label: "Mix", title: `Decks and mixer (${shortcutLabel("Mod+2")})` },
+          { value: "library", label: "Library", title: `Your music (${shortcutLabel("Mod+1")})` },
+          { value: "arrange", label: "Arrange", title: `Build a mix on a timeline (${shortcutLabel("Mod+3")})` },
         ]}
       />
       <MasterClock />

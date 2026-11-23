@@ -1661,8 +1661,7 @@ pub fn project_render_stems(
                 length_seconds: Some(p.length_seconds() + base.tail),
                 ..base
             };
-            let safe: String =
-                p.name.chars().map(|c| if c.is_alphanumeric() || " -_".contains(c) { c } else { '_' }).collect();
+            let safe = mixit_library::m3u::safe_file_name(&p.name);
             let mut written = Vec::new();
             let mut error = None;
             for lane in &lanes {

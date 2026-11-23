@@ -27,15 +27,15 @@ pub struct Paths {
 
 impl Paths {
     pub fn default_paths() -> Paths {
-        let data = dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("MixIt");
-        let music = dirs::audio_dir().or_else(dirs::home_dir).unwrap_or_else(|| data.clone()).join("MixIt");
+        // Each system's folders come from one table, tested for all three.
+        let d = mixit_host::platform::AppDirs::system();
         Paths {
-            db: data.join("library.db"),
-            cache: dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("MixIt").join("decoded"),
-            recordings: music.join("Recordings"),
-            projects: music.join("Mixes"),
-            practice: music.join("Practice"),
-            backups: data.join("Backups"),
+            db: d.db,
+            cache: d.cache,
+            recordings: d.music.join("Recordings"),
+            projects: d.music.join("Mixes"),
+            practice: d.music.join("Practice"),
+            backups: d.backups,
         }
     }
 }
@@ -104,7 +104,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             device: None,
-            buffer_frames: 256,
+            buffer_frames: mixit_host::platform::Os::current().profile().buffer_frames,
             sample_rate: None,
             cue_channel: None,
             key_notation: "camelot".into(),
