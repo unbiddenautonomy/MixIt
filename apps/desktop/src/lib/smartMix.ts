@@ -29,8 +29,14 @@ export async function smartMix(from: number, to: number): Promise<MixPlan | null
   const out = decks[from]?.detail;
   const inc = decks[to]?.detail;
   const d = useTelemetry.getState().t.decks[from];
-  if (!out?.bpm || !inc?.bpm || !d?.playing) {
+  if (!d?.playing) {
     await startTransition(from, to, "blend", 32);
+    return null;
+  }
+  if (!out?.bpm || !inc?.bpm) {
+    // No measured tempo to sync to (not analysed yet): echo out, the next track at its own speed.
+    toast("Echo out over 8 beats", { description: `${!inc?.bpm ? (inc?.track.title ?? "The next track") : out!.track.title} has not been analysed yet, so the tempos can't be matched.` });
+    await startTransition(from, to, "echoOut", 8, { sync: false });
     return null;
   }
   const plan = { ...planNow(out, inc, d.beat), inCueSeconds: useTelemetry.getState().t.decks[to]?.position ?? 0 };
