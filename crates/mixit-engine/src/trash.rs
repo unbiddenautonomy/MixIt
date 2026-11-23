@@ -10,12 +10,13 @@ use mixit_core::Beatgrid;
 use mixit_dsp::fx::Effect;
 use mixit_dsp::stretch::TimeStretch;
 
-use crate::track::{DeckTrack, TrackAudio};
+use crate::track::{DeckTrack, StemAudio, TrackAudio};
 
 /// A heap object released by the audio thread.
 pub enum Trash {
     Track(Box<DeckTrack>),
     Audio(Arc<TrackAudio>),
+    Stems(Arc<StemAudio>),
     Grid(Arc<Beatgrid>),
     Effect(Box<dyn Effect>),
     Stretch(Box<dyn TimeStretch>),

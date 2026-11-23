@@ -238,6 +238,11 @@ export interface Backend {
   onAudioStatus(cb: (s: AudioStatus) => void): Unlisten;
   onError(cb: (message: string) => void): Unlisten;
 
+  /** Splits a track into stems in the background (a "stems" job); decks playing it get them. */
+  splitStems(trackId: number): Promise<void>;
+  /** Stops a split in progress. */
+  cancelStems(): Promise<void>;
+
   // Windows on other screens (desktop app only; the browser keeps one window).
   /** The connected screens, and the one the main window is on. */
   screens?(): Promise<{ screens: Screen[]; main: string | null }>;

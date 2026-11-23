@@ -203,6 +203,19 @@ export const CONCEPTS: Concept[] = [
     lab: "bass-swap",
   },
   {
+    id: "stems",
+    title: "Stems: vocals, drums, bass and melody",
+    group: "Mixer",
+    summary: "Split a track into its parts, then turn each part up or down on its own.",
+    body: [
+      "Press Split into stems on a deck and MixIt separates the track into four parts: the vocals, the drums, the bass and everything else (the melody). It takes a little while the first time and is remembered after that.",
+      "Then each part has its own button: switch the vocals off for an instrumental, or everything but the vocals for an a cappella you can lay over another track. Turning one track's drums off while the next track's drums play is a clean way to swap rhythms.",
+      "The split is a quick one made by analysing the sound, so a little of each part can leak into the others (the kick's boom often sits with the bass).",
+    ],
+    controls: ["deck.A.stem.vocals.mute", "deck.A.stem.drums.mute", "deck.A.stem.bass.mute", "deck.A.stem.melody.mute"],
+    glossary: ["stems"],
+  },
+  {
     id: "filter",
     title: "Filter",
     group: "Mixer",

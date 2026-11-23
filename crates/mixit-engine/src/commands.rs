@@ -69,6 +69,13 @@ pub enum DeckCommand {
     Eject,
     /// Replaces the beatgrid (after an edit) without touching playback.
     SetGrid(Arc<Beatgrid>),
+    /// Gives the loaded track its stems (made off the audio thread); ignored, and given
+    /// back, when they do not fit the track.
+    SetStems(Arc<crate::track::StemAudio>),
+    /// A stem's level (0..1, index into [`crate::track::STEMS`]), smoothed.
+    SetStemLevel(u8, f32),
+    /// Silences a stem (or brings it back), smoothed.
+    SetStemMute(u8, bool),
     Play,
     Pause,
     PlayPause,

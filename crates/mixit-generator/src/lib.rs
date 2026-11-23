@@ -131,6 +131,9 @@ pub struct Generated {
     pub sample_rate: u32,
     /// Interleaved stereo.
     pub audio: Vec<f32>,
+    /// Each part on its own, interleaved stereo, in [`STEM_PARTS`] order: they add up to
+    /// `audio` (to rounding), the ground truth for stem separation.
+    pub stems: [Vec<f32>; 4],
     pub truth: GroundTruth,
 }
 
@@ -186,7 +189,18 @@ struct Mix {
     sr: f64,
     l: Vec<f32>,
     r: Vec<f32>,
+    /// The part being written ([`STEM_PARTS`] index), and each part on its own.
+    part: usize,
+    parts: [(Vec<f32>, Vec<f32>); 4],
 }
+
+/// The parts a track is written in, as stems: the singer, the drums, the bass, and
+/// everything else (chords and lead).
+pub const STEM_PARTS: [&str; 4] = ["vocals", "drums", "bass", "melody"];
+const VOCALS: usize = 0;
+const DRUMS: usize = 1;
+const BASS: usize = 2;
+const MELODY: usize = 3;
 
 impl Mix {
     fn add(&mut self, at: f64, pan: f32, gain: f32, voice: &[f32]) {
@@ -199,6 +213,9 @@ impl Mix {
             }
             self.l[idx as usize] += v * gain * gl;
             self.r[idx as usize] += v * gain * gr;
+            let (pl, pr) = &mut self.parts[self.part];
+            pl[idx as usize] += v * gain * gl;
+            pr[idx as usize] += v * gain * gr;
         }
     }
 }
@@ -347,7 +364,13 @@ pub fn generate(spec: &TrackSpec) -> Generated {
     let total_beats = spec.total_beats() as usize;
     let duration = beats[total_beats] + 2.5;
     let n = (duration * sr) as usize;
-    let mut mix = Mix { sr, l: vec![0.0; n], r: vec![0.0; n] };
+    let mut mix = Mix {
+        sr,
+        l: vec![0.0; n],
+        r: vec![0.0; n],
+        part: DRUMS,
+        parts: std::array::from_fn(|_| (vec![0.0; n], vec![0.0; n])),
+    };
     let kit = make_kit(sr, spec.style, &mut rng);
 
     // Time of a fractional beat (linear between beat times), with swing on odd 16ths.
@@ -374,6 +397,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
         if matches!(sec.kind, SectionKind::Drop | SectionKind::Breakdown)
             || (si > 0 && matches!(sec.kind, SectionKind::Outro))
         {
+            mix.part = DRUMS;
             mix.add(time_at(start_beat), 0.0, 0.35, &kit.crash);
         }
         for bar in 0..sec.bars {
@@ -383,6 +407,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
                 let b = (gbar * 4 + beat) as f64;
                 let t = time_at(b);
                 // Drums.
+                mix.part = DRUMS;
                 if drums {
                     match spec.style {
                         Style::DrumAndBass => {
@@ -443,6 +468,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
                     }
                 }
                 // Bass.
+                mix.part = BASS;
                 if drums && sec.kind != SectionKind::Intro || full {
                     let root = tonic_midi + scale(spec.key.mode)[chord_deg];
                     let f = midi_hz(root as f64);
@@ -468,6 +494,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
                 }
             }
             // Chords: one per bar, on the downbeat.
+            mix.part = MELODY;
             if harmony || full {
                 let t = time_at((gbar * 4) as f64);
                 let bar_len = time_at((gbar * 4 + 4).min(total_beats as u32) as f64) - t;
@@ -502,6 +529,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
     // The singer: two bars sung in every four of each drop and breakdown, on its own
     // random stream so the rest of the track is the same with or without vocals.
     let mut vocals = Vec::new();
+    mix.part = VOCALS;
     if spec.vocals {
         let mut vrng = Rng::new(spec.seed ^ 0x0051_06E7);
         let sc = scale(spec.key.mode);
@@ -539,11 +567,14 @@ pub fn generate(spec: &TrackSpec) -> Generated {
     let peak = mix.l.iter().chain(mix.r.iter()).fold(0.0f32, |m, v| m.max(v.abs())).max(1e-6);
     let g = 10f32.powf(-1.0 / 20.0) / peak;
     let audio: Vec<f32> = mix.l.iter().zip(&mix.r).flat_map(|(a, b)| [a * g, b * g]).collect();
+    let stems =
+        std::array::from_fn(|i| mix.parts[i].0.iter().zip(&mix.parts[i].1).flat_map(|(a, b)| [a * g, b * g]).collect());
     let beat_list: Vec<f64> = beats[..total_beats].to_vec();
     let downbeats = beat_list.iter().step_by(4).copied().collect();
     Generated {
         sample_rate: spec.sample_rate,
         audio,
+        stems,
         truth: GroundTruth {
             bpm: spec.bpm,
             end_bpm: spec.end_bpm.unwrap_or(spec.bpm),
@@ -560,6 +591,20 @@ pub fn generate(spec: &TrackSpec) -> Generated {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stems_add_up_to_the_track() {
+        let mut spec = TrackSpec::short(Style::House, 124.0, Key::new(9, Mode::Minor));
+        spec.vocals = true;
+        let g = generate(&spec);
+        let worst = (0..g.audio.len())
+            .map(|i| (g.audio[i] - g.stems.iter().map(|s| s[i]).sum::<f32>()).abs())
+            .fold(0.0f32, f32::max);
+        assert!(worst < 1e-5, "{worst}");
+        for (name, s) in STEM_PARTS.iter().zip(&g.stems) {
+            assert!(s.iter().any(|v| v.abs() > 0.01), "{name} is silent");
+        }
+    }
 
     #[test]
     fn truth_matches_the_spec() {

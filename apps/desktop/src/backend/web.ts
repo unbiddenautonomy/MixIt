@@ -551,6 +551,12 @@ export class WebAudioBackend extends DemoBackend {
     this.renderJobs([{ request: { project, autoGain: this.settings.autoGain }, name }], (n) => `${n}, in your downloads${note}`);
   }
 
+  // Splitting runs natively for now; the demo's pretend split must not stand in for it.
+  async splitStems(): Promise<void> {
+    throw new Error("Splitting into stems needs the desktop app for now.");
+  }
+  async cancelStems() {}
+
   /** Renders each lane as its own WAV file (all the same length) and downloads them. */
   async renderStems(project: T.MixProject) {
     const lanes = [...new Set(project.clips.map((c) => c.lane))].sort();

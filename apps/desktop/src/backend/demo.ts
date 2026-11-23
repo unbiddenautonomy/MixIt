@@ -444,6 +444,7 @@ export class DemoBackend implements Backend {
       const rate = this.rate(i);
       return {
         loaded: !!t,
+        stems: !!t && this.split.has(t.row.id),
         token: d.token,
         playing: d.playing,
         position: d.position,
@@ -1022,6 +1023,32 @@ export class DemoBackend implements Backend {
     await this.addToLibrary([]);
   }
   async analyzePending() {}
+
+  /** Track ids "split into stems" (the demo plays no audio, so only the controls change). */
+  protected split = new Set<number>();
+  private splitting: number | null = null;
+  async splitStems(trackId: number) {
+    if (this.splitting !== null) throw new Error("Already splitting a track. Wait for it to finish.");
+    const t = this.find(trackId);
+    this.splitting = window.setInterval(() => undefined, 1_000_000);
+    const message = `Splitting “${t.row.title}” into stems`;
+    for (let i = 1; i <= 5; i++) {
+      await new Promise((r) => setTimeout(r, 150));
+      if (this.splitting === null) {
+        this.emit("job", { kind: "stems", done: 0, total: 0, message: "", finished: true, error: "Stopped splitting" });
+        return;
+      }
+      this.emit("job", { kind: "stems", done: i * 200, total: 1000, message, finished: false, error: null });
+    }
+    window.clearInterval(this.splitting);
+    this.splitting = null;
+    this.split.add(trackId);
+    this.emit("job", { kind: "stems", done: 1000, total: 1000, message: `“${t.row.title}” is split: turn its vocals, drums, bass and melody up and down on the deck.`, finished: true, error: null });
+  }
+  async cancelStems() {
+    if (this.splitting !== null) window.clearInterval(this.splitting);
+    this.splitting = null;
+  }
   async cancelJob() {}
 
   async trackDetail(id: number) {
@@ -2301,6 +2328,10 @@ function demoRegistry(): T.ActionSpec[] {
     add(`deck.${l}.keypad.cue`, "Key pad cue", g, { type: "choice", options: ["1", "2", "3", "4", "5", "6", "7", "8"], default: 0 }, "The hot cue the key pads play from. Pressing a hot cue also picks it.", null, false);
     add(`deck.${l}.keypad.range`, "Key pad range", g, { type: "choice", options: ["Low", "Middle", "High"], default: 1 }, "Which keys the 8 pads cover: lower, around the track's own key, or higher.", null, false);
     add(`deck.${l}.slice.size`, "Slicer length", g, { type: "choice", options: ["1 bar", "2 bars", "4 bars"], default: 1 }, "How much music the 8 slicer pads cover: 1, 2 or 4 bars.", null, false);
+    for (const [stem, name, what] of [["vocals", "Vocals", "the singing and rapping"], ["drums", "Drums", "the drums and percussion"], ["bass", "Bass", "the bassline"], ["melody", "Melody", "everything else: synths, guitars, pianos, pads"]]) {
+      add(`deck.${l}.stem.${stem}`, `${name} level`, g, cont(0, 1, 1), `Turns ${what} of this track up or down. Works once the track is split into stems.`, null, false);
+      add(`deck.${l}.stem.${stem}.mute`, `Mute ${name.toLowerCase()}`, g, { type: "toggle" }, `Silences ${what} of this track, and brings them back. Works once the track is split into stems.`);
+    }
     add(`deck.${l}.eject`, "Eject", g, { type: "trigger" }, "Unloads the track (only when paused).");
     const m = `Mixer ${l}`;
     add(`mixer.${l}.fader`, "Volume", m, cont(0, 1, 1), "How loud this deck is in the mix.");

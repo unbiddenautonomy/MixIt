@@ -36,7 +36,20 @@ export interface FxSlot {
   p2: number;
 }
 
+/** The stems of one deck, in STEMS order (the engine does not report them back). */
+export interface StemState {
+  mute: boolean[];
+  level: number[];
+}
+
+/** The parts a track can be split into, as the `deck.X.stem.*` actions name them. */
+export const STEMS = ["vocals", "drums", "bass", "melody"] as const;
+export type Stem = (typeof STEMS)[number];
+export const STEM_NAMES: Record<Stem, string> = { vocals: "Vocals", drums: "Drums", bass: "Bass", melody: "Melody" };
+
 export interface MixerState {
+  /** Each deck's stems. */
+  stems: StemState[];
   channels: ChannelState[];
   crossfader: number;
   master: number;
@@ -208,6 +221,7 @@ export const useApp = create<AppState>((set) => ({
   decks: [null, null, null, null],
   waveforms: {},
   mixer: {
+    stems: [0, 1, 2, 3].map(() => ({ mute: [false, false, false, false], level: [1, 1, 1, 1] })),
     channels: [channel(), channel(), channel(), channel()],
     crossfader: 0,
     master: 0,

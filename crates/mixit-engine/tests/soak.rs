@@ -1,9 +1,10 @@
 //! Soak test: the whole engine under a long, random but repeatable session.
 //!
-//! Every control in the action registry (decks, mixer, effects, sampler, mic, A/B bypass)
-//! is pressed, held, switched and swept to random and extreme values, while the decks
-//! keep loading hostile material: full-scale sweeps and square waves, DC offset, single
-//! impulses, white noise and silence. Blocks come in odd sizes. Throughout:
+//! Every control in the action registry (decks and their stems, mixer, effects, sampler,
+//! mic, A/B bypass) is pressed, held, switched and swept to random and extreme values,
+//! while the decks keep loading hostile material: full-scale sweeps and square waves, DC
+//! offset, single impulses, white noise and silence, half of it with stems. Blocks come
+//! in odd sizes. Throughout:
 //!
 //! * the audio callback never allocates (checked by the allocator),
 //! * every sample of the master and headphone outputs is finite and within full scale,
@@ -79,6 +80,15 @@ fn load(ctl: &mut Controller, deck: usize, kind: usize, rng: &mut Rng) {
     let t = DeckTrack::new(Arc::new(TrackAudio::from_mono(SR, &x)), Arc::new(grid));
     let id = DeckId(deck as u8);
     let _ = ctl.deck(id, DeckCommand::Load(Box::new(t)));
+    // Half the tracks get stems (arbitrary but full-scale ones), now and then ones that
+    // do not fit, which the deck must give back.
+    if rng.chance(0.5) {
+        let n = if rng.chance(0.1) { x.len() - 1 } else { x.len() };
+        let st: Vec<f32> = x[..n].iter().flat_map(|&v| [v, -v]).collect();
+        let noise: Vec<f32> = testkit::noise(n, rng.next(), 0.9).iter().flat_map(|&v| [v, v]).collect();
+        let stems = StemAudio { vocals: st.clone(), drums: noise, bass: st.iter().map(|v| v * 0.5).collect() };
+        let _ = ctl.deck(id, DeckCommand::SetStems(Arc::new(stems)));
+    }
     let stretch: Box<dyn TimeStretch> = if rng.chance(0.5) {
         Box::new(mixit_stretch::PhaseVocoder::new(SR))
     } else {

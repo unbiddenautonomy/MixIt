@@ -90,6 +90,7 @@ export function App() {
             if (j.finished) {
               if (j.error) toast.error(j.error);
               else if (j.kind === "render") toast.success("Mix rendered", { description: j.message });
+              else if (j.kind === "stems" && j.message) toast.success("Stems ready", { description: j.message });
               else if (j.kind === "analyze" && j.total) toast.success(`Analysed ${j.total} tracks`);
               else if (j.kind === "import" && j.message) toast.success("Import finished", { description: j.message });
               else if (j.kind === "copy" && j.message) (j.message.includes("could not") ? toast.warning : toast.success)("Copy finished", { description: j.message });

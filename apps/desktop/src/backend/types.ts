@@ -178,6 +178,8 @@ export interface LoopDto {
 
 export interface DeckTele {
   loaded: boolean;
+  /** The track has stems, so the stem controls work. */
+  stems: boolean;
   token: number;
   playing: boolean;
   position: number;
@@ -565,7 +567,7 @@ export interface HistoryEntry {
 }
 
 export interface JobProgress {
-  kind: "scan" | "analyze" | "render" | "import" | "copy";
+  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems";
   done: number;
   total: number;
   message: string;

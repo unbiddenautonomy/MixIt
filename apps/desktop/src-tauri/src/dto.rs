@@ -357,7 +357,7 @@ pub struct MicTake {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobProgress {
-    /// "scan" | "analyze" | "render" | "import" | "copy"
+    /// "scan" | "analyze" | "render" | "import" | "copy" | "stems"
     pub kind: &'static str,
     pub done: usize,
     pub total: usize,

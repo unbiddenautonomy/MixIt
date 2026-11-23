@@ -171,6 +171,9 @@ pub struct AppState {
     pub session: Mutex<Option<i64>>,
     /// Set while a library job (scan, analysis) runs; setting `cancel` stops it.
     pub job_running: Arc<AtomicBool>,
+    /// A track is being split into stems, and a request to stop it.
+    pub stems_running: AtomicBool,
+    pub stems_cancel: AtomicBool,
     pub job_cancel: Arc<AtomicBool>,
     pub render_cancel: Arc<AtomicBool>,
     pub next_token: Mutex<u64>,
@@ -199,6 +202,8 @@ impl AppState {
             mic_error: Mutex::new(None),
             session: Mutex::new(None),
             job_running: Arc::new(AtomicBool::new(false)),
+            stems_running: AtomicBool::new(false),
+            stems_cancel: AtomicBool::new(false),
             job_cancel: Arc::new(AtomicBool::new(false)),
             render_cancel: Arc::new(AtomicBool::new(false)),
             preview: Mutex::new(None),

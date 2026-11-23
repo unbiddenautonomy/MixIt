@@ -88,6 +88,7 @@ pub mod specs {
     use super::*;
 
     pub const TEMPO: ParamSpec = ParamSpec::new(-1.0, 1.0, 0.0, Unit::None, Taper::Linear).smoothing(20.0);
+    pub const STEM_LEVEL: ParamSpec = ParamSpec::new(0.0, 1.0, 1.0, Unit::None, Taper::Linear).smoothing(20.0);
     pub const KEY_SHIFT: ParamSpec =
         ParamSpec::new(-12.0, 12.0, 0.0, Unit::Semitones, Taper::Linear).smoothing(30.0).step(0.01);
     pub const TRIM: ParamSpec = ParamSpec::new(-12.0, 12.0, 0.0, Unit::Decibels, Taper::Centered).smoothing(20.0);
@@ -392,6 +393,36 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             None,
             Some("key"),
         );
+        // Stems: turn the singing, drums, bass or melody up, down or off (once a track is split).
+        for (stem, name, what) in [
+            ("vocals", "Vocals", "the singing and rapping"),
+            ("drums", "Drums", "the drums and percussion"),
+            ("bass", "Bass", "the bassline"),
+            ("melody", "Melody", "everything else: synths, guitars, pianos, pads"),
+        ] {
+            b.add(
+                id(&format!("stem.{stem}")),
+                format!("{name} level"),
+                &g,
+                cont(specs::STEM_LEVEL),
+                format!("Turns {what} of this track up or down. Works once the track is split into stems."),
+                false,
+                None,
+                Some("stems"),
+            );
+            b.add(
+                id(&format!("stem.{stem}.mute")),
+                format!("Mute {}", name.to_lowercase()),
+                &g,
+                toggle(),
+                format!(
+                    "Silences {what} of this track, and brings them back. Works once the track is split into stems."
+                ),
+                true,
+                None,
+                Some("stems"),
+            );
+        }
         b.add(
             id("key_sync"),
             "Key sync",

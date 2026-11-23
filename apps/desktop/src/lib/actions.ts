@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { ActionInput, ActionSpec } from "../backend/types";
-import { MASTER_FX, useApp } from "../store/app";
+import { MASTER_FX, STEMS, useApp, type Stem } from "../store/app";
 import { mirrorMic, startMicRecording, stopMicRecording, toggleMicRecording } from "../store/mic";
 import { mirrorStudio } from "../store/studio";
 import { faderMoved } from "./performance";
@@ -45,6 +45,18 @@ function mirror(id: string, input: ActionInput) {
   const v = input.type === "value" || input.type === "choice" ? input.value : input.type === "set" ? Number(input.value) : null;
   if (id === "mixer.bypass") {
     if (input.type !== "release") s.setMixer({ bypass: input.type === "press" ? !s.mixer.bypass : Boolean(v) });
+    return;
+  }
+  // deck.A.stem.vocals (level) and deck.A.stem.vocals.mute.
+  if (p[0] === "deck" && p[2] === "stem") {
+    const deck = p[1].charCodeAt(0) - 65;
+    const k = STEMS.indexOf(p[3] as Stem);
+    const cur = s.mixer.stems[deck];
+    if (!cur || k < 0 || input.type === "release") return;
+    const next = { mute: [...cur.mute], level: [...cur.level] };
+    if (p[4] === "mute") next.mute[k] = input.type === "press" ? !cur.mute[k] : Boolean(v);
+    else if (v !== null) next.level[k] = v;
+    s.setMixer({ stems: s.mixer.stems.map((x, i) => (i === deck ? next : x)) });
     return;
   }
   if (p[0] === "mixer" && p[1].length === 1) {

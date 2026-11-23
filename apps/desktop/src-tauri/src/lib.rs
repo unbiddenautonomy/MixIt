@@ -162,6 +162,8 @@ pub fn run() {
             commands::sampler_reset,
             commands::sampler_stop_all,
             commands::sampler_sequence,
+            commands::stems_split,
+            commands::stems_cancel,
             windows::part_open,
             windows::part_close,
         ])

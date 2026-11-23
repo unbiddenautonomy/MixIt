@@ -196,6 +196,8 @@ export class TauriBackend implements Backend {
   onHistoryChanged(cb: () => void) { return sub("history-changed", cb); }
   onAudioStatus(cb: (s: T.AudioStatus) => void) { return sub("audio-status", cb); }
   onError(cb: (m: string) => void) { return sub("error", cb); }
+  splitStems(trackId: number) { return invoke<void>("stems_split", { trackId }); }
+  cancelStems() { return invoke<void>("stems_cancel"); }
 
   async screens() {
     const [all, cur] = await Promise.all([availableMonitors(), currentMonitor()]);
