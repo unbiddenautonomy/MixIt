@@ -95,3 +95,13 @@ npm run tauri build
 When no audio device can be opened the app runs on a silent virtual output, so it still starts (and says so in the top bar).
 
 See `CLAUDE.md` for development conventions.
+
+## Installers
+
+The Release workflow (`.github/workflows/release.yml`) builds the installers with [tauri-action](https://github.com/tauri-apps/tauri-action) and attaches them to a **draft** GitHub release for you to check and publish:
+
+- Windows: an `.exe` setup that installs for the current user (no administrator rights needed) and fetches WebView2 if it is missing, plus an `.msi`.
+- macOS: a `.dmg` each for Apple silicon and Intel.
+- Linux: `.deb`, `.rpm` and AppImage.
+
+To make one, bump `version` in `apps/desktop/src-tauri/tauri.conf.json`, then push a tag such as `v0.2.0`, or run the workflow by hand from the Actions tab. The installers are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper warn on first launch.
