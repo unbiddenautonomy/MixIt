@@ -166,8 +166,11 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   const outBpm = out.bpm ?? 120;
   const inBpm = inc.bpm ?? outBpm;
   const ratio = tempoRatio(outBpm, inBpm);
-  const tempoChangePct = Math.round((ratio - 1) * 1000) / 10;
-  const farTempo = Math.abs(tempoChangePct) > 8;
+  const tempoChangePct = !out.bpm || !inc.bpm ? 0 : Math.round((ratio - 1) * 1000) / 10;
+  // A track without a measured tempo (not analysed yet) can't be synced: treat the gap as
+  // far, so it comes in at its own speed after an echo.
+  const unknownTempo = !out.bpm || !inc.bpm;
+  const farTempo = unknownTempo || Math.abs(tempoChangePct) > 8;
 
   // Keys.
   const km = keyMove(out.key, inc.key);
@@ -195,6 +198,9 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   let kind: TransitionId;
   if (opts.style !== "auto") {
     kind = opts.style;
+  } else if (unknownTempo) {
+    kind = "echoOut";
+    reasons.push(`${!inc.bpm ? inc.track.title : out.track.title} has not been analysed yet, so its tempo is unknown: the old track echoes out and the new one comes in at its own speed.`);
   } else if (farTempo) {
     kind = "echoOut";
     reasons.push(`The tempos are far apart (${Math.round(outBpm)} and ${Math.round(inBpm)} BPM), so the old track echoes out instead of both playing at a stretched tempo.`);
@@ -275,7 +281,7 @@ export function planMix(out: TrackDetail, inc: TrackDetail, opts: PlanOptions = 
   }
 
   const sync = !(farTempo && (kind === "echoOut" || kind === "cut" || kind === "brake"));
-  if (!sync) reasons.push(`The next track keeps its own tempo of ${Math.round(inBpm)} BPM.`);
+  if (!sync) reasons.push(unknownTempo ? "The next track keeps its own tempo." : `The next track keeps its own tempo of ${Math.round(inBpm)} BPM.`);
   const summary = kind === "cut" ? "Cut on the bar" : kind === "brake" ? "Brake stop" : `${NAMES[kind]} over ${beats} beats${loopBeats ? `, looping the last ${loopBeats}` : ""}`;
   return {
     kind,

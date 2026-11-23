@@ -243,3 +243,16 @@ describe("Mix it on Smart", () => {
     expect(b.outStartBeat % 4).toBe(0);
   });
 });
+
+describe("a track that is not analysed yet", () => {
+  it("is not synced: the old track echoes out and the new one keeps its own speed", () => {
+    const out = track({ energy: 7 });
+    const inc = { ...track({ energy: 7 }), bpm: null };
+    const p = planMix(out, inc);
+    expect(p).toMatchObject({ kind: "echoOut", sync: false, tempoChangePct: 0 });
+    expect(p.reasons[p.reasons.length - 1]).toBe("The next track keeps its own tempo.");
+    expect(p.reasons.some((r) => /has not been analysed yet/.test(r))).toBe(true);
+    // Analysed on both sides, the same pair blends or swaps as usual.
+    expect(planMix(out, track({ energy: 7 })).sync).toBe(true);
+  });
+});
