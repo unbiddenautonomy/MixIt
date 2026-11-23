@@ -14,7 +14,7 @@ import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNex
 import { useLibrary } from "../../store/library";
 import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
-import { hearNext, hearPair, stopMix, useRehearse } from "../../store/rehearse";
+import { hearNext, hearPair, hearSet, stopMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { Btn, Segmented } from "../ui/Button";
@@ -61,6 +61,17 @@ export function AutoDjView() {
                 <button
                   type="button"
                   className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+                  onClick={() => void hearSet()}
+                  title="Hear every change in the queue one after another in your headphones, a few bars either side of each, the way Auto DJ will mix them"
+                  data-testid="rehearse-set"
+                >
+                  <Headphones size={12} /> Rehearse the set
+                </button>
+              )}
+              {queue.length > 1 && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
                   onClick={() => orderQueue()}
                   title="Reorder the queue so every change is as easy to mix as it can be (keys that fit, small tempo steps), with the energy going the way you chose"
                   data-testid="queue-order"

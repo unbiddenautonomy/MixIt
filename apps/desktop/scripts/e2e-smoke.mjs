@@ -444,6 +444,26 @@ try {
     await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
   });
 
+  await step("Rehearse the set plays every change in the queue, one after another", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 4);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="rehearse-set"]');
+    await page.waitForSelector('[data-testid="now-hearing"] >> text=/Change 1 of 3/', { timeout: 15_000 });
+    const st = await page.evaluate(() => window.mixit.useRehearse.getState());
+    expect(st.status === "ready" && st.changes.length === 3 && st.title === "The whole set: 3 changes", `rehearsal ${st.status}, ${st.changes.length} changes, ${st.title}`);
+    // Next change goes to just before the second change, and the bar follows.
+    await page.click('[data-testid="next-change"]');
+    await page.waitForSelector('[data-testid="now-hearing"] >> text=/Change 2 of 3/', { timeout: 3000 });
+    const p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(p.playing && Math.abs(p.position - (st.changes[1].at - 4)) < 1, `at ${p.position}, change 2 at ${st.changes[1].at}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });
