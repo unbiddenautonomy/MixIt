@@ -7,9 +7,10 @@ import type { SectionDto, Telemetry, TrackDetail } from "../backend/types";
 import { valueAt } from "../lib/arrangeOps";
 import { beatAtSeconds, planMix } from "../lib/autodj";
 import { fromCamelot, keyDto } from "../lib/keys";
-import { rehearsal } from "../lib/rehearse";
+import { medley, rehearsal, setMix, tempoAt } from "../lib/rehearse";
 import { useApp } from "../store/app";
-import { hearPair, musicOnAir, stopMix, useRehearse } from "../store/rehearse";
+import { changeAt, hearPair, hearSet, musicOnAir, stopMix, useRehearse } from "../store/rehearse";
+import { chooseTransition, planFor, useAutoDj } from "../store/autodj";
 import { emptyTelemetry, useTelemetry } from "../store/telemetry";
 import { previewTrack, useTrackPreview } from "../store/trackPreview";
 
@@ -205,5 +206,145 @@ describe("a looped ending written out", () => {
     // The fade carries on across the pieces.
     expect(valueAt(outs[2], "Volume", 40)).toBeLessThan(valueAt(outs[1], "Volume", 28));
     expect(r.to).toBe(16 + 32 + 16);
+  });
+});
+
+describe("rehearsing a whole set", () => {
+  it("plays each change back to back, at each change's tempo", () => {
+    const a = track({ id: 1, bpm: 124 });
+    const b = track({ id: 2, bpm: 126 });
+    const c = track({ id: 3, bpm: 140 });
+    const steps = [
+      { out: a, inc: b, plan: planMix(a, b) },
+      { out: b, inc: c, plan: planMix(b, c) },
+    ];
+    expect(steps[1].plan.sync).toBe(false);
+    const m = medley(steps);
+    const r0 = rehearsal(a, b, steps[0].plan, 8, 8);
+    const len0 = r0.to - r0.from;
+    // Two clips a change, the second change after the first.
+    expect(m.project.clips).toHaveLength(4);
+    expect(new Set(m.project.clips.map((x) => x.id)).size).toBe(4);
+    expect(m.project.clips[2].start).toBe(len0);
+    expect(m.to).toBe(len0 + (8 + steps[1].plan.beats + 8));
+    // Automation moves with its clip.
+    expect(valueAt(m.project.clips[2], "Volume", len0 + 7)).toBe(1);
+    // The tempo map: the first change at 124 (synced), the second at 126, then 140 from its mix.
+    expect(m.project.tempo.segments.map((s) => [s.start_beat, s.bpm])).toEqual([
+      [0, 124],
+      [len0, 126],
+      [len0 + 8, 140],
+    ]);
+    // Where each transition is, in seconds into the medley.
+    expect(m.changes[0].at).toBeCloseTo(r0.mixAt, 9);
+    expect(m.changes[1].at).toBeCloseTo((len0 * 60) / 124 + (8 * 60) / 126, 9);
+    expect(m.changes[1].end - m.changes[1].at).toBeCloseTo((steps[1].plan.beats * 60) / 140, 9);
+    expect(m.changes.map((x) => x.label)).toEqual(["Track 1 into Track 2", "Track 2 into Track 3"]);
+  });
+
+  it("plays the Auto DJ queue's changes in the preview player", async () => {
+    const b = new DemoBackend();
+    setBackendForTests(b);
+    useTelemetry.setState({ t: structuredClone(emptyTelemetry) });
+    useTrackPreview.setState({ route: "speakers" });
+    const rows = (await b.search("")).filter((r) => r.bpm && r.duration > 120).slice(0, 4);
+    useAutoDj.setState({ queue: rows, phase: "off", next: null, current: null });
+    await hearSet();
+    const s = useRehearse.getState();
+    expect(s).toMatchObject({ key: "set", status: "ready", title: "The whole set: 3 changes" });
+    expect(s.changes).toHaveLength(3);
+    expect(s.changes[0].label).toMatch(new RegExp(`^${rows[0].title.replace(/[()]/g, ".")} into`));
+    expect(s.duration).toBeGreaterThan(s.changes[2].end);
+    expect(changeAt(s.changes[1].at + 0.1)).toBe(1);
+    expect(changeAt(0)).toBe(0);
+    stopMix();
+    // One track: nothing to rehearse.
+    useAutoDj.setState({ queue: rows.slice(0, 1) });
+    await hearSet();
+    expect(useRehearse.getState().key).toBeNull();
+  });
+});
+
+describe("a set as one mix", () => {
+  it("plays each track whole into the next, each change as Auto DJ plans it", () => {
+    const ds = [track({ id: 1 }), track({ id: 2, energy: 6 }), track({ id: 3, energy: 7 })];
+    const plans = [planMix(ds[0], ds[1]), planMix(ds[1], ds[2])];
+    const p = setMix(ds, plans);
+    const [a, b, c] = [1, 2, 3].map((n) => p.clips.find((x) => x.track.path === `/Music/${n}.flac`)!);
+    // Track 1 from its start; track 2 comes in where the plan says, from its mix-in point.
+    expect(a.start).toBe(0);
+    expect(a.source_start).toBe(0);
+    expect(b.start).toBeCloseTo(plans[0].outStartBeat, 6);
+    expect(b.source_start).toBeCloseTo(beatAtSeconds(ds[1], plans[0].inCueSeconds), 6);
+    // Track 1 is out once the first transition is over; track 3 comes in on track 2's plan.
+    expect(a.start + a.length).toBeCloseTo(b.start + plans[0].beats, 6);
+    expect(c.start).toBeCloseTo(b.start + plans[1].outStartBeat - b.source_start, 6);
+    expect(c.lane).not.toBe(b.lane);
+    // The last track plays to its end; one marker per change.
+    expect(c.start + c.length).toBeCloseTo(c.start + beatAtSeconds(ds[2], ds[2].track.duration) - c.source_start, 6);
+    expect(p.markers.map((m) => m.label)).toEqual(["Track 1 into Track 2", "Track 2 into Track 3"]);
+    expect(valueAt(a, "Volume", a.start + a.length - 1e-6)).toBeCloseTo(0, 2);
+  });
+
+  it("keeps a synced track at the old tempo through the mix, then eases it back", () => {
+    const ds = [track({ id: 1, bpm: 124 }), track({ id: 2, bpm: 126 })];
+    const plan = planMix(ds[0], ds[1]);
+    expect(plan.sync).toBe(true);
+    const held = setMix(ds, [plan]);
+    expect(tempoAt(held.tempo.segments, plan.outStartBeat + plan.beats + 400)).toBe(124);
+    const p = setMix(ds, [plan], { glide: true });
+    const s = p.tempo.segments;
+    const end = plan.outStartBeat + plan.beats;
+    expect(tempoAt(s, end - 1)).toBe(124);
+    // 2/126 is about 1.6%: 26 bars at 0.0625% a bar, then 126.
+    expect(tempoAt(s, end + 52)).toBeGreaterThan(124.5);
+    expect(tempoAt(s, end + 52)).toBeLessThan(126);
+    expect(tempoAt(s, end + 26 * 4)).toBeCloseTo(126, 9);
+    expect(tempoAt(s, end + 200)).toBe(126);
+  });
+
+  it("stops a glide where the next mix starts, and loops a short ending", () => {
+    const ds = [track({ id: 1, bpm: 120 }), track({ id: 2, bpm: 126 }), track({ id: 3, bpm: 126 })];
+    const p1 = planMix(ds[0], ds[1]);
+    // Mix out of track 2 just after it comes in, while its glide is still running.
+    const early = { ...planMix(ds[1], ds[2]), outStartBeat: beatAtSeconds(ds[1], p1.inCueSeconds) + p1.beats + 16, loopBeats: 16 };
+    const p = setMix(ds, [p1, early], { glide: true });
+    const at = p.markers[1].beat;
+    const t = tempoAt(p.tempo.segments, at);
+    expect(t).toBeGreaterThan(120);
+    expect(t).toBeLessThan(126);
+    // Held through the mix, then a new glide from there to track 3's own tempo.
+    expect(tempoAt(p.tempo.segments, at + early.beats - 1)).toBeCloseTo(t, 9);
+    expect(tempoAt(p.tempo.segments, at + 1000)).toBe(126);
+    // Track 2's last bars loop from its mix point: more than one piece of it.
+    expect(p.clips.filter((x) => x.track.path === "/Music/2.flac").length).toBeGreaterThan(1);
+    expect(p.markers[1].beat).toBeGreaterThanOrEqual(p.markers[0].beat + p1.beats);
+  });
+});
+
+describe("choosing the transition for one change", () => {
+  it("overrides Auto DJ's choice for that change only, and says so", () => {
+    const [a, b, c] = [track({ id: 1, energy: 8 }), track({ id: 2, energy: 8 }), track({ id: 3, energy: 8 })];
+    useAutoDj.setState({ choices: {}, phase: "off", next: null });
+    expect(planFor(a, b).kind).toBe("bassSwap");
+    chooseTransition(1, 2, "echoOut");
+    const p = planFor(a, b);
+    expect(p.kind).toBe("echoOut");
+    expect(p.reasons[0]).toBe("You chose an echo out for this change.");
+    expect(planFor(b, c).kind).toBe("bassSwap");
+    expect(planFor(b, a).kind).toBe("bassSwap");
+    chooseTransition(1, 2, null);
+    expect(planFor(a, b).kind).toBe("bassSwap");
+    expect(useAutoDj.getState().choices).toEqual({});
+  });
+
+  it("plans the coming mix again when it is already waiting on a deck", () => {
+    const [a, b] = [track({ id: 1, energy: 8 }), track({ id: 2, energy: 8 })];
+    useApp.setState({ decks: [{ deck: 0, token: 1, detail: a, sampleRate: 44100 }, { deck: 1, token: 1, detail: b, sampleRate: 44100 }, null, null] });
+    useAutoDj.setState({ choices: {}, phase: "waiting", current: 0, next: { deck: 1, track: b.track, detail: b, plan: planFor(a, b) }, log: [] });
+    chooseTransition(1, 2, "blend");
+    expect(useAutoDj.getState().next!.plan.kind).toBe("blend");
+    expect(useAutoDj.getState().log[0].text).toMatch(/New plan for Track 2: blend over \d+ beats/);
+    useAutoDj.setState({ choices: {}, phase: "off", current: null, next: null });
   });
 });

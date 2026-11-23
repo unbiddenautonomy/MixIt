@@ -1771,8 +1771,14 @@ export class DemoBackend implements Backend {
   async previewMix(project: T.MixProject, fromBeat: number, toBeat: number): Promise<number> {
     if (!project.clips.length) throw new Error("The mix has no clips.");
     for (const c of project.clips) if (!this.tracks.some((t) => t.row.path === c.track.path)) throw new Error(`file not found: ${c.track.path}`);
-    const bpm = project.tempo.segments[0]?.bpm ?? 124;
-    const duration = (Math.max(1, toBeat - fromBeat) * 60) / bpm + 0.5;
+    // Seconds of the passage under the project's tempo map (steps; ramps taken at their start).
+    const segs = project.tempo.segments.length ? project.tempo.segments : [{ start_beat: 0, bpm: 124, end_bpm: 124 }];
+    let duration = 0.5;
+    segs.forEach((sg, i) => {
+      const a = Math.max(fromBeat, sg.start_beat);
+      const b = Math.min(toBeat, segs[i + 1]?.start_beat ?? toBeat);
+      if (b > a) duration += ((b - a) * 60) / sg.bpm;
+    });
     this.previewState = { trackId: -1, playing: true, position: 0, duration };
     return duration;
   }

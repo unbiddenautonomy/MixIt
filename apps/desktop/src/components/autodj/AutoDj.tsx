@@ -1,22 +1,21 @@
 // Auto DJ in the UI: the queue page in the library (controls, what plays now and next and
 // why, the queue and a log of what Auto DJ did) and a strip on the mixer while it runs.
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListX, Loader2, Pause, Play, Shuffle, SkipForward, Square, Trash2, X, Zap } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Bot, GitMerge, Headphones, Info, ListPlus, ListX, Play, Shuffle, SkipForward, Square, Trash2, Wand2, Zap } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import type { TrackRow } from "../../backend/types";
 import { useDropTarget } from "../../lib/dnd";
 import { countdown, transitionName, type Style } from "../../lib/autodj";
 import { clock } from "../../lib/format";
 import { keyLabel } from "../../lib/keys";
-import { useTransition } from "../../lib/transition";
+import { useTransition, type TransitionId } from "../../lib/transition";
 import { useApp } from "../../store/app";
-import { clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
+import { chooseTransition, clearQueue, mixNow, moveInQueue, removeFromQueue, secondsToMix, skipNext, startAutoDj, stopAutoDj, useAutoDj, enqueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
-import { addBridge, bridgeChoices, orderQueue } from "../../store/queueFlow";
+import { addBridge, bridgeChoices, orderQueue, saveQueue } from "../../store/queueFlow";
+import { mixQueue } from "../../store/queueMix";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
-import { hearNext, hearPair, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
-import { previewPosition } from "../library/PreviewBar";
-import { setupCanvas } from "../../lib/waveform";
+import { hearNext, hearPair, hearSet, stopMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
 import { DECK_COLORS } from "../deck/useWaveform";
 import { Btn, Segmented } from "../ui/Button";
@@ -54,7 +53,7 @@ export function AutoDjView() {
         <div className="flex min-w-0 flex-col gap-3">
           {phase !== "off" && <NowNext />}
           <section className={clsx("rounded-xl border border-white/[0.06] bg-black/20", drop.over && "ring-1 ring-sky-400")}>
-            <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Queue</div>
               <span className="font-mono text-[10px] text-zinc-500">{queue.length}</span>
               <span className="font-mono text-[10px] text-zinc-500">{clock(queue.reduce((a, t) => a + t.duration, 0))}</span>
@@ -63,6 +62,28 @@ export function AutoDjView() {
                 <button
                   type="button"
                   className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+                  onClick={() => void hearSet()}
+                  title="Hear every change in the queue one after another in your headphones, a few bars either side of each, the way Auto DJ will mix them"
+                  data-testid="rehearse-set"
+                >
+                  <Headphones size={12} /> Rehearse the set
+                </button>
+              )}
+              {queue.length > 1 && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+                  onClick={() => void mixQueue()}
+                  title="Turn the queue into a finished mix in Arrange, every change as Auto DJ would do it, to fine-tune and render to a file"
+                  data-testid="queue-mix"
+                >
+                  <Wand2 size={12} /> Make a mix
+                </button>
+              )}
+              {queue.length > 1 && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
                   onClick={() => orderQueue()}
                   title="Reorder the queue so every change is as easy to mix as it can be (keys that fit, small tempo steps), with the energy going the way you chose"
                   data-testid="queue-order"
@@ -71,12 +92,22 @@ export function AutoDjView() {
                 </button>
               )}
               {queue.length > 0 && (
-                <button type="button" className={clsx(queue.length > 1 ? "" : "ml-auto", "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100")} onClick={clearQueue}>
+                <button
+                  type="button"
+                  className={clsx(queue.length > 1 ? "" : "ml-auto", "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
+                  onClick={() => void saveQueue()}
+                  title="Save the queue as a playlist, in this order, to play again or share later"
+                  data-testid="queue-save"
+                >
+                  <ListPlus size={12} /> Save
+                </button>
+              )}
+              {queue.length > 0 && (
+                <button type="button" className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-100" onClick={clearQueue}>
                   <ListX size={12} /> Clear
                 </button>
               )}
             </div>
-            <RehearsalBar />
             {queue.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs leading-relaxed text-zinc-500">
                 Drag tracks here, or right-click tracks in the library and choose <b className="text-zinc-300">Add to Auto DJ</b>.
@@ -106,6 +137,7 @@ function Controls() {
   const options = useAutoDj((s) => s.options);
   const keepGoing = useAutoDj((s) => s.keepGoing);
   const energy = useAutoDj((s) => s.energy);
+  const glide = useAutoDj((s) => s.glide);
   const set = (p: Partial<typeof options>) => useAutoDj.getState().set({ options: { ...useAutoDj.getState().options, ...p } });
   const on = phase !== "off";
   return (
@@ -155,6 +187,10 @@ function Controls() {
         <input type="checkbox" checked={options.extend !== false} onChange={(e) => set({ extend: e.target.checked })} data-testid="autodj-extend" />
         Loop a short ending
       </label>
+      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="After each mix the new track plays at the old one's tempo. This lets the tempo drift back to the new track's own speed, about half a percent every 8 bars, too slowly for anyone to notice, so the set is not stuck at the first track's tempo.">
+        <input type="checkbox" checked={glide} onChange={(e) => useAutoDj.getState().set({ glide: e.target.checked, ...(e.target.checked ? {} : { gliding: null }) })} data-testid="autodj-glide" />
+        Ease the tempo back
+      </label>
       <label className="flex items-center gap-1.5 text-[11px] text-zinc-300" title="When the queue runs out, Auto DJ picks tracks that mix well from your library.">
         <input type="checkbox" checked={keepGoing} onChange={(e) => useAutoDj.getState().set({ keepGoing: e.target.checked })} />
         Keep going with suggestions
@@ -188,6 +224,8 @@ function NowNext() {
   const next = useAutoDj((s) => s.next);
   const phase = useAutoDj((s) => s.phase);
   const info = useApp((s) => (current !== null ? s.decks[current] : null));
+  const gliding = useAutoDj((s) => s.gliding !== null && s.gliding.deck === current);
+  const bpmNow = useTelemetry((s) => (current !== null ? (s.t.decks[current]?.bpm ?? 0).toFixed(1) : ""));
   const notation = useApp((s) => s.settings?.keyNotation ?? "camelot");
   const wait = useTelemetry((s) => {
     const x = secondsToMix(s.t);
@@ -204,6 +242,11 @@ function NowNext() {
             <div className="truncate text-xs text-zinc-400">
               {info.detail.track.artist} · {info.detail.bpm?.toFixed(1) ?? "?"} BPM · {keyLabel(info.detail.key, notation)}
             </div>
+            {gliding && (
+              <div className="mt-1 text-[11px] text-sky-300" data-testid="gliding">
+                Easing the tempo back to its own {info.detail.bpm?.toFixed(1)} BPM: now {bpmNow}
+              </div>
+            )}
           </>
         ) : (
           <div className="mt-1 text-xs text-zinc-500">Starting…</div>
@@ -312,15 +355,17 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
   const t = transition(a, b);
   const key = `${a.id}-${b.id}`;
   const hearing = useRehearse((s) => s.key === key);
+  const chosen = useAutoDj((s) => s.choices[key]);
+  const transitions = useApp((s) => s.transitions);
   const g = GRADE[t.grade];
   const why = t.reasons.length ? t.reasons.map((r, k) => (k ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join(", ") : "Keys fit, tempos close, energy flows";
   const library = useLibrary((s) => s.rows);
   const queueLen = useAutoDj((s) => s.queue.length);
   const bridge = useMemo(() => (t.grade === "rough" ? bridgeChoices(i, 1)[0] : undefined), [a.id, b.id, t.grade, library, queueLen]);
   return (
-    <li className="flex items-center gap-2 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
       <span className={clsx("size-1.5 shrink-0 rounded-full", g.dot)} />
-      <span className="min-w-0 flex-1 truncate" title={why}>
+      <span className="min-w-[8rem] flex-1 basis-0 truncate" title={why}>
         <span className="text-zinc-400">{g.label}</span>
         {t.reasons.length > 0 && `: ${why.charAt(0).toLowerCase()}${why.slice(1)}`}
       </span>
@@ -329,12 +374,27 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
           type="button"
           onClick={() => addBridge(i, bridge.track)}
           title={`Put ${bridge.track.title} in between: it goes well with both tracks`}
-          className="flex shrink-0 items-center gap-1 rounded px-1 text-rose-200 hover:bg-white/10"
+          className="flex min-w-0 max-w-[14rem] items-center gap-1 rounded px-1 text-rose-200 hover:bg-white/10"
           data-testid={`bridge-${i}`}
         >
-          <GitMerge size={10} /> Add {bridge.track.title} between
+          <GitMerge size={10} className="shrink-0" /> <span className="truncate">Add {bridge.track.title} between</span>
         </button>
       )}
+      <select
+        value={chosen ?? ""}
+        onChange={(e) => chooseTransition(a.id, b.id, (e.target.value || null) as TransitionId | null)}
+        title="How Auto DJ mixes into this track. Auto lets it choose from the music; pick one to decide yourself. Hear this mix, Rehearse the set and Make a mix follow your choice."
+        aria-label={`Transition into ${b.title}`}
+        className={clsx("h-5 shrink-0 rounded border border-white/10 bg-zinc-900 px-0.5 text-[10px] outline-none", chosen ? "text-sky-200" : "text-zinc-400")}
+        data-testid={`choose-mix-${i}`}
+      >
+        <option value="">Auto</option>
+        {transitions.map((x) => (
+          <option key={x.id} value={x.id}>
+            {x.name}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         onClick={() => (hearing ? stopMix() : void hearPair(a, b))}
@@ -346,94 +406,6 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
         <Headphones size={10} /> {hearing ? "Hearing" : "Hear this mix"}
       </button>
     </li>
-  );
-}
-
-/** The mix being heard: play and pause, where it is (the transition marked), jump to the mix. */
-function RehearsalBar() {
-  const key = useRehearse((s) => s.key);
-  const status = useRehearse((s) => s.status);
-  const title = useRehearse((s) => s.title);
-  const summary = useRehearse((s) => s.summary);
-  const mixAt = useRehearse((s) => s.mixAt);
-  const playing = useTelemetry((s) => !!s.t.preview?.playing);
-  if (key === null) return null;
-  return (
-    <div className="flex flex-col gap-1.5 border-b border-white/[0.06] bg-sky-400/[0.06] px-3 py-2" data-testid="rehearsal-bar">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={toggleMix}
-          disabled={status !== "ready"}
-          aria-label={playing ? "Pause the mix" : "Play the mix"}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sky-400 text-zinc-950 hover:brightness-110 disabled:opacity-60"
-        >
-          {status === "loading" ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="translate-x-px" />}
-        </button>
-        <Headphones size={14} className="shrink-0 text-sky-300" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-medium text-zinc-100">{title}</div>
-          <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? "Preparing the mix…" : `${summary}, as Auto DJ will play it`}</div>
-        </div>
-        <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => seekMix(Math.max(0, mixAt - 4))} title="Jump to a few seconds before the transition starts">
-          Jump to the mix
-        </Btn>
-        <button type="button" onClick={stopMix} aria-label="Stop hearing the mix" title="Stop and close" className="flex size-7 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-100">
-          <X size={14} />
-        </button>
-      </div>
-      <MixStrip />
-    </div>
-  );
-}
-
-function MixStrip() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    let raf = 0;
-    const draw = () => {
-      const c = ref.current;
-      const s = useRehearse.getState();
-      if (c) {
-        const g = setupCanvas(c);
-        const r = c.getBoundingClientRect();
-        const dur = s.duration || Math.max(1, s.mixEnd + 8);
-        g.clearRect(0, 0, r.width, r.height);
-        g.fillStyle = "rgba(255,255,255,0.06)";
-        g.fillRect(0, r.height / 2 - 1, r.width, 2);
-        // The transition: where both tracks play.
-        g.fillStyle = "rgba(56,189,248,0.35)";
-        const x0 = (s.mixAt / dur) * r.width;
-        g.fillRect(x0, 2, Math.max(2, ((s.mixEnd - s.mixAt) / dur) * r.width), r.height - 4);
-        if (s.status === "ready") {
-          const x = (previewPosition() / dur) * r.width;
-          g.fillStyle = "#fafafa";
-          g.fillRect(x - 0.75, 0, 1.5, r.height);
-        }
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  const seekAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    seekMix(((e.clientX - r.left) / r.width) * useRehearse.getState().duration);
-  };
-  return (
-    <canvas
-      ref={ref}
-      className="h-5 w-full cursor-pointer rounded"
-      aria-label="Where the mix is: the blue part is the transition. Click to jump."
-      onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        seekAt(e);
-      }}
-      onPointerMove={(e) => {
-        if (e.buttons & 1) seekAt(e);
-      }}
-      data-testid="rehearsal-strip"
-    />
   );
 }
 
