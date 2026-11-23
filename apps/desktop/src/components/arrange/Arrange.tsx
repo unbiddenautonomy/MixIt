@@ -2,8 +2,9 @@
 // and trim them on the bar grid, edit gain, key and automation, then render the mix.
 import clsx from "clsx";
 import * as ContextMenu from "@radix-ui/react-context-menu";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Popover from "@radix-ui/react-popover";
-import { ChevronDown, ClipboardPaste, Copy, CopyPlus, Flag, FolderOpen, Layers, Loader2, Minus, Music, Play, Plus, Repeat, Rewind, Save, Scissors, SlidersVertical, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
+import { Check, ChevronDown, ClipboardPaste, Copy, CopyPlus, Flag, FolderOpen, Layers, Loader2, Minus, Music, Play, Plus, Repeat, Rewind, Save, Scissors, SlidersVertical, Sparkles, Square, Trash2, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend } from "../../backend";
 import type { AutomationLane, AutomationPoint, Clip, CurveShape, MixProject, ProjectParam, TrackRow } from "../../backend/types";
@@ -100,76 +101,70 @@ export function Arrange() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2">
-        <input className="input h-8 w-56 text-sm font-semibold" value={project.name} onChange={(e) => setProject({ ...project, name: e.target.value }, undefined, "name")} />
-        <span className="font-mono text-xs text-zinc-400">
-          {project.clips.length} clips · {clock(total)} · {fmtBpm(bpmAt(project, 0))}
-          {project.tempo.segments.length > 1 && ` → ${fmtBpm(project.tempo.segments[project.tempo.segments.length - 1].bpm)}`} BPM
-        </span>
-        {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
-        <IssuesButton project={project} select={setSel} />
-        {dirty && (
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title="Save with the Save button or Ctrl/⌘+S">
-            Not saved
+      {/* Two rows: the project and what you do with it, then the editing tools. */}
+      <div className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input className="input h-8 w-56 text-sm font-semibold" value={project.name} onChange={(e) => setProject({ ...project, name: e.target.value }, undefined, "name")} aria-label="Mix name" />
+          <span className="font-mono text-xs text-zinc-400">
+            {project.clips.length} clips · {clock(total)} · {fmtBpm(bpmAt(project, 0))}
+            {project.tempo.segments.length > 1 && ` → ${fmtBpm(project.tempo.segments[project.tempo.segments.length - 1].bpm)}`} BPM
           </span>
-        )}
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
+          <IssuesButton project={project} select={setSel} />
+          {dirty && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title="Save with the Save button or Ctrl/⌘+S">
+              Not saved
+            </span>
+          )}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <PlayButton project={project} />
+            <Btn size="sm" onClick={() => openLaneStudio(MASTER_STRIP)} title="EQ, glue and loudness for the whole mix, and its reverb and echo">
+              <SlidersVertical size={12} /> Mix studio
+            </Btn>
+            <Btn size="sm" onClick={() => useApp.getState().set({ automixOpen: true })}>
+              <Wand2 size={12} /> Automix
+            </Btn>
+            <div className="h-5 w-px bg-white/10" />
+            <Btn size="sm" tone="ghost" onClick={openProject}>
+              <FolderOpen size={12} /> Open
+            </Btn>
+            <Btn size="sm" tone="ghost" onClick={() => saveProject(false)}>
+              <Save size={12} /> Save
+            </Btn>
+            {rendering ? (
+              <Btn size="sm" tone="danger" onClick={() => backend().cancelJob()}>
+                <Loader2 size={12} className="animate-spin" /> {job.total ? Math.round((job.done / job.total) * 100) : 0}% · Stop
+              </Btn>
+            ) : (
+              <ExportMenu />
+            )}
+            <Btn size="sm" tone="ghost" onClick={closeProject} aria-label="Close project" title="Close this mix">
+              <X size={12} />
+            </Btn>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-2">
           <HistoryButtons />
           <div className="h-5 w-px bg-white/10" />
           <EditTools count={many.length} />
           <div className="h-5 w-px bg-white/10" />
           <SnapPicker />
           <div className="h-5 w-px bg-white/10" />
-          <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-            Show
-            {(Object.keys(PARAM_COLORS) as ProjectParam[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setShow(show.includes(p) ? show.filter((x) => x !== p) : [...show, p])}
-                className={clsx("rounded px-1.5 py-0.5", show.includes(p) ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300")}
-              >
-                <span className="mr-1 inline-block size-1.5 rounded-full" style={{ background: PARAM_COLORS[p] }} />
-                {p === "FxMix" ? "FX" : p.replace("Eq", "EQ ")}
-              </button>
-            ))}
-          </div>
-          <div className="h-5 w-px bg-white/10" />
-          <Btn size="sm" tone="ghost" onClick={() => setPpb((p) => Math.max(0.08, p / 1.5))} aria-label="Zoom out">
-            <Minus size={12} />
-          </Btn>
-          <Btn size="sm" tone="ghost" onClick={() => setPpb((p) => Math.min(40, p * 1.5))} aria-label="Zoom in">
-            <Plus size={12} />
-          </Btn>
-          <Btn size="sm" tone="ghost" active={zoom == null} onClick={() => setZoom(null)} title="Show the whole mix">
-            Fit
-          </Btn>
-          <Btn size="sm" tone="ghost" disabled={!many.length} onClick={zoomToSelection} title="Zoom in on the selected clips">
-            Selection
-          </Btn>
-          <PlayButton project={project} />
-          <Btn size="sm" onClick={() => openLaneStudio(MASTER_STRIP)} title="EQ, glue and loudness for the whole mix, and its reverb and echo">
-            <SlidersVertical size={12} /> Mix studio
-          </Btn>
-          <Btn size="sm" onClick={() => useApp.getState().set({ automixOpen: true })}>
-            <Wand2 size={12} /> Automix
-          </Btn>
-          <Btn size="sm" onClick={openProject}>
-            <FolderOpen size={12} /> Open
-          </Btn>
-          <Btn size="sm" onClick={() => saveProject(false)}>
-            <Save size={12} /> Save
-          </Btn>
-          {rendering ? (
-            <Btn size="sm" tone="danger" onClick={() => backend().cancelJob()}>
-              <Loader2 size={12} className="animate-spin" /> {job.total ? Math.round((job.done / job.total) * 100) : 0}% · Stop
+          <ShowMenu show={show} setShow={setShow} />
+          <div className="ml-auto flex items-center gap-1">
+            <Btn size="sm" tone="ghost" onClick={() => setPpb((p) => Math.max(0.08, p / 1.5))} aria-label="Zoom out" title="Zoom out">
+              <Minus size={12} />
             </Btn>
-          ) : (
-            <ExportMenu />
-          )}
-          <Btn size="sm" tone="ghost" onClick={closeProject} aria-label="Close project">
-            <X size={12} />
-          </Btn>
+            <Btn size="sm" tone="ghost" onClick={() => setPpb((p) => Math.min(40, p * 1.5))} aria-label="Zoom in" title="Zoom in">
+              <Plus size={12} />
+            </Btn>
+            <Btn size="sm" tone="ghost" active={zoom == null} onClick={() => setZoom(null)} title="Show the whole mix">
+              Fit
+            </Btn>
+            <Btn size="sm" tone="ghost" disabled={!many.length} onClick={zoomToSelection} title="Zoom in on the selected clips">
+              Selection
+            </Btn>
+          </div>
         </div>
       </div>
       <div ref={area} className="flex min-h-0 flex-1 gap-2">
@@ -183,6 +178,40 @@ export function Arrange() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Which automation lines to draw on the clips, in one menu instead of eight toggles. */
+function ShowMenu({ show, setShow }: { show: ProjectParam[]; setShow: (s: ProjectParam[]) => void }) {
+  const params = Object.keys(PARAM_COLORS) as ProjectParam[];
+  const name = (p: ProjectParam) => (p === "FxMix" ? "FX" : p.replace("Eq", "EQ "));
+  const summary = show.length === 0 ? "none" : show.length <= 2 ? show.map(name).join(", ") : `${show.length} lines`;
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Btn size="sm" tone="ghost" title="Which automation lines to draw on the clips" data-testid="arrange-show">
+          <span className="text-zinc-400">Show</span> {summary}
+          <ChevronDown size={11} className="text-zinc-500" />
+        </Btn>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="start" sideOffset={4} className="menu">
+          {params.map((p) => (
+            <DropdownMenu.CheckboxItem
+              key={p}
+              className="menu-item"
+              checked={show.includes(p)}
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={(on) => setShow(on ? [...show, p] : show.filter((x) => x !== p))}
+            >
+              <span className="inline-block size-2 rounded-full" style={{ background: PARAM_COLORS[p] }} />
+              <span className="flex-1">{name(p)}</span>
+              {show.includes(p) && <Check size={12} className="text-zinc-300" />}
+            </DropdownMenu.CheckboxItem>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
