@@ -477,6 +477,8 @@ try {
     expect((await page.inputValue('[data-testid="mix-kind"]')) === "smart", "Mix it is not on Smart by default");
     await page.click('[data-testid="mix-it"]');
     await page.waitForFunction(() => window.mixit.useTransition.getState().running, null, { timeout: 5000 });
+    // The plan's toast is drawn a frame or two after the transition starts.
+    await page.waitForFunction(() => /over \d+ beats|Cut on the bar|Brake stop/.test(document.querySelector("[data-sonner-toaster]")?.textContent ?? ""), null, { timeout: 3000 }).catch(() => {});
     const r = await page.evaluate(() => ({ run: window.mixit.useTransition.getState().running, beat: window.mixit.useTelemetry.getState().t.decks[0].beat, toasts: document.querySelector("[data-sonner-toaster]")?.textContent ?? "" }));
     expect(r.run.from === 0 && r.run.to === 1 && r.run.startBeat > r.beat && r.run.startBeat % 4 === 0, `transition ${JSON.stringify(r.run)} at beat ${r.beat}`);
     expect(/over \d+ beats|Cut on the bar|Brake stop/.test(r.toasts), `no plan message: ${r.toasts}`);
