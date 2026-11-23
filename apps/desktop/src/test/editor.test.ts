@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { beatsBetween, foldTempo, introEnd, snapToBeat, tapTempo } from "../lib/editor";
-import { applyDemoGrid, type DemoTrack } from "../backend/demo";
+import { applyDemoGrid, demoBeatAt, demoTimeAt, type DemoTrack } from "../backend/demo";
 import type { TrackDetail } from "../backend/types";
 
 const detail = (p: Partial<TrackDetail>): TrackDetail =>
@@ -64,5 +64,26 @@ describe("demo grid edits", () => {
     applyDemoGrid(t, { locked: false }, locked);
     expect(locked.has(7)).toBe(false);
     expect(() => applyDemoGrid(t, { bpm: 1000 }, locked)).toThrow(/400/);
+  });
+
+  it("pins beats where a live drummer drifts, and takes the pins away again", () => {
+    const t = track();
+    t.row.duration = 120;
+    // Beat 64 really lands 30 ms late, beat 128 60 ms late.
+    const real = (b: number) => 0.1 + b * 0.5 + (b / 64) * 0.03;
+    applyDemoGrid(t, { warpAt: real(64) }, new Set());
+    applyDemoGrid(t, { warpAt: real(128) }, new Set());
+    for (const b of [0, 32, 64, 100, 128]) expect(demoTimeAt(t, b)).toBeCloseTo(real(b), 6);
+    expect(demoBeatAt(t, real(100))).toBeCloseTo(100, 6);
+    expect(t.pins!.map((p) => p.beat)).toEqual([0, 64, 128]);
+    applyDemoGrid(t, { unwarpAt: real(70) }, new Set());
+    expect(t.pins!.map((p) => p.beat)).toEqual([0, 128]);
+    expect(demoTimeAt(t, 128)).toBeCloseTo(real(128), 6);
+    applyDemoGrid(t, { straighten: true }, new Set());
+    expect(t.pins).toBeUndefined();
+    expect(t.period).toBeCloseTo((real(128) - 0.1) / 128, 9);
+    // A pin near the start replaces the first one.
+    applyDemoGrid(t, { warpAt: real(64) }, new Set());
+    expect(() => applyDemoGrid(t, { warpAt: 0.05 }, new Set())).not.toThrow();
   });
 });

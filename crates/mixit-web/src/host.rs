@@ -451,6 +451,10 @@ impl Host {
             "double" => g.scale_tempo(2.0).map_err(|e| format!("{e:?}"))?,
             "nudge_back" => g.nudge(-0.005 * sr),
             "nudge_fwd" => g.nudge(0.005 * sr),
+            "warp" => g.add_warp_anchor(pos).map_err(|_| {
+                "A pin there would put beats out of order. Pin a beat closer to the play head.".to_string()
+            })?,
+            "unwarp" => g.remove_warp_anchor(pos),
             _ => return Err(format!("unknown grid edit {op}")),
         }
         let view = GridView::new(g, slot.duration);

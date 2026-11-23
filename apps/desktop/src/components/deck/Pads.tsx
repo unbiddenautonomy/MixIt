@@ -286,10 +286,22 @@ function Grid({ deck }: { deck: number }) {
             <ChevronRight size={12} />
           </Btn>
         </Ctl>
+        <Ctl id={`deck.${L}.grid.warp`} label="Pin beat here" explain="For tracks whose tempo wanders: stop on a kick where the beat lines have drifted off and press this. The nearest line moves onto the kick and the lines before it spread out evenly to meet it.">
+          <Btn size="sm" onClick={() => tap(`deck.${L}.grid.warp`)}>
+            Pin beat here
+          </Btn>
+        </Ctl>
+        {d && d.warps.length > 0 && (
+          <Ctl id={`deck.${L}.grid.unwarp`} label="Remove pin" explain="Takes away the pinned beat nearest the play head (the cyan diamonds on the waveform).">
+            <Btn size="sm" onClick={() => tap(`deck.${L}.grid.unwarp`)}>
+              Remove pin
+            </Btn>
+          </Ctl>
+        )}
       </div>
       {d && (
         <div className="flex flex-wrap gap-x-3 font-mono text-[10px] text-zinc-500">
-          <span>{d.constantGrid ? "constant grid" : "warped grid"}</span>
+          <span>{d.constantGrid ? "constant grid" : d.warps.length ? `warped grid, ${d.warps.length} pins` : "warped grid"}</span>
           <span>confidence {Math.round(d.tempoConfidence * 100)}%</span>
           {d.driftMs > 0 && <span>drift {d.driftMs.toFixed(1)} ms</span>}
           {d.bpmCandidates.length > 1 && <span>alt {d.bpmCandidates.slice(1, 3).map((b) => b.toFixed(1)).join(", ")}</span>}

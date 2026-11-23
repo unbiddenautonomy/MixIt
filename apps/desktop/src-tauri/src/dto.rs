@@ -136,6 +136,8 @@ pub struct TrackDetail {
     pub beat_period: f64,
     /// Beat times (seconds) for warped grids, every beat.
     pub beats: Vec<f64>,
+    /// Pinned beats (warp markers), in seconds; empty on a constant grid.
+    pub warps: Vec<f64>,
     pub key: Option<KeyDto>,
     pub key_confidence: f32,
     pub key_second: Option<KeyDto>,
@@ -174,6 +176,7 @@ impl TrackDetail {
             first_beat: 0.0,
             beat_period: 0.5,
             beats: vec![],
+            warps: vec![],
             key: t.best_key().map(KeyDto::from),
             key_confidence: 0.0,
             key_second: None,
@@ -200,6 +203,7 @@ impl TrackDetail {
             d.beats_per_bar = g.beats_per_bar;
             d.first_beat = g.frame_at(0.0) / sr;
             d.beat_period = g.frames_per_beat_at(g.frame_at(0.0)) / sr;
+            d.warps = g.warp_seconds();
             if !g.is_constant() {
                 let b0 = g.beat_at(0.0).ceil() as i64;
                 let b1 = g.beat_at(a.duration * sr).floor() as i64;

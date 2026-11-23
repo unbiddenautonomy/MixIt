@@ -197,6 +197,10 @@ fn grid_edit(app: &AppHandle, state: &AppState, deck: usize, op: &str) -> R<()> 
             "double" => g.scale_tempo(2.0).map_err(|e| format!("{e:?}"))?,
             "nudge_back" => g.nudge(-0.005 * gsr),
             "nudge_fwd" => g.nudge(0.005 * gsr),
+            "warp" => g.add_warp_anchor(at).map_err(|_| {
+                "A pin there would put beats out of order. Pin a beat closer to the play head.".to_string()
+            })?,
+            "unwarp" => g.remove_warp_anchor(at),
             _ => return Err(format!("unknown grid edit {op}")),
         }
         (d.track_id, g.clone())

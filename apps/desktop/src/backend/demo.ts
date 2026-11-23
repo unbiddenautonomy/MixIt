@@ -51,6 +51,8 @@ export interface DemoTrack {
   cues: T.CueDto[];
   /** Where the track has a voice: [start, end] seconds. */
   vocals: [number, number][];
+  /** Pinned beats (warp markers), sorted, the first being the grid's start. */
+  pins?: { beat: number; t: number }[];
 }
 
 interface TrackOverride {
@@ -564,12 +566,13 @@ export class DemoBackend implements Backend {
       bpmCandidates: [t.row.bpm!, t.row.bpm! / 2],
       tempoConfidence: 0.92,
       driftMs: 0.8,
-      constantGrid: true,
+      constantGrid: !t.pins,
       gridLocked: this.locked.has(t.row.id),
       beatsPerBar: 4,
       firstBeat: t.firstBeat,
       beatPeriod: t.period,
-      beats: [],
+      beats: t.pins ? demoBeatList(t) : [],
+      warps: t.pins?.map((p) => p.t) ?? [],
       key: t.row.key,
       keyConfidence: 0.81,
       keySecond: t.row.key ? keyDto(transpose(keyFromIndex(t.row.key.index), 7)) : null,
@@ -773,6 +776,34 @@ export class DemoBackend implements Backend {
           break;
         case "eject":
           if (press && !d.playing) this.decks[i] = deckState();
+          break;
+        case "grid.set_downbeat":
+        case "grid.halve":
+        case "grid.double":
+        case "grid.nudge_back":
+        case "grid.nudge_fwd":
+        case "grid.warp":
+        case "grid.unwarp":
+          if (press && t) {
+            const at = d.position;
+            const op = p.slice(3).join(".");
+            const edit: T.GridEdit =
+              op === "set_downbeat" ? { downbeatAt: at }
+              : op === "halve" ? { bpm: 30 / t.period }
+              : op === "double" ? { bpm: 120 / t.period }
+              : op === "nudge_back" ? { nudgeMs: -5 }
+              : op === "nudge_fwd" ? { nudgeMs: 5 }
+              : op === "warp" ? { warpAt: at }
+              : { unwarpAt: at };
+            try {
+              applyDemoGrid(t, edit, this.locked);
+            } catch (err) {
+              this.emit("error", (err as Error).message);
+              break;
+            }
+            this.deckLoaded(i);
+            this.emit("library-changed", null);
+          }
           break;
         default:
           if (p[2] === "hotcue" && t) {
@@ -1993,22 +2024,86 @@ export class DemoBackend implements Backend {
 
 /** The demo's version of the engine's grid edit (mixit_core::Beatgrid::apply_edit). */
 export function applyDemoGrid(t: DemoTrack, e: T.GridEdit, locked: Set<number>) {
-  const changes = e.bpm !== undefined || e.downbeatAt !== undefined || e.nudgeMs !== undefined;
+  const changes = e.bpm !== undefined || e.downbeatAt !== undefined || e.nudgeMs !== undefined || e.warpAt !== undefined || e.unwarpAt !== undefined || !!e.straighten;
   if (locked.has(t.row.id) && changes && e.locked !== false) throw new Error("The beat grid is locked. Unlock it first.");
   if (e.bpm !== undefined) {
     if (!(e.bpm >= 20 && e.bpm <= 400)) throw new Error("That tempo is outside the 20 to 400 BPM MixIt supports.");
     t.period = 60 / e.bpm;
     t.row.bpm = Math.round(e.bpm * 100) / 100;
+    t.pins = undefined;
   }
   if (e.downbeatAt !== undefined) {
     // The spot becomes the start of a bar; beat 0 is the earliest bar start in the track.
     t.firstBeat = e.downbeatAt - Math.floor(e.downbeatAt / (4 * t.period)) * 4 * t.period;
+    t.pins = undefined;
   }
-  if (e.nudgeMs !== undefined) t.firstBeat += e.nudgeMs / 1000;
+  if (e.nudgeMs !== undefined) {
+    t.firstBeat += e.nudgeMs / 1000;
+    t.pins = t.pins?.map((p) => ({ ...p, t: p.t + e.nudgeMs! / 1000 }));
+  }
+  if (e.straighten && t.pins && t.pins.length > 1) {
+    const [a, b] = [t.pins[0], t.pins[t.pins.length - 1]];
+    t.period = (b.t - a.t) / (b.beat - a.beat);
+    t.pins = undefined;
+  }
+  if (e.unwarpAt !== undefined && t.pins && t.pins.length > 1) {
+    let best = 0;
+    t.pins.forEach((p, i) => {
+      if (Math.abs(p.t - e.unwarpAt!) < Math.abs(t.pins![best].t - e.unwarpAt!)) best = i;
+    });
+    t.pins = t.pins.filter((_, i) => i !== best);
+    if (t.pins.length < 2) t.pins = undefined;
+  }
+  if (e.warpAt !== undefined) {
+    const beat = Math.round(demoBeatAt(t, e.warpAt));
+    const pins = (t.pins ?? [{ beat: 0, t: t.firstBeat }]).filter((p) => p.beat !== beat);
+    pins.push({ beat, t: e.warpAt });
+    pins.sort((a, b) => a.beat - b.beat);
+    if (pins.some((p, i) => i > 0 && !(p.t > pins[i - 1].t))) throw new Error("A marker there would put beats out of order. Pin a beat closer to the play head.");
+    t.pins = pins;
+  }
+  if (t.pins) {
+    t.firstBeat = demoTimeAt(t, 0);
+    t.period = demoTimeAt(t, 1) - t.firstBeat;
+  }
   if (e.locked !== undefined) {
     if (e.locked) locked.add(t.row.id);
     else locked.delete(t.row.id);
   }
+}
+
+/** Every beat of a warped demo track, in seconds. */
+function demoBeatList(t: DemoTrack): number[] {
+  const out: number[] = [];
+  for (let b = Math.ceil(demoBeatAt(t, 0)); ; b++) {
+    const s = demoTimeAt(t, b);
+    if (s > t.row.duration) break;
+    out.push(s);
+  }
+  return out;
+}
+
+/** Segment of a pinned grid holding `x` (clamped to the first and last segments). */
+function pinSegment(pins: { beat: number; t: number }[], x: number, key: "beat" | "t") {
+  let i = 0;
+  while (i < pins.length - 2 && pins[i + 1][key] <= x) i++;
+  return [pins[i], pins[i + 1]] as const;
+}
+
+/** Seconds of a (fractional) beat on a demo track's grid. */
+export function demoTimeAt(t: DemoTrack, beat: number): number {
+  const p = t.pins;
+  if (!p || p.length < 2) return t.firstBeat + beat * t.period;
+  const [a, b] = pinSegment(p, beat, "beat");
+  return a.t + ((beat - a.beat) * (b.t - a.t)) / (b.beat - a.beat);
+}
+
+/** The (fractional) beat at some seconds on a demo track's grid. */
+export function demoBeatAt(t: DemoTrack, sec: number): number {
+  const p = t.pins;
+  if (!p || p.length < 2) return (sec - t.firstBeat) / t.period;
+  const [a, b] = pinSegment(p, sec, "t");
+  return a.beat + ((sec - a.t) * (b.beat - a.beat)) / (b.t - a.t);
 }
 
 /** A subset of the library search language, enough for the demo. */
@@ -2184,6 +2279,13 @@ function demoRegistry(): T.ActionSpec[] {
     add(`deck.${l}.keylock`, "Key lock", g, { type: "toggle" }, "Keeps the pitch steady when you change the tempo.");
     add(`deck.${l}.tempo`, "Tempo", g, cont(-1, 1, 0), "Speeds the track up or down within the tempo range.");
     add(`deck.${l}.key_sync`, "Match key", g, { type: "trigger" }, "Moves this track's key the smallest step that sounds good with the leading deck's key.");
+    add(`deck.${l}.grid.set_downbeat`, "Set downbeat", g, { type: "trigger" }, "Tells MixIt a bar starts here: the beat you are on becomes the first beat of a bar.", null, false);
+    add(`deck.${l}.grid.halve`, "Halve BPM", g, { type: "trigger" }, "Halves the tempo, for when MixIt counted twice as many beats as the music has.", null, false);
+    add(`deck.${l}.grid.double`, "Double BPM", g, { type: "trigger" }, "Doubles the tempo, for when MixIt counted only every other beat.", null, false);
+    add(`deck.${l}.grid.nudge_back`, "Shift grid earlier", g, { type: "trigger" }, "Moves the beat lines a tiny bit earlier, so they sit exactly on the kicks.", null, false);
+    add(`deck.${l}.grid.nudge_fwd`, "Shift grid later", g, { type: "trigger" }, "Moves the beat lines a tiny bit later, so they sit exactly on the kicks.", null, false);
+    add(`deck.${l}.grid.warp`, "Pin beat here", g, { type: "trigger" }, "Pins the nearest beat line to the play head. Use it where the lines drift off the kicks on a track whose tempo wanders.", null, false);
+    add(`deck.${l}.grid.unwarp`, "Remove pin", g, { type: "trigger" }, "Takes away the pinned beat nearest the play head, so the beat lines around it go back to an even spacing.", null, false);
     add(`deck.${l}.loop.auto`, "Loop", g, { type: "toggle" }, "Loops the selected number of beats from here, on the beat.", k[7] ?? null);
     add(`deck.${l}.let_end`, "Let it end", g, { type: "trigger" }, "Leaves the safety loop (or any loop) so the track plays out to its end.");
     add(`deck.${l}.loop.halve`, "Halve loop", g, { type: "trigger" }, "Halves the loop length.", k[8] ?? null);
@@ -2226,6 +2328,7 @@ function demoRegistry(): T.ActionSpec[] {
   add("mixer.echo.time", "Echo time", "Mixer", { type: "choice", options: ["1/4 beat", "1/2 beat", "3/4 beat", "1 beat", "2 beats", "4 beats"], default: 2 }, "How far apart the echoes are, in beats.", null, false);
   add("mixer.crossfader", "Crossfader", "Mixer", cont(-1, 1, 0), "Blends between the left and right decks.");
   add("mixer.master", "Master volume", "Mixer", cont(-120, 6, 0), "The level of the whole mix.");
+  add("mixer.bypass", "Hear it plain (A/B)", "Mixer", { type: "toggle" }, "Turns all EQ, filters and effects off at once so you hear the plain music. Turn it off again to hear what your changes did.", "Mod+Shift+B");
   for (let n = 1; n <= 8; n++) add(`sampler.pad.${n}`, `Pad ${n}`, "Sampler", { type: "momentary" }, "Plays this pad's sound: air horns, risers, drum hits or loops on top of your mix.", `Shift+${n}`);
   add("sampler.volume", "Sampler volume", "Sampler", cont(0, 1, 0.8), "Volume of all pads.");
   add("mic.on_air", "Mic on", "Mic", { type: "toggle" }, "Lets the audience hear your mic. Wear headphones: speakers near the mic make it howl.", "Mod+Shift+M");

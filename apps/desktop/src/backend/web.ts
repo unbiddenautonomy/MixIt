@@ -213,6 +213,7 @@ export class WebAudioBackend extends DemoBackend {
       firstBeat: v.firstBeat,
       beatPeriod: v.beatPeriod,
       beats: v.beats,
+      warps: v.warps ?? [],
       key: v.key,
       keyConfidence: v.keyConfidence,
       keySecond: v.keySecond,

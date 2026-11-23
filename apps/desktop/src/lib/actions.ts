@@ -43,6 +43,10 @@ function mirror(id: string, input: ActionInput) {
   const p = id.split(".");
   const s = useApp.getState();
   const v = input.type === "value" || input.type === "choice" ? input.value : input.type === "set" ? Number(input.value) : null;
+  if (id === "mixer.bypass") {
+    if (input.type !== "release") s.setMixer({ bypass: input.type === "press" ? !s.mixer.bypass : Boolean(v) });
+    return;
+  }
   if (p[0] === "mixer" && p[1].length === 1) {
     const deck = p[1].charCodeAt(0) - 65;
     const ch = s.mixer.channels[deck];

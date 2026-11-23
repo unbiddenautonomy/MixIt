@@ -133,10 +133,11 @@ export const CONCEPTS: Concept[] = [
     body: [
       "When MixIt analyses a track it finds every beat and the first beat of each bar (the downbeat). Those lines are the beatgrid. If they sit on the kicks, sync and loops are tight.",
       "If the lines fall between the kicks, the tempo was read as double or half: use Double or Half tempo. If they are a little early or late, move the grid. If bar 1 starts on the wrong beat, set the downbeat. MixIt follows tempo drift on live recordings by itself.",
+      "If a line still misses its kick later in a live recording, pause on that kick and press Pin beat here. The nearest line moves onto it and the beats since the last pin spread out evenly to meet it (DJs call these warp markers). Pins show as cyan diamonds; Remove pin takes one away.",
     ],
-    controls: ["deck.A.grid.set_downbeat", "deck.A.grid.double", "deck.A.grid.halve", "deck.A.grid.nudge_back", "deck.A.grid.nudge_fwd"],
+    controls: ["deck.A.grid.set_downbeat", "deck.A.grid.double", "deck.A.grid.halve", "deck.A.grid.nudge_back", "deck.A.grid.nudge_fwd", "deck.A.grid.warp"],
     tab: "grid",
-    glossary: ["beatgrid", "downbeat"],
+    glossary: ["beatgrid", "downbeat", "warp"],
     lab: "beatgrid",
   },
   {
@@ -765,6 +766,18 @@ export const CONCEPTS: Concept[] = [
       "If a channel meter reaches the red, that track is too loud going in: lower its gain. If the master is in the red, lower the master. Turning everything up is never the fix; turn the speakers up instead.",
     ],
     controls: ["mixer.A.trim", "mixer.master"],
+  },
+  {
+    id: "ab-bypass",
+    title: "Hear it plain (A/B)",
+    group: "Sound quality",
+    summary: "Switch every EQ, filter and effect off and on again, to hear what your changes really do.",
+    body: [
+      "After a while of turning knobs it gets hard to tell what still sounds natural. Press A/B at the top (or Ctrl+Shift+B, ⌘⇧B on a Mac): EQ, filters, effects, the studio settings and the shared reverb and echo switch off together, so you hear the music plain. Press it again to hear your mix.",
+      "Switch back and forth a few times while you listen to one spot. If the plain version sounds better, take your changes back a little. Faders, the crossfader and the limiter keep working, so the levels do not jump. The button stays lit while the mix is plain.",
+    ],
+    controls: ["mixer.bypass"],
+    glossary: ["ab-bypass"],
   },
 ];
 

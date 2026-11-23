@@ -902,3 +902,39 @@ fn letting_it_end_plays_out_and_a_jump_back_arms_it_again() {
     let t = r.tel();
     assert!(t.decks[0].playing && t.decks[0].safety_loop, "armed again after going back");
 }
+
+#[test]
+fn ab_bypass_plays_the_plain_track_and_glides_back() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(track(10.0, 100.0, 120.0)));
+    r.deck(A, DeckCommand::Play);
+    let plain = testkit::tone_level(&r.run(24_000)[12_000..], 100.0, SR as f32);
+    assert!(plain > 0.2, "{plain}");
+    // Kill the bass, high-pass the channel and put an echo on it: the 100 Hz tone is gone.
+    r.send(Command::Mixer(MixerCommand::SetEqKill(A, 0, true)));
+    r.send(Command::Mixer(MixerCommand::SetFilter(A, 0.9)));
+    let echo = mixit_dsp::fx::create(mixit_dsp::fx::FxKind::Echo, SR as f32);
+    r.send(Command::Fx(FxTarget::Deck(A), 0, FxCommand::SetEffect(echo)));
+    r.send(Command::Fx(FxTarget::Deck(A), 0, FxCommand::SetOn(true)));
+    let shaped = testkit::tone_level(&r.run(48_000)[24_000..], 100.0, SR as f32);
+    assert!(shaped < 0.05 * plain, "processed: {shaped} vs {plain}");
+    // A/B: the plain track again, at the same level, without a click on the way.
+    r.send(Command::Mixer(MixerCommand::SetBypass(true)));
+    let out = r.run(24_000);
+    let heard = testkit::tone_level(&out[4_800..], 100.0, SR as f32);
+    assert!((heard - plain).abs() < 0.02 * plain, "bypassed: {heard} vs {plain}");
+    let clicks = ClickDetector { threshold: 0.01 }.clicks(&out);
+    assert!(clicks.is_empty(), "clicks at {clicks:?}");
+    // The fader still works while bypassed.
+    r.send(Command::Mixer(MixerCommand::SetFader(A, 0.0)));
+    assert!(testkit::rms(&r.run(24_000)[4_800..]) < 1e-3);
+    r.send(Command::Mixer(MixerCommand::SetFader(A, 1.0)));
+    r.run(4_800);
+    // And back to the processed sound.
+    r.send(Command::Mixer(MixerCommand::SetBypass(false)));
+    let out = r.run(144_000);
+    assert!(ClickDetector { threshold: 0.01 }.clicks(&out).is_empty());
+    // (The echo heard the plain track meanwhile, so give its tail a moment to fade.)
+    let back = testkit::tone_level(&out[120_000..], 100.0, SR as f32);
+    assert!(back < 0.05 * plain, "processed again: {back}");
+}

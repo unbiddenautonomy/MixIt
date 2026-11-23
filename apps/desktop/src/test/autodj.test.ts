@@ -44,6 +44,7 @@ function track(o: { bpm?: number; camelot?: [number, "A" | "B"] | null; energy?:
     firstBeat: first,
     beatPeriod: period,
     beats: [],
+    warps: [],
     key,
     keyConfidence: 1,
     keySecond: null,

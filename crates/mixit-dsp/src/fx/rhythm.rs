@@ -254,6 +254,11 @@ impl Effect for BeatRepeat {
                 }
                 RepeatState::Looping => {
                     let seg = self.segment();
+                    // More divisions while repeating make the repeat shorter than where
+                    // it had got to: start the shorter repeat over.
+                    if self.pos >= seg {
+                        self.pos = 0;
+                    }
                     // Short raised-cosine fades at both ends of each repeat hide the seam.
                     let edge = self.pos.min(seg - 1 - self.pos);
                     let w = if edge < self.fade { raised_cosine(edge as f32 / self.fade as f32) } else { 1.0 };
@@ -428,5 +433,24 @@ mod tests {
         t.process(&mut l, &mut r, &ctx);
         assert!(crate::util::peak(&l[..2_000]) > 0.4);
         assert_eq!(crate::util::peak(&l[24_100..]), 0.0);
+    }
+
+    #[test]
+    fn beat_repeat_survives_more_divisions_mid_repeat() {
+        // Found by the engine soak test: raising the divisions while a long repeat was
+        // playing left the read position past the new, shorter repeat.
+        let sr = 48_000.0;
+        let mut b = BeatRepeat::new(sr);
+        b.set_beats(1.0);
+        b.set_param(1, 0.0); // one division: a whole-beat repeat
+        let ctx = FxContext::free(sr, 120.0);
+        b.on_enable(&ctx);
+        let mut l = testkit::sine(36_000, 440.0, sr, 0.5);
+        let mut r = l.clone();
+        b.process(&mut l, &mut r, &ctx); // recorded, and 12,000 frames into the repeat
+        b.set_param(1, 1.0); // eight divisions: 3,000-frame repeats
+        let (mut l, mut r) = (vec![0.1; 4_800], vec![0.1; 4_800]);
+        b.process(&mut l, &mut r, &ctx);
+        assert!(l.iter().chain(&r).all(|v| v.is_finite() && v.abs() <= 0.5));
     }
 }

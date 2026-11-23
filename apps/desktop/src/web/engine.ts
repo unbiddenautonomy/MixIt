@@ -12,6 +12,8 @@ export interface GridView {
   firstBeat: number;
   beatPeriod: number;
   beats: number[];
+  /** Pinned beats (warp markers), in seconds. */
+  warps: number[];
   /** The beat grid as the engine stores it (opaque to the UI). */
   grid: unknown;
 }

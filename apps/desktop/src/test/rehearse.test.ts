@@ -46,6 +46,7 @@ function track(o: { bpm?: number; camelot?: [number, "A" | "B"]; energy?: number
     firstBeat: first,
     beatPeriod: period,
     beats: [],
+    warps: [],
     key: keyDto(fromCamelot(...(o.camelot ?? [8, "A"]))),
     keyConfidence: 1,
     keySecond: null,

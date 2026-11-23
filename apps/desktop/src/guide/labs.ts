@@ -298,6 +298,8 @@ export const LABS: Lab[] = [
       if (c.m.tried && Math.abs(d.bpm - b0) < b0 * 0.01) c.m.restored = true;
       if (c.m.first0 === undefined) c.m.first0 = d.firstBeat;
       if (Math.abs(d.firstBeat - (c.m.first0 as number)) > 0.005) c.m.moved = true;
+      if (c.m.pins0 === undefined) c.m.pins0 = d.warps.length;
+      if (d.warps.length !== c.m.pins0) c.m.pinned = true;
     },
     steps: [
       {
@@ -331,9 +333,17 @@ export const LABS: Lab[] = [
         pro: true,
         check: (c) => !!c.m.moved,
       },
+      {
+        id: "pin",
+        title: "Pin a beat where the lines drift",
+        body: "If a line ever sits beside a kick later in a track, pause on that kick and press Pin beat here. The line moves onto it and the beats before it spread out evenly. A cyan diamond marks the pin; Remove pin takes it away.",
+        controls: ["deck.A.grid.warp", "deck.A.grid.unwarp"],
+        pro: true,
+        check: (c) => !!c.m.pinned,
+      },
     ],
     listen: "Beat lines and kicks line up from start to end, so sync and loops stay tight.",
-    mistake: "Forcing one fixed tempo onto a live recording. MixIt's grid follows drift on its own; only fix the downbeat and double or half errors.",
+    mistake: "Forcing one fixed tempo onto a live recording. MixIt's grid follows drift on its own; fix the downbeat and double or half errors, and pin a beat only where a line still misses its kick.",
   },
   {
     id: "automation",
