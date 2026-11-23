@@ -21,14 +21,18 @@ use std::sync::Arc;
 use mixit_core::{Beatgrid, DeckId};
 use mixit_dsp::interp::SincTable;
 use mixit_dsp::ramp::MicroFade;
+use mixit_dsp::smooth::Smoothed;
 use mixit_dsp::stretch::TimeStretch;
 use mixit_dsp::util::equal_power;
 
 use crate::commands::{DeckCommand, EndBehaviour, HotCueMode, SyncMode};
 use crate::kernels::PlaybackKernels;
 use crate::telemetry::{DeckTelemetry, Event, EventSink, LoopInfo};
-use crate::track::{CueKind, DeckTrack, HotCue};
+use crate::track::{CueKind, DeckTrack, HotCue, STEMS, StemAudio};
 use crate::trash::{Trash, TrashBin};
+
+/// How long a stem takes to reach a new level (long enough that a mute never clicks).
+const STEM_SMOOTH_MS: f32 = 20.0;
 
 /// Largest number of frames a deck renders per call (the engine splits host blocks).
 pub const BLOCK: usize = 256;
@@ -90,6 +94,47 @@ enum Path {
     Stretch,
 }
 
+/// What the reader reads: the track, or the track with its stems turned up and down.
+/// With stems the output is `track * melody + Σ stem * (gain - melody)`, which is the four
+/// stems at their gains (melody being the track minus the others) with one read less.
+struct Source<'a> {
+    data: &'a [f32],
+    frames: usize,
+    stems: Option<&'a StemAudio>,
+    /// Stem gains in [`STEMS`] order, and how much each moves per frame read.
+    gain: [f32; 4],
+    step: [f32; 4],
+}
+
+impl<'a> Source<'a> {
+    #[inline]
+    fn read(&self, k: &SincTable, pos: f64) -> (f32, f32) {
+        let (l, r) = k.read_stereo(self.data, self.frames, pos);
+        let Some(st) = self.stems else { return (l, r) };
+        let m = self.gain[3];
+        let (mut ol, mut or) = (l * m, r * m);
+        for (i, part) in st.parts().into_iter().enumerate() {
+            let d = self.gain[i] - m;
+            if d != 0.0 {
+                let (a, b) = k.read_stereo(part, self.frames, pos);
+                ol += a * d;
+                or += b * d;
+            }
+        }
+        (ol, or)
+    }
+
+    /// Moves the gains one frame along their ramps.
+    #[inline]
+    fn advance(&mut self) {
+        if self.stems.is_some() {
+            for i in 0..4 {
+                self.gain[i] += self.step[i];
+            }
+        }
+    }
+}
+
 /// Fractional-position reader with loop wrapping and jump crossfades.
 #[derive(Clone, Debug)]
 struct Reader {
@@ -130,10 +175,10 @@ impl Reader {
 
     /// Reads one frame at the head and advances by `step` (negative for reverse).
     #[inline]
-    fn step(&mut self, data: &[f32], frames: usize, k: &SincTable, step: f64, xf: u32) -> (f32, f32) {
-        let (mut l, mut r) = k.read_stereo(data, frames, self.head);
+    fn step(&mut self, src: &mut Source, k: &SincTable, step: f64, xf: u32) -> (f32, f32) {
+        let (mut l, mut r) = src.read(k, self.head);
         if self.xf_left > 0 {
-            let (ol, or) = k.read_stereo(data, frames, self.xf_from);
+            let (ol, or) = src.read(k, self.xf_from);
             let t = 1.0 - self.xf_left as f32 / self.xf_len as f32;
             let (go, gi) = equal_power(t);
             l = l * gi + ol * go;
@@ -141,6 +186,7 @@ impl Reader {
             self.xf_from += step;
             self.xf_left -= 1;
         }
+        src.advance();
         self.head += step;
         if let Some(lp) = self.lp {
             if lp.active && lp.len() > 1.0 {
@@ -203,6 +249,10 @@ pub struct Deck {
     // Key.
     keylock: bool,
     key_shift: f32,
+    /// Stem gains (level, or 0 when muted), smoothed, in [`STEMS`] order.
+    stem_gain: [Smoothed; 4],
+    stem_level: [f32; 4],
+    stem_mute: [bool; 4],
     stretcher: Option<Box<dyn TimeStretch>>,
     path: Path,
     path_fade: MicroFade,
@@ -278,6 +328,9 @@ impl Deck {
             phase_error: 0.0,
             keylock: false,
             key_shift: 0.0,
+            stem_gain: std::array::from_fn(|_| Smoothed::new(1.0, STEM_SMOOTH_MS, sr as f32)),
+            stem_level: [1.0; 4],
+            stem_mute: [false; 4],
             stretcher: None,
             path: Path::Direct,
             path_fade: MicroFade::new((0.004 * sr) as u32, true),
@@ -449,12 +502,11 @@ impl Deck {
         let head = target + lat;
         let cap = self.stretch_in.len() / 2;
         let pre = (((st.input_latency() + st.output_latency()) * 5 / 4).max(64)).min(cap);
-        let data = &track.audio.data;
-        let frames = track.audio.frames();
+        let src = Self::source(track, &self.stem_gain, 0);
         let k = self.kernels.for_speed(1.0);
         let start = head - pre as f64;
         for j in 0..pre {
-            let (l, r) = k.read_stereo(data, frames, start + j as f64);
+            let (l, r) = src.read(k, start + j as f64);
             self.stretch_in[j * 2] = l;
             self.stretch_in[j * 2 + 1] = r;
         }
@@ -618,6 +670,31 @@ impl Deck {
                 self.fade.set_open(false);
                 self.reader = Reader::new();
                 ev.send(Event::Ejected { deck: id });
+            }
+            C::SetStems(st) => match self.track.as_mut() {
+                Some(t) if st.fits(t.audio.data.len()) => {
+                    if let Some(old) = t.stems.replace(st) {
+                        trash.put(Trash::Stems(old));
+                    }
+                    // Until now the whole track played: glide from there to the stem levels.
+                    for i in 0..STEMS.len() {
+                        self.stem_gain[i].reset(1.0);
+                        self.set_stem(i);
+                    }
+                }
+                _ => trash.put(Trash::Stems(st)),
+            },
+            C::SetStemLevel(i, v) => {
+                if (i as usize) < STEMS.len() {
+                    self.stem_level[i as usize] = if v.is_finite() { v } else { 1.0 };
+                    self.set_stem(i as usize);
+                }
+            }
+            C::SetStemMute(i, on) => {
+                if (i as usize) < STEMS.len() {
+                    self.stem_mute[i as usize] = on;
+                    self.set_stem(i as usize);
+                }
             }
             C::SetGrid(g) => {
                 if let Some(t) = self.track.as_mut() {
@@ -1320,18 +1397,37 @@ impl Deck {
         }
     }
 
+    /// The track to read for the next `n` frames, with its stems at their gains: they
+    /// ramp from where the smoothers are now to where they will be `n` frames on.
+    fn source<'t>(track: &'t DeckTrack, gains: &[Smoothed; 4], n: usize) -> Source<'t> {
+        let stems = track.stems.as_deref().filter(|_| gains.iter().any(|g| g.value() != 1.0 || g.target() != 1.0));
+        let gain = std::array::from_fn(|i| gains[i].value());
+        let step = std::array::from_fn(|i| {
+            let mut end = gains[i].clone();
+            (end.advance(n as u32) - gain[i]) / n.max(1) as f32
+        });
+        Source { data: &track.audio.data, frames: track.audio.frames(), stems, gain, step }
+    }
+
+    fn set_stem(&mut self, i: usize) {
+        let g = if self.stem_mute[i] { 0.0 } else { self.stem_level[i].clamp(0.0, 1.0) };
+        self.stem_gain[i].set(g);
+    }
+
     fn render_direct(&mut self, n: usize, r0: f64, r1: f64) {
         let Some(track) = self.track.as_ref() else { return };
-        let data = &track.audio.data;
-        let frames = track.audio.frames();
+        let mut src = Self::source(track, &self.stem_gain, n);
         let k = self.kernels.for_speed(r0.abs().max(r1.abs()));
         let xf = self.xf_frames;
         let inv = 1.0 / n as f64;
         for i in 0..n {
             let step = r0 + (r1 - r0) * (i + 1) as f64 * inv;
-            let (l, r) = self.reader.step(data, frames, k, step, xf);
+            let (l, r) = self.reader.step(&mut src, k, step, xf);
             self.out_l[i] = l;
             self.out_r[i] = r;
+        }
+        for g in &mut self.stem_gain {
+            g.advance(n as u32);
         }
     }
 
@@ -1341,17 +1437,19 @@ impl Deck {
             self.prime_stretcher(a);
         }
         let (Some(track), Some(st)) = (self.track.as_ref(), self.stretcher.as_mut()) else { return };
-        let data = &track.audio.data;
-        let frames = track.audio.frames();
         let k = self.kernels.for_speed(1.0);
         let xf = self.xf_frames;
         let need = self.stretch_frac + n as f64 * rate;
         let m = (need.floor() as usize).min(self.stretch_in.len() / 2);
+        let mut src = Self::source(track, &self.stem_gain, m);
         self.stretch_frac = need - m as f64;
         for j in 0..m {
-            let (l, r) = self.reader.step(data, frames, k, 1.0, xf);
+            let (l, r) = self.reader.step(&mut src, k, 1.0, xf);
             self.stretch_in[j * 2] = l;
             self.stretch_in[j * 2 + 1] = r;
+        }
+        for g in &mut self.stem_gain {
+            g.advance(m as u32);
         }
         st.set_transpose(Self::transpose_for(self.keylock, self.key_shift, rate));
         st.process(&self.stretch_in[..m * 2], &mut self.stretch_out[..n * 2]);
@@ -1393,6 +1491,7 @@ impl Deck {
         let base = t.grid.bpm_at(a);
         DeckTelemetry {
             loaded: true,
+            stems: t.stems.is_some(),
             token: t.token,
             playing: self.playing,
             position: a,

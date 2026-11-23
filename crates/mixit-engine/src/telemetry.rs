@@ -18,6 +18,8 @@ pub struct LoopInfo {
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct DeckTelemetry {
     pub loaded: bool,
+    /// The loaded track has its stems, so the stem controls work.
+    pub stems: bool,
     pub token: u64,
     pub playing: bool,
     /// Position the listener hears (frames), after stretcher latency.

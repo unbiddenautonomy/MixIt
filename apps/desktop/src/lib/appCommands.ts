@@ -14,7 +14,9 @@ import { withLiveSound } from "../store/studio";
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { Settings } from "../backend/types";
-import { useApp, type Workspace } from "../store/app";
+import { openTool, setTools, useApp, type Workspace } from "../store/app";
+import { thisPart } from "./screens";
+import { runInMain } from "./windowSync";
 import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
@@ -106,6 +108,8 @@ export async function openCapturedMix(p: MixProject) {
 }
 
 export async function toggleRecording() {
+  // The main window records (it keeps the moves you make while recording).
+  if (thisPart) return runInMain("global.record");
   const rec = useTelemetry.getState().t.recording;
   try {
     if (rec) {
@@ -157,7 +161,15 @@ export function runApp(id: string): boolean {
       openProject();
       return true;
     case "sampler":
-      s.set(s.workspace === "mix" ? { samplerOpen: !s.samplerOpen } : { workspace: "mix", samplerOpen: true });
+      openTool("pads", true);
+      return true;
+    case "tools":
+      if (s.workspace === "mix" && s.toolSize !== "closed") setTools({ toolSize: "closed" });
+      else openTool(s.toolTab);
+      return true;
+    case "tools_full":
+      if (s.workspace !== "mix") s.set({ workspace: "mix" });
+      setTools({ toolSize: s.workspace === "mix" && s.toolSize === "full" ? "docked" : "full" });
       return true;
     case "guide":
       s.set({ guideOpen: !s.guideOpen });
@@ -192,7 +204,7 @@ export function runApp(id: string): boolean {
       void saveQueue();
       return true;
     case "sequencer":
-      s.set({ workspace: "mix", samplerOpen: true, samplerTab: "seq" });
+      openTool("steps");
       toggleSequencer();
       return true;
     case "assistant":
@@ -205,7 +217,8 @@ export function runApp(id: string): boolean {
       startTour();
       return true;
     case "feedback":
-      if (useReport.getState().report) useReport.setState({ open: true });
+      if (thisPart) runInMain("app.feedback");
+      else if (useReport.getState().report) useReport.setState({ open: true });
       else toast.message("No feedback yet", { description: "Press Rec, mix two or more tracks, then stop recording. MixIt then tells you how the mix went." });
       return true;
     case "edit_track":

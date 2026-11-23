@@ -36,7 +36,20 @@ export interface FxSlot {
   p2: number;
 }
 
+/** The stems of one deck, in STEMS order (the engine does not report them back). */
+export interface StemState {
+  mute: boolean[];
+  level: number[];
+}
+
+/** The parts a track can be split into, as the `deck.X.stem.*` actions name them. */
+export const STEMS = ["vocals", "drums", "bass", "melody"] as const;
+export type Stem = (typeof STEMS)[number];
+export const STEM_NAMES: Record<Stem, string> = { vocals: "Vocals", drums: "Drums", bass: "Bass", melody: "Melody" };
+
 export interface MixerState {
+  /** Each deck's stems. */
+  stems: StemState[];
   channels: ChannelState[];
   crossfader: number;
   master: number;
@@ -145,8 +158,10 @@ interface AppState {
   libraryHeight: number;
   kit: KitSound[];
   pads: PadInfo[];
-  samplerOpen: boolean;
-  samplerTab: "pads" | "seq" | "fx";
+  /** The tab the tools panel under the decks shows. */
+  toolTab: ToolTab;
+  /** How much room the tools panel takes: only its tab buttons, beside the library, or the whole screen under the waveforms. */
+  toolSize: ToolSize;
   /** The pad tab each deck shows ("cues", "loop", "jump", "fx", "grid"). */
   padTabs: string[];
   guideOpen: boolean;
@@ -158,6 +173,40 @@ interface AppState {
   setFx: (deck: number, slot: number, p: Partial<FxSlot>) => void;
   setJob: (j: JobProgress) => void;
   setPad: (p: PadInfo) => void;
+}
+
+/** The tools panel's tabs: things you set up and leave running, so they can be tucked away while you play. */
+export const TOOL_TABS = ["pads", "steps", "effects", "inputs", "recording"] as const;
+export type ToolTab = (typeof TOOL_TABS)[number];
+export const TOOL_SIZES = ["closed", "docked", "full"] as const;
+export type ToolSize = (typeof TOOL_SIZES)[number];
+
+function savedTool<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const v = localStorage.getItem(`mixit.tools.${key}`) as T | null;
+    return v && allowed.includes(v) ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Opens the tools panel on a tab (pressing the open tab again tucks the panel away when `toggle`). */
+export function openTool(tab: ToolTab, toggle = false) {
+  const s = useApp.getState();
+  const showing = s.workspace === "mix" && s.toolSize !== "closed" && s.toolTab === tab;
+  setTools({ toolTab: tab, toolSize: toggle && showing ? "closed" : s.toolSize === "closed" ? "docked" : s.toolSize });
+  if (s.workspace !== "mix") s.set({ workspace: "mix" });
+}
+
+/** Changes the tools panel and remembers it for next time. */
+export function setTools(p: { toolTab?: ToolTab; toolSize?: ToolSize }) {
+  useApp.getState().set(p);
+  try {
+    if (p.toolTab) localStorage.setItem("mixit.tools.tab", p.toolTab);
+    if (p.toolSize) localStorage.setItem("mixit.tools.size", p.toolSize);
+  } catch {
+    /* private window: just not remembered */
+  }
 }
 
 export const useApp = create<AppState>((set) => ({
@@ -172,6 +221,7 @@ export const useApp = create<AppState>((set) => ({
   decks: [null, null, null, null],
   waveforms: {},
   mixer: {
+    stems: [0, 1, 2, 3].map(() => ({ mute: [false, false, false, false], level: [1, 1, 1, 1] })),
     channels: [channel(), channel(), channel(), channel()],
     crossfader: 0,
     master: 0,
@@ -214,8 +264,8 @@ export const useApp = create<AppState>((set) => ({
   libraryHeight: 320,
   kit: [],
   pads: [],
-  samplerOpen: true,
-  samplerTab: "pads",
+  toolTab: savedTool("tab", TOOL_TABS, "pads"),
+  toolSize: savedTool("size", TOOL_SIZES, "docked"),
   padTabs: ["cues", "cues", "cues", "cues"],
   guideOpen: false,
 

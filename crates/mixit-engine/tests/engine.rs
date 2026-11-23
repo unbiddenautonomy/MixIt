@@ -938,3 +938,67 @@ fn ab_bypass_plays_the_plain_track_and_glides_back() {
     let back = testkit::tone_level(&out[120_000..], 100.0, SR as f32);
     assert!(back < 0.05 * plain, "processed again: {back}");
 }
+
+/// A track made of four tones, one per stem, with its stems (melody is the remainder).
+fn stem_track(seconds: f32) -> (Box<DeckTrack>, Arc<StemAudio>) {
+    let n = (seconds * SR as f32) as usize;
+    let tone =
+        |f: f32, a: f32| -> Vec<f32> { testkit::sine(n, f, SR as f32, a).iter().flat_map(|&x| [x, x]).collect() };
+    let (v, d, b, m) = (tone(800.0, 0.2), tone(1_500.0, 0.2), tone(60.0, 0.2), tone(400.0, 0.2));
+    let mix: Vec<f32> = (0..2 * n).map(|i| v[i] + d[i] + b[i] + m[i]).collect();
+    let grid = Arc::new(Beatgrid::constant(SR, 120.0, 0.0));
+    let t = Box::new(DeckTrack::new(Arc::new(TrackAudio::new(SR, mix)), grid));
+    (t, Arc::new(StemAudio { vocals: v, drums: d, bass: b }))
+}
+
+#[test]
+fn stems_turn_parts_of_the_track_up_and_down_without_clicks() {
+    let mut r = Rig::new();
+    let (t, stems) = stem_track(10.0);
+    r.deck(A, DeckCommand::Load(t));
+    r.deck(A, DeckCommand::Play);
+    let level = |out: &[f32], f: f32| testkit::tone_level(out, f, SR as f32);
+    let full = r.run(24_000);
+    let before = [800.0, 1_500.0, 60.0, 400.0].map(|f| level(&full[9_600..], f));
+    // Without stems the mute does nothing.
+    r.deck(A, DeckCommand::SetStemMute(0, true));
+    let out = r.run(24_000);
+    assert!((level(&out[9_600..], 800.0) - before[0]).abs() < 0.02 * before[0]);
+    // With them: the vocal tone goes, everything else stays, and nothing clicks.
+    r.deck(A, DeckCommand::SetStems(stems));
+    let out = r.run(24_000);
+    assert!(ClickDetector { threshold: 0.02 }.clicks(&out).is_empty());
+    assert!(level(&out[9_600..], 800.0) < 0.01 * before[0], "vocals still there: {}", level(&out[9_600..], 800.0));
+    for (k, f) in [(1, 1_500.0), (2, 60.0), (3, 400.0)] {
+        let l = level(&out[9_600..], f);
+        assert!((l - before[k]).abs() < 0.03 * before[k], "stem {k} changed: {l} vs {}", before[k]);
+    }
+    assert!(r.engine.snapshot().decks[0].stems);
+    // Melody (the remainder) at half, bass off.
+    r.deck(A, DeckCommand::SetStemMute(0, false));
+    r.deck(A, DeckCommand::SetStemLevel(3, 0.5));
+    r.deck(A, DeckCommand::SetStemMute(2, true));
+    let out = r.run(24_000);
+    assert!(ClickDetector { threshold: 0.02 }.clicks(&out).is_empty());
+    assert!((level(&out[9_600..], 400.0) - 0.5 * before[3]).abs() < 0.03 * before[3]);
+    assert!(level(&out[9_600..], 60.0) < 0.01 * before[2]);
+    assert!((level(&out[9_600..], 800.0) - before[0]).abs() < 0.03 * before[0]);
+    // All back at full: exactly the original track again.
+    r.deck(A, DeckCommand::SetStemLevel(3, 1.0));
+    r.deck(A, DeckCommand::SetStemMute(2, false));
+    let out = r.run(24_000);
+    for (k, f) in [800.0, 1_500.0, 60.0, 400.0].into_iter().enumerate() {
+        assert!((level(&out[9_600..], f) - before[k]).abs() < 0.02 * before[k]);
+    }
+}
+
+#[test]
+fn stems_that_do_not_fit_the_track_are_given_back() {
+    let mut r = Rig::new();
+    let (t, _) = stem_track(4.0);
+    let (_, other) = stem_track(5.0);
+    r.deck(A, DeckCommand::Load(t));
+    r.deck(A, DeckCommand::SetStems(other));
+    r.run(1_024);
+    assert!(!r.engine.snapshot().decks[0].stems);
+}

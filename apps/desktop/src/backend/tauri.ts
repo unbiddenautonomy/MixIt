@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+import { availableMonitors, currentMonitor, cursorPosition, getCurrentWindow, type Monitor } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { decodeWaveform, type Backend, type Unlisten } from "./index";
 import type * as T from "./types";
@@ -16,6 +17,21 @@ function sub<P>(event: string, cb: (p: P) => void): Unlisten {
     un?.();
   };
 }
+
+/** Screens with names that tell them apart (two identical monitors share a name). */
+function toScreens(list: Monitor[]): T.Screen[] {
+  const base = list.map((m) => m.name?.trim() || "Screen");
+  return list.map((m, i) => ({
+    name: base.filter((n) => n === base[i]).length > 1 ? `${base[i]} at ${m.position.x},${m.position.y}` : base[i],
+    x: m.position.x,
+    y: m.position.y,
+    width: m.size.width,
+    height: m.size.height,
+    scale: m.scaleFactor,
+  }));
+}
+
+const samePlace = (s: T.Screen, m: Monitor) => s.x === m.position.x && s.y === m.position.y;
 
 export class TauriBackend implements Backend {
   readonly kind = "tauri" as const;
@@ -180,4 +196,31 @@ export class TauriBackend implements Backend {
   onHistoryChanged(cb: () => void) { return sub("history-changed", cb); }
   onAudioStatus(cb: (s: T.AudioStatus) => void) { return sub("audio-status", cb); }
   onError(cb: (m: string) => void) { return sub("error", cb); }
+  splitStems(trackId: number) { return invoke<void>("stems_split", { trackId }); }
+  cancelStems() { return invoke<void>("stems_cancel"); }
+
+  async screens() {
+    const [all, cur] = await Promise.all([availableMonitors(), currentMonitor()]);
+    const screens = toScreens(all);
+    return { screens, main: (cur && screens.find((s) => samePlace(s, cur))?.name) ?? null };
+  }
+  async screenAtPointer() {
+    const [p, all] = await Promise.all([cursorPosition(), availableMonitors()]);
+    return toScreens(all).find((s) => p.x >= s.x && p.x < s.x + s.width && p.y >= s.y && p.y < s.y + s.height) ?? null;
+  }
+  openPart(part: string, screen: T.Screen) { return invoke<void>("part_open", { part, screen: { x: screen.x, y: screen.y } }); }
+  closePart(part: string) { return invoke<void>("part_close", { part }); }
+  onPartClosed(cb: (part: string) => void) { return sub("part-closed", cb); }
+  private me = "";
+  private label() {
+    return (this.me ||= getCurrentWindow().label);
+  }
+  broadcast(m: T.WindowMessage) {
+    void emit("window-bus", { from: this.label(), m });
+  }
+  onBroadcast(cb: (m: T.WindowMessage) => void) {
+    return sub<{ from: string; m: T.WindowMessage }>("window-bus", (e) => {
+      if (e.from !== this.label()) cb(e.m);
+    });
+  }
 }

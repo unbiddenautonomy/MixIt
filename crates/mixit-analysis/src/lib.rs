@@ -24,6 +24,7 @@ pub mod loudness;
 pub mod onset;
 pub mod prep;
 pub mod sections;
+pub mod stems;
 pub mod stft;
 pub mod tempo;
 pub mod timbre;

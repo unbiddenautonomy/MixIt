@@ -16,6 +16,7 @@ pub mod export;
 pub mod hash;
 pub mod resample;
 pub mod serato;
+pub mod stems;
 pub mod tags;
 
 use std::path::{Path, PathBuf};
@@ -27,6 +28,7 @@ pub use decode::{Decoded, decode_file};
 pub use export::{ExportFormat, WavDepth, write_flac, write_wav};
 pub use hash::hash_file;
 pub use resample::resample_interleaved;
+pub use stems::StemCache;
 pub use tags::{TagUpdate, TrackTags, read_tags, write_tags};
 
 #[derive(Debug, thiserror::Error)]

@@ -5,6 +5,7 @@ import type { DeckTele, Telemetry } from "../backend/types";
 
 const emptyDeck: DeckTele = {
   loaded: false,
+  stems: false,
   token: 0,
   playing: false,
   position: 0,

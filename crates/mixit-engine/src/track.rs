@@ -72,6 +72,8 @@ pub const HOT_CUES: usize = 16;
 #[derive(Clone, Debug)]
 pub struct DeckTrack {
     pub audio: Arc<TrackAudio>,
+    /// The track split into stems, when it has been (see [`StemAudio`]).
+    pub stems: Option<Arc<StemAudio>>,
     pub grid: Arc<Beatgrid>,
     /// Gain that brings the track to the target loudness (applied when auto-gain is on).
     pub auto_gain_db: f32,
@@ -89,7 +91,43 @@ impl DeckTrack {
     /// Allocates a little (one pass over the audio): build off the audio thread.
     pub fn new(audio: Arc<TrackAudio>, grid: Arc<Beatgrid>) -> DeckTrack {
         let music_end = music_end(&audio);
-        DeckTrack { audio, grid, auto_gain_db: 0.0, cue: 0.0, hot_cues: [None; HOT_CUES], token: 0, music_end }
+        DeckTrack {
+            audio,
+            stems: None,
+            grid,
+            auto_gain_db: 0.0,
+            cue: 0.0,
+            hot_cues: [None; HOT_CUES],
+            token: 0,
+            music_end,
+        }
+    }
+}
+
+/// The stems a deck can turn up and down, in the order of [`StemAudio::parts`] and the
+/// `deck.X.stem.*` actions. Melody is everything that is not one of the others.
+pub const STEMS: [&str; 4] = ["vocals", "drums", "bass", "melody"];
+
+/// A track split into stems: vocals, drums and bass, each interleaved stereo at the same
+/// rate and length as the track. The fourth stem, melody, is not stored: it is the track
+/// minus the other three, so the four always add back to the original exactly, whatever
+/// the separation left behind in the wrong stem.
+#[derive(Debug)]
+pub struct StemAudio {
+    pub vocals: Vec<f32>,
+    pub drums: Vec<f32>,
+    pub bass: Vec<f32>,
+}
+
+impl StemAudio {
+    /// The stored stems in [`STEMS`] order (melody, the remainder, is not stored).
+    pub fn parts(&self) -> [&[f32]; 3] {
+        [&self.vocals, &self.drums, &self.bass]
+    }
+
+    /// The stems fit a track of this many interleaved samples.
+    pub fn fits(&self, samples: usize) -> bool {
+        self.parts().iter().all(|p| p.len() == samples)
     }
 }
 

@@ -10,7 +10,7 @@ import { setOn, shortcutLabel, findAction } from "../../lib/actions";
 import { startTour } from "../../guide/tour";
 import { clock } from "../../lib/format";
 import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../../lib/setClock";
-import { useApp, type Workspace } from "../../store/app";
+import { openTool, useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { AssistantButton } from "../feedback/MixAssistant";
 import { MicButton } from "../mic/MicPanel";
@@ -22,7 +22,7 @@ export function TopBar() {
   const workspace = useApp((s) => s.workspace);
   const settings = useApp((s) => s.settings);
   const explain = useApp((s) => s.explain);
-  const samplerOpen = useApp((s) => s.samplerOpen);
+  const padsShown = useApp((s) => s.workspace === "mix" && s.toolSize !== "closed" && s.toolTab === "pads");
   const guideOpen = useApp((s) => s.guideOpen);
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-zinc-950/80 px-3 backdrop-blur" data-tauri-drag-region>
@@ -61,9 +61,9 @@ export function TopBar() {
           <Btn
             size="sm"
             tone="ghost"
-            active={samplerOpen && workspace === "mix"}
-            onClick={() => useApp.getState().set(workspace === "mix" ? { samplerOpen: !samplerOpen } : { workspace: "mix", samplerOpen: true })}
-            aria-label="Sampler and master FX"
+            active={padsShown}
+            onClick={() => openTool("pads", true)}
+            aria-label="Sampler pads"
           >
             <Grid2x2 size={14} />
             <span className="hidden xl:inline">Pads</span>

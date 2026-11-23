@@ -33,4 +33,4 @@ pub use input::{InputFeed, MicCommand, push_input};
 pub use mixer::{RETURNS, ReturnParam, ScopeSource};
 pub use preview::{PreviewCommand, PreviewRoute};
 pub use telemetry::{DeckTelemetry, Event, LoopInfo, MasterTelemetry, MicTelemetry, PreviewTelemetry, Telemetry};
-pub use track::{CueKind, DeckTrack, HOT_CUES, HotCue, TrackAudio};
+pub use track::{CueKind, DeckTrack, HOT_CUES, HotCue, STEMS, StemAudio, TrackAudio};

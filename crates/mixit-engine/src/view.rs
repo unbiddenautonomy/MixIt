@@ -21,6 +21,8 @@ pub struct LoopDto {
 #[serde(rename_all = "camelCase")]
 pub struct DeckTele {
     pub loaded: bool,
+    /// The track has stems, so the stem controls work.
+    pub stems: bool,
     pub token: u64,
     pub playing: bool,
     /// Seconds.
@@ -58,6 +60,7 @@ impl DeckTele {
         let s = |f: f64| f / sr;
         DeckTele {
             loaded: d.loaded,
+            stems: d.stems,
             token: d.token,
             playing: d.playing,
             position: s(d.position),

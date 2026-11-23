@@ -1,16 +1,15 @@
-// The mic: a button in the top bar that opens everything about it, and a narrow channel
+// The mic: a button in the top bar that opens its tab in the tools panel, and a narrow channel
 // strip on the mixer while it is on. A mic can be talked over the music (with talk-over
 // turning the music down while you speak), recorded onto a sampler pad, or recorded into
 // the library as a track (a turntable, a phone or another mixer on a line input).
 import clsx from "clsx";
-import * as Popover from "@radix-ui/react-popover";
 import { AlertTriangle, Circle, Headphones, Library as LibraryIcon, Mic, MicOff, Radio, Settings2, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { backend } from "../../backend";
 import type { DeviceInfo } from "../../backend/types";
 import { setOn, setValue } from "../../lib/actions";
 import { clock } from "../../lib/format";
-import { useApp, usePro } from "../../store/app";
+import { openTool, useApp, usePro } from "../../store/app";
 import { refreshMic, setMicEnabled, toggleMicRecording, useMic, type TakeTarget } from "../../store/mic";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
@@ -21,47 +20,28 @@ import { Meter } from "../ui/Meter";
 
 const MIC_COLOR = "#f472b6";
 
-/** Opens the mic panel from anywhere (the strip, the guide, the palette). */
-export const useMicPanel = (() => {
-  let setter: ((v: boolean) => void) | null = null;
-  return {
-    open: () => setter?.(true),
-    bind: (s: (v: boolean) => void) => {
-      setter = s;
-    },
-  };
-})();
+/** Opens the mic tab of the tools panel from anywhere (the strip, the guide, the palette). */
+export const useMicPanel = { open: () => openTool("inputs") };
 
+/** The mic button in the top bar: shows when it is on air or recording, and opens its tab. */
 export function MicButton() {
-  const [open, setOpen] = useState(false);
   const enabled = useApp((s) => !!s.settings?.micEnabled);
+  const shown = useApp((s) => s.workspace === "mix" && s.toolSize !== "closed" && s.toolTab === "inputs");
   const onAir = useMic((s) => s.onAir);
   const recording = useMic((s) => s.recording);
-  useMicPanel.bind(setOpen);
-  useEffect(() => {
-    if (open) void refreshMic().catch(() => undefined);
-  }, [open]);
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Ctl label="Mic" explain="Talk to the crowd over the music, record your own sounds onto a pad, or bring in a turntable or phone." side="bottom">
-        <Popover.Trigger asChild>
-          <Btn size="sm" tone={enabled && onAir ? "danger" : "ghost"} active={open} aria-label="Mic">
-            {enabled ? <Mic size={14} /> : <MicOff size={14} className="text-zinc-500" />}
-            {enabled && onAir && <span className="text-[10px] font-bold uppercase tracking-wide">On air</span>}
-            {recording && <Circle size={8} className="animate-pulse text-red-400" fill="currentColor" />}
-          </Btn>
-        </Popover.Trigger>
-      </Ctl>
-      <Popover.Portal>
-        <Popover.Content align="end" sideOffset={8} className="z-50 w-[22rem] rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-xs shadow-2xl backdrop-blur" style={{ ["--accent" as string]: MIC_COLOR }}>
-          <MicPanel />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <Ctl label="Mic" explain="Talk to the crowd over the music, record your own sounds onto a pad, or bring in a turntable or phone." side="bottom">
+      <Btn size="sm" tone={enabled && onAir ? "danger" : "ghost"} active={shown} aria-label="Mic" onClick={() => openTool("inputs", true)}>
+        {enabled ? <Mic size={14} /> : <MicOff size={14} className="text-zinc-500" />}
+        {enabled && onAir && <span className="text-[10px] font-bold uppercase tracking-wide">On air</span>}
+        {recording && <Circle size={8} className="animate-pulse text-red-400" fill="currentColor" />}
+      </Btn>
+    </Ctl>
   );
 }
 
 export function MicPanel() {
+  useEffect(() => void refreshMic().catch(() => undefined), []);
   const settings = useApp((s) => s.settings);
   const kind = backendKind();
   const enabled = !!settings?.micEnabled;

@@ -18,6 +18,7 @@ import { Fader } from "../ui/Fader";
 import { Overview } from "./Overview";
 import { BeatCounter } from "./BeatCounter";
 import { EjectButton, Pads } from "./Pads";
+import { Stems } from "./Stems";
 import { useDropTarget } from "../../lib/dnd";
 import { DECK_COLORS } from "./useWaveform";
 import { openEditor } from "../editor/TrackEditor";
@@ -76,6 +77,7 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
         <Tempo deck={deck} pro={pro} compact={compact} />
       </div>
       {compact && <Pads deck={deck} compact />}
+      <Stems deck={deck} compact={compact} />
     </section>
   );
 }

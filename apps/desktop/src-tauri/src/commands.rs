@@ -317,7 +317,11 @@ pub fn load_track_blocking(state: &AppState, deck: u8, track_id: i64, start_at: 
     };
     let track = state.library.lock().track(track_id).map_err(err)?;
     let srf = sr as f64;
+    // Stems made earlier come with the track.
+    let stems =
+        mixit_io::StemCache::new(stem_dir(state)).ok().and_then(|c| c.get(&loaded.hash, sr, loaded.data.len() / 2));
     let mut dt = DeckTrack::new(Arc::new(TrackAudio::new(sr, loaded.data)), Arc::new(grid.resampled(sr)));
+    dt.stems = stems.map(|s| Arc::new(stem_audio(s.parts)));
     dt.auto_gain_db = track.auto_gain_db.unwrap_or(0.0) as f32;
     let main = cues.iter().find(|c| c.kind == CueKind::Main).map(|c| c.seconds).or_else(|| {
         analysis
@@ -1958,4 +1962,95 @@ pub fn sampler_sequence(state: State<'_, AppState>, sequencer: mixit_engine::vie
 #[tauri::command]
 pub fn sampler_stop_all(state: State<'_, AppState>) {
     state.audio.lock().send(Command::Sampler(mixit_engine::SamplerCommand::StopAll));
+}
+
+// ---------------------------------------------------------------------------------- stems
+
+fn stem_dir(state: &AppState) -> PathBuf {
+    state.paths.cache.join("stems")
+}
+
+fn stem_audio([vocals, drums, bass]: [Vec<f32>; 3]) -> mixit_engine::StemAudio {
+    mixit_engine::StemAudio { vocals, drums, bass }
+}
+
+/// Splits a track into stems in the background (vocals, drums, bass, and the rest as
+/// melody), keeps them for next time, and gives them to any deck playing the track.
+#[tauri::command]
+pub fn stems_split(app: AppHandle, state: State<'_, AppState>, track_id: i64) -> R<()> {
+    if state.stems_running.swap(true, Ordering::SeqCst) {
+        return Err("Already splitting a track. Wait for it to finish.".into());
+    }
+    state.stems_cancel.store(false, Ordering::SeqCst);
+    let track = match state.library.lock().track(track_id) {
+        Ok(t) => t,
+        Err(e) => {
+            state.stems_running.store(false, Ordering::SeqCst);
+            return Err(err(e));
+        }
+    };
+    let spawned = std::thread::Builder::new().name("mixit-stems".into()).spawn(move || {
+        let state = app.state::<AppState>();
+        let title = if track.title.is_empty() { "the track".to_string() } else { format!("“{}”", track.title) };
+        let progress = |p: f32| {
+            emit_job(
+                &app,
+                JobProgress {
+                    kind: "stems",
+                    done: (p * 1000.0) as usize,
+                    total: 1000,
+                    message: format!("Splitting {title} into stems"),
+                    finished: false,
+                    error: None,
+                },
+            );
+        };
+        let r = (|| -> R<String> {
+            progress(0.0);
+            let sr = state.audio.lock().sample_rate;
+            let cache = mixit_io::DecodeCache::new(&state.paths.cache).ok();
+            let loaded = mixit_io::load_track(&track.path, sr, cache.as_ref()).map_err(err)?;
+            let split = mixit_analysis::stems::quick_split(sr, &loaded.data, |p| {
+                progress(0.05 + 0.9 * p);
+                !state.stems_cancel.load(Ordering::SeqCst)
+            })
+            .ok_or("Stopped splitting")?;
+            let parts = [split.vocals, split.drums, split.bass];
+            mixit_io::StemCache::new(stem_dir(&state))
+                .map_err(err)?
+                .put(&loaded.hash, sr, "quick", [&parts[0], &parts[1], &parts[2]])
+                .map_err(err)?;
+            // Decks playing this track get the stems straight away.
+            let decks: Vec<usize> = state
+                .decks
+                .lock()
+                .iter()
+                .enumerate()
+                .filter(|(_, d)| d.as_ref().is_some_and(|d| d.track_id == track_id && d.sample_rate == sr))
+                .map(|(i, _)| i)
+                .collect();
+            for i in decks {
+                let st = Arc::new(stem_audio(parts.clone()));
+                state.audio.lock().send(Command::Deck(DeckId(i as u8), DeckCommand::SetStems(st)));
+            }
+            Ok(format!("{title} is split: turn its vocals, drums, bass and melody up and down on the deck."))
+        })();
+        let (message, error) = match r {
+            Ok(m) => (m, None),
+            Err(e) => (String::new(), Some(e)),
+        };
+        emit_job(&app, JobProgress { kind: "stems", done: 1000, total: 1000, message, finished: true, error });
+        state.stems_running.store(false, Ordering::SeqCst);
+    });
+    if let Err(e) = spawned {
+        state.stems_running.store(false, Ordering::SeqCst);
+        return Err(err(e));
+    }
+    Ok(())
+}
+
+/// Stops a split in progress (nothing is kept).
+#[tauri::command]
+pub fn stems_cancel(state: State<'_, AppState>) {
+    state.stems_cancel.store(true, Ordering::SeqCst);
 }

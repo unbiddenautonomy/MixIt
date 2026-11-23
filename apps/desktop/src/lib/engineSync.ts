@@ -2,7 +2,7 @@
 // them all at start-up and after the audio engine restarts on new device settings.
 import { backend } from "../backend";
 import type { ActionInput } from "../backend/types";
-import { DECK_LETTERS, fxUnitName, useApp } from "../store/app";
+import { DECK_LETTERS, fxUnitName, STEMS, useApp } from "../store/app";
 import { pushStudio } from "../store/studio";
 
 export function engineStateActions(): [string, ActionInput][] {
@@ -12,6 +12,12 @@ export function engineStateActions(): [string, ActionInput][] {
   const pick = (id: string, value: number) => out.push([id, { type: "choice", value }]);
   const on = (id: string, value: boolean) => out.push([id, { type: "set", value }]);
   const decks = settings?.decks ?? 2;
+  mixer.stems.slice(0, Math.max(2, decks)).forEach((st, i) => {
+    STEMS.forEach((name, k) => {
+      val(`deck.${DECK_LETTERS[i]}.stem.${name}`, st.level[k]);
+      on(`deck.${DECK_LETTERS[i]}.stem.${name}.mute`, st.mute[k]);
+    });
+  });
   mixer.channels.slice(0, Math.max(2, decks)).forEach((c, i) => {
     const m = `mixer.${DECK_LETTERS[i]}`;
     val(`${m}.trim`, c.trim);

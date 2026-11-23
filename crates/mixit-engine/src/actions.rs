@@ -21,6 +21,7 @@ use crate::commands::{
 };
 use crate::input::MicCommand;
 use crate::mixer::ReturnParam;
+use crate::track::STEMS;
 
 /// What happened to the control.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -284,6 +285,19 @@ impl ActionDispatcher {
                 None => vec![],
             },
             ["master"] => trig(DeckCommand::BecomeMaster),
+            ["stem", name] => match STEMS.iter().position(|s| s == name) {
+                Some(k) => Self::value(input, id)?
+                    .map(|v| dc(DeckCommand::SetStemLevel(k as u8, v.clamp(0.0, 1.0) as f32)))
+                    .unwrap_or_default(),
+                None => return Err(ActionError::Unknown(id.to_string())),
+            },
+            ["stem", name, "mute"] => match STEMS.iter().position(|s| s == name) {
+                Some(k) => self
+                    .generic_toggle(id, input)?
+                    .map(|on| dc(DeckCommand::SetStemMute(k as u8, on)))
+                    .unwrap_or_default(),
+                None => return Err(ActionError::Unknown(id.to_string())),
+            },
             ["keylock"] => match Self::toggle(st.keylock, input, id)? {
                 Some(on) => {
                     self.decks[i].keylock = on;
