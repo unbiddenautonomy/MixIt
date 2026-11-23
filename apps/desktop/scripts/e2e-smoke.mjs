@@ -602,6 +602,10 @@ try {
       document.activeElement?.blur?.();
     });
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    // The buttons' tooltips show their keys.
+    await page.hover('[data-testid="mix-it"]');
+    await page.waitForSelector('[role="tooltip"] >> text=/^T$/', { timeout: 3000 });
+    await page.mouse.move(5, 500);
     await page.keyboard.press("h");
     await page.waitForFunction(() => window.mixit.useRehearse.getState().key === "mixer", null, { timeout: 5000 });
     expect(!(await page.evaluate(() => window.mixit.useTransition.getState().running)), "H started the real mix");
@@ -624,6 +628,22 @@ try {
       }
     });
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("Try another transition re-renders the mix being heard", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    await page.selectOption('[data-testid="try-another"]', "brake");
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().summary === "Brake stop" && window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    expect((await page.inputValue('[data-testid="choose-mix-0"]')) === "brake", "the queue line does not show the choice");
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [], choices: {} }));
   });
 
   await step("no errors in the console", async () => {
