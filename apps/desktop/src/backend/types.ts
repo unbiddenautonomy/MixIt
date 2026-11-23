@@ -333,7 +333,7 @@ export interface Settings {
   cueChannel: number | null;
   keyNotation: "camelot" | "openKey" | "standard";
   viewMode: "easy" | "pro";
-  theme: "dark" | "light" | "system";
+  theme: "dark" | "light" | "system" | "lounge";
   decks: 2 | 4;
   explain: boolean;
   coach: boolean;

@@ -246,13 +246,14 @@ function Display({ s }: { s: Settings }) {
       <Field label="Interface" hint="Easy shows the essentials. Pro shows every control. Nothing is locked either way.">
         <Segmented value={s.viewMode} onChange={(v) => updateSettings({ viewMode: v })} options={[{ value: "easy" as const, label: "Easy" }, { value: "pro" as const, label: "Pro" }]} />
       </Field>
-      <Field label="Theme" hint="Dark is easier on the eyes in a dim room. Light suits daylight. Waveforms always stay on a dark display.">
+      <Field label="Theme" hint="Dark is easier on the eyes in a dim room. Light suits daylight. Lounge is a richer olive-green look with gold highlights. Waveforms always stay on a dark display.">
         <Segmented
           value={s.theme}
           onChange={(v) => updateSettings({ theme: v })}
           options={[
             { value: "dark" as const, label: "Dark" },
             { value: "light" as const, label: "Light" },
+            { value: "lounge" as const, label: "Lounge" },
             { value: "system" as const, label: "Match system" },
           ]}
         />
