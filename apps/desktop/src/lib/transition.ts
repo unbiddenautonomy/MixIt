@@ -3,6 +3,7 @@
 // the outgoing deck's beat counter, exactly as a DJ's hands would.
 import { create } from "zustand";
 import { toast } from "sonner";
+import type { DeckTele } from "../backend/types";
 import { useApp } from "../store/app";
 import { useTelemetry } from "../store/telemetry";
 import { press, release, setOn, setValue } from "./actions";
@@ -87,15 +88,12 @@ export async function startTransition(from: number, to: number, kind: Transition
   // Start the incoming deck at the top of the outgoing track's next 8-bar phrase, lined up
   // with the incoming track's own phrases, so builds and drops land together. When the
   // outgoing track would run out first, the next bar has to do.
-  const bpb = df.beatsPerBar || 4;
-  const nextBar = Math.ceil((df.beat + 0.25) / bpb) * bpb;
   const planned = opts.atBeat !== undefined && opts.atBeat > df.beat;
-  let startBeat = planned ? opts.atBeat! : (phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar);
+  let startBeat = opts.atBeat!;
   if (!planned) {
-    // Don't start over the middle of a sung line: wait up to a phrase for it to end.
-    const clear = mixItStart(useApp.getState().decks[from]?.detail.vocals, df, startBeat, beats, nextBar);
-    if (clear.moved) {
-      startBeat = clear.start;
+    const at = mixItBeat(df, dt, beats, useApp.getState().decks[from]?.detail.vocals);
+    startBeat = at.start;
+    if (at.moved) {
       const wait = Math.max(0, Math.round(((startBeat - df.beat) * 60) / Math.max(1, df.bpm)));
       toast(`Deck ${a} is singing, so the mix waits for the line to end: it starts in ${wait} s.`);
     }
@@ -256,6 +254,21 @@ export function mixItStart(
     earliest: Math.max(candidate, earliest),
     maxMove: bpb * 8,
   });
+}
+
+/**
+ * Where Mix it starts a `beats`-long transition out of deck telemetry `df` into `dt`: the top
+ * of the next 8-bar phrase lined up with the incoming track's own phrases (the next bar when
+ * the outgoing track would run out first), then moved past a sung line when it can be.
+ * `moved` says it waited for the singing.
+ */
+export function mixItBeat(df: DeckTele, dt: DeckTele, beats: number, vocals: [number, number][] | undefined): { start: number; moved: boolean } {
+  const bpb = df.beatsPerBar || 4;
+  const nextBar = Math.ceil((df.beat + 0.25) / bpb) * bpb;
+  const start = phraseStart(df.beat, dt.beat, bpb, df.remaining * (df.bpm / 60) - beats) ?? nextBar;
+  // Don't start over the middle of a sung line: wait up to a phrase for it to end.
+  const clear = mixItStart(vocals, df, start, beats, nextBar);
+  return clear.moved ? { start: clear.start, moved: true } : { start, moved: false };
 }
 
 /**

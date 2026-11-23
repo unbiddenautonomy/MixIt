@@ -50,7 +50,8 @@ async function step(name, fn) {
     results.push({ name, ok: false, error: String(e?.message ?? e) });
     // A picture of the page as it failed (CI keeps these).
     await page?.screenshot({ path: `e2e-fail-${results.length}.png` }).catch(() => {});
-    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n")[0]}`);
+    // The first lines, with Playwright's call log (what it was waiting for).
+    console.log(`  FAIL ${name}: ${String(e?.message ?? e).split("\n").slice(0, 16).join("\n       ")}`);
   }
 }
 
@@ -331,7 +332,7 @@ try {
     });
     await page.hover('[data-testid="hear-mix-0"]', { force: true });
     await page.click('[data-testid="hear-mix-0"]');
-    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/as Auto DJ will play it/', { timeout: 10_000 });
+    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
     const bar = await page.textContent('[data-testid="rehearsal-bar"]');
     expect(bar.includes(`${names[0]} into ${names[1]}`), `the bar says ${bar}`);
     await sleep(1200);
@@ -418,6 +419,171 @@ try {
       await window.mixit.backend().action("deck.B.play", { type: "press" });
       await window.mixit.backend().action("deck.B.play", { type: "release" });
     });
+    // Play is a toggle: let the decks report stopped before the next step reads them.
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("a suggestion can be heard mixed in after the seed track", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+      window.mixit.useApp.getState().set({ workspace: "library" });
+      window.mixit.useLibrary.getState().set({ source: { type: "suggest" } });
+    });
+    await page.waitForSelector('[data-testid="hear-suggestion-0"]', { timeout: 10_000 });
+    await page.click('[data-testid="hear-suggestion-0"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
+    await sleep(800);
+    const p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(p.playing && p.position > 0.3, `preview: playing ${p.playing}, at ${p.position}`);
+    expect((await page.textContent('[data-testid="hear-suggestion-0"]')).includes("Hearing"), "the button does not show it is playing");
+    await page.click('[data-testid="hear-suggestion-0"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
+  });
+
+  await step("Rehearse the set plays every change in the queue, one after another", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 4);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="rehearse-set"]');
+    await page.waitForSelector('[data-testid="now-hearing"] >> text=/Change 1 of 3/', { timeout: 15_000 });
+    const st = await page.evaluate(() => window.mixit.useRehearse.getState());
+    expect(st.status === "ready" && st.changes.length === 3 && st.title === "The whole set: 3 changes", `rehearsal ${st.status}, ${st.changes.length} changes, ${st.title}`);
+    // Next change goes to just before the second change, and the bar follows.
+    await page.click('[data-testid="next-change"]');
+    await page.waitForSelector('[data-testid="now-hearing"] >> text=/Change 2 of 3/', { timeout: 3000 });
+    const p = await page.evaluate(() => window.mixit.useTelemetry.getState().t.preview);
+    expect(p.playing && Math.abs(p.position - (st.changes[1].at - 4)) < 1, `at ${p.position}, change 2 at ${st.changes[1].at}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.waitForSelector('[data-testid="rehearsal-bar"]', { state: "detached", timeout: 3000 });
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
+  await step("Mix it on Smart picks the transition and says why", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      await b.seek(0, 40);
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    expect((await page.inputValue('[data-testid="mix-kind"]')) === "smart", "Mix it is not on Smart by default");
+    await page.click('[data-testid="mix-it"]');
+    await page.waitForFunction(() => window.mixit.useTransition.getState().running, null, { timeout: 5000 });
+    const r = await page.evaluate(() => ({ run: window.mixit.useTransition.getState().running, beat: window.mixit.useTelemetry.getState().t.decks[0].beat, toasts: document.querySelector("[data-sonner-toaster]")?.textContent ?? "" }));
+    expect(r.run.from === 0 && r.run.to === 1 && r.run.startBeat > r.beat && r.run.startBeat % 4 === 0, `transition ${JSON.stringify(r.run)} at beat ${r.beat}`);
+    expect(/over \d+ beats|Cut on the bar|Brake stop/.test(r.toasts), `no plan message: ${r.toasts}`);
+    await page.evaluate(async () => {
+      const { cancelTransition } = await import("/src/lib/transition.ts");
+      cancelTransition();
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("Hear it first plays Mix it's mix in the headphones, never on the speakers", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      await b.seek(0, 40);
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    // On the speakers, with deck A on air, the audience would hear it: it refuses.
+    await page.click('[data-testid="hear-mix-it"]');
+    await page.waitForFunction(() => /audience would hear it/.test(document.querySelector("[data-sonner-toaster]")?.textContent ?? ""), null, { timeout: 3000 });
+    expect((await page.evaluate(() => window.mixit.useRehearse.getState().key)) === null, "a preview started on the speakers");
+    await page.evaluate(async () => {
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      useTrackPreview.setState({ route: "headphones" });
+    });
+    await page.click('[data-testid="hear-mix-it"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 5000 });
+    const st = await page.evaluate(() => window.mixit.useRehearse.getState());
+    expect(st.key === "mixer" && st.duration > st.mixEnd && st.mixEnd > st.mixAt && /over \d+ beats|Cut|Brake/.test(st.summary), `rehearsal ${JSON.stringify(st)}`);
+    expect(!(await page.evaluate(() => window.mixit.useTransition.getState().running)), "hearing it started the real mix");
+    await page.evaluate(async () => {
+      const { stopMix } = await import("/src/store/rehearse.ts");
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      stopMix();
+      useTrackPreview.setState({ route: "auto" });
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("Make a mix turns the Auto DJ queue into an Arrange project", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 3);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useApp.getState().set({ workspace: "mix", projectDirty: false });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="queue-mix"]');
+    await page.waitForFunction(() => window.mixit.useApp.getState().workspace === "arrange" && window.mixit.useApp.getState().project?.markers.length === 2, null, { timeout: 10_000 });
+    const p = await page.evaluate(() => {
+      const pr = window.mixit.useApp.getState().project;
+      return { clips: pr.clips.map((c) => ({ path: c.track.path, start: c.start, length: c.length, lanes: c.lanes.length })), markers: pr.markers, name: pr.name };
+    });
+    const paths = [...new Set(p.clips.map((c) => c.path))];
+    expect(paths.length === 3 && p.markers[0].beat > 0 && p.markers[1].beat > p.markers[0].beat && p.clips.some((c) => c.lanes > 0) && /^Auto DJ set/.test(p.name), `project ${JSON.stringify(p)}`);
+    await page.evaluate(() => {
+      window.mixit.useAutoDj.getState().set({ queue: [] });
+      window.mixit.useApp.getState().set({ workspace: "mix", projectDirty: false });
+    });
+  });
+
+  await step("a transition chosen for one change is what Hear this mix plays", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.selectOption('[data-testid="choose-mix-0"]', "cut");
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    const st = await page.evaluate(() => ({ summary: window.mixit.useRehearse.getState().summary, choices: window.mixit.useAutoDj.getState().choices }));
+    expect(st.summary === "Cut on the bar" && Object.values(st.choices).join() === "cut", `heard ${JSON.stringify(st)}`);
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.selectOption('[data-testid="choose-mix-0"]', "");
+    expect(Object.keys(await page.evaluate(() => window.mixit.useAutoDj.getState().choices)).length === 0, "Auto did not clear the choice");
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
+  await step("Save keeps the Auto DJ queue as a playlist", async () => {
+    const want = await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => !r.missing).slice(0, 3);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+      return rows.map((r) => r.id);
+    });
+    await page.click('[data-testid="queue-save"]');
+    await page.waitForSelector("text=/Saved the queue as/", { timeout: 5000 });
+    const got = await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      const list = (await b.playlists()).filter((p) => p.name.startsWith("Auto DJ set")).pop();
+      return list ? (await b.playlistTracks(list.id)).map((t) => t.id) : null;
+    });
+    expect(JSON.stringify(got) === JSON.stringify(want), `saved ${JSON.stringify(got)}, queue ${JSON.stringify(want)}`);
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 
   await step("no errors in the console", async () => {

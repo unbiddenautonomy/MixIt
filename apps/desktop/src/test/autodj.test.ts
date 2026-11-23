@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CueDto, SectionDto, TrackDetail } from "../backend/types";
 import { beatAtSeconds, countdown, hasOutro, inCue, introBeats, keyMove, mixOutPoint, planMix, secondsAtBeat } from "../lib/autodj";
 import { fromCamelot, keyDto } from "../lib/keys";
+import { planNow } from "../lib/smartMix";
 
 /** A track in the demo's shape: sections of the given bars at a tempo, with cues. */
 function track(o: { bpm?: number; camelot?: [number, "A" | "B"] | null; energy?: number; bars?: [string, number, number][]; firstBeat?: number; cues?: boolean; tail?: number } = {}): TrackDetail {
@@ -213,5 +214,32 @@ describe("Auto DJ plans", () => {
     const p = planMix(track({ bpm: 124, energy: 5 }), track({ bpm: 126, energy: 5 }));
     expect(p.tempoChangePct).toBeCloseTo(-1.6, 1);
     expect(p.reasons.join(" ")).toMatch(/synced from 126 to 124 BPM/);
+  });
+});
+
+describe("Mix it on Smart", () => {
+  it("plans from now: the next phrase, with Auto DJ's choices", () => {
+    const out = track({ energy: 8 });
+    const inc = track({ energy: 7, camelot: [8, "B"] });
+    // In the first drop (beat 140): the next phrase is 160, not the outro at 448.
+    const p = planNow(out, inc, 140);
+    expect(p.outStartBeat).toBe(160);
+    expect(p.kind).toBe("bassSwap");
+    expect(p.beats).toBe(32);
+    expect(p.outStartBeat + p.beats).toBeLessThanOrEqual(beatAtSeconds(out, out.audible[1]));
+  });
+
+  it("near the end, loops the last bars or mixes what is left, never in the past", () => {
+    const out = track({ energy: 5 });
+    const end = beatAtSeconds(out, out.audible[1]);
+    // 20 beats left: the next phrase (480) leaves 32, a full blend fits.
+    const a = planNow(out, track({ energy: 5 }), 460);
+    expect(a.outStartBeat).toBe(480);
+    expect(a.outStartBeat + (a.loopBeats || a.beats)).toBeLessThanOrEqual(end);
+    // 11 beats left: a short mix on the next bars that still ends with the music.
+    const b = planNow(out, track({ energy: 5 }), 501);
+    expect(b.outStartBeat).toBeGreaterThan(501);
+    expect(b.outStartBeat + (b.loopBeats || b.beats)).toBeLessThanOrEqual(end);
+    expect(b.outStartBeat % 4).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 // "What should I play next?": ranked tracks that mix well after the seed, with the
 // reasons in plain words and what you would need to change (tempo, key).
 import clsx from "clsx";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Headphones, Sparkles } from "lucide-react";
 import { useEffect } from "react";
 import { bpm as fmtBpm, clock, signedPct, inkColor } from "../../lib/format";
 import { keyColor, keyLabel, shiftedKey } from "../../lib/keys";
@@ -13,6 +13,8 @@ import { loadOnDeck } from "../deck/Deck";
 import { refreshRows, suggestionSeed } from "./data";
 import { useTelemetry } from "../../store/telemetry";
 import { PreviewButton } from "./PreviewBar";
+import { hearPair, stopMix, useRehearse } from "../../store/rehearse";
+import type { TrackRow } from "../../backend/types";
 
 const GENERIC_TAGS = new Set(["tempo", "key", "energy", "genre", "keyShift", "rating"]);
 /** Plain words for the reason chips. */
@@ -119,6 +121,7 @@ export function Suggestions() {
                     </Chip>
                   ))}
                   <span className="ml-auto font-mono text-[10px] text-zinc-600">{clock(t.duration)}</span>
+                  {seed && <HearButton from={seed} to={t} i={i} />}
                 </div>
                 {s.reasons.length > 0 && <p className="pl-7 text-[11px] leading-snug text-zinc-400">{s.reasons.join(" · ")}</p>}
               </div>
@@ -127,6 +130,29 @@ export function Suggestions() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Hear `to` mixed in after `from`, the way Auto DJ would do it. */
+function HearButton({ from, to, i }: { from: TrackRow; to: TrackRow; i: number }) {
+  const hearing = useRehearse((s) => s.key === `${from.id}-${to.id}`);
+  return (
+    <button
+      type="button"
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (hearing) stopMix();
+        else void hearPair(from, to);
+      }}
+      title={hearing ? "Stop hearing this mix" : `Hear ${to.title} mixed in after ${from.title}, in your headphones, the way Auto DJ would do it`}
+      aria-label={hearing ? "Stop hearing this mix" : `Hear the mix into ${to.title}`}
+      className={clsx("flex items-center gap-1 rounded px-1 text-[10px]", hearing ? "bg-sky-400/15 text-sky-200" : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
+      data-testid={`hear-suggestion-${i}`}
+    >
+      <Headphones size={10} /> {hearing ? "Hearing" : "Hear the mix"}
+    </button>
   );
 }
 
