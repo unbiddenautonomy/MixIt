@@ -528,6 +528,27 @@ try {
     await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
   });
 
+  await step("Make a mix turns the Auto DJ queue into an Arrange project", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 3);
+      window.mixit.useAutoDj.getState().set({ queue: rows });
+      window.mixit.useApp.getState().set({ workspace: "mix", projectDirty: false });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="queue-mix"]');
+    await page.waitForFunction(() => window.mixit.useApp.getState().workspace === "arrange" && window.mixit.useApp.getState().project?.markers.length === 2, null, { timeout: 10_000 });
+    const p = await page.evaluate(() => {
+      const pr = window.mixit.useApp.getState().project;
+      return { clips: pr.clips.map((c) => ({ path: c.track.path, start: c.start, length: c.length, lanes: c.lanes.length })), markers: pr.markers, name: pr.name };
+    });
+    const paths = [...new Set(p.clips.map((c) => c.path))];
+    expect(paths.length === 3 && p.markers[0].beat > 0 && p.markers[1].beat > p.markers[0].beat && p.clips.some((c) => c.lanes > 0) && /^Auto DJ set/.test(p.name), `project ${JSON.stringify(p)}`);
+    await page.evaluate(() => {
+      window.mixit.useAutoDj.getState().set({ queue: [] });
+      window.mixit.useApp.getState().set({ workspace: "mix", projectDirty: false });
+    });
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

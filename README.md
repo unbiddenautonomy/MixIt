@@ -22,6 +22,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - Auto DJ loops the last bars of a track that ends too soon after its mix-out point, so every mix gets its full length.
 - An Auto DJ queue that grades every change (smooth, needs care, rough) with the reason, puts itself in the order that mixes best, and fills a rough change with a library track that fits both sides.
 - Hear a mix first: any change in the Auto DJ queue, the next one while Auto DJ plays, or a suggested next track, rendered just as it will be mixed and played in your headphones, the mix Mix it is about to do, or the whole queue one change after another (Rehearse the set), so you can check a set before the audience hears it.
+- Make a mix: the Auto DJ queue becomes a finished Arrange project, every change as Auto DJ would play it, to fine-tune and render to a file.
 - **Mix it:** one button runs a whole transition (blend, bass swap, filter fade, echo out, cut, brake) on the beat, the way a DJ's hands would. On Smart it picks the transition, length and key shift from the two tracks, as Auto DJ does, and says why.
 - The same effects on the master, for a reverb wash or echo over the whole mix.
 - Eight sampler pads (Shift+1 to Shift+8) with a built-in synthesised kit (air horn, siren, riser, impact, drum and hi-hat loops and more), any audio file, a library track, or a loop captured from a deck. Pads play once, while held or as tempo-locked loops.
