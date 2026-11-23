@@ -330,6 +330,8 @@ try {
       window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
       return rows.map((r) => r.title);
     });
+    // Telemetry lags the stop: wait until no deck is on air, or the preview refuses to play.
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
     await page.hover('[data-testid="hear-mix-0"]', { force: true });
     await page.click('[data-testid="hear-mix-0"]');
     await page.waitForSelector('[data-testid="rehearsal-bar"] >> text=/the way Auto DJ mixes it/', { timeout: 10_000 });
@@ -585,6 +587,77 @@ try {
       return list ? (await b.playlistTracks(list.id)).map((t) => t.id) : null;
     });
     expect(JSON.stringify(got) === JSON.stringify(want), `saved ${JSON.stringify(got)}, queue ${JSON.stringify(want)}`);
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
+  });
+
+  await step("T mixes it and H hears it first, from the keyboard", async () => {
+    await page.evaluate(async () => {
+      const b = window.mixit.backend();
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      await b.seek(0, 40);
+      await b.action("deck.A.play", { type: "press" });
+      await b.action("deck.A.play", { type: "release" });
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      useTrackPreview.setState({ route: "headphones" });
+      document.activeElement?.blur?.();
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks[0].playing, null, { timeout: 3000 });
+    // The buttons' tooltips show their keys.
+    await page.hover('[data-testid="mix-it"]');
+    await page.waitForSelector('[role="tooltip"] >> text=/^T$/', { timeout: 3000 });
+    await page.mouse.move(5, 500);
+    await page.keyboard.press("h");
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().key === "mixer", null, { timeout: 5000 });
+    expect(!(await page.evaluate(() => window.mixit.useTransition.getState().running)), "H started the real mix");
+    await page.keyboard.press("t");
+    await page.waitForFunction(() => window.mixit.useTransition.getState().running, null, { timeout: 5000 });
+    const run = await page.evaluate(() => window.mixit.useTransition.getState().running);
+    expect(run.from === 0 && run.to === 1, `T mixed ${JSON.stringify(run)}`);
+    await page.evaluate(async () => {
+      const { cancelTransition } = await import("/src/lib/transition.ts");
+      const { stopMix } = await import("/src/store/rehearse.ts");
+      const { useTrackPreview } = await import("/src/store/trackPreview.ts");
+      cancelTransition();
+      stopMix();
+      useTrackPreview.setState({ route: "auto" });
+      const b = window.mixit.backend();
+      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
+        if (!d.playing) continue;
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      }
+    });
+    await page.waitForFunction(() => window.mixit.useTelemetry.getState().t.decks.every((d) => !d.playing), null, { timeout: 3000 });
+  });
+
+  await step("Try another transition re-renders the mix being heard", async () => {
+    await page.evaluate(async () => {
+      const rows = (await window.mixit.backend().search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 2);
+      window.mixit.useAutoDj.getState().set({ queue: rows, choices: {} });
+      window.mixit.useApp.getState().set({ workspace: "mix" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="hear-mix-0"]');
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    await page.selectOption('[data-testid="try-another"]', "brake");
+    await page.waitForFunction(() => window.mixit.useRehearse.getState().summary === "Brake stop" && window.mixit.useRehearse.getState().status === "ready", null, { timeout: 10_000 });
+    expect((await page.inputValue('[data-testid="choose-mix-0"]')) === "brake", "the queue line does not show the choice");
+    await page.click('[aria-label="Stop hearing the mix"]');
+    await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [], choices: {} }));
+  });
+
+  await step("an empty Auto DJ queue can be filled with a set built for you", async () => {
+    await page.evaluate(() => {
+      window.mixit.useAutoDj.getState().set({ queue: [] });
+      window.mixit.useApp.getState().set({ workspace: "library" });
+      window.mixit.useLibrary.getState().set({ source: { type: "autodj" } });
+    });
+    await page.click('[data-testid="autodj-build"]');
+    await page.click('[data-testid="build-go"]');
+    await page.waitForSelector('[data-testid="build-autodj"]', { timeout: 10_000 });
+    await page.click('[data-testid="build-autodj"]');
+    await page.waitForFunction(() => window.mixit.useAutoDj.getState().queue.length >= 3, null, { timeout: 3000 });
+    await page.waitForSelector('[data-testid="rehearse-set"]', { timeout: 3000 });
     await page.evaluate(() => window.mixit.useAutoDj.getState().set({ queue: [] }));
   });
 

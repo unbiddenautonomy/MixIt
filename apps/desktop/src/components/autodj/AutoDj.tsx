@@ -15,6 +15,7 @@ import { chooseTransition, clearQueue, mixNow, moveInQueue, removeFromQueue, sec
 import { useLibrary } from "../../store/library";
 import { addBridge, bridgeChoices, orderQueue, saveQueue } from "../../store/queueFlow";
 import { mixQueue } from "../../store/queueMix";
+import { openBuildSet } from "../library/BuildSetDialog";
 import { flow, summary, transition, type Grade } from "../../lib/setFlow";
 import { hearNext, hearPair, hearSet, stopMix, useRehearse } from "../../store/rehearse";
 import { useTelemetry } from "../../store/telemetry";
@@ -113,6 +114,11 @@ export function AutoDjView() {
               <div className="px-3 py-6 text-center text-xs leading-relaxed text-zinc-500">
                 Drag tracks here, or right-click tracks in the library and choose <b className="text-zinc-300">Add to Auto DJ</b>.
                 <br />A playlist's menu has <b className="text-zinc-300">Play with Auto DJ</b>.
+                <div className="mt-3">
+                  <Btn size="sm" tone="accent" onClick={() => openBuildSet()} title="MixIt picks tracks from your library for the length and energy you choose, every change mixable" data-testid="autodj-build">
+                    <Wand2 size={12} /> Build a set for me
+                  </Btn>
+                </div>
               </div>
             ) : (
               <ol>

@@ -1538,6 +1538,76 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         Some("auto-dj"),
     );
     b.add(
+        "app.mix_it",
+        "Mix it",
+        ag,
+        ActionKind::Trigger,
+        "Runs a whole transition into the other deck on the beat, picking the transition, length and key shift the way Auto DJ does.",
+        true,
+        Some("T"),
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.hear_mix",
+        "Hear the mix first",
+        ag,
+        ActionKind::Trigger,
+        "Plays the coming mix in your headphones before the audience hears it: Auto DJ's next mix, or what Mix it would do now.",
+        true,
+        Some("H"),
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.mix_now",
+        "Mix now",
+        ag,
+        ActionKind::Trigger,
+        "Starts Auto DJ's next mix right away instead of waiting for the planned point.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.rehearse_set",
+        "Rehearse the set",
+        ag,
+        ActionKind::Trigger,
+        "Plays every change in the Auto DJ queue one after another in your headphones, a few bars either side of each.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.make_mix",
+        "Make a mix from the queue",
+        ag,
+        ActionKind::Trigger,
+        "Turns the Auto DJ queue into a finished mix in Arrange, every change as Auto DJ would do it, ready to render.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.best_order",
+        "Best order for the queue",
+        ag,
+        ActionKind::Trigger,
+        "Reorders the Auto DJ queue so every change is as easy to mix as it can be, with the energy going your way.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
+        "app.save_queue",
+        "Save the queue as a playlist",
+        ag,
+        ActionKind::Trigger,
+        "Keeps the Auto DJ queue as a playlist in its order, to play again or share.",
+        true,
+        None,
+        Some("auto-dj"),
+    );
+    b.add(
         "app.sequencer",
         "Step sequencer",
         ag,

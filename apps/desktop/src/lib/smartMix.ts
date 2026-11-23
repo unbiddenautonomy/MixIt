@@ -3,11 +3,13 @@
 // the track's mix-out point. The plan is pure; `smartMix` carries it out on the decks.
 import { toast } from "sonner";
 import type { TrackDetail } from "../backend/types";
-import { useApp } from "../store/app";
+import { deckCount, useApp } from "../store/app";
+import { useAutoDj } from "../store/autodj";
+import { hearMix, hearNext } from "../store/rehearse";
 import { useTelemetry } from "../store/telemetry";
 import { setOn, setValue } from "./actions";
 import { DEFAULT_OPTIONS, planMix, secondsAtBeat, transitionName, type MixPlan, type PlanOptions } from "./autodj";
-import { mixItBeat, startTransition, type TransitionId } from "./transition";
+import { mixItBeat, startTransition, transitionPair, type TransitionId } from "./transition";
 
 /** The plan for mixing `out` (now at grid beat `nowBeat`) into `inc` as soon as the
  * music allows: the next phrase, or the next bar when the track ends sooner. */
@@ -75,4 +77,29 @@ export function mixItPlan(from: number, to: number, kind: TransitionId | "smart"
     reasons: [],
   };
   return { out, inc, plan };
+}
+
+/** Mix it from the keyboard or the command palette: a smart mix between the decks the
+ * mixer's Mix it button would use (the playing deck into the loaded one). */
+export function mixItNow(): void {
+  const pair = transitionPair(deckCount());
+  if (!pair) {
+    toast("Load a track on a deck first.");
+    return;
+  }
+  if (pair[0] === pair[1]) void startTransition(pair[0], pair[1], "blend", 32);
+  else void smartMix(pair[0], pair[1]);
+}
+
+/** Hears the coming mix first: Auto DJ's next one while it plays, else Mix it's smart mix. */
+export function hearComingMix(): void {
+  const s = useAutoDj.getState();
+  if (s.phase !== "off" && s.next) {
+    void hearNext();
+    return;
+  }
+  const pair = transitionPair(deckCount());
+  const m = pair ? mixItPlan(pair[0], pair[1], "smart", 32) : null;
+  if (!m) toast("Play the deck you are mixing out of first, with an analysed track loaded on another deck.");
+  else void hearMix("mixer", m.out, m.inc, m.plan);
 }

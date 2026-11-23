@@ -4,7 +4,10 @@
 import { Headphones, Loader2, Pause, Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { setupCanvas } from "../../lib/waveform";
-import { changeAt, nextChange, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
+import { changeAt, nextChange, retryChange, seekMix, stopMix, toggleMix, useRehearse } from "../../store/rehearse";
+import { useAutoDj } from "../../store/autodj";
+import { useApp } from "../../store/app";
+import type { TransitionId } from "../../lib/transition";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn } from "../ui/Button";
 import { previewPosition } from "./PreviewBar";
@@ -36,6 +39,7 @@ export function RehearsalBar() {
           <div className="truncate text-[12px] font-medium text-zinc-100">{title}</div>
           <div className="truncate text-[11px] text-zinc-400">{status === "loading" ? (many ? "Preparing every change… a long set takes a little while" : "Preparing the mix…") : many ? <NowHearing /> : `${summary}, the way Auto DJ mixes it`}</div>
         </div>
+        {key !== "mixer" && <TryAnother many={many} />}
         {many ? (
           <Btn size="sm" tone="ghost" disabled={status !== "ready"} onClick={() => nextChange(previewPosition())} title="Jump to a few seconds before the next change" data-testid="next-change">
             Next change
@@ -51,6 +55,46 @@ export function RehearsalBar() {
       </div>
       <MixStrip />
     </div>
+  );
+}
+
+/** The change being heard (polled while the set plays). */
+function useHearingIndex(many: boolean): number {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!many) return;
+    const id = window.setInterval(() => setI(changeAt(previewPosition())), 250);
+    return () => window.clearInterval(id);
+  }, [many]);
+  return many ? i : 0;
+}
+
+/** Try another transition for the change being heard: renders it again and plays it from
+ * just before that change, so the two can be compared. */
+function TryAnother({ many }: { many: boolean }) {
+  const i = useHearingIndex(many);
+  const ids = useRehearse((s) => s.changes[i]?.ids);
+  const status = useRehearse((s) => s.status);
+  const chosen = useAutoDj((s) => (ids ? s.choices[`${ids[0]}-${ids[1]}`] : undefined));
+  const transitions = useApp((s) => s.transitions);
+  if (!ids) return null;
+  return (
+    <select
+      value={chosen ?? ""}
+      disabled={status !== "ready"}
+      onChange={(e) => void retryChange(i, (e.target.value || null) as TransitionId | null)}
+      title={`Try another transition for ${many ? "the change you are hearing" : "this mix"}: MixIt makes it again and plays it from just before the change. Auto DJ, Make a mix and Rehearse the set keep your choice.`}
+      aria-label="Try another transition"
+      className="h-7 max-w-[9rem] shrink-0 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none disabled:opacity-50"
+      data-testid="try-another"
+    >
+      <option value="">Auto DJ's choice</option>
+      {transitions.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}
+        </option>
+      ))}
+    </select>
   );
 }
 
