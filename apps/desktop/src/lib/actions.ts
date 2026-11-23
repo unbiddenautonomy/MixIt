@@ -7,6 +7,7 @@ import { MASTER_FX, useApp } from "../store/app";
 import { mirrorMic, startMicRecording, stopMicRecording, toggleMicRecording } from "../store/mic";
 import { mirrorStudio } from "../store/studio";
 import { faderMoved } from "./performance";
+import { keyLabel } from "./platform";
 
 function report(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
@@ -131,13 +132,5 @@ export function findAction(id: string): ActionSpec | undefined {
   return useApp.getState().registry.find((a) => a.id === id);
 }
 
-export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-
-/** "Mod+K" → "⌘K" on macOS, "Ctrl+K" elsewhere. */
-export function shortcutLabel(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .split("+")
-    .map((k) => (k === "Mod" ? (isMac ? "⌘" : "Ctrl") : k === "Shift" ? (isMac ? "⇧" : "Shift") : k === "Alt" ? (isMac ? "⌥" : "Alt") : k))
-    .join(isMac ? "" : "+");
-}
+/** "Mod+K" → "⌘K" on macOS, "Ctrl+K" elsewhere (see lib/platform). */
+export const shortcutLabel = (s: string | null | undefined): string => keyLabel(s);

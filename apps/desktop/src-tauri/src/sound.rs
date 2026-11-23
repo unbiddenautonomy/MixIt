@@ -128,9 +128,8 @@ pub fn sound_close(id: u32) {
 }
 
 fn safe_name(name: &str) -> String {
-    let s: String = name.chars().map(|c| if c.is_alphanumeric() || " -_()".contains(c) { c } else { '_' }).collect();
-    let s = s.trim().to_string();
-    if s.is_empty() { "Edited sound".into() } else { s.chars().take(80).collect() }
+    let s: String = name.trim().chars().take(80).collect();
+    if s.trim().is_empty() { "Edited sound".into() } else { mixit_library::m3u::safe_file_name(&s) }
 }
 
 /// `dir/name.wav`, or `dir/name 2.wav` and so on when taken.

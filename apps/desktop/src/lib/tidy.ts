@@ -2,6 +2,7 @@
 // underscores, download-site junk, "ft." spellings, SHOUTING or all-lowercase names, and
 // genres spelled several ways. Every rule proposes changes; nothing is applied here.
 import type { TrackEdit, TrackRow } from "../backend/types";
+import { fileStem } from "./platform";
 
 export type TidyField = "title" | "artist" | "album" | "genre" | "label";
 
@@ -94,7 +95,7 @@ export function dropOriginalMix(s: string): string {
 
 /** "Artist - Title" from a file path ("01 Artist - Title (Remix).mp3"). */
 export function parseFileName(path: string): { artist: string; title: string } | null {
-  const stem = (path.split(/[\\/]/).pop() ?? "").replace(/\.[^.]{1,5}$/, "");
+  const stem = fileStem(path);
   let s = tidySpaces(stem.includes(" ") ? stem : stem.replace(/_+/g, " "));
   s = s.replace(/^\s*(?:\d{1,3}|[A-D]\d)\s*(?:[-.)_]\s*|\s+)(?=\p{L})/u, "");
   const m = /^(.+?)\s+[-–—]\s+(.+)$/.exec(s);
@@ -105,7 +106,7 @@ export function parseFileName(path: string): { artist: string; title: string } |
   return { artist, title };
 }
 
-const stemOf = (path: string) => (path.split(/[\\/]/).pop() ?? "").replace(/\.[^.]{1,5}$/, "");
+const stemOf = (path: string) => fileStem(path);
 
 /** The spelling most rows use for each genre (by its lowercase form). */
 export function genreSpellings(rows: Pick<TrackRow, "genre">[]): Map<string, string> {

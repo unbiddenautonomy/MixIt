@@ -35,7 +35,6 @@ serde_json.workspace = true
 parking_lot.workspace = true
 crossbeam-channel.workspace = true
 anyhow.workspace = true
-dirs.workspace = true
 mixit-cli = { path = "../../../crates/mixit-cli" }
 
 [lints]

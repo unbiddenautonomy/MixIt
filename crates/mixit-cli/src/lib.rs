@@ -8,11 +8,12 @@ pub mod resolve;
 use std::path::PathBuf;
 
 /// Where the library lives unless `--db` or `MIXIT_DB` says otherwise.
+/// The same file the desktop app uses (see `mixit_host::platform`).
 pub fn default_db_path() -> PathBuf {
-    dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("MixIt").join("library.db")
+    mixit_host::platform::AppDirs::system().db
 }
 
 /// Where decoded audio is cached for instant loading.
 pub fn default_cache_dir() -> PathBuf {
-    dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("MixIt").join("decoded")
+    mixit_host::platform::AppDirs::system().cache
 }

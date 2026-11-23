@@ -17,6 +17,7 @@ rtrb.workspace = true
 hound.workspace = true
 thiserror.workspace = true
 serde.workspace = true
+dirs.workspace = true
 
 [dev-dependencies]
 mixit-generator = { path = "../mixit-generator" }

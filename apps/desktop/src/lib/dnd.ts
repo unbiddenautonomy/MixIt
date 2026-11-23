@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { backend, isTauri } from "../backend";
 import { openProjectAt } from "../components/arrange/projectIo";
+import { fileName } from "./platform";
 
 export interface DropContext {
   x: number;
@@ -313,7 +314,7 @@ export function installFileDrop(): () => void {
 
 function describe(paths: string[]): string {
   const c = classify(paths);
-  if (c.audio.length === 1 && paths.length === 1) return paths[0].split(/[\\/]/).pop() ?? "1 track";
+  if (c.audio.length === 1 && paths.length === 1) return fileName(paths[0]) || "1 track";
   if (c.audio.length) return `${c.audio.length} tracks`;
   if (c.folders.length) return c.folders.length === 1 ? "A folder" : `${c.folders.length} folders`;
   if (c.projects.length) return "A mix project";

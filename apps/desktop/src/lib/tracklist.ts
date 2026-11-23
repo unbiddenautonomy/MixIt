@@ -3,6 +3,7 @@
 // site) and as a CUE sheet, which media players and mix sites read to show and skip
 // between the tracks of one long recording.
 import type { Capture } from "./capture";
+import { fileName } from "./platform";
 
 export interface TracklistEntry {
   /** Seconds into the recording when the track became clearly audible. */
@@ -65,7 +66,7 @@ function cueTime(s: number): string {
 const quote = (s: string) => `"${s.replace(/"/g, "'")}"`;
 
 export function cueSheet(entries: TracklistEntry[], audioFile: string, title: string, performer = "MixIt"): string {
-  const name = audioFile.split(/[\\/]/).pop() ?? audioFile;
+  const name = fileName(audioFile) || audioFile;
   const type = /\.mp3$/i.test(name) ? "MP3" : "WAVE";
   const lines = [`PERFORMER ${quote(performer)}`, `TITLE ${quote(title)}`, `FILE ${quote(name)} ${type}`];
   entries.forEach((e, i) => {

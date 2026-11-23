@@ -7,6 +7,7 @@
 import { DemoBackend, DEMO_KIT, emptyPad, kitPad, type DemoTrack } from "./demo";
 import type * as T from "./types";
 import { concat, encodeWav, parseWave, RenderCancelled, toPcm16, trimSilence, wavHeader, WebEngine, type AnalysisView, type GenerateRequest, type GridView, type RenderNeed, type RenderTrack } from "../web/engine";
+import { fileName } from "../lib/platform";
 
 const AUDIO = ["wav", "mp3", "flac", "aiff", "aif", "ogg", "m4a", "aac", "opus", "webm"];
 /** Ids for tracks the person adds (the generated library uses 1..120, practice 1001+). */
@@ -68,7 +69,7 @@ function download(blob: Blob, name: string) {
 }
 
 const ext = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
-const stem = (name: string) => name.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
+const stem = (name: string) => fileName(name).replace(/\.[^.]+$/, "");
 
 export class WebAudioBackend extends DemoBackend {
   readonly kind = "web" as const;
@@ -411,7 +412,7 @@ export class WebAudioBackend extends DemoBackend {
   }
 
   async saveText(path: string, text: string) {
-    download(new Blob([text], { type: "text/plain" }), path.split(/[\\/]/).pop() ?? path);
+    download(new Blob([text], { type: "text/plain" }), fileName(path) || path);
   }
 
   // ---------------------------------------------------------------- mic

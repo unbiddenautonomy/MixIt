@@ -2,7 +2,8 @@
 // down and up (hold CUE, hold a hot cue to preview), triggers fire once per press.
 import type { ActionSpec } from "../backend/types";
 import { useApp } from "../store/app";
-import { act, isMac } from "./actions";
+import { act } from "./actions";
+import { platform } from "./platform";
 
 type AppHandler = (id: string) => boolean;
 
@@ -14,7 +15,7 @@ const ALIASES: Record<string, string> = { BACKSPACE: "DELETE" };
 
 export function keyName(e: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">): string {
   const parts: string[] = [];
-  const mod = isMac ? e.metaKey : e.ctrlKey;
+  const mod = platform.modIsMeta ? e.metaKey : e.ctrlKey;
   if (mod) parts.push("Mod");
   if (e.altKey) parts.push("Alt");
   // With Shift or Alt the number row types symbols that depend on the keyboard layout
