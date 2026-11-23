@@ -182,12 +182,15 @@ function Header({ deck }: { deck: number }) {
           <BeatCounter deck={deck} />
           <TimeReadout deck={deck} />
           {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
-          <Ctl label="Edit track" explain="Open the track editor: fix the beat grid, name and colour cues, choose where the track starts and turn a passage into a loop or a sampler pad.">
-            <Btn size="sm" tone="ghost" onClick={() => openEditor(deck)} aria-label="Edit track">
-              <PencilLine size={12} />
-            </Btn>
-          </Ctl>
-          <EjectButton deck={deck} />
+          {/* Pinned to the right end when the readouts take their own row. */}
+          <div className="ml-auto flex items-center gap-1">
+            <Ctl label="Edit track" explain="Open the track editor: fix the beat grid, name and colour cues, choose where the track starts and turn a passage into a loop or a sampler pad.">
+              <Btn size="sm" tone="ghost" onClick={() => openEditor(deck)} aria-label="Edit track">
+                <PencilLine size={12} />
+              </Btn>
+            </Ctl>
+            <EjectButton deck={deck} />
+          </div>
         </div>
       )}
     </div>
