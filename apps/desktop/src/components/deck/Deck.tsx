@@ -57,7 +57,8 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
     <section
       style={{ ["--accent" as string]: color }}
       className={clsx(
-        "relative flex min-w-0 flex-col gap-2 rounded-2xl border bg-zinc-900/60 p-3 transition-colors",
+        // Fills its column so both decks line up with the mixer between them.
+        "relative flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border bg-zinc-900/60 p-3 transition-colors",
         over ? "border-[var(--accent)] bg-[var(--accent)]/5" : target ? "border-white/[0.12]" : "border-white/[0.06]",
       )}
       onPointerDown={() => useApp.getState().set({ targetDeck: deck })}
