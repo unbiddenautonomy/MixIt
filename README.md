@@ -18,6 +18,7 @@ A desktop app for DJ mixing, arranging and editing, built so a beginner makes a 
 - A now playing text file for streams (OBS and the like), with your own format.
 - A set clock: choose your set length or end time, watch it count down, and get warned before a track runs past the end.
 - 17 beat-synced effects per deck (echo, ping-pong, reverb, filter LFO, flanger, phaser, chorus, gater, slicer, beat repeat, bitcrusher, distortion, tape stop, pitch delay, ring modulator, noise riser, dub echo).
+- Auto DJ eases the tempo back to each new track's own speed after a mix, too slowly to notice, so a set is not stuck at its first track's tempo.
 - Auto DJ loops the last bars of a track that ends too soon after its mix-out point, so every mix gets its full length.
 - An Auto DJ queue that grades every change (smooth, needs care, rough) with the reason, puts itself in the order that mixes best, and fills a rough change with a library track that fits both sides.
 - Hear a mix first: any change in the Auto DJ queue, the next one while Auto DJ plays, or a suggested next track, rendered just as it will be mixed and played in your headphones, or the whole queue one change after another (Rehearse the set), so you can check a set before the audience hears it.
