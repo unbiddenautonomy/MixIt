@@ -34,6 +34,8 @@ import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, TagDto,
   TrackEdit,
   TrackRow,
   WaveformData,
+  WindowMessage,
+  Screen,
   WriteTagsResult,
 } from "./types";
 
@@ -235,6 +237,21 @@ export interface Backend {
   onHistoryChanged(cb: () => void): Unlisten;
   onAudioStatus(cb: (s: AudioStatus) => void): Unlisten;
   onError(cb: (message: string) => void): Unlisten;
+
+  // Windows on other screens (desktop app only; the browser keeps one window).
+  /** The connected screens, and the one the main window is on. */
+  screens?(): Promise<{ screens: Screen[]; main: string | null }>;
+  /** The screen under the mouse pointer. */
+  screenAtPointer?(): Promise<Screen | null>;
+  /** Opens a part of the screen ("library", "tools") in a window filling another screen. */
+  openPart?(part: string, screen: Screen): Promise<void>;
+  /** Closes a part's window, so it is back in the main window. */
+  closePart?(part: string): Promise<void>;
+  /** A part's window was closed (by the user or because its screen went away). */
+  onPartClosed?(cb: (part: string) => void): Unlisten;
+  /** Tells the app's other windows something. */
+  broadcast?(m: WindowMessage): void;
+  onBroadcast?(cb: (m: WindowMessage) => void): Unlisten;
 }
 
 let instance: Backend | null = null;

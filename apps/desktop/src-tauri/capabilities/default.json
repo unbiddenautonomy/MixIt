@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window: app commands, events and file dialogs.",
-  "windows": ["main"],
+  "description": "The main window and the parts opened on other screens: app commands, events and file dialogs.",
+  "windows": ["main", "part-*"],
   "permissions": ["core:default", "dialog:default", "dialog:allow-open", "dialog:allow-save"]
 }

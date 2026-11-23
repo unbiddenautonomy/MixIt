@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { backend } from "../../backend";
 import { plural } from "../../lib/format";
 import { useApp } from "../../store/app";
+import { MoveToScreen } from "../shell/MoveToScreen";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
 import { keepSoundsLike, refreshAll, refreshPlaylists, refreshRows, refreshStats } from "./data";
@@ -30,7 +31,8 @@ export async function addMusicFolder() {
   toast.message(`Scanning ${plural(dirs.length, "folder")}…`, { description: "Tracks appear as they are found, then MixIt analyses tempo, key and structure." });
 }
 
-export function Library({ full = false }: { full?: boolean }) {
+/** `movable`: offers to move the library to another screen (on the Mix screen, in the desktop app). */
+export function Library({ full = false, movable = false }: { full?: boolean; movable?: boolean }) {
   const source = useLibrary((s) => s.source);
   useEffect(() => {
     refreshAll();
@@ -39,7 +41,7 @@ export function Library({ full = false }: { full?: boolean }) {
     <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-900/40">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Toolbar />
+        <Toolbar movable={movable} />
         <SetFlow />
         <HistoryBar />
         {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : source.type === "insights" ? <InsightsView /> : <TrackTable />}
@@ -51,7 +53,7 @@ export function Library({ full = false }: { full?: boolean }) {
   );
 }
 
-function Toolbar() {
+function Toolbar({ movable }: { movable: boolean }) {
   const query = useLibrary((s) => s.query);
   const currentSession = useLibrary((s) => s.currentSession);
   const rows = useLibrary((s) => s.rows.length);
@@ -164,6 +166,7 @@ function Toolbar() {
           <FolderPlus size={12} /> Add music
         </Btn>
         <ImportExport />
+        {movable && <MoveToScreen part="library" />}
       </div>
     </div>
   );

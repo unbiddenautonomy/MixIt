@@ -18,6 +18,7 @@ import { useReport } from "../feedback/MixReport";
 import { MicPanel } from "../mic/MicPanel";
 import { EffectsTab, SamplerTab } from "../sampler/SamplerPanel";
 import { Btn } from "../ui/Button";
+import { MoveToScreen } from "./MoveToScreen";
 
 type TabSpec = { id: ToolTab; label: string; hint: string; icon: ComponentType<{ size?: number; className?: string }> };
 
@@ -96,11 +97,16 @@ function SizeButton({ label, onClick, children }: { label: string; onClick: () =
   );
 }
 
-export function ToolPanel() {
+/**
+ * `detached`: in a window of its own on another screen (no size buttons, all the room).
+ * `wide`: beside the decks with the library on another screen, so it takes the library's room.
+ */
+export function ToolPanel({ detached = false, wide = false }: { detached?: boolean; wide?: boolean }) {
   const tab = useApp((s) => s.toolTab);
-  const size = useApp((s) => s.toolSize);
+  const stored = useApp((s) => s.toolSize);
+  const size = detached ? "full" : stored;
   if (size === "closed") return <ToolRail />;
-  const full = size === "full";
+  const full = size === "full" || wide;
   const fullKey = findAction("app.tools_full")?.shortcut;
   return (
     <section
@@ -116,7 +122,8 @@ export function ToolPanel() {
           ))}
         </div>
         <span className="ml-auto" />
-        {full ? (
+        {!detached && <MoveToScreen part="tools" />}
+        {detached ? null : stored === "full" ? (
           <SizeButton label={`Back beside the library${fullKey ? ` (${shortcutLabel(fullKey)})` : ""}`} onClick={() => setTools({ toolSize: "docked" })}>
             <Minimize2 size={13} />
           </SizeButton>
@@ -125,9 +132,11 @@ export function ToolPanel() {
             <Maximize2 size={13} />
           </SizeButton>
         )}
-        <SizeButton label="Tuck away (keep just the buttons)" onClick={() => setTools({ toolSize: "closed" })}>
-          <PanelRightClose size={14} />
-        </SizeButton>
+        {!detached && (
+          <SizeButton label="Tuck away (keep just the buttons)" onClick={() => setTools({ toolSize: "closed" })}>
+            <PanelRightClose size={14} />
+          </SizeButton>
+        )}
       </div>
       <div className={clsx("flex min-h-0 flex-1 flex-col", full && "mx-auto w-full max-w-5xl")}>
         {tab === "pads" && <SamplerTab />}

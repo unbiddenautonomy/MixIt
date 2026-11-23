@@ -1,7 +1,8 @@
 //! The MixIt desktop app: a Tauri shell around the engine, library and jobs. The UI
 //! (React, in `apps/desktop/src`) talks to it through the commands in [`commands`] and
 //! listens to the events "telemetry", "deck-loaded", "deck-ended", "job",
-//! "library-changed", "history-changed", "audio-status" and "error".
+//! "library-changed", "history-changed", "audio-status", "error" and "part-closed".
+//! Parts of the screen can open in windows of their own on other screens ([`windows`]).
 
 pub mod audio;
 pub mod commands;
@@ -11,6 +12,7 @@ pub mod sampler;
 pub mod sound;
 pub mod state;
 pub mod telemetry;
+pub mod windows;
 
 use tauri::Manager;
 
@@ -26,6 +28,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
+        .on_window_event(windows::on_window_event)
         .setup(|app| {
             telemetry::spawn(app.handle().clone());
             let _ = app.state::<state::AppState>().session();
@@ -159,6 +162,8 @@ pub fn run() {
             commands::sampler_reset,
             commands::sampler_stop_all,
             commands::sampler_sequence,
+            windows::part_open,
+            windows::part_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MixIt");

@@ -720,3 +720,20 @@ export interface SoundOpened {
   name: string;
   view: SoundView;
 }
+
+/** A connected screen, in physical pixels (desktop app only). */
+export interface Screen {
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+}
+
+/** What the app's windows tell each other (desktop app only). */
+export type WindowMessage =
+  | { kind: "move"; part: string; screen: string | null }
+  | { kind: "hello" }
+  | { kind: "sync"; store: string; patch: Record<string, unknown> }
+  | { kind: "run"; id: string };

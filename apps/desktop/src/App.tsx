@@ -32,7 +32,10 @@ import { DragLayer } from "./components/ui/DragLayer";
 import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
 import { ToolPanel } from "./components/shell/ToolPanel";
-import { handleShortcut, openCapturedMix } from "./lib/appCommands";
+import { handleShortcut, openCapturedMix, runApp, toggleRecording } from "./lib/appCommands";
+import { PART_NAMES, thisPart, useScreens, watchScreens, type Part } from "./lib/screens";
+import { startWindowSync } from "./lib/windowSync";
+import { MoveToScreen } from "./components/shell/MoveToScreen";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
 import { useTheme } from "./lib/theme";
@@ -68,16 +71,20 @@ export function App() {
           pads: info.pads,
           ready: true,
         });
-        pushEngineState();
-        void refreshMic()
-          .then((m) => (m.status ? syncMic() : undefined))
-          .catch(() => undefined);
-        maybeWelcome();
+        // A part window on another screen shares the main window's engine and settings:
+        // it must not push its own defaults over them.
+        if (!thisPart) {
+          pushEngineState();
+          void refreshMic()
+            .then((m) => (m.status ? syncMic() : undefined))
+            .catch(() => undefined);
+          maybeWelcome();
+        }
         let libTimer = 0;
         off = [
           b.onTelemetry((t) => useTelemetry.getState().set(t)),
           b.onDeckLoaded((d) => useApp.getState().setDeck(d)),
-          b.onDeckEnded((deck) => toast.message(`Deck ${String.fromCharCode(65 + deck)} reached the end`)),
+          b.onDeckEnded((deck) => (thisPart ? undefined : toast.message(`Deck ${String.fromCharCode(65 + deck)} reached the end`))),
           b.onJob((j) => {
             useApp.getState().setJob(j);
             if (j.finished) {
@@ -109,6 +116,7 @@ export function App() {
           }),
           b.onAudioStatus((a) => {
             useApp.getState().set({ audio: a });
+            if (thisPart) return;
             // A new device restarts the engine with default mixer and FX values.
             pushEngineState();
             void refreshMic()
@@ -116,8 +124,10 @@ export function App() {
               .catch(() => undefined);
             if (a.warning) toast.warning(a.warning);
           }),
-          b.onError((m) => toast.error(m)),
+          b.onError((m) => (thisPart ? undefined : toast.error(m))),
           installKeyboard(handleShortcut),
+          watchScreens(),
+          startWindowSync(!thisPart, (id) => (id === "global.record" ? void toggleRecording() : runApp(id))),
         ];
       } catch (e) {
         useApp.getState().set({ error: e instanceof Error ? e.message : String(e) });
@@ -146,6 +156,8 @@ export function App() {
       </div>
     );
   }
+
+  if (thisPart) return <PartWindow part={thisPart} theme={theme} />;
 
   return (
     <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
@@ -178,10 +190,36 @@ export function App() {
   );
 }
 
+/** A part of the main screen in a window of its own, on another screen. */
+function PartWindow({ part, theme }: { part: Part; theme: string }) {
+  return (
+    <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
+      <div className="app-root flex h-full flex-col gap-2 bg-zinc-950 p-2 text-zinc-200">
+        <header className="flex h-8 shrink-0 items-center gap-2 px-1">
+          <span className="wordmark text-sm font-bold tracking-tight text-zinc-100">MixIt</span>
+          <span className="text-xs text-zinc-400">{PART_NAMES[part]}</span>
+          <span className="ml-auto" />
+          <MoveToScreen part={part} />
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col">{part === "library" ? <Library full /> : <ToolPanel detached />}</div>
+      </div>
+      <CommandPalette />
+      <TrackEditor />
+      <SoundEditor />
+      <DialogHost />
+      <DragLayer />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" closeButton />
+    </Tooltip.Provider>
+  );
+}
+
 function MixView() {
   const count = useApp((s) => s.settings?.decks ?? 2);
   const libraryHeight = useApp((s) => s.libraryHeight);
-  const full = useApp((s) => s.toolSize === "full");
+  // The library and the tools panel may be on other screens.
+  const libraryAway = useScreens((s) => !!s.placement.library);
+  const toolsAway = useScreens((s) => !!s.placement.tools);
+  const full = useApp((s) => s.toolSize === "full") && !toolsAway;
   const loaded = useApp((s) => s.decks.map((d) => (d ? 1 : 0)).join(""));
   const four = count > 2;
   // Empty C and D lanes would only take space from the library.
@@ -213,13 +251,19 @@ function MixView() {
         </div>
       </div>
       <Coach />
-      <Splitter />
-      <div className="flex min-h-[140px] gap-2" style={{ height: libraryHeight, flex: "1 1 auto" }}>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Library />
-        </div>
-        <ToolPanel />
-      </div>
+      {!(libraryAway && toolsAway) && (
+        <>
+          <Splitter />
+          <div className="flex min-h-[140px] gap-2" style={{ height: libraryHeight, flex: "1 1 auto" }}>
+            {!libraryAway && (
+              <div className="flex min-w-0 flex-1 flex-col">
+                <Library movable />
+              </div>
+            )}
+            {!toolsAway && <ToolPanel wide={libraryAway} />}
+          </div>
+        </>
+      )}
     </>
   );
 }
