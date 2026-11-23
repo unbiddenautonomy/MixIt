@@ -1539,13 +1539,33 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
     );
     b.add(
         "app.sampler",
-        "Sampler and master FX",
+        "Sampler pads",
         ag,
         ActionKind::Toggle,
-        "Shows or hides the sampler pads and the effects on the whole mix.",
+        "Shows or hides the sampler pads in the tools panel under the decks.",
         true,
         Some("Mod+P"),
         Some("sampler"),
+    );
+    b.add(
+        "app.tools",
+        "Tools panel",
+        ag,
+        ActionKind::Toggle,
+        "Shows or tucks away the tools panel under the decks: pads, step sequencer, effects, mic and recording.",
+        true,
+        Some("Mod+Shift+T"),
+        None,
+    );
+    b.add(
+        "app.tools_full",
+        "Tools full screen",
+        ag,
+        ActionKind::Toggle,
+        "Gives the tools panel the whole screen under the waveforms, or puts it back beside the library.",
+        true,
+        Some("Mod+Shift+F"),
+        None,
     );
     b.add(
         "app.guide",

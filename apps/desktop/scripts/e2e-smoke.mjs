@@ -670,6 +670,21 @@ try {
     await page.waitForFunction(() => window.mixit.useApp.getState().mixer.bypass === false, null, { timeout: 3000 });
   });
 
+  await step("tools panel switches tabs, fills the screen and tucks away", async () => {
+    await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix", toolSize: "docked" }));
+    await page.click('[data-testid="tool-tab-effects"]');
+    await page.waitForSelector('section[aria-label="Tools"] >> text=Whole mix', { timeout: 3000 });
+    await page.click('[data-testid="tool-tab-recording"]');
+    await page.waitForSelector('[aria-label="Start recording"]', { timeout: 3000 });
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+F" : "Control+Shift+F");
+    await page.waitForSelector('[data-testid="tool-panel"][data-size="full"]', { timeout: 3000 });
+    await page.click('[aria-label^="Back beside the library"]');
+    await page.click('[aria-label^="Tuck away"]');
+    await page.waitForSelector('[data-testid="tool-panel"][data-size="closed"]', { timeout: 3000 });
+    await page.click('[data-testid="tool-tab-pads"]');
+    await page.waitForSelector('[data-testid="tool-panel"][data-size="docked"] [aria-label="Sampler pads"]', { timeout: 3000 });
+  });
+
   await step("no errors in the console", async () => {
     expect(errors.length === 0, errors.slice(0, 5).join(" | "));
   });

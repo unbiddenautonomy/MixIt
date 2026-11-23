@@ -14,7 +14,7 @@ import { withLiveSound } from "../store/studio";
 import { toast } from "sonner";
 import { backend } from "../backend";
 import type { Settings } from "../backend/types";
-import { useApp, type Workspace } from "../store/app";
+import { openTool, setTools, useApp, type Workspace } from "../store/app";
 import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
@@ -157,7 +157,15 @@ export function runApp(id: string): boolean {
       openProject();
       return true;
     case "sampler":
-      s.set(s.workspace === "mix" ? { samplerOpen: !s.samplerOpen } : { workspace: "mix", samplerOpen: true });
+      openTool("pads", true);
+      return true;
+    case "tools":
+      if (s.workspace === "mix" && s.toolSize !== "closed") setTools({ toolSize: "closed" });
+      else openTool(s.toolTab);
+      return true;
+    case "tools_full":
+      if (s.workspace !== "mix") s.set({ workspace: "mix" });
+      setTools({ toolSize: s.workspace === "mix" && s.toolSize === "full" ? "docked" : "full" });
       return true;
     case "guide":
       s.set({ guideOpen: !s.guideOpen });
@@ -192,7 +200,7 @@ export function runApp(id: string): boolean {
       void saveQueue();
       return true;
     case "sequencer":
-      s.set({ workspace: "mix", samplerOpen: true, samplerTab: "seq" });
+      openTool("steps");
       toggleSequencer();
       return true;
     case "assistant":

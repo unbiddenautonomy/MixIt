@@ -1,10 +1,10 @@
-// The sampler pads and the master effects, in a panel beside the library. Pads play
+// The sampler pads and the effects tabs of the tools panel. Pads play
 // sounds on top of the mix: the built-in kit (air horn, riser, drum loop...), any audio
 // file, a whole library track, or a loop captured from a deck.
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import clsx from "clsx";
-import { Check, ChevronDown, Hand, Loader2, MoreHorizontal, Play, Repeat, Square, X } from "lucide-react";
+import { Check, ChevronDown, Hand, Loader2, MoreHorizontal, Play, Repeat, Square } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -21,7 +21,6 @@ import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { Knob } from "../ui/Knob";
 import { Sequencer } from "./Sequencer";
-import { useSequencer } from "../../store/sequencer";
 
 export const PAD_MODES = ["Once", "Hold", "Loop"] as const;
 const PAD_MODE_HELP = ["Plays to the end once per press.", "Plays only while you hold the pad.", "Repeats in time until you press the pad again."];
@@ -399,25 +398,13 @@ function PadsMaster() {
   );
 }
 
-export function SamplerPanel() {
-  const tab = useApp((s) => s.samplerTab);
-  const setTab = (samplerTab: "pads" | "seq" | "fx") => useApp.getState().set({ samplerTab });
-  const seqOn = useSequencer((s) => s.on);
-  const masterFxOn = useApp((s) => s.mixer.fx[MASTER_FX].some((f) => f.on && f.type !== 0));
+/** The sampler's tab in the tools panel: the pads, or the step sequencer that plays them. */
+export function SamplerTab({ steps }: { steps?: boolean }) {
   return (
-    <section className="flex w-[300px] shrink-0 flex-col gap-2 rounded-xl border border-white/[0.06] bg-zinc-900/60 p-2" aria-label="Sampler and master effects">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" aria-label={steps ? "Step sequencer" : "Sampler pads"}>
       <div className="flex items-center gap-1.5">
-        <Segmented
-          className="shrink-0 whitespace-nowrap"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "pads", label: "Pads", title: "Pads that play sounds on top of your mix" },
-            { value: "seq", label: <span className="inline-flex items-center gap-1">Steps{seqOn && <span className="size-1.5 rounded-full bg-[var(--accent)]" />}</span>, title: "Step sequencer: play the pads in a pattern on the beat" },
-            { value: "fx", label: <span className="inline-flex items-center gap-1">Master FX{masterFxOn && <span className="size-1.5 rounded-full bg-[var(--accent)]" />}</span>, title: "Effects on the whole mix" },
-          ]}
-        />
-        {tab !== "fx" ? <PadsMaster /> : <span className="ml-auto" />}
+        <span className="text-[11px] leading-snug text-zinc-400">{steps ? "Plays the pads in a pattern on the beat." : "Sounds you play on top of your mix."}</span>
+        <PadsMaster />
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button type="button" aria-label="Sampler options" className="flex size-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100">
@@ -435,20 +422,28 @@ export function SamplerPanel() {
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
-        <button type="button" aria-label="Hide the sampler" onClick={() => useApp.getState().set({ samplerOpen: false })} className="flex size-6 items-center justify-center rounded-md text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100">
-          <X size={14} />
-        </button>
       </div>
-      {tab === "pads" ? (
-        <Pads />
-      ) : tab === "seq" ? (
-        <Sequencer />
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          <p className="text-[11px] leading-snug text-zinc-400">Effects on everything the audience hears, after the mixer. Try a reverb wash or an echo at the end of a set.</p>
-          <FxUnit unit={MASTER_FX} stacked />
+      {steps ? <Sequencer /> : <Pads />}
+    </div>
+  );
+}
+
+/** The effects tab: the effects on the whole mix, then each deck's effects in full. */
+export function EffectsTab() {
+  const count = useApp((s) => s.settings?.decks ?? 2);
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" aria-label="Effects">
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Whole mix</div>
+        <p className="text-[11px] leading-snug text-zinc-400">Effects on everything the audience hears, after the mixer. Try a reverb wash or an echo at the end of a set.</p>
+        <FxUnit unit={MASTER_FX} stacked />
+      </div>
+      {Array.from({ length: count }, (_, d) => (
+        <div key={d} className="flex flex-col gap-1.5">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Deck {DECK_LETTERS[d]}</div>
+          <FxUnit unit={d} stacked />
         </div>
-      )}
-    </section>
+      ))}
+    </div>
   );
 }

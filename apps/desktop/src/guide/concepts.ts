@@ -311,7 +311,7 @@ export const CONCEPTS: Concept[] = [
     summary: "Echo, reverb, flanger and more, on one deck or on the whole mix.",
     body: [
       "Each deck has effect slots. Pick an effect, switch it on, and set its amount. Effects that repeat (echo, delay) follow the beat, so the repeats land in time.",
-      "Echo while fading a track out leaves a trail instead of a sudden stop. The master FX (in the sampler panel) affect the whole mix. Remember to switch effects off when you are done.",
+      "Echo while fading a track out leaves a trail instead of a sudden stop. The effects on the whole mix are in the Effects tab of the tools panel under the decks. Remember to switch effects off when you are done.",
     ],
     controls: ["fx.A.1.type", "fx.A.1.on", "fx.A.1.mix", "fx.A.1.beats"],
     tab: "fx",
@@ -373,7 +373,7 @@ export const CONCEPTS: Concept[] = [
     group: "Effects and tricks",
     summary: "Talk to the crowd, record your own sounds, or bring in a turntable or phone.",
     body: [
-      "Turn the mic on from the mic button at the top. It gets its own channel on the left of the mixer. Speak and watch the level bar: turn the gain up until your voice reaches about two thirds of the bar, and never into the red.",
+      "Turn the mic on from the mic button at the top, which opens the Mic tab under the decks. It gets its own channel on the left of the mixer. Speak and watch the level bar: turn the gain up until your voice reaches about two thirds of the bar, and never into the red.",
       "Press Go on air when you want the audience to hear you. Wear headphones, or keep the mic away from the speakers: a mic that hears the speakers feeds back into itself and howls.",
       "You can also record from the mic: a short shout or tag goes onto a sampler pad with the silence cut off, and a longer take (a turntable, a phone, a jam) goes into your library as a track you can mix like any other.",
     ],

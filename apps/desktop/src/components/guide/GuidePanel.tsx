@@ -13,7 +13,7 @@ import { currentStep, labMemory, PRACTICE_TITLES, runLab, showControls, useGuide
 import { loadPractice, setupLab } from "../../guide/setup";
 import { startTour } from "../../guide/tour";
 import { deckList, detectProblems, PROBLEMS, problemControls, type Problem } from "../../guide/troubleshoot";
-import { useApp } from "../../store/app";
+import { openTool, useApp } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
 
@@ -31,7 +31,8 @@ export function reveal(ids: string[], tab?: [number, string]) {
   if (ids.length === 0) return;
   const s = useApp.getState();
   if (ids.some(onMixScreen) && s.workspace !== "mix") s.set({ workspace: "mix" });
-  if (ids.some((id) => id.startsWith("fx.master") || id.startsWith("sampler."))) s.set({ samplerOpen: true });
+  if (ids.some((id) => id.startsWith("fx.master"))) openTool("effects");
+  else if (ids.some((id) => id.startsWith("sampler."))) openTool("pads");
   const fxDeck = ids.map((id) => /^fx\.([A-D])\./.exec(id)?.[1]).find(Boolean);
   const t = tab ?? (fxDeck ? [fxDeck.charCodeAt(0) - 65, "fx"] : undefined);
   if (t) s.set({ padTabs: s.padTabs.map((x, i) => (i === t[0] ? t[1] : x)) });
@@ -573,7 +574,7 @@ function ChainTab() {
     {
       id: "mfx",
       name: "Master FX",
-      what: "Effects on the whole mix, in the sampler panel.",
+      what: "Effects on the whole mix, in the Effects tab under the decks.",
       controls: () => ["fx.master.1.on", "fx.master.2.on", "fx.master.3.on"],
       state: () => {
         const on = (s.mixer.fx[4] ?? []).filter((f) => f.on && f.type !== 0).map((f) => fxNames[f.type] ?? "effect");

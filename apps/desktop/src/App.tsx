@@ -15,7 +15,6 @@ import { refreshCare, refreshRows, refreshSessions, refreshStats, refreshTags } 
 import { Library } from "./components/library/Library";
 import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
-import { SamplerPanel } from "./components/sampler/SamplerPanel";
 import { StudioPanel } from "./components/studio/StudioPanel";
 import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
@@ -32,6 +31,7 @@ import { maybeWelcome } from "./guide/tour";
 import { DragLayer } from "./components/ui/DragLayer";
 import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
+import { ToolPanel } from "./components/shell/ToolPanel";
 import { handleShortcut, openCapturedMix } from "./lib/appCommands";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
@@ -181,11 +181,23 @@ export function App() {
 function MixView() {
   const count = useApp((s) => s.settings?.decks ?? 2);
   const libraryHeight = useApp((s) => s.libraryHeight);
-  const samplerOpen = useApp((s) => s.samplerOpen);
+  const full = useApp((s) => s.toolSize === "full");
   const loaded = useApp((s) => s.decks.map((d) => (d ? 1 : 0)).join(""));
   const four = count > 2;
   // Empty C and D lanes would only take space from the library.
   const decks = four ? [0, 1, 2, 3].filter((d) => d < 2 || loaded[d] === "1") : [0, 1];
+  // With the tools panel on the whole screen the decks and library step aside, but the
+  // waveforms of what is playing always stay in view.
+  if (full) {
+    return (
+      <>
+        <WaveStack decks={decks} />
+        <div className="flex min-h-0 flex-1 gap-2">
+          <ToolPanel />
+        </div>
+      </>
+    );
+  }
   return (
     <>
       <WaveStack decks={decks} />
@@ -206,7 +218,7 @@ function MixView() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Library />
         </div>
-        {samplerOpen && <SamplerPanel />}
+        <ToolPanel />
       </div>
     </>
   );

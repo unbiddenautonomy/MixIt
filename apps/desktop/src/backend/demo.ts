@@ -2348,7 +2348,9 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.save", "Save mix project", "App", { type: "trigger" }, "Saves the mix project you are arranging.", "Mod+S");
   add("app.save_as", "Save mix project as", "App", { type: "trigger" }, "Saves the mix project under a new name.", "Mod+Shift+S", false);
   add("app.open", "Open mix project", "App", { type: "trigger" }, "Opens a saved mix project in Arrange.", "Mod+O");
-  add("app.sampler", "Sampler and master FX", "App", { type: "toggle" }, "Shows or hides the sampler pads and the effects on the whole mix.", "Mod+P");
+  add("app.sampler", "Sampler pads", "App", { type: "toggle" }, "Shows or hides the sampler pads in the tools panel under the decks.", "Mod+P");
+  add("app.tools", "Tools panel", "App", { type: "toggle" }, "Shows or tucks away the tools panel under the decks: pads, step sequencer, effects, mic and recording.", "Mod+Shift+T");
+  add("app.tools_full", "Tools full screen", "App", { type: "toggle" }, "Gives the tools panel the whole screen under the waveforms, or puts it back beside the library.", "Mod+Shift+F");
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
   add("app.sequencer", "Step sequencer", "App", { type: "toggle" }, "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.", null);
   add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);
