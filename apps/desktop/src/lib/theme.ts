@@ -1,11 +1,12 @@
-// Applies the chosen theme ("dark", "light" or "system") to the document.
+// Applies the chosen theme ("dark", "light", "system" or "lounge") to the document.
 import { useEffect, useState } from "react";
 import { useApp } from "../store/app";
 
-export type ResolvedTheme = "dark" | "light";
+export type ResolvedTheme = "dark" | "light" | "lounge";
 
 export function resolveTheme(choice: string | undefined, systemLight: boolean): ResolvedTheme {
   if (choice === "light") return "light";
+  if (choice === "lounge") return "lounge";
   if (choice === "system") return systemLight ? "light" : "dark";
   return "dark";
 }

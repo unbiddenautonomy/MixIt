@@ -18,6 +18,14 @@
   --knob-edge: rgba(255, 255, 255, 0.08);
   --knob-pointer: #f4f4f5;
   --scroll-thumb: rgba(255, 255, 255, 0.12);
+  /*
+   * Secondary and hint text. Tailwind's zinc-500 and zinc-600 are too dim for the
+   * small labels they are used for here (about 4:1 and 2.6:1 on the near-black
+   * background), so they are lifted to read comfortably (about 6:1 and 3.9:1).
+   * Only text uses these two shades.
+   */
+  --color-zinc-500: #8e8e98;
+  --color-zinc-600: #6b6b75;
 }
 
 /* Elements whose accent may be overridden inline recompute their ink colour. */
@@ -40,7 +48,7 @@
   --color-zinc-300: #3f3f46;
   --color-zinc-400: #52525b;
   --color-zinc-500: #6b6b74;
-  --color-zinc-600: #9f9fa9;
+  --color-zinc-600: #85858f;
   --color-zinc-700: #c4c4cb;
   --color-zinc-800: #dcdce0;
   --color-zinc-900: #fbfbfc;
@@ -108,6 +116,85 @@
 }
 :root[data-theme="light"] .screen.screen-bg {
   background-color: #0b0b0e;
+}
+
+/*
+ * Lounge: an optional, richer dark theme. Deep olive green, like card-table felt, with
+ * an ochre glow from the top, gold for the main actions and hairlines, and the zinc scale tinted
+ * warm. Everything that carries meaning (deck colours, play, cue, warnings, key
+ * colours) keeps its usual colour, and text keeps at least the dark theme's contrast.
+ */
+:root[data-theme="lounge"] {
+  color-scheme: dark;
+  --accent: #e9c45c;
+  --ink: 100%;
+  --color-zinc-50: #fbf8ec;
+  --color-zinc-100: #f4f0de;
+  --color-zinc-200: #e8e2c9;
+  --color-zinc-300: #d3ccad;
+  --color-zinc-400: #bdb592;
+  --color-zinc-500: #a5a07c;
+  --color-zinc-600: #8a8665;
+  --color-zinc-700: #55593b;
+  --color-zinc-800: #3d442c;
+  --color-zinc-900: #2c3320;
+  --color-zinc-950: #1d2316;
+  /* Tailwind's white/x hairlines and washes pick up a faint champagne tint. */
+  --color-white: #fff4d6;
+  --knob-face-a: #5e6444;
+  --knob-face-b: #232a1a;
+  --knob-edge: rgba(230, 195, 119, 0.18);
+  --knob-pointer: #f3dfb0;
+  --scroll-thumb: rgba(230, 195, 119, 0.18);
+}
+:root[data-theme="lounge"] body,
+:root[data-theme="lounge"] .app-root {
+  background:
+    radial-gradient(110% 70% at 50% -15%, rgba(204, 150, 40, 0.34), transparent 62%),
+    radial-gradient(90% 60% at 50% 115%, rgba(70, 120, 50, 0.4), transparent 65%),
+    #1d2316;
+}
+/* A thin gold line under the top bar, like trim on a table edge. */
+:root[data-theme="lounge"] header {
+  border-bottom-color: transparent;
+  box-shadow:
+    0 1px 0 rgba(230, 195, 119, 0.28),
+    0 10px 30px -20px rgba(230, 195, 119, 0.35);
+}
+/* Panels: glassy, with a fine gold edge and a faint lit top. */
+:root[data-theme="lounge"] .rounded-2xl.border,
+:root[data-theme="lounge"] .rounded-xl.border {
+  border-color: rgba(233, 196, 92, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 236, 200, 0.06),
+    0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(6px);
+}
+/* Waveforms and meters keep a deep display so the colours read clearly. */
+:root[data-theme="lounge"] .screen {
+  --color-zinc-950: #0f120b;
+  --color-zinc-900: #181c12;
+}
+:root[data-theme="lounge"] .screen.screen-bg {
+  background-color: #0f120b;
+}
+/* The chosen tab in a switch (Mix/Library/Arrange, Easy/Pro) is lit in gold. */
+:root[data-theme="lounge"] .bg-white\/15 {
+  background-color: rgba(230, 195, 119, 0.2);
+  color: #fbe8bd;
+  box-shadow: inset 0 0 0 1px rgba(230, 195, 119, 0.35);
+}
+/* The wordmark in gold leaf. */
+:root[data-theme="lounge"] .wordmark {
+  background: linear-gradient(180deg, #fbe7b5 0%, #e6c377 45%, #b98a3c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Menus get a gold edge. */
+:root[data-theme="lounge"] .menu {
+  border-color: rgba(230, 195, 119, 0.22);
+  background-color: rgba(36, 42, 28, 0.97);
 }
 
 html,
