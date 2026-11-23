@@ -144,18 +144,8 @@ function HelpMenu({ explain, coach }: { explain: boolean; coach: boolean }) {
 }
 
 function Logo() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <defs>
-        <linearGradient id="mx-logo" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#38bdf8" />
-          <stop offset="1" stopColor="#f59e0b" />
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10.5" fill="none" stroke="url(#mx-logo)" strokeWidth="2.2" />
-      <path d="M6.5 15.5 9.5 8.5 12 13l2.5-4.5 3 7" fill="none" style={{ stroke: "var(--color-zinc-100)" }} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  // The same artwork as the app icon (src-tauri/icons), so the top bar matches the Dock and Start menu.
+  return <img src="/logo.png" width={22} height={22} alt="" aria-hidden draggable={false} className="rounded-[5px]" />;
 }
 
 function MasterClock() {
