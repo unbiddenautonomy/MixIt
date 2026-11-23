@@ -7,6 +7,7 @@ import { Headphones, SlidersHorizontal, SlidersVertical, Sparkles, Square } from
 import { useMemo, useState } from "react";
 import { choose, setOn, setValue } from "../../lib/actions";
 import { startTransition, cancelTransition, useTransition, type TransitionId } from "../../lib/transition";
+import { smartMix } from "../../lib/smartMix";
 import { useApp, usePro } from "../../store/app";
 import { useDeckTele, useTelemetry } from "../../store/telemetry";
 import { Btn, Segmented } from "../ui/Button";
@@ -210,12 +211,16 @@ export function transitionPair(count: number): [number, number] | null {
   return to === undefined ? null : [from, to];
 }
 
+const SMART_EXPLAIN =
+  "Picks the transition for these two tracks the way Auto DJ does: a bass swap for two heavy tracks, a filter fade for clashing keys or a big drop in energy, an echo out across very different tempos, a long blend when everything fits. It also picks the length, shifts a clashing key, loops a short ending and waits for a sung line to finish. A message says what it chose and why.";
+
 function MixIt({ count }: { count: number }) {
   const transitions = useApp((s) => s.transitions);
   const running = useTransition((s) => s.running);
-  const [kind, setKind] = useState<TransitionId>("blend");
+  const [kind, setKind] = useState<TransitionId | "smart">("smart");
   const [beats, setBeats] = useState<number | null>(null);
   const info = useMemo(() => transitions.find((t) => t.id === kind), [transitions, kind]);
+  const smart = kind === "smart";
   const len = beats ?? info?.beats ?? 32;
   // Re-render on deck state so the label shows the right pair.
   const pairKey = useTelemetry((s) =>
@@ -249,8 +254,9 @@ function MixIt({ count }: { count: number }) {
 
   return (
     <div className="flex items-center gap-1">
-      <Ctl label="Transition" explain={info?.explain} className="min-w-0 flex-1">
-        <select value={kind} onChange={(e) => setKind(e.target.value as TransitionId)} className="h-7 w-full min-w-0 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none">
+      <Ctl label="Transition" explain={smart ? SMART_EXPLAIN : info?.explain} className="min-w-0 flex-1">
+        <select value={kind} onChange={(e) => setKind(e.target.value as TransitionId | "smart")} className="h-7 w-full min-w-0 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" data-testid="mix-kind">
+          <option value="smart">Smart</option>
           {transitions.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -258,7 +264,7 @@ function MixIt({ count }: { count: number }) {
           ))}
         </select>
       </Ctl>
-      {kind !== "cut" && (
+      {kind !== "cut" && !smart && (
         <select value={len} onChange={(e) => setBeats(Number(e.target.value))} className="h-7 w-12 rounded-md border border-white/10 bg-zinc-900 px-0.5 font-mono text-[11px] text-zinc-300 outline-none" title="Length in beats">
           {[4, 8, 16, 32, 64].map((b) => (
             <option key={b} value={b}>
@@ -268,7 +274,7 @@ function MixIt({ count }: { count: number }) {
         </select>
       )}
       <Ctl label="Mix it" explain="Runs the whole transition for you, on the beat: syncs the next track, starts it at the top of the next 8-bar phrase so both tracks line up, and moves the faders and EQs like a DJ would. Touch any control to take over.">
-        <Btn tone="accent" className="whitespace-nowrap" style={{ ["--accent" as string]: pair ? DECK_COLORS[pair[1]] : "#a1a1aa" }} disabled={!pair} onClick={() => pair && startTransition(pair[0], pair[1], kind, kind === "cut" ? 0 : len)}>
+        <Btn tone="accent" className="whitespace-nowrap" style={{ ["--accent" as string]: pair ? DECK_COLORS[pair[1]] : "#a1a1aa" }} disabled={!pair} onClick={() => pair && (kind === "smart" ? (pair[0] === pair[1] ? startTransition(pair[0], pair[1], "blend", 32) : void smartMix(pair[0], pair[1])) : startTransition(pair[0], pair[1], kind, kind === "cut" ? 0 : len))} data-testid="mix-it">
           <Sparkles size={13} />
           {pair ? (pair[0] === pair[1] ? `Start ${L(pair[0])}` : `Mix ${L(pair[0])}→${L(pair[1])}`) : "Mix it"}
         </Btn>
