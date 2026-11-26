@@ -190,6 +190,7 @@ fn run(dir: &Path, cmd: &str, mut line: impl FnMut(&str)) -> R<()> {
 }
 
 /// Puts the app at `new` where `old` is, keeping the old one until the new one is in.
+/// The built copy is removed afterwards, so the system doesn't list a second MixIt.
 fn replace(old: &Path, new: &Path) -> R<()> {
     let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let aside = old.with_extension(format!("app.old-{stamp}"));
@@ -202,6 +203,7 @@ fn replace(old: &Path, new: &Path) -> R<()> {
         return Err(format!("Couldn't copy the new app into {}", old.display()));
     }
     let _ = std::fs::remove_dir_all(&aside);
+    let _ = std::fs::remove_dir_all(new);
     Ok(())
 }
 
