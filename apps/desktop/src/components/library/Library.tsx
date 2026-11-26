@@ -79,7 +79,7 @@ function Toolbar({ movable }: { movable: boolean }) {
 
   const title =
     source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : source.type === "similar" ? `Sounds like “${source.title}”` : source.type === "described" ? `Sounds like “${source.text}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
-  const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
+  const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render" && j.kind !== "update");
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b border-white/[0.06] px-3">

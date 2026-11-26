@@ -108,6 +108,18 @@ export class TauriBackend implements Backend {
   soundSearchStatus() {
     return invoke<T.SoundSearchStatus>("sound_search_status");
   }
+  updateCheck() {
+    return invoke<T.UpdateStatus>("update_check");
+  }
+  updateInstall() {
+    return invoke<void>("update_install");
+  }
+  updateCancel() {
+    return invoke<void>("update_cancel");
+  }
+  updateRestart() {
+    return invoke<void>("update_restart");
+  }
   soundListen() {
     return invoke<void>("sound_listen");
   }

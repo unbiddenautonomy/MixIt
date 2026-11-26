@@ -386,6 +386,27 @@ export interface Settings {
   soundSearch?: boolean;
   /** Ask MixIt: the command palette also understands requests typed in plain words. */
   ask?: boolean;
+  /** Looks for new code in the checkout MixIt was built from, a little after it starts. */
+  checkUpdates?: boolean;
+  /** The checkout Update pulls and builds (empty: the one this copy was built from). */
+  updateSource?: string | null;
+}
+
+/** Where updating from the source checkout stands. */
+export interface UpdateStatus {
+  /** Update can rebuild and replace this app. */
+  canInstall: boolean;
+  /** Why not, in plain words (also when checking failed). */
+  problem: string | null;
+  source: string;
+  branch: string;
+  /** Short commit ids: what's running and the newest on the branch. */
+  current: string;
+  latest: string;
+  /** Subjects of the new commits, newest first (at most 20). */
+  changes: string[];
+  waiting: number;
+  running: boolean;
 }
 
 /** The mic channel, as the engine reports it. */
@@ -483,6 +504,8 @@ export interface TransitionInfo {
 
 export interface AppInfo {
   version: string;
+  /** The git commit this copy was built from ("" when it wasn't built from a checkout). */
+  builtFrom?: string;
   dbPath: string;
   recordingsDir: string;
   projectsDir: string;
@@ -591,7 +614,7 @@ export interface HistoryEntry {
 }
 
 export interface JobProgress {
-  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems";
+  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems" | "update";
   done: number;
   total: number;
   message: string;

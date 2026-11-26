@@ -283,6 +283,7 @@ export class DemoBackend implements Backend {
     micDenoise: "strong",
     soundSearch: true,
     ask: true,
+    checkUpdates: true,
     trainedStems: true,
   };
   /** The simulated mic channel. */
@@ -1496,6 +1497,16 @@ export class DemoBackend implements Backend {
     return { available: this.settings.soundSearch !== false, heard: rows.filter((r) => r.analysis === "done").length, total: rows.length };
   }
   async soundListen(): Promise<void> {}
+  async updateCheck(): Promise<T.UpdateStatus> {
+    return { canInstall: false, problem: "The demo in the browser doesn't update itself: reload the page for the newest version.", source: "", branch: "", current: "", latest: "", changes: [], waiting: 0, running: false };
+  }
+  async updateInstall(): Promise<void> {
+    throw new Error("The demo in the browser doesn't update itself.");
+  }
+  async updateCancel(): Promise<void> {}
+  async updateRestart(): Promise<void> {
+    location.reload();
+  }
 
   async playlists(): Promise<T.PlaylistDto[]> {
     const rows = await Promise.all(

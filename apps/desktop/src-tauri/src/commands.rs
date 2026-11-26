@@ -38,6 +38,8 @@ fn deck_id(deck: u8) -> R<DeckId> {
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub version: &'static str,
+    /// The commit this copy was built from ("" outside a git checkout).
+    pub built_from: &'static str,
     pub db_path: String,
     pub recordings_dir: String,
     pub projects_dir: String,
@@ -68,6 +70,7 @@ fn transition_id(t: TransitionKind) -> String {
 pub fn app_info(state: State<'_, AppState>) -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION"),
+        built_from: crate::update::BUILT_FROM,
         db_path: state.paths.db.to_string_lossy().into_owned(),
         recordings_dir: state.paths.recordings.to_string_lossy().into_owned(),
         projects_dir: state.paths.projects.to_string_lossy().into_owned(),

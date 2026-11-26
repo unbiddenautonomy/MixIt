@@ -1,5 +1,6 @@
 // Settings: audio device and latency, mixing behaviour, display, recording, library
 // folders and the keyboard shortcut list.
+import { Updates } from "./Updates";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import clsx from "clsx";
@@ -466,6 +467,7 @@ function About() {
     <div className="flex flex-col gap-2 text-zinc-300">
       <div className="text-lg font-semibold text-zinc-50">MixIt {info?.version}</div>
       <p className="text-zinc-400">A DJ app for people who have never mixed and for people who mix every night. Real-time engine with Signalsmith time-stretching, beat-accurate sync, analysis of tempo, key, structure and loudness, and harmonic suggestions.</p>
+      <Updates />
     </div>
   );
 }
