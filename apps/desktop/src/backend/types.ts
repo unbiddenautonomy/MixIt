@@ -366,8 +366,10 @@ export interface Settings {
   nowPlayingFile?: string | null;
   /** The line written there: {artist} {title} {album} {genre} {label} {bpm} {key}. */
   nowPlayingFormat?: string;
-  /** Browser only: echo cancelling and noise reduction for a voice. */
+  /** Cleans a voice mic: takes out the music it hears from the speakers and background noise. */
   micVoice?: boolean;
+  /** Desktop: how hard the mic cleaner removes noise ("strong" adds about 30 ms, "light" about 10 ms). */
+  micDenoise?: "strong" | "light" | "off";
   /** Desktop: split stems with the trained model (downloaded once) instead of the quick split. */
   trainedStems?: boolean;
 }
@@ -400,6 +402,12 @@ export interface MicStatus {
   bufferFrames: number | null;
   channel: number;
   stereo: boolean;
+  /** Desktop: what the cleaner does to the mic, in plain words (null: as it is). */
+  cleaning?: string | null;
+  /** Why the mic is not cleaned although that was asked for. */
+  cleaningProblem?: string | null;
+  /** The delay the cleaner adds (ms). */
+  cleanDelayMs?: number;
 }
 
 export interface MicState {

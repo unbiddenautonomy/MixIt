@@ -18,6 +18,12 @@ hound.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 dirs.workspace = true
+mixit-ml = { path = "../mixit-ml", default-features = false, optional = true }
+
+[features]
+default = ["voice-clean"]
+# Cleans a mono mic on its way to the engine: echo cancelling and noise removal.
+voice-clean = ["dep:mixit-ml", "mixit-ml/voice"]
 
 [dev-dependencies]
 mixit-generator = { path = "../mixit-generator" }

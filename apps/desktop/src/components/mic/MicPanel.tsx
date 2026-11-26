@@ -143,24 +143,36 @@ function DevicePicker() {
           </select>
         </label>
       )}
-      {web && (
+      {(web || !s.micStereo) && (
         <label className="flex items-center gap-2 text-zinc-300">
           <input type="checkbox" checked={s.micVoice ?? true} onChange={(e) => void setMicEnabled(true, { micVoice: e.target.checked })} />
-          Clean up my voice (removes echo and background noise; turn off for music)
+          Clean up my voice (removes the music it hears from the speakers and background noise; turn off for music)
+        </label>
+      )}
+      {!web && pro && !s.micStereo && (s.micVoice ?? true) && (
+        <label className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-zinc-500">Noise</span>
+          <select className="input h-7 min-w-0 flex-1" value={s.micDenoise ?? "strong"} onChange={(e) => void setMicEnabled(true, { micDenoise: e.target.value as "strong" | "light" | "off" })}>
+            <option value="strong">Remove it all (cleanest voice, adds 30 ms)</option>
+            <option value="light">Remove most (adds 10 ms)</option>
+            <option value="off">Keep it (only take out the music)</option>
+          </select>
         </label>
       )}
       {status && (
         <div className="text-[11px] text-zinc-500">
           {status.device}, {status.sampleRate / 1000} kHz
-          <MicLatency />
+          <MicLatency extra={status.cleanDelayMs ?? 0} />
+          {status.cleaning && <div>Cleaning: {status.cleaning}.</div>}
+          {status.cleaningProblem && <div className="text-amber-300">Not cleaned: {status.cleaningProblem}.</div>}
         </div>
       )}
     </div>
   );
 }
 
-function MicLatency() {
-  const ms = useTelemetry((s) => Math.round(s.t.mic.latencyMs));
+function MicLatency({ extra }: { extra: number }) {
+  const ms = useTelemetry((s) => Math.round(s.t.mic.latencyMs + extra));
   const live = useTelemetry((s) => s.t.mic.live);
   if (!live) return <span className="text-amber-300">, waiting for sound…</span>;
   return <span>, {ms} ms delay</span>;

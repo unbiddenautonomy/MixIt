@@ -138,6 +138,9 @@ impl Audio {
                         buffer_frames: host.buffer_frames,
                         channel: cfg2.channel,
                         stereo: cfg2.stereo,
+                        cleaning: host.cleaning.clone(),
+                        cleaning_problem: host.cleaning_problem.clone(),
+                        clean_delay_ms: host.clean_delay_frames as f32 * 1000.0 / host.sample_rate.max(1) as f32,
                     };
                     let _ = tx.send(Ok((feed, status, host.stats.clone())));
                     let _ = stop_rx.recv();

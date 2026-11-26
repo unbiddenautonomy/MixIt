@@ -1415,7 +1415,9 @@ pub fn settings_set(app: AppHandle, state: State<'_, AppState>, settings: Settin
     let mic_changed = old.mic_enabled != settings.mic_enabled
         || old.mic_device != settings.mic_device
         || old.mic_channel != settings.mic_channel
-        || old.mic_stereo != settings.mic_stereo;
+        || old.mic_stereo != settings.mic_stereo
+        || old.mic_voice != settings.mic_voice
+        || old.mic_denoise != settings.mic_denoise;
     if audio_changed {
         restart_audio(&app)?;
     } else {

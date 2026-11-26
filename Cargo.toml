@@ -50,8 +50,8 @@ mixit-generator = { path = "crates/mixit-generator" }
 mixit-io = { path = "crates/mixit-io" }
 mixit-project = { path = "crates/mixit-project" }
 mixit-library = { path = "crates/mixit-library" }
-mixit-host = { path = "crates/mixit-host" }
-mixit-ml = { path = "crates/mixit-ml" }
+mixit-host = { path = "crates/mixit-host", default-features = false }
+mixit-ml = { path = "crates/mixit-ml", default-features = false }
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

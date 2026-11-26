@@ -280,6 +280,7 @@ export class DemoBackend implements Backend {
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
     micVoice: true,
+    micDenoise: "strong",
     trainedStems: true,
   };
   /** The simulated mic channel. */
@@ -1674,7 +1675,15 @@ export class DemoBackend implements Backend {
   async micState(): Promise<T.MicState> {
     if (!this.settings.micEnabled) return { status: null, error: null, lost: false };
     const d = (await this.inputDevices()).find((x) => x.id === this.settings.micDevice) ?? (await this.inputDevices())[0];
-    return { status: { device: d.name, sampleRate: 48000, channels: d.max_channels, bufferFrames: 256, channel: this.settings.micChannel, stereo: this.settings.micStereo }, error: null, lost: false };
+    return { status: { device: d.name, sampleRate: 48000, channels: d.max_channels, bufferFrames: 256, channel: this.settings.micChannel, stereo: this.settings.micStereo, ...this.demoCleaning() }, error: null, lost: false };
+  }
+  /** What the desktop's mic cleaner would report for the current settings. */
+  private demoCleaning(): Pick<T.MicStatus, "cleaning" | "cleanDelayMs"> {
+    const s = this.settings;
+    if (s.micStereo || s.micVoice === false) return { cleaning: null, cleanDelayMs: 0 };
+    const d = s.micDenoise ?? "strong";
+    const what = d === "off" ? "echo cancelled" : `echo cancelled, noise removed (${d === "light" ? "RNNoise" : "DeepFilterNet3"})`;
+    return { cleaning: what, cleanDelayMs: d === "strong" ? 30 : d === "light" ? 10 : 0 };
   }
   async micRecordStart() {
     if (!this.settings.micEnabled) throw new Error("Turn the mic on first.");
