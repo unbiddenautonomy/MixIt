@@ -250,11 +250,55 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("knobs follow a drag: south-west turns down, Esc puts it back, aim points, the ring grabs", async () => {
+    await page.click('button:has-text("Mix")');
+    const filter = () => page.evaluate(() => window.mixit.useApp.getState().mixer.channels[0].filter);
+    const setDrag = (mode) => page.evaluate((m) => { const a = window.mixit.useApp.getState(); a.set({ settings: { ...a.settings, knobDrag: m } }); }, mode);
+    const knob = page.locator('[role=slider][aria-label="Filter"]').first();
+    await knob.dblclick();
+    const b = await knob.boundingBox();
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height / 2;
+    const drag = async (x0, y0, dx, dy, steps = 10) => {
+      await page.mouse.move(x0, y0);
+      await page.mouse.down();
+      for (let i = 1; i <= steps; i++) await page.mouse.move(x0 + (dx * i) / steps, y0 + (dy * i) / steps);
+    };
+    // Up and down (the default): a pull south-west turns it down, even far off the knob.
+    await setDrag("linear");
+    await drag(cx, cy, -30, 30);
+    expect((await filter()) < -0.5, `south-west left the filter at ${await filter()}`);
+    expect(await page.locator('[role=status]:has-text("Filter")').count(), "no value bubble while dragging");
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    expect((await filter()) === 0, `Esc left the filter at ${await filter()}`);
+    await drag(cx, cy, 200, -200, 20);
+    await page.mouse.up();
+    expect((await filter()) === 1, `a long pull north-east stopped at ${await filter()}`);
+    await knob.dblclick();
+    expect((await filter()) === 0, "double-click did not reset");
+    // Aim: the knob points where you pull.
+    await setDrag("aim");
+    await drag(cx, cy, -40, 40);
+    expect((await filter()) === -1, `aiming south-west gave ${await filter()}`);
+    await page.mouse.move(cx + 40, cy);
+    await page.mouse.up();
+    expect(Math.abs((await filter()) - 2 / 3) < 0.02, `aiming east gave ${await filter()}`);
+    // The ring: a press just outside the drawing grabs the knob.
+    await setDrag("linear");
+    await knob.dblclick();
+    await drag(cx + b.width / 2 + 5, cy, 0, -30, 5);
+    await page.mouse.up();
+    expect((await filter()) > 0.2, `the ring did not grab: ${await filter()}`);
+    await knob.dblclick();
+  });
+
   await step("settings open, with fader start under Mixing", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ settingsOpen: true }));
     await page.waitForSelector('[role="dialog"] >> text=Settings', { timeout: 5000 });
     await page.click('[role="tab"]:has-text("Mixing")');
     await page.waitForSelector("text=Fader start", { timeout: 5000 });
+    await page.waitForSelector("text=Knob drag", { timeout: 5000 });
     await page.keyboard.press("Escape");
   });
 

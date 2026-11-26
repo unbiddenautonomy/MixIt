@@ -1,5 +1,9 @@
 import clsx from "clsx";
+import { useCallback, useRef } from "react";
+import { defaultReadout, type KnobDragMode, scale } from "../../lib/knobDrag";
+import { useApp } from "../../store/app";
 import { useValueDrag } from "./drag";
+import { ValueBubble } from "./ValueBubble";
 
 export interface KnobProps {
   value: number;
@@ -13,6 +17,8 @@ export interface KnobProps {
   /** Arc from the default (EQs, filters) instead of from the minimum. */
   bipolar?: boolean;
   format?: (v: number) => string;
+  /** What the bubble says while it turns, when it should differ from `format` (or there is none). */
+  readout?: (v: number) => string;
   killed?: boolean;
   className?: string;
 }
@@ -32,14 +38,25 @@ function arc(cx: number, cy: number, r: number, a0: number, a1: number) {
   return `M ${x0} ${y0} A ${r} ${r} 0 ${large} ${sweep} ${x1} ${y1}`;
 }
 
-export function Knob({ value, min, max, def, onChange, label, size = 40, color = "var(--accent)", bipolar, format, killed, className }: KnobProps) {
+/** "Label: value", unless the value already names itself. */
+export function bubbleText(label: string | undefined, text: string) {
+  return label && !text.toLowerCase().startsWith(label.toLowerCase()) ? `${label}: ${text}` : text;
+}
+
+export function Knob({ value, min, max, def, onChange, label, size = 40, color = "var(--accent)", bipolar, format, readout, killed, className }: KnobProps) {
   const d = def ?? (bipolar ? (min + max) / 2 : min);
-  const h = useValueDrag({ value, min, max, def: d, onChange });
+  const mode = useApp((s) => (s.settings?.knobDrag ?? "linear") as KnobDragMode);
+  const { ref, handlers, busy } = useValueDrag({ value, min, max, def: d, bipolar, onChange, knob: { size, mode } });
+  const anchor = useRef<HTMLDivElement | null>(null);
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      anchor.current = el;
+      ref(el);
+    },
+    [ref],
+  );
   // Map value to an angle; bipolar knobs put the default straight up.
-  const norm = (v: number) => {
-    if (bipolar && d > min && d < max) return v < d ? 0.5 * ((v - min) / (d - min)) : 0.5 + 0.5 * ((v - d) / (max - d));
-    return (v - min) / (max - min);
-  };
+  const norm = scale(min, max, d, !!bipolar).toPos;
   const a = START + SWEEP * norm(value);
   const a0 = bipolar ? START + SWEEP * norm(d) : START;
   const c = size / 2;
@@ -53,9 +70,11 @@ export function Knob({ value, min, max, def, onChange, label, size = 40, color =
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
-        className="cursor-ns-resize rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        aria-valuetext={format ? format(value) : undefined}
+        className={clsx("rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40", mode === "linear" ? "cursor-ns-resize" : "cursor-grab active:cursor-grabbing")}
         style={{ width: size, height: size, touchAction: "none" }}
-        {...h}
+        ref={setRef}
+        {...handlers}
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <path d={arc(c, c, r, START, START + SWEEP)} style={{ stroke: "var(--knob-track)" }} strokeWidth={3} fill="none" strokeLinecap="round" />
@@ -70,6 +89,7 @@ export function Knob({ value, min, max, def, onChange, label, size = 40, color =
           </defs>
         </svg>
       </div>
+      <ValueBubble anchor={anchor.current} show={busy} text={bubbleText(label, (readout ?? format)?.(value) ?? defaultReadout(norm(value), !!bipolar))} />
       {label && (
         <div className="text-center text-[10px] font-medium uppercase leading-none tracking-wide text-zinc-400">
           {label}

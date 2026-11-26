@@ -82,17 +82,17 @@ export function FxUnit({ unit, stacked }: { unit: number; stacked?: boolean }) {
                 </select>
               </Ctl>
             )}
-            <div className={clsx("flex items-center gap-1.5", stacked && pro ? "w-full justify-around" : "ml-auto")}>
+            <div className={clsx("flex items-center gap-2.5", stacked && pro ? "w-full justify-around" : "ml-auto")}>
               <Ctl id={`${base}.mix`}>
-                <Knob value={f.mix} min={0} max={1} def={0.5} size={26} label={stacked && pro ? "Amount" : undefined} onChange={(v) => setValue(`${base}.mix`, v)} />
+                <Knob value={f.mix} min={0} max={1} def={0.5} size={30} label={stacked && pro ? "Amount" : undefined} readout={(v) => `Amount ${Math.round(v * 100)}%`} onChange={(v) => setValue(`${base}.mix`, v)} />
               </Ctl>
               {pro && (
                 <>
                   <Ctl id={`${base}.p1`} label={params[0]}>
-                    <Knob value={f.p1} min={0} max={1} def={0.5} size={26} label={stacked ? params[0] : undefined} onChange={(v) => setValue(`${base}.p1`, v)} />
+                    <Knob value={f.p1} min={0} max={1} def={0.5} size={30} label={stacked ? params[0] : undefined} readout={(v) => `${params[0]} ${Math.round(v * 100)}%`} onChange={(v) => setValue(`${base}.p1`, v)} />
                   </Ctl>
                   <Ctl id={`${base}.p2`} label={params[1]}>
-                    <Knob value={f.p2} min={0} max={1} def={0.5} size={26} label={stacked ? params[1] : undefined} onChange={(v) => setValue(`${base}.p2`, v)} />
+                    <Knob value={f.p2} min={0} max={1} def={0.5} size={30} label={stacked ? params[1] : undefined} readout={(v) => `${params[1]} ${Math.round(v * 100)}%`} onChange={(v) => setValue(`${base}.p2`, v)} />
                   </Ctl>
                 </>
               )}
