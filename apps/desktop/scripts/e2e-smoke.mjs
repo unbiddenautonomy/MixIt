@@ -319,10 +319,17 @@ try {
     const names = await page.evaluate(async () => {
       const b = window.mixit.backend();
       // Nothing on air, so the preview may play on the speakers (there is no headphone output here).
-      for (const [i, d] of window.mixit.useTelemetry.getState().t.decks.entries()) {
-        if (!d.playing) continue;
-        await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
-        await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+      // Telemetry lags a press, and a deck can start late (a mix that was waiting), so stop
+      // whatever plays until every deck has stayed stopped for a few telemetry frames.
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      for (let quiet = 0, tries = 0; quiet < 3 && tries < 40; tries++) {
+        const playing = window.mixit.useTelemetry.getState().t.decks.flatMap((d, i) => (d.playing ? [i] : []));
+        quiet = playing.length ? 0 : quiet + 1;
+        for (const i of playing) {
+          await b.action(`deck.${"ABCD"[i]}.play`, { type: "press" });
+          await b.action(`deck.${"ABCD"[i]}.play`, { type: "release" });
+        }
+        await wait(playing.length ? 250 : 100);
       }
       const rows = (await b.search("")).filter((r) => r.bpm && r.duration > 120 && !r.missing).slice(0, 3);
       window.mixit.useAutoDj.getState().set({ queue: rows });
