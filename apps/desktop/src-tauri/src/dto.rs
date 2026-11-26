@@ -343,6 +343,12 @@ pub struct MicStatus {
     pub buffer_frames: Option<u32>,
     pub channel: u16,
     pub stereo: bool,
+    /// What the cleaner does to the mic, in plain words (`None`: as it is).
+    pub cleaning: Option<String>,
+    /// Why the mic is not cleaned although that was asked for.
+    pub cleaning_problem: Option<String>,
+    /// The delay the cleaner adds, in milliseconds.
+    pub clean_delay_ms: f32,
 }
 
 /// A finished mic recording.

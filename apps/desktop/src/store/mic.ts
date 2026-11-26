@@ -136,7 +136,7 @@ export async function refreshMic(): Promise<MicState> {
 }
 
 /** Turns the mic input on or off (the system or browser may ask for permission). */
-export async function setMicEnabled(on: boolean, patch: { micDevice?: string | null; micChannel?: number; micStereo?: boolean; micVoice?: boolean } = {}) {
+export async function setMicEnabled(on: boolean, patch: { micDevice?: string | null; micChannel?: number; micStereo?: boolean; micVoice?: boolean; micDenoise?: "strong" | "light" | "off" } = {}) {
   const { updateSettings } = await import("../lib/appCommands");
   if (!on) {
     // Never leave the audience hearing a mic that was just switched off.

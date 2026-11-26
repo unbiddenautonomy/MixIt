@@ -4,6 +4,10 @@
 //! callback converts whatever the driver delivers into interleaved stereo f32 and pushes
 //! it into an [`InputFeed`] ring; the engine resamples it to the output clock. Nothing in
 //! the callback allocates or locks.
+//!
+//! A mono mic can be cleaned on the way (echo cancelling and noise removal, see
+//! [`crate::voice`], with the `voice-clean` feature): the callback then writes into a
+//! ring the cleaner thread reads, and the cleaner feeds the engine.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -33,6 +37,41 @@ pub fn list_inputs() -> Vec<DeviceInfo> {
     out
 }
 
+/// How hard the mic cleaner removes background noise.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MicDenoise {
+    Off,
+    /// Lighter, the least delay (about 10 ms).
+    Light,
+    /// The cleanest voice (about 30 ms).
+    #[default]
+    Strong,
+}
+
+/// What the mic cleaner does to a mono mic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct MicClean {
+    /// Takes out the music the mic picks up from the speakers.
+    pub echo: bool,
+    pub denoise: MicDenoise,
+}
+
+impl Default for MicClean {
+    fn default() -> Self {
+        MicClean { echo: true, denoise: MicDenoise::Strong }
+    }
+}
+
+impl MicClean {
+    pub const OFF: MicClean = MicClean { echo: false, denoise: MicDenoise::Off };
+
+    pub fn is_off(&self) -> bool {
+        !self.echo && self.denoise == MicDenoise::Off
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputConfig {
@@ -44,11 +83,15 @@ pub struct InputConfig {
     pub stereo: bool,
     /// Requested buffer in frames (`None` = the driver's choice).
     pub buffer_frames: Option<u32>,
+    /// Cleaning for a mono mic (a stereo line-in is never cleaned). Needs the
+    /// `voice-clean` feature; without it the mic comes through as it is.
+    #[serde(default)]
+    pub clean: MicClean,
 }
 
 impl Default for InputConfig {
     fn default() -> Self {
-        InputConfig { device: None, channel: 0, stereo: false, buffer_frames: Some(256) }
+        InputConfig { device: None, channel: 0, stereo: false, buffer_frames: Some(256), clean: MicClean::default() }
     }
 }
 
@@ -65,13 +108,29 @@ pub struct InputStats {
 
 /// A running input stream. Dropping it stops the input.
 pub struct InputHost {
+    // Dropped first: the stream stops before its cleaner does.
     _stream: cpal::Stream,
+    #[cfg(feature = "voice-clean")]
+    _cleaner: Option<crate::voice::CleanerThread>,
     pub stats: Arc<InputStats>,
     pub sample_rate: u32,
     pub channels: u16,
     pub device_name: String,
     pub buffer_frames: Option<u32>,
+    /// What the cleaner does to the mic, in plain words (`None`: the mic comes through
+    /// as it is).
+    pub cleaning: Option<String>,
+    /// Why the mic is not cleaned although cleaning was asked for.
+    pub cleaning_problem: Option<String>,
+    /// The delay the cleaner adds, in frames.
+    pub clean_delay_frames: usize,
 }
+
+/// The rate the trained noise removers need; a mic that is cleaned opens at it if it can.
+#[cfg(feature = "voice-clean")]
+const CLEAN_RATE: u32 = mixit_ml::voice::CLEAN_RATE;
+#[cfg(not(feature = "voice-clean"))]
+const CLEAN_RATE: u32 = 48_000;
 
 fn find_input(cfg: &InputConfig) -> Result<cpal::Device, HostError> {
     match &cfg.device {
@@ -99,7 +158,9 @@ impl InputHost {
         if let Ok(cfgs) = device.supported_input_configs() {
             let mut list: Vec<_> = cfgs.filter(|c| c.channels() >= needed).collect();
             list.sort_by_key(|c| (c.sample_format() != SampleFormat::F32, c.channels()));
-            for rate in [output_rate, default.sample_rate()] {
+            let clean = !cfg.stereo && !cfg.clean.is_off() && cfg!(feature = "voice-clean");
+            let first = if clean { CLEAN_RATE } else { output_rate };
+            for rate in [first, output_rate, default.sample_rate()] {
                 if let Some(c) = list.iter().find_map(|c| c.try_with_sample_rate(rate)) {
                     chosen = Some(c);
                     break;
@@ -127,7 +188,7 @@ impl InputHost {
         // Shared-mode drivers usually call back every 10 ms; the engine grows its buffer
         // by itself if the device turns out to be slower.
         let device_frames = fixed.unwrap_or(rate / 100);
-        let (tx, feed) = InputFeed::new(rate, output_rate, device_frames);
+        let (tx, feed, cleaner, problem) = feed_for(cfg, rate, output_rate, device_frames);
         let stats = Arc::new(InputStats::default());
         let route = Route { channels: stream_cfg.channels as usize, first: cfg.channel as usize, stereo: cfg.stereo };
         let stream = match supported.sample_format() {
@@ -139,17 +200,72 @@ impl InputHost {
             other => return Err(HostError::Device(format!("unsupported input format {other:?}"))),
         }?;
         stream.play().map_err(|e| HostError::Device(e.to_string()))?;
+        #[cfg(feature = "voice-clean")]
+        let (cleaning, clean_delay_frames) =
+            cleaner.as_ref().map_or((None, 0), |c| (Some(c.describe.clone()), c.delay_frames));
+        #[cfg(not(feature = "voice-clean"))]
+        let (cleaning, clean_delay_frames) = {
+            let _: Option<()> = cleaner;
+            (None, 0)
+        };
         Ok((
             InputHost {
                 _stream: stream,
+                #[cfg(feature = "voice-clean")]
+                _cleaner: cleaner,
                 stats,
                 sample_rate: rate,
                 channels: stream_cfg.channels,
                 device_name: device.to_string(),
                 buffer_frames: fixed,
+                cleaning,
+                cleaning_problem: problem,
+                clean_delay_frames,
             },
             feed,
         ))
+    }
+}
+
+#[cfg(feature = "voice-clean")]
+type Cleaner = crate::voice::CleanerThread;
+#[cfg(not(feature = "voice-clean"))]
+type Cleaner = ();
+
+/// The ring the device callback writes into and the feed for the engine: straight
+/// through, or through the cleaner when it is asked for and starts.
+fn feed_for(
+    cfg: &InputConfig,
+    rate: u32,
+    output_rate: u32,
+    device_frames: u32,
+) -> (rtrb::Producer<f32>, InputFeed, Option<Cleaner>, Option<String>) {
+    let plain = || {
+        let (tx, feed) = InputFeed::new(rate, output_rate, device_frames);
+        (tx, feed)
+    };
+    if cfg.stereo || cfg.clean.is_off() {
+        let (tx, feed) = plain();
+        return (tx, feed, None, None);
+    }
+    #[cfg(feature = "voice-clean")]
+    {
+        // The cleaner hands over whole 10 ms frames, so the engine keeps one more.
+        let (out_tx, mut feed) = InputFeed::new(rate, output_rate, device_frames + rate / 100);
+        let reference = feed.echo_tap(output_rate as usize / 2);
+        let (raw_tx, raw_rx) = rtrb::RingBuffer::new((rate as usize / 2).max(8 * device_frames as usize) * 2);
+        match crate::voice::CleanerThread::start(cfg.clean.into(), rate, output_rate, raw_rx, reference, out_tx) {
+            Ok(c) => (raw_tx, feed, Some(c), None),
+            Err(e) => {
+                let (tx, feed) = plain();
+                (tx, feed, None, Some(format!("the mic cleaner could not start: {e}")))
+            }
+        }
+    }
+    #[cfg(not(feature = "voice-clean"))]
+    {
+        let (tx, feed) = plain();
+        (tx, feed, None, Some("this build has no mic cleaner".into()))
     }
 }
 

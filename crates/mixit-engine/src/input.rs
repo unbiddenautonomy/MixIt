@@ -16,6 +16,10 @@
 //! ```
 //!
 //! Talk-over listens to the processed mic and turns the music down while you speak.
+//!
+//! A feed can also ask for an *echo tap* ([`InputFeed::echo_tap`]): the music as the
+//! master plays it, without the mic, so a mic cleaner off the audio thread can take out
+//! what the mic picks up from the speakers.
 
 use mixit_dsp::biquad::{Coeffs, StereoBiquad};
 use mixit_dsp::djeq::{DjEq, EqMode, EqVoicing};
@@ -45,6 +49,7 @@ pub struct InputFeed {
     sample_rate: u32,
     target: f64,
     sinc: SincTable,
+    echo: Option<rtrb::Producer<f32>>,
 }
 
 impl InputFeed {
@@ -62,7 +67,17 @@ impl InputFeed {
         let ratio = input_rate as f64 / output_rate.max(1) as f64;
         let cutoff = 0.94 / ratio.max(1.0);
         let sinc = SincTable::new(16, 256, cutoff, 9.0);
-        (tx, InputFeed { ring: rx, sample_rate: input_rate, target, sinc })
+        (tx, InputFeed { ring: rx, sample_rate: input_rate, target, sinc, echo: None })
+    }
+
+    /// Asks the engine to send what the master plays (mono, at the output rate, without
+    /// the mic and after talk-over) while this feed is connected. Returns the ring's
+    /// reading end, which holds `frames` frames; when nobody reads it, new audio is
+    /// dropped.
+    pub fn echo_tap(&mut self, frames: usize) -> rtrb::Consumer<f32> {
+        let (tx, rx) = rtrb::RingBuffer::new(frames.max(BLOCK));
+        self.echo = Some(tx);
+        rx
     }
 
     pub fn sample_rate(&self) -> u32 {
@@ -157,6 +172,10 @@ impl InputReader {
         self.underruns = 0;
         self.overflows = 0;
         self.unprime();
+    }
+
+    fn echo_tx(&mut self) -> Option<&mut rtrb::Producer<f32>> {
+        self.feed.as_mut().and_then(|f| f.echo.as_mut())
     }
 
     fn half(&self) -> usize {
@@ -540,6 +559,17 @@ impl MicChannel {
             mixer.master_l[i] *= self.duck;
             mixer.master_r[i] *= self.duck;
         }
+        if let Some(tx) = self.reader.echo_tx() {
+            let k = n.min(tx.slots());
+            if let Ok(mut chunk) = tx.write_chunk_uninit(k) {
+                let (a, b) = chunk.as_mut_slices();
+                for (i, slot) in a.iter_mut().chain(b.iter_mut()).enumerate() {
+                    slot.write(0.5 * (mixer.master_l[i] + mixer.master_r[i]));
+                }
+                // SAFETY: every slot of both slices was written above.
+                unsafe { chunk.commit_all() };
+            }
+        }
 
         for i in 0..n {
             let g = self.level.next() * self.air.next();
@@ -765,5 +795,38 @@ mod tests {
         assert_eq!(cap.slots() as u64, mic.captured * 2);
         let (p, rms, _) = mic.take_meters();
         assert!(p[0] > 0.25 && rms > 0.15, "{p:?} {rms}");
+    }
+
+    #[test]
+    fn the_echo_tap_carries_the_music_without_the_mic() {
+        let (cap_tx, _cap_rx) = rtrb::RingBuffer::new(1_024);
+        let mut mic = MicChannel::new(48_000.0, cap_tx);
+        let (mut tx, mut feed) = InputFeed::new(48_000, 48_000, 256);
+        let mut tap = feed.echo_tap(4 * BLOCK);
+        let (mut trash, _rx) = bin();
+        mic.handle(MicCommand::SetFeed(Some(Box::new(feed))), &mut trash);
+        mic.handle(MicCommand::SetLevel(1.0), &mut trash);
+        mic.handle(MicCommand::SetOnAir(true), &mut trash);
+        mic.handle(MicCommand::SetTalkover(false), &mut trash);
+        mic.handle(MicCommand::SetLowCut(false), &mut trash);
+        let mut mixer = Mixer::new(48_000.0, 2);
+        // The music is 0.2 on the left and 0.4 on the right; the mic adds 0.3 to both.
+        let chunk = vec![0.3f32; BLOCK * 2];
+        for _ in 0..100 {
+            push_input(&mut tx, &chunk);
+            mixer.begin(BLOCK);
+            mixer.master_l[..BLOCK].fill(0.2);
+            mixer.master_r[..BLOCK].fill(0.4);
+            mic.render(BLOCK, &mut mixer);
+        }
+        // The tap holds four blocks (the rest is dropped while nobody reads it), each the
+        // music's mono mix, never the mic.
+        assert_eq!(tap.slots(), 4 * BLOCK);
+        let c = tap.read_chunk(4 * BLOCK).unwrap();
+        let (a, b) = c.as_slices();
+        assert!(a.iter().chain(b).all(|&v| (v - 0.3).abs() < 1e-6));
+        c.commit_all();
+        // Meanwhile the master has the mic on top (once its input has filled up).
+        assert!(mixer.master_l[BLOCK - 1] > 0.45, "{}", mixer.master_l[BLOCK - 1]);
     }
 }

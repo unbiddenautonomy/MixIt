@@ -17,6 +17,8 @@ pub mod offline;
 pub mod platform;
 pub mod project;
 pub mod recorder;
+#[cfg(feature = "voice-clean")]
+pub mod voice;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};

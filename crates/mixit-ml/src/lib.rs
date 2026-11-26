@@ -8,9 +8,12 @@
 //!
 //! * [`stems`]: HTDemucs, the trained four-stem splitter (vocals, drums, bass and the
 //!   rest).
+//! * [`voice`]: cleans the mic (echo cancelling and noise removal), behind the `voice`
+//!   feature.
 
 pub mod models;
 pub mod stems;
+pub mod voice;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MlError {

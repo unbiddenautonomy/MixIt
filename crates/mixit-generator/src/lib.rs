@@ -19,6 +19,7 @@ use mixit_core::{Key, Mode};
 pub(crate) use mixit_dsp::rng::Rng;
 use mixit_dsp::svf::{Svf, SvfCoeffs, SvfMode};
 use serde::{Deserialize, Serialize};
+pub use voice::{Talk, talk};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Style {
@@ -554,7 +555,7 @@ pub fn generate(spec: &TrackSpec) -> Generated {
                         b += len;
                     }
                     let end = syl.last().map(|s| s.at + s.len).unwrap_or(0.0);
-                    let v = voice::sing(sr, &syl, &mut vrng);
+                    let v = voice::sing(sr, &syl, 0.35, &mut vrng);
                     mix.add(t0, 0.0, 0.5, &v);
                     vocals.push((t0, t0 + end));
                 }

@@ -92,6 +92,12 @@ pub struct Settings {
     pub mic_device: Option<String>,
     pub mic_channel: u16,
     pub mic_stereo: bool,
+    /// Cleans a mono mic: takes out the music it hears from the speakers and the noise
+    /// around (in a build with the mic cleaner).
+    pub mic_voice: bool,
+    /// How hard the cleaner removes noise: "strong" (about 30 ms delay), "light"
+    /// (about 10 ms) or "off" (echo cancelling only).
+    pub mic_denoise: String,
     /// Raising a channel fader from the bottom starts its deck; closing it stops the
     /// deck and goes back to the cue point.
     pub fader_start: bool,
@@ -128,6 +134,8 @@ impl Default for Settings {
             mic_device: None,
             mic_channel: 0,
             mic_stereo: false,
+            mic_voice: true,
+            mic_denoise: "strong".into(),
             fader_start: false,
             safety_loop: true,
             now_playing_file: None,
@@ -151,6 +159,17 @@ impl Settings {
             device: self.mic_device.clone(),
             channel: self.mic_channel,
             stereo: self.mic_stereo,
+            clean: if self.mic_voice {
+                use mixit_host::input::{MicClean, MicDenoise};
+                let denoise = match self.mic_denoise.as_str() {
+                    "off" => MicDenoise::Off,
+                    "light" => MicDenoise::Light,
+                    _ => MicDenoise::Strong,
+                };
+                MicClean { echo: true, denoise }
+            } else {
+                mixit_host::input::MicClean::OFF
+            },
             buffer_frames: Some(self.buffer_frames.clamp(32, 4096)),
         }
     }

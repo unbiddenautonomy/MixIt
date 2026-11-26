@@ -1,6 +1,7 @@
 //! A synthesised singer: a glottal source made of harmonics, shaped by vowel formants,
 //! with vibrato, glides between notes, syllables and a little breath. It is there so the
-//! vocal detector can be tested against exact ground truth (where the singing is).
+//! vocal detector can be tested against exact ground truth (where the singing is). The
+//! same voice also talks ([`talk`]), for testing the mic cleaner.
 use crate::Rng;
 
 /// One sung syllable.
@@ -33,8 +34,9 @@ fn formant_gain(f: f64, formants: &[f64; 3]) -> f64 {
     g
 }
 
-/// Renders a phrase of syllables (mono, peak about 1).
-pub(crate) fn sing(sr: f64, syllables: &[Syllable], rng: &mut Rng) -> Vec<f32> {
+/// Renders a phrase of syllables (mono, peak about 1). `vibrato` is its depth in
+/// semitones (0 for talking).
+pub(crate) fn sing(sr: f64, syllables: &[Syllable], vibrato: f64, rng: &mut Rng) -> Vec<f32> {
     let Some(last) = syllables.last() else { return vec![] };
     let n = ((last.at + last.len + 0.15) * sr) as usize;
     let mut out = vec![0.0f32; n];
@@ -62,7 +64,7 @@ pub(crate) fn sing(sr: f64, syllables: &[Syllable], rng: &mut Rng) -> Vec<f32> {
         for k in 0..3 {
             formants[k] += (target[k] - formants[k]) * morph;
         }
-        let depth = 0.35 * ((into - 0.12) / 0.2).clamp(0.0, 1.0);
+        let depth = vibrato * ((into - 0.12) / 0.2).clamp(0.0, 1.0);
         vib_phase += vib_rate / sr;
         let f0 = 440.0 * 2f64.powf((pitch + depth * (tau * vib_phase).sin() - 69.0) / 12.0);
         phase = (phase + f0 / sr).fract();
@@ -109,6 +111,49 @@ pub(crate) fn sing(sr: f64, syllables: &[Syllable], rng: &mut Rng) -> Vec<f32> {
     out
 }
 
+/// Someone talking: phrases of quick syllables on a pitch that wanders around a
+/// speaking voice and falls at the end of each phrase, with pauses between.
+pub struct Talk {
+    pub sample_rate: u32,
+    /// Mono, peak about 0.5.
+    pub audio: Vec<f32>,
+    /// Where each phrase starts and ends, in seconds.
+    pub phrases: Vec<(f64, f64)>,
+}
+
+/// About `seconds` of talking (it ends with a pause) from `seed`.
+pub fn talk(sample_rate: u32, seconds: f64, seed: u64) -> Talk {
+    let sr = sample_rate as f64;
+    let mut rng = Rng::new(seed);
+    let mut audio = vec![0.0f32; (seconds * sr) as usize];
+    let mut phrases = Vec::new();
+    let base = 48.0 + rng.next_f32() as f64 * 8.0; // 130–210 Hz
+    let mut t = 0.4 + rng.next_f32() as f64 * 0.6;
+    loop {
+        let words = 4 + rng.below(8) as usize;
+        let mut syl = Vec::new();
+        let mut at = 0.0;
+        for k in 0..words {
+            let len = 0.12 + rng.next_f32() as f64 * 0.16;
+            let fall = 3.0 * k as f64 / words as f64;
+            let midi = base + rng.bipolar() as f64 * 2.5 - fall;
+            syl.push(Syllable { at, len, midi, vowel: rng.below(5) as usize });
+            at += len + if rng.below(4) == 0 { 0.05 + rng.next_f32() as f64 * 0.1 } else { 0.0 };
+        }
+        let v = sing(sr, &syl, 0.0, &mut rng);
+        let start = (t * sr) as usize;
+        if start + v.len() + (0.3 * sr) as usize > audio.len() {
+            break;
+        }
+        for (o, &x) in audio[start..].iter_mut().zip(&v) {
+            *o += 0.5 * x;
+        }
+        phrases.push((t, t + v.len() as f64 / sr));
+        t += v.len() as f64 / sr + 0.5 + rng.next_f32() as f64 * 1.2;
+    }
+    Talk { sample_rate, audio, phrases }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,10 +165,24 @@ mod tests {
             Syllable { at: 0.0, len: 0.4, midi: 62.0, vowel: 0 },
             Syllable { at: 0.4, len: 0.4, midi: 65.0, vowel: 2 },
         ];
-        let v = sing(44_100.0, &syl, &mut rng);
+        let v = sing(44_100.0, &syl, 0.35, &mut rng);
         let peak = v.iter().fold(0.0f32, |m, x| m.max(x.abs()));
         assert!((peak - 1.0).abs() < 1e-3, "peak {peak}");
         let tail = &v[(0.85 * 44_100.0) as usize..];
         assert!(tail.iter().all(|x| x.abs() < 0.05));
+    }
+
+    #[test]
+    fn talking_has_phrases_with_pauses_between() {
+        let t = talk(48_000, 20.0, 5);
+        assert_eq!(t.audio.len(), 960_000);
+        assert!(t.phrases.len() >= 4, "{:?}", t.phrases);
+        for w in t.phrases.windows(2) {
+            let (a, b) = ((w[0].1 * 48_000.0) as usize, (w[1].0 * 48_000.0) as usize);
+            assert!(b > a + 20_000);
+            assert!(t.audio[a + 100..b - 100].iter().all(|x| x.abs() < 1e-6));
+        }
+        let peak = t.audio.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+        assert!((0.3..=0.6).contains(&peak), "{peak}");
     }
 }
