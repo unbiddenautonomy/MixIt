@@ -2,7 +2,7 @@
 // in one fuzzy list.
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
-import { BookOpen, FlaskConical, Music2 } from "lucide-react";
+import { BookOpen, FlaskConical, Music2, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { backend } from "../../backend";
 import type { ActionSpec, TrackRow } from "../../backend/types";
@@ -21,6 +21,8 @@ import { openBuildSet } from "../library/BuildSetDialog";
 import { openTidy } from "../library/TidyDialog";
 import { instantDouble } from "../../lib/performance";
 import { toast } from "sonner";
+import { understand } from "../../lib/ask";
+import { askContext, runAsk } from "../../lib/askRun";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
 import { LABS } from "../../guide/labs";
@@ -134,7 +136,10 @@ export function CommandPalette() {
   const notation = useNotation();
   const [q, setQ] = useState("");
   const [tracks, setTracks] = useState<TrackRow[]>([]);
+  const askOn = useApp((s) => s.settings?.ask !== false);
   const close = () => useApp.getState().set({ paletteOpen: false });
+  // Ask MixIt: what the typed words ask for, as one of MixIt's own actions.
+  const asked = useMemo(() => (open && askOn && q.trim() ? understand(q, askContext()) : null), [q, open, askOn]);
 
   useEffect(() => {
     if (!open) setQ("");
@@ -184,9 +189,22 @@ export function CommandPalette() {
         <Dialog.Content className="fixed left-1/2 top-[14vh] z-50 w-[min(640px,92vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/95 shadow-2xl backdrop-blur" aria-describedby={undefined}>
           <Dialog.Title className="sr-only">Command palette</Dialog.Title>
           <Command label="Command palette" loop filter={paletteFilter} className="flex flex-col">
-            <Command.Input value={q} onValueChange={setQ} autoFocus placeholder="Type a command or search tracks…" className="h-12 border-b border-white/[0.06] bg-transparent px-4 text-sm text-zinc-100 outline-none placeholder:text-zinc-500" />
+            <Command.Input value={q} onValueChange={setQ} autoFocus placeholder={askOn ? "Type a command, search tracks, or ask: “loop 4 beats”…" : "Type a command or search tracks…"} className="h-12 border-b border-white/[0.06] bg-transparent px-4 text-sm text-zinc-100 outline-none placeholder:text-zinc-500" />
             <Command.List className="max-h-[60vh] overflow-y-auto p-2">
               <Command.Empty className="p-6 text-center text-sm text-zinc-500">Nothing matches.</Command.Empty>
+              {asked && (
+                <Command.Group heading="Ask MixIt" className="cmdk-group">
+                  {/* Its value is what was typed, so the list's filter always keeps it, first. */}
+                  <Command.Item value={`${q} ask mixit`} onSelect={() => run(() => void runAsk(asked, (id) => extras().find((e) => e.id === id)?.run()))} className="cmdk-item" data-testid="ask-mixit">
+                    <Sparkles size={13} className="text-violet-400" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {asked.say}
+                      {asked.ask.kind === "explain" && <span className="ml-2 text-[11px] text-zinc-500">{registry.find((a) => a.id === (asked.ask as { id: string }).id)?.explain}</span>}
+                    </span>
+                    <kbd className="rounded border border-white/10 px-1.5 font-mono text-[10px] text-zinc-400">↵</kbd>
+                  </Command.Item>
+                </Command.Group>
+              )}
               {tracks.length > 0 && (
                 <Command.Group heading="Tracks" className="cmdk-group">
                   {tracks.map((t) =>

@@ -2,7 +2,7 @@
 // the inspector on the right.
 import * as Popover from "@radix-ui/react-popover";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
-import { FolderPlus, HelpCircle, Import, Loader2, Search, Upload, Wand2, X, Zap } from "lucide-react";
+import { AudioLines, FolderPlus, HelpCircle, Import, Loader2, Search, Upload, Wand2, X, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { backend } from "../../backend";
@@ -11,7 +11,7 @@ import { useApp } from "../../store/app";
 import { MoveToScreen } from "../shell/MoveToScreen";
 import { useLibrary } from "../../store/library";
 import { Btn } from "../ui/Button";
-import { keepSoundsLike, refreshAll, refreshPlaylists, refreshRows, refreshStats } from "./data";
+import { keepSoundsLike, refreshAll, showDescribed, refreshPlaylists, refreshRows, refreshStats } from "./data";
 import { Inspector } from "./Inspector";
 import { newSmart, Sidebar } from "./Sidebar";
 import { Suggestions } from "./Suggestions";
@@ -78,7 +78,7 @@ function Toolbar({ movable }: { movable: boolean }) {
   }, []);
 
   const title =
-    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : source.type === "similar" ? `Sounds like “${source.title}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
+    source.type === "all" ? "Collection" : source.type === "history" ? (source.session != null && source.session !== currentSession ? "Past set" : "History") : source.type === "suggest" ? "Suggestions" : source.type === "autodj" ? "Auto DJ" : source.type === "care" ? "Fix library" : source.type === "insights" ? "Your collection at a glance" : source.type === "tag" ? `Tagged “${source.name}”` : source.type === "similar" ? `Sounds like “${source.title}”` : source.type === "described" ? `Sounds like “${source.text}”` : (playlists.find((p) => p.id === source.id)?.name ?? "Playlist");
   const job = Object.values(jobs).find((j) => !j.finished && j.kind !== "render");
 
   return (
@@ -139,6 +139,11 @@ function Toolbar({ movable }: { movable: boolean }) {
             </button>
           )}
         </div>
+      )}
+      {query.trim() && source.type === "all" && (
+        <Btn size="sm" className="ml-8" onClick={() => void showDescribed(query)} title="Find tracks that sound like what you typed, for example “dark rolling bass” or “warm piano with soft vocals”" data-testid="search-by-sound">
+          <AudioLines size={12} /> Sounds like this
+        </Btn>
       )}
       <div className="ml-auto flex items-center gap-1.5">
         {source.type === "playlist" && <SetFlowToggle />}

@@ -153,6 +153,33 @@ impl Track {
 /// Similarity from which a track counts as sounding like another in `like:` searches.
 pub const LIKE_MATCH: f64 = 0.6;
 
+/// How much the trained listener's view counts in "sounds like" where it has heard both
+/// tracks (the rest is the analysis's own profile).
+pub const LISTENER_WEIGHT: f64 = 0.7;
+
+fn cosine(a: &[f32], b: &[f32]) -> f64 {
+    let (mut ab, mut aa, mut bb) = (0.0f64, 0.0f64, 0.0f64);
+    for (&x, &y) in a.iter().zip(b) {
+        ab += x as f64 * y as f64;
+        aa += x as f64 * x as f64;
+        bb += y as f64 * y as f64;
+    }
+    if aa == 0.0 || bb == 0.0 || a.len() != b.len() { 0.0 } else { ab / (aa * bb).sqrt() }
+}
+
+/// Two tracks' listener numbers as a match 0..1. Music all points roughly the same way
+/// to the listener (tracks in different styles still meet at about 0.8), so the scale
+/// starts at 0.6 and the same style lands near the top.
+fn embedding_match(a: &[f32], b: &[f32]) -> f64 {
+    ((cosine(a, b) - 0.6) / 0.4).clamp(0.0, 1.0)
+}
+
+/// A track's and a description's numbers as a match 0..1. Sound and words meet less
+/// closely (a good fit is about 0.3), so the scale is narrower.
+fn description_match(track: &[f32], words: &[f32]) -> f64 {
+    ((cosine(track, words) - 0.05) / 0.35).clamp(0.0, 1.0)
+}
+
 fn sound_to_bytes(v: &[f32]) -> Vec<u8> {
     v.iter().flat_map(|x| x.to_le_bytes()).collect()
 }
@@ -776,14 +803,89 @@ impl Library {
 
     /// Tracks that sound most like `id` (instruments, production, groove), best first,
     /// with their similarity 0..1. Empty when `id` has no profile yet (not analysed).
+    ///
+    /// When the trained listener has heard `id` (see [`Library::save_embedding`]), its
+    /// view counts for most with every track it has also heard; the rest are compared on
+    /// the analysis's own profile alone.
     pub fn sounds_like(&self, id: TrackId, limit: usize) -> Result<Vec<(TrackId, f64)>> {
         let sounds = self.standard_sounds()?;
-        let Some(me) = sounds.get(&id) else { return Ok(vec![]) };
-        let mut out: Vec<(TrackId, f64)> = sounds
-            .iter()
-            .filter(|(other, _)| **other != id)
-            .filter_map(|(other, v)| mixit_analysis::timbre::similarity(me, v).map(|s| (*other, s)))
+        let heard = self.embeddings_like(id)?;
+        let mine = heard.get(&id);
+        if !sounds.contains_key(&id) && mine.is_none() {
+            return Ok(vec![]);
+        }
+        let mut ids: Vec<TrackId> = sounds.keys().chain(heard.keys()).copied().filter(|o| *o != id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        let mut out: Vec<(TrackId, f64)> = ids
+            .into_iter()
+            .filter_map(|other| {
+                let timbre =
+                    sounds.get(&id).zip(sounds.get(&other)).and_then(|(a, b)| mixit_analysis::timbre::similarity(a, b));
+                let listener = mine.zip(heard.get(&other)).map(|(a, b)| embedding_match(a, b));
+                let s = match (listener, timbre) {
+                    (Some(l), Some(t)) => LISTENER_WEIGHT * l + (1.0 - LISTENER_WEIGHT) * t,
+                    (Some(l), None) => l,
+                    (None, t) => t?,
+                };
+                Some((other, s))
+            })
             .collect();
+        out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
+        out.truncate(limit);
+        Ok(out)
+    }
+
+    // ---------------------------------------------------------------- trained listener
+
+    /// Stores how `id` sounds to the trained listener `model` (replacing what it had).
+    pub fn save_embedding(&self, id: TrackId, model: &str, vec: &[f32]) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO sound_embeddings (track_id, model, vec) VALUES (?1, ?2, ?3)
+             ON CONFLICT (track_id, model) DO UPDATE SET vec = excluded.vec",
+            rusqlite::params![id, model, sound_to_bytes(vec)],
+        )?;
+        Ok(())
+    }
+
+    /// Every track `model` has heard (whose file is there), with its numbers.
+    pub fn embeddings(&self, model: &str) -> Result<Vec<(TrackId, Vec<f32>)>> {
+        let mut st = self.conn.prepare(
+            "SELECT e.track_id, e.vec FROM sound_embeddings e JOIN tracks t ON t.id = e.track_id
+             WHERE e.model = ?1 AND t.missing = 0",
+        )?;
+        let rows = st.query_map([model], |r| Ok((r.get::<_, TrackId>(0)?, r.get::<_, Vec<u8>>(1)?)))?;
+        rows.map(|r| r.map(|(id, b)| (id, sound_from_bytes(&b))).map_err(Into::into)).collect()
+    }
+
+    /// The embeddings of the listener that heard `id` (empty if none did).
+    fn embeddings_like(&self, id: TrackId) -> Result<std::collections::HashMap<TrackId, Vec<f32>>> {
+        let model: Option<String> = self
+            .conn
+            .query_row("SELECT model FROM sound_embeddings WHERE track_id = ?1 LIMIT 1", [id], |r| r.get(0))
+            .optional()?;
+        Ok(match model {
+            Some(m) => self.embeddings(&m)?.into_iter().collect(),
+            None => Default::default(),
+        })
+    }
+
+    /// Tracks `model` has not heard yet (files that are there), oldest first.
+    pub fn unheard(&self, model: &str) -> Result<Vec<Track>> {
+        let sql = format!(
+            "SELECT {TRACK_COLS} FROM tracks t WHERE t.missing = 0 AND NOT EXISTS
+             (SELECT 1 FROM sound_embeddings e WHERE e.track_id = t.id AND e.model = ?1) ORDER BY t.id"
+        );
+        let mut st = self.conn.prepare(&sql)?;
+        let rows = st.query_map([model], track_from_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Tracks ranked by how well they fit a description, given as the numbers the
+    /// listener's describer made of it (`model`'s), best first, with a match 0..1.
+    pub fn sounds_described(&self, model: &str, words: &[f32], limit: usize) -> Result<Vec<(TrackId, f64)>> {
+        let mut out: Vec<(TrackId, f64)> =
+            self.embeddings(model)?.into_iter().map(|(id, v)| (id, description_match(&v, words))).collect();
         out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
         out.truncate(limit);
         Ok(out)

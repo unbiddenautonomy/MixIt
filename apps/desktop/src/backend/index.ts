@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, TagDto,
+import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -125,6 +125,11 @@ export interface Backend {
   buildSet(req: BuildSetRequest): Promise<TrackRow[]>;
   /** Tracks that sound most like this one (instruments, production, groove), best first. Empty until it is analysed. */
   soundsLike(trackId: number, limit?: number): Promise<SoundMatch[]>;
+  /** Tracks that sound like a description ("dark rolling bass"), best first. */
+  soundSearch(text: string, limit?: number): Promise<SoundMatch[]>;
+  soundSearchStatus(): Promise<SoundSearchStatus>;
+  /** Starts listening to the tracks not heard yet (a library job). */
+  soundListen(): Promise<void>;
 
   playlists(): Promise<PlaylistDto[]>;
   playlistTracks(id: number): Promise<TrackRow[]>;

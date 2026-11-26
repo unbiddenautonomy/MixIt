@@ -44,8 +44,46 @@ pub const HTDEMUCS: ModelInfo = ModelInfo {
              in the licence audit.",
 };
 
+const CLAP_SOURCE: &str = "CLAP (larger_clap_music_and_speech) by LAION, Apache-2.0; ONNX export with 8-bit \
+                           weights by Xenova (huggingface.co/Xenova/larger_clap_music_and_speech).";
+
+/// The sound listener (LAION's CLAP, trained on music and speech): ten seconds of
+/// 48 kHz audio in, a 512-number description of how it sounds out. 8-bit weights.
+pub const CLAP_AUDIO: ModelInfo = ModelInfo {
+    id: "clap-audio",
+    name: "Sound listener (CLAP)",
+    file: "clap_ms_audio_quantized.onnx",
+    url: "https://huggingface.co/Xenova/larger_clap_music_and_speech/resolve/e9fd5ac1dbf3280936a7fc3ec8a020453ff184db/onnx/audio_model_quantized.onnx",
+    sha256: "021dd4fb962b4ed20cc3a6730b09e0ccf9f9c49931047032118a3b64828513a6",
+    bytes: 78_155_433,
+    source: CLAP_SOURCE,
+};
+
+/// CLAP's other half: words in, the same kind of 512 numbers out, so a description
+/// ("dark rolling bass") can be compared with how tracks sound.
+pub const CLAP_TEXT: ModelInfo = ModelInfo {
+    id: "clap-text",
+    name: "Sound describer (CLAP)",
+    file: "clap_ms_text_quantized.onnx",
+    url: "https://huggingface.co/Xenova/larger_clap_music_and_speech/resolve/e9fd5ac1dbf3280936a7fc3ec8a020453ff184db/onnx/text_model_quantized.onnx",
+    sha256: "8f9f29c5f6adee917553d4b3a70729c731c0d18b88efca0ae67c1a1fc278f3b6",
+    bytes: 126_603_262,
+    source: CLAP_SOURCE,
+};
+
+/// The word list CLAP's describer reads with (RoBERTa's).
+pub const CLAP_TOKENIZER: ModelInfo = ModelInfo {
+    id: "clap-tokenizer",
+    name: "Sound describer's word list",
+    file: "clap_ms_tokenizer.json",
+    url: "https://huggingface.co/Xenova/larger_clap_music_and_speech/resolve/e9fd5ac1dbf3280936a7fc3ec8a020453ff184db/tokenizer.json",
+    sha256: "dc239041d98de27ffc3975473a1a23e3db4c937b23c138c38bbc66588bd247e5",
+    bytes: 2_108_774,
+    source: CLAP_SOURCE,
+};
+
 /// Every model MixIt knows about.
-pub const ALL: &[ModelInfo] = &[HTDEMUCS];
+pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER];
 
 /// The models folder.
 #[derive(Clone, Debug)]

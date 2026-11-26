@@ -111,6 +111,11 @@ pub struct Settings {
     /// the quick split. Falls back to the quick split if the model can't be fetched or
     /// run, or in a build without it.
     pub trained_stems: bool,
+    /// Lets a trained listener (downloaded once, about 207 MB) hear each track after
+    /// analysis, for search by sound and a better "sounds like".
+    pub sound_search: bool,
+    /// Ask MixIt: the command palette also understands requests typed in plain words.
+    pub ask: bool,
 }
 
 impl Default for Settings {
@@ -141,6 +146,8 @@ impl Default for Settings {
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
             trained_stems: true,
+            sound_search: true,
+            ask: true,
         }
     }
 }
@@ -207,6 +214,9 @@ pub struct AppState {
     pub pads: Mutex<Vec<crate::sampler::PadInfo>>,
     /// The latest preview request: (token, track id).
     pub preview: Mutex<Option<(u64, i64)>>,
+    /// The sound describer, loaded on the first search by sound.
+    #[cfg(feature = "sound-search")]
+    pub describer: Mutex<Option<mixit_ml::sound::Clap>>,
 }
 
 impl AppState {
@@ -234,6 +244,8 @@ impl AppState {
             job_cancel: Arc::new(AtomicBool::new(false)),
             render_cancel: Arc::new(AtomicBool::new(false)),
             preview: Mutex::new(None),
+            #[cfg(feature = "sound-search")]
+            describer: Mutex::new(None),
             next_token: Mutex::new(1),
             pads: Mutex::new(pads),
         };

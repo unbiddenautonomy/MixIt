@@ -328,7 +328,7 @@ export function TrackTable() {
   const matches = useLibrary((s) => s.matches);
   const shown = COLUMNS.filter((c) => isShown(c.key, c.extra ? "extra" : c.pro ? "pro" : "always", pro, prefs));
   // "Sounds like" puts its match right after the title.
-  const cols = source.type === "similar" ? shown.flatMap((c) => (c.key === "title" ? [c, MATCH] : [c])) : shown;
+  const cols = source.type === "similar" || source.type === "described" ? shown.flatMap((c) => (c.key === "title" ? [c, MATCH] : [c])) : shown;
   // A last narrow track holds the columns button in the header (and stays empty in rows).
   const template = `${cols.map((c) => track(c.key, c.width, prefs)).join(" ")} 24px`;
   const sorted = useMemo(() => sortRows(rows, sort, sortDir), [rows, sort, sortDir]);

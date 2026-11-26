@@ -136,6 +136,16 @@ export interface SoundMatch {
   score: number;
 }
 
+/** Where search by sound stands. */
+export interface SoundSearchStatus {
+  /** This app can search by sound and the setting is on. */
+  available: boolean;
+  /** Tracks the listener has heard. */
+  heard: number;
+  /** Tracks whose files are there. */
+  total: number;
+}
+
 export interface SuggestionRow {
   track: TrackRow;
   score: number;
@@ -372,6 +382,10 @@ export interface Settings {
   micDenoise?: "strong" | "light" | "off";
   /** Desktop: split stems with the trained model (downloaded once) instead of the quick split. */
   trainedStems?: boolean;
+  /** Let a trained listener hear each track (downloaded once), for search by sound. */
+  soundSearch?: boolean;
+  /** Ask MixIt: the command palette also understands requests typed in plain words. */
+  ask?: boolean;
 }
 
 /** The mic channel, as the engine reports it. */

@@ -61,6 +61,10 @@ export async function refreshRows() {
         found.map((m) => m.track),
         query,
       );
+    } else if (source.type === "described") {
+      const found = await backend().soundSearch(source.text, 60);
+      set({ matches: Object.fromEntries(found.map((m) => [m.track.id, m.score])) });
+      rows = found.map((m) => m.track);
     } else if (source.type === "suggest") {
       await refreshSuggestions();
       rows = useLibrary.getState().suggestions.map((s) => s.track);
@@ -82,6 +86,27 @@ export function showSoundsLike(row: Pick<TrackRow, "id" | "title" | "path" | "an
     return;
   }
   useLibrary.getState().set({ source: { type: "similar", id: row.id, title: row.title || fileName(row.path) || "this track" }, sort: null, matches: {} });
+  refreshRows();
+}
+
+/** Lists the tracks that sound like a description ("dark rolling bass"), best match first. */
+export async function showDescribed(text: string) {
+  const t = text.trim();
+  if (!t) return;
+  const st = await backend()
+    .soundSearchStatus()
+    .catch(() => null);
+  if (st && !st.available) {
+    toast.message("Search by sound is off", { description: "Turn on “Listen to my tracks” in Settings, then analyse your tracks." });
+    return;
+  }
+  if (st && st.heard < st.total) {
+    toast.message(st.heard === 0 ? "MixIt hasn't listened to your tracks yet" : `MixIt has listened to ${st.heard} of ${st.total} tracks`, {
+      description: "It listens to each track once, right after analysing it. Only tracks it has heard can be found this way.",
+      action: { label: "Listen now", onClick: () => void backend().soundListen().catch(fail) },
+    });
+  }
+  useLibrary.getState().set({ source: { type: "described", text: t }, query: "", sort: null, matches: {} });
   refreshRows();
 }
 

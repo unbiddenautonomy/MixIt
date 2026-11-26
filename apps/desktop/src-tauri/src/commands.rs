@@ -509,7 +509,7 @@ fn emit_job(app: &AppHandle, p: JobProgress) {
 }
 
 /// Runs a library job on its own thread and connection.
-fn spawn_library_job(
+pub(crate) fn spawn_library_job(
     app: AppHandle,
     kind: &'static str,
     work: impl FnOnce(&AppHandle, &Library, &dyn Fn(usize, usize, String)) -> R<String> + Send + 'static,
@@ -552,10 +552,13 @@ fn analyse_all(app: &AppHandle, lib: &Library, progress: &dyn Fn(usize, usize, S
             }
         })
         .map_err(err)?;
+    let heard =
+        crate::listen::listen_all(app, lib, progress).unwrap_or_else(|e| format!("Couldn't listen to the tracks: {e}"));
     Ok(format!(
-        "Analysed {} tracks{}",
+        "Analysed {} tracks{}{}",
         s.analysed,
-        if s.failed > 0 { format!(", {} failed", s.failed) } else { String::new() }
+        if s.failed > 0 { format!(", {} failed", s.failed) } else { String::new() },
+        if heard.is_empty() { String::new() } else { format!(". {heard}") }
     ))
 }
 
