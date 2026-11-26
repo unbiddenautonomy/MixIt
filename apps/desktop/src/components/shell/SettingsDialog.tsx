@@ -179,6 +179,11 @@ function Mixing({ s }: { s: Settings }) {
         <Toggle on={s.safetyLoop !== false} onChange={(v) => updateSettings({ safetyLoop: v })} label="Never let the music stop" />
       </Field>
       <NowPlaying s={s} />
+      {backend().kind === "tauri" && (
+        <Field label="Stems" hint="Splitting a track into vocals, drums, bass and melody. The trained splitter is much cleaner; it is downloaded once (about 166 MB) the first time you split a track. Off, or without internet, MixIt uses its quick split, which needs no download.">
+          <Toggle on={s.trainedStems !== false} onChange={(v) => updateSettings({ trainedStems: v })} label="Use the trained splitter" />
+        </Field>
+      )}
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
       </Field>

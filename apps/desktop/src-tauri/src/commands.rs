@@ -1974,6 +1974,61 @@ fn stem_audio([vocals, drums, bass]: [Vec<f32>; 3]) -> mixit_engine::StemAudio {
     mixit_engine::StemAudio { vocals, drums, bass }
 }
 
+enum TrainedSplit {
+    #[cfg_attr(not(feature = "stems-model"), allow(dead_code))]
+    Stopped,
+    /// The model couldn't be fetched or run, or this build has none; the reason in
+    /// plain words.
+    Unavailable(String),
+}
+
+/// Splits with the trained model, downloading it first if it isn't there yet.
+#[cfg(feature = "stems-model")]
+fn trained_split(
+    state: &AppState,
+    sr: u32,
+    audio: &[f32],
+    title: &str,
+    progress: &dyn Fn(f32, String),
+    running: &dyn Fn() -> bool,
+) -> Result<[Vec<f32>; 3], TrainedSplit> {
+    use mixit_ml::MlError;
+    use mixit_ml::models::{HTDEMUCS, ModelStore};
+    let why = |e: MlError| match e {
+        MlError::Cancelled => TrainedSplit::Stopped,
+        e => TrainedSplit::Unavailable(e.to_string()),
+    };
+    let store = ModelStore::new(&state.paths.models);
+    let mb = HTDEMUCS.bytes / 1_000_000;
+    let path = store
+        .fetch(&HTDEMUCS, |p| {
+            progress(0.25 * p, format!("Getting the stem splitter ({mb} MB, only the first time)"));
+            running()
+        })
+        .map_err(why)?;
+    let splitting = format!("Splitting {title} into stems");
+    progress(0.25, splitting.clone());
+    let mut model = mixit_ml::stems::HtDemucs::load(&path).map_err(why)?;
+    let s = mixit_ml::stems::split(&mut model, sr, audio, |p| {
+        progress(0.25 + 0.75 * p, splitting.clone());
+        running()
+    })
+    .map_err(why)?;
+    Ok([s.vocals, s.drums, s.bass])
+}
+
+#[cfg(not(feature = "stems-model"))]
+fn trained_split(
+    _state: &AppState,
+    _sr: u32,
+    _audio: &[f32],
+    _title: &str,
+    _progress: &dyn Fn(f32, String),
+    _running: &dyn Fn() -> bool,
+) -> Result<[Vec<f32>; 3], TrainedSplit> {
+    Err(TrainedSplit::Unavailable("this build has no trained splitter".into()))
+}
+
 /// Splits a track into stems in the background (vocals, drums, bass, and the rest as
 /// melody), keeps them for next time, and gives them to any deck playing the track.
 #[tauri::command]
@@ -1992,33 +2047,53 @@ pub fn stems_split(app: AppHandle, state: State<'_, AppState>, track_id: i64) ->
     let spawned = std::thread::Builder::new().name("mixit-stems".into()).spawn(move || {
         let state = app.state::<AppState>();
         let title = if track.title.is_empty() { "the track".to_string() } else { format!("“{}”", track.title) };
-        let progress = |p: f32| {
+        let progress = |p: f32, message: String| {
             emit_job(
                 &app,
                 JobProgress {
                     kind: "stems",
                     done: (p * 1000.0) as usize,
                     total: 1000,
-                    message: format!("Splitting {title} into stems"),
+                    message,
                     finished: false,
                     error: None,
                 },
             );
         };
         let r = (|| -> R<String> {
-            progress(0.0);
+            let splitting = format!("Splitting {title} into stems");
+            progress(0.0, splitting.clone());
             let sr = state.audio.lock().sample_rate;
             let cache = mixit_io::DecodeCache::new(&state.paths.cache).ok();
             let loaded = mixit_io::load_track(&track.path, sr, cache.as_ref()).map_err(err)?;
-            let split = mixit_analysis::stems::quick_split(sr, &loaded.data, |p| {
-                progress(0.05 + 0.9 * p);
-                !state.stems_cancel.load(Ordering::SeqCst)
-            })
-            .ok_or("Stopped splitting")?;
-            let parts = [split.vocals, split.drums, split.bass];
+            let running = || !state.stems_cancel.load(Ordering::SeqCst);
+            let mut note = String::new();
+            let trained = if state.settings.lock().trained_stems {
+                match trained_split(&state, sr, &loaded.data, &title, &progress, &running) {
+                    Ok(parts) => Some(parts),
+                    Err(TrainedSplit::Stopped) => return Err("Stopped splitting".into()),
+                    Err(TrainedSplit::Unavailable(why)) => {
+                        note = format!(" (The trained splitter wasn't available: {why}. This used the quick split.)");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            let (parts, method) = match trained {
+                Some(parts) => (parts, "htdemucs"),
+                None => {
+                    let split = mixit_analysis::stems::quick_split(sr, &loaded.data, |p| {
+                        progress(0.05 + 0.9 * p, splitting.clone());
+                        running()
+                    })
+                    .ok_or("Stopped splitting")?;
+                    ([split.vocals, split.drums, split.bass], "quick")
+                }
+            };
             mixit_io::StemCache::new(stem_dir(&state))
                 .map_err(err)?
-                .put(&loaded.hash, sr, "quick", [&parts[0], &parts[1], &parts[2]])
+                .put(&loaded.hash, sr, method, [&parts[0], &parts[1], &parts[2]])
                 .map_err(err)?;
             // Decks playing this track get the stems straight away.
             let decks: Vec<usize> = state
@@ -2033,7 +2108,7 @@ pub fn stems_split(app: AppHandle, state: State<'_, AppState>, track_id: i64) ->
                 let st = Arc::new(stem_audio(parts.clone()));
                 state.audio.lock().send(Command::Deck(DeckId(i as u8), DeckCommand::SetStems(st)));
             }
-            Ok(format!("{title} is split: turn its vocals, drums, bass and melody up and down on the deck."))
+            Ok(format!("{title} is split: turn its vocals, drums, bass and melody up and down on the deck.{note}"))
         })();
         let (message, error) = match r {
             Ok(m) => (m, None),
