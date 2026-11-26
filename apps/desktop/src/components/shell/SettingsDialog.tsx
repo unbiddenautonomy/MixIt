@@ -183,6 +183,14 @@ function Mixing({ s }: { s: Settings }) {
       {backend().kind === "tauri" && (
         <Field label="Stems" hint="Splitting a track into vocals, drums, bass and melody. The trained splitter is much cleaner; it is downloaded once (about 166 MB) the first time you split a track. Off, or without internet, MixIt uses its quick split, which needs no download.">
           <Toggle on={s.trainedStems !== false} onChange={(v) => updateSettings({ trainedStems: v })} label="Use the trained splitter" />
+          <Toggle
+            on={!!s.cleanVocals}
+            onChange={(v) => updateSettings({ cleanVocals: v })}
+            label="Cleaner vocals (much slower)"
+          />
+          <p className="text-[11px] text-zinc-500">
+            After the trained splitter, a second, larger model takes the singing out almost without the music around it, for clean acapellas. It is downloaded once (about 464 MB) and takes several minutes a track.
+          </p>
         </Field>
       )}
       {backend().kind === "tauri" && (

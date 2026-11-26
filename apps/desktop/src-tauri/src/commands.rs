@@ -2031,7 +2031,7 @@ fn trained_split(
     title: &str,
     progress: &dyn Fn(f32, String),
     running: &dyn Fn() -> bool,
-) -> Result<[Vec<f32>; 3], TrainedSplit> {
+) -> Result<([Vec<f32>; 3], &'static str), TrainedSplit> {
     use mixit_ml::MlError;
     use mixit_ml::models::{HTDEMUCS, ModelStore};
     let why = |e: MlError| match e {
@@ -2047,14 +2047,44 @@ fn trained_split(
         })
         .map_err(why)?;
     let splitting = format!("Splitting {title} into stems");
+    let cleaner = state.settings.lock().clean_vocals;
+    // With cleaner vocals the stem splitter takes the first half of the bar, the vocal
+    // splitter the rest.
+    let share = if cleaner { 0.35 } else { 0.75 };
     progress(0.25, splitting.clone());
     let mut model = mixit_ml::stems::HtDemucs::load(&path).map_err(why)?;
     let s = mixit_ml::stems::split(&mut model, sr, audio, |p| {
-        progress(0.25 + 0.75 * p, splitting.clone());
+        progress(0.25 + share * p, splitting.clone());
         running()
     })
     .map_err(why)?;
-    Ok([s.vocals, s.drums, s.bass])
+    drop(model);
+    if !cleaner {
+        return Ok(([s.vocals, s.drums, s.bass], "htdemucs"));
+    }
+    // Cleaner vocals; if the vocal splitter can't be had or run, the stem splitter's
+    // vocals stay.
+    use mixit_ml::models::MEL_ROFORMER;
+    let mb = MEL_ROFORMER.bytes / 1_000_000;
+    let cleaning = format!("Taking the vocals out of {title} cleanly (the slow part)");
+    let clean = store
+        .fetch(&MEL_ROFORMER, |p| {
+            progress(0.6, format!("Getting the vocal splitter ({mb} MB, only the first time): {:.0} %", p * 100.0));
+            running()
+        })
+        .and_then(|vpath| mixit_ml::vocal_split::MelRoformer::load(&vpath))
+        .and_then(|mut model| {
+            progress(0.6, cleaning.clone());
+            mixit_ml::vocal_split::vocals(&mut model, sr, audio, |p| {
+                progress(0.6 + 0.4 * p, cleaning.clone());
+                running()
+            })
+        });
+    match clean {
+        Ok(v) => Ok(([v, s.drums, s.bass], "htdemucs+mel-roformer")),
+        Err(mixit_ml::MlError::Cancelled) => Err(TrainedSplit::Stopped),
+        Err(_) => Ok(([s.vocals, s.drums, s.bass], "htdemucs")),
+    }
 }
 
 #[cfg(not(feature = "stems-model"))]
@@ -2065,7 +2095,7 @@ fn trained_split(
     _title: &str,
     _progress: &dyn Fn(f32, String),
     _running: &dyn Fn() -> bool,
-) -> Result<[Vec<f32>; 3], TrainedSplit> {
+) -> Result<([Vec<f32>; 3], &'static str), TrainedSplit> {
     Err(TrainedSplit::Unavailable("this build has no trained splitter".into()))
 }
 
@@ -2121,7 +2151,7 @@ pub fn stems_split(app: AppHandle, state: State<'_, AppState>, track_id: i64) ->
                 None
             };
             let (parts, method) = match trained {
-                Some(parts) => (parts, "htdemucs"),
+                Some(found) => found,
                 None => {
                     let split = mixit_analysis::stems::quick_split(sr, &loaded.data, |p| {
                         progress(0.05 + 0.9 * p, splitting.clone());

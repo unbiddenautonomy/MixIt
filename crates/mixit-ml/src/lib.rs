@@ -12,6 +12,8 @@
 //!   rest).
 //! * [`sound`]: CLAP, which describes how a track sounds, for search by sound, behind
 //!   the `sound` feature.
+//! * [`vocal_split`]: Mel-Band RoFormer, which takes the singing out of a track more
+//!   cleanly than the stem splitter's vocal stem.
 //! * [`voice`]: cleans the mic (echo cancelling and noise removal), behind the `voice`
 //!   feature.
 
@@ -19,6 +21,7 @@ pub mod beats;
 pub mod models;
 pub mod sound;
 pub mod stems;
+pub mod vocal_split;
 pub mod voice;
 
 #[derive(Debug, thiserror::Error)]

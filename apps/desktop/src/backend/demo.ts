@@ -283,6 +283,7 @@ export class DemoBackend implements Backend {
     micDenoise: "strong",
     soundSearch: true,
     beatHelper: true,
+    cleanVocals: false,
     ask: true,
     checkUpdates: true,
     trainedStems: true,

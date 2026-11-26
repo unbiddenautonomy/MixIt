@@ -96,8 +96,23 @@ pub const BEAT_THIS: ModelInfo = ModelInfo {
              (huggingface.co/musetric/beat-this-onnx, tagged MIT).",
 };
 
+/// Cleaner vocals (Kimberley Jensen's Mel-Band RoFormer): 8 s of 44.1 kHz stereo as a
+/// spectrogram in, the singing in it out. Weights stored at half precision.
+pub const MEL_ROFORMER: ModelInfo = ModelInfo {
+    id: "mel-roformer-kj",
+    name: "Vocal splitter (Mel-Band RoFormer)",
+    file: "mel_roformer_kj_fp16.onnx",
+    url: "https://huggingface.co/audiojs/mel-roformer/resolve/c1aba02c00a0bee852d6754fe6ede8164f90a4b3/mel-roformer.fp16.onnx",
+    sha256: "adcbbb826f12453fbb86652b503242d565a9c81cdef1bca2fe0e54752eba91ef",
+    bytes: 464_050_097,
+    source: "Mel-Band RoFormer (Wang et al., ByteDance) vocals model by Kimberley Jensen \
+             (huggingface.co/KimberleyJSN/melbandroformer, tagged MIT); model code by Phil Wang and \
+             ZFTurbo (MIT); ONNX export with 16-bit weights by audiojs (huggingface.co/audiojs/mel-roformer, MIT). \
+             Training data not stated upstream.",
+};
+
 /// Every model MixIt knows about.
-pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS];
+pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS, MEL_ROFORMER];
 
 /// The models folder.
 #[derive(Clone, Debug)]

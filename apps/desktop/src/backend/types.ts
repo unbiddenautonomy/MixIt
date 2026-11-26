@@ -393,6 +393,8 @@ export interface Settings {
   /** Desktop: split stems with the trained model (downloaded once) instead of the quick split. */
   trainedStems?: boolean;
   /** Let a trained listener hear each track (downloaded once), for search by sound. */
+  /** After the trained splitter, a larger model takes the vocals out more cleanly (slow). */
+  cleanVocals?: boolean;
   soundSearch?: boolean;
   beatHelper?: boolean;
   /** Ask MixIt: the command palette also understands requests typed in plain words. */

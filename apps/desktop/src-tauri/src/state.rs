@@ -111,6 +111,9 @@ pub struct Settings {
     /// the quick split. Falls back to the quick split if the model can't be fetched or
     /// run, or in a build without it.
     pub trained_stems: bool,
+    /// After the stem splitter, a second, larger model (downloaded once, about 464 MB)
+    /// takes the vocals out much more cleanly. Slow: several minutes a track.
+    pub clean_vocals: bool,
     /// Lets a trained listener (downloaded once, about 207 MB) hear each track after
     /// analysis, for search by sound and a better "sounds like".
     pub sound_search: bool,
@@ -153,6 +156,7 @@ impl Default for Settings {
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
             trained_stems: true,
+            clean_vocals: false,
             sound_search: true,
             beat_helper: true,
             ask: true,
