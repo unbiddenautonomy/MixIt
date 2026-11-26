@@ -114,6 +114,8 @@ pub struct Settings {
     /// Lets a trained listener (downloaded once, about 207 MB) hear each track after
     /// analysis, for search by sound and a better "sounds like".
     pub sound_search: bool,
+    /// Ask MixIt: the command palette also understands requests typed in plain words.
+    pub ask: bool,
 }
 
 impl Default for Settings {
@@ -145,6 +147,7 @@ impl Default for Settings {
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
             trained_stems: true,
             sound_search: true,
+            ask: true,
         }
     }
 }

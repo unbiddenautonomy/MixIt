@@ -1,0 +1,7465 @@
+[
+  {
+    "group": "Deck A",
+    "id": "deck.A.play",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Play / pause"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.cue",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Cue"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.sync",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Sync"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.master",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Tempo master"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keylock",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Key lock"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.tempo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Tempo"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.tempo_range",
+    "kind": {
+      "default": 3,
+      "options": [
+        "±6%",
+        "±8%",
+        "±10%",
+        "±16%",
+        "±50%",
+        "±100%"
+      ],
+      "type": "choice"
+    },
+    "label": "Tempo range"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.tempo_reset",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reset tempo"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.nudge_down",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge slower"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.nudge_up",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge faster"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.key_shift",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Semitones"
+      },
+      "type": "continuous"
+    },
+    "label": "Key shift"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.vocals",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Vocals level"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.vocals.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute vocals"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.drums",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Drums level"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.drums.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute drums"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.bass",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Bass level"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.bass.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute bass"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.melody",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Melody level"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.stem.melody.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute melody"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.key_sync",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Key sync"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 1"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.1.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 1"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.2.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 3"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.3.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 3"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.4.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 5"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.5.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 5"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 6"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.6.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 6"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 7"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.7.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 7"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 8"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.8.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 8"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.9",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 9"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.9.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 9"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.10",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 10"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.10.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 10"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.11",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 11"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.11.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 11"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.12",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 12"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.12.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 12"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.13",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 13"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.13.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 13"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.14",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 14"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.14.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 14"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.15",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 15"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.15.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 15"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.16",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 16"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.hotcue.16.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 16"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 1"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/32"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/16"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 3"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/8"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 5"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 6"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 7"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 8"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.roll.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 1"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 2"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 3"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 4"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 5"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 6"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 7"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 8"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.cue",
+    "kind": {
+      "default": 0,
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad cue"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.keypad.range",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Low",
+        "Middle",
+        "High"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad range"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slice.size",
+    "kind": {
+      "default": 1,
+      "options": [
+        "1 bar",
+        "2 bars",
+        "4 bars"
+      ],
+      "type": "choice"
+    },
+    "label": "Slicer length"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.auto",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Loop"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.size",
+    "kind": {
+      "default": 7,
+      "options": [
+        "1/32",
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Loop size"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve loop"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double loop"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.in",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop in"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.out",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop out"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.reloop",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reloop"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.let_end",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Let it end"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.roll",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Loop roll"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.move_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop back"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.loop.move_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop forward"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.beatjump.back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump back"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.beatjump.fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump forward"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.beatjump.size",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Beat jump size"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.slip",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Slip"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.censor",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Censor"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.reverse",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Reverse"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.brake",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Brake"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.spinup",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Spin up"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Instant double"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.eject",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Eject"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.set_downbeat",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Set downbeat"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve BPM"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double BPM"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.nudge_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid earlier"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.nudge_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid later"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.warp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Pin beat here"
+  },
+  {
+    "group": "Deck A",
+    "id": "deck.A.grid.unwarp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Remove pin"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.trim",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Trim"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.high",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "High EQ"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.mid",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mid EQ"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.low",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Low EQ"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.kill.high",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill highs"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.kill.mid",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill mids"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.eq.kill.low",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill lows"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.filter",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.filter_res",
+    "kind": {
+      "spec": {
+        "default": 0.30000001192092896,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter resonance"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.fader",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Volume"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Headphone cue"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.assign",
+    "kind": {
+      "default": 0,
+      "options": [
+        "A",
+        "Thru",
+        "B"
+      ],
+      "type": "choice"
+    },
+    "label": "Crossfader side"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.color",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Colour FX"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.color_type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Filter",
+        "Noise",
+        "Space",
+        "Dub echo",
+        "Crush"
+      ],
+      "type": "choice"
+    },
+    "label": "Colour FX type"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.pan",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Pan"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.punch",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Punch"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.warmth",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Warmth"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.width",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 2.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Stereo width"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.space",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Space (reverb send)"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.echo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo send"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.duck_source",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Off",
+        "Deck A",
+        "Deck B",
+        "Deck C",
+        "Deck D"
+      ],
+      "type": "choice"
+    },
+    "label": "Duck under"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.duck",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Ducking amount"
+  },
+  {
+    "group": "Mixer A",
+    "id": "mixer.A.gate",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Noise gate"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.type",
+    "kind": {
+      "default": 1,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 type"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 1 on"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 amount"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 beats"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 1"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.1.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 2"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 type"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 2 on"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 amount"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 beats"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 1"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.2.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 2"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 type"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 3 on"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 amount"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 beats"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 1"
+  },
+  {
+    "group": "FX A",
+    "id": "fx.A.3.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.play",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Play / pause"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.cue",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Cue"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.sync",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Sync"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.master",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Tempo master"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keylock",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Key lock"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.tempo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Tempo"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.tempo_range",
+    "kind": {
+      "default": 3,
+      "options": [
+        "±6%",
+        "±8%",
+        "±10%",
+        "±16%",
+        "±50%",
+        "±100%"
+      ],
+      "type": "choice"
+    },
+    "label": "Tempo range"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.tempo_reset",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reset tempo"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.nudge_down",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge slower"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.nudge_up",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge faster"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.key_shift",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Semitones"
+      },
+      "type": "continuous"
+    },
+    "label": "Key shift"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.vocals",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Vocals level"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.vocals.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute vocals"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.drums",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Drums level"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.drums.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute drums"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.bass",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Bass level"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.bass.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute bass"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.melody",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Melody level"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.stem.melody.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute melody"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.key_sync",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Key sync"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 1"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.1.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 1"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.2.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 3"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.3.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 3"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.4.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 5"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.5.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 5"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 6"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.6.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 6"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 7"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.7.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 7"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 8"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.8.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 8"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.9",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 9"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.9.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 9"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.10",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 10"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.10.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 10"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.11",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 11"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.11.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 11"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.12",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 12"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.12.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 12"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.13",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 13"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.13.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 13"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.14",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 14"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.14.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 14"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.15",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 15"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.15.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 15"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.16",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 16"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.hotcue.16.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 16"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 1"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/32"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/16"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 3"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/8"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 5"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 6"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 7"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 8"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.roll.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 1"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 2"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 3"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 4"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 5"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 6"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 7"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 8"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.cue",
+    "kind": {
+      "default": 0,
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad cue"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.keypad.range",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Low",
+        "Middle",
+        "High"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad range"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slice.size",
+    "kind": {
+      "default": 1,
+      "options": [
+        "1 bar",
+        "2 bars",
+        "4 bars"
+      ],
+      "type": "choice"
+    },
+    "label": "Slicer length"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.auto",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Loop"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.size",
+    "kind": {
+      "default": 7,
+      "options": [
+        "1/32",
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Loop size"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve loop"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double loop"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.in",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop in"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.out",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop out"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.reloop",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reloop"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.let_end",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Let it end"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.roll",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Loop roll"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.move_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop back"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.loop.move_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop forward"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.beatjump.back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump back"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.beatjump.fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump forward"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.beatjump.size",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Beat jump size"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.slip",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Slip"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.censor",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Censor"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.reverse",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Reverse"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.brake",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Brake"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.spinup",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Spin up"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Instant double"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.eject",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Eject"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.set_downbeat",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Set downbeat"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve BPM"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double BPM"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.nudge_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid earlier"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.nudge_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid later"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.warp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Pin beat here"
+  },
+  {
+    "group": "Deck B",
+    "id": "deck.B.grid.unwarp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Remove pin"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.trim",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Trim"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.high",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "High EQ"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.mid",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mid EQ"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.low",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Low EQ"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.kill.high",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill highs"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.kill.mid",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill mids"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.eq.kill.low",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill lows"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.filter",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.filter_res",
+    "kind": {
+      "spec": {
+        "default": 0.30000001192092896,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter resonance"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.fader",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Volume"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Headphone cue"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.assign",
+    "kind": {
+      "default": 2,
+      "options": [
+        "A",
+        "Thru",
+        "B"
+      ],
+      "type": "choice"
+    },
+    "label": "Crossfader side"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.color",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Colour FX"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.color_type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Filter",
+        "Noise",
+        "Space",
+        "Dub echo",
+        "Crush"
+      ],
+      "type": "choice"
+    },
+    "label": "Colour FX type"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.pan",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Pan"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.punch",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Punch"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.warmth",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Warmth"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.width",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 2.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Stereo width"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.space",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Space (reverb send)"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.echo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo send"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.duck_source",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Off",
+        "Deck A",
+        "Deck B",
+        "Deck C",
+        "Deck D"
+      ],
+      "type": "choice"
+    },
+    "label": "Duck under"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.duck",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Ducking amount"
+  },
+  {
+    "group": "Mixer B",
+    "id": "mixer.B.gate",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Noise gate"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.type",
+    "kind": {
+      "default": 1,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 type"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 1 on"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 amount"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 beats"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 1"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.1.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 2"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 type"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 2 on"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 amount"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 beats"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 1"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.2.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 2"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 type"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 3 on"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 amount"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 beats"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 1"
+  },
+  {
+    "group": "FX B",
+    "id": "fx.B.3.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.play",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Play / pause"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.cue",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Cue"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.sync",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Sync"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.master",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Tempo master"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keylock",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Key lock"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.tempo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Tempo"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.tempo_range",
+    "kind": {
+      "default": 3,
+      "options": [
+        "±6%",
+        "±8%",
+        "±10%",
+        "±16%",
+        "±50%",
+        "±100%"
+      ],
+      "type": "choice"
+    },
+    "label": "Tempo range"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.tempo_reset",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reset tempo"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.nudge_down",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge slower"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.nudge_up",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge faster"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.key_shift",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Semitones"
+      },
+      "type": "continuous"
+    },
+    "label": "Key shift"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.vocals",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Vocals level"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.vocals.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute vocals"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.drums",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Drums level"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.drums.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute drums"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.bass",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Bass level"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.bass.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute bass"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.melody",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Melody level"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.stem.melody.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute melody"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.key_sync",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Key sync"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 1"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.1.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 1"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.2.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 3"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.3.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 3"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.4.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 5"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.5.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 5"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 6"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.6.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 6"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 7"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.7.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 7"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 8"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.8.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 8"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.9",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 9"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.9.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 9"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.10",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 10"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.10.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 10"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.11",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 11"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.11.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 11"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.12",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 12"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.12.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 12"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.13",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 13"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.13.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 13"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.14",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 14"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.14.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 14"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.15",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 15"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.15.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 15"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.16",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 16"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.hotcue.16.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 16"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 1"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/32"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/16"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 3"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/8"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 5"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 6"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 7"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 8"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.roll.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 1"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 2"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 3"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 4"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 5"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 6"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 7"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 8"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.cue",
+    "kind": {
+      "default": 0,
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad cue"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.keypad.range",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Low",
+        "Middle",
+        "High"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad range"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slice.size",
+    "kind": {
+      "default": 1,
+      "options": [
+        "1 bar",
+        "2 bars",
+        "4 bars"
+      ],
+      "type": "choice"
+    },
+    "label": "Slicer length"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.auto",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Loop"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.size",
+    "kind": {
+      "default": 7,
+      "options": [
+        "1/32",
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Loop size"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve loop"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double loop"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.in",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop in"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.out",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop out"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.reloop",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reloop"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.let_end",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Let it end"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.roll",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Loop roll"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.move_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop back"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.loop.move_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop forward"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.beatjump.back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump back"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.beatjump.fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump forward"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.beatjump.size",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Beat jump size"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.slip",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Slip"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.censor",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Censor"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.reverse",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Reverse"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.brake",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Brake"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.spinup",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Spin up"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Instant double"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.eject",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Eject"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.set_downbeat",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Set downbeat"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve BPM"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double BPM"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.nudge_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid earlier"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.nudge_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid later"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.warp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Pin beat here"
+  },
+  {
+    "group": "Deck C",
+    "id": "deck.C.grid.unwarp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Remove pin"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.trim",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Trim"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.high",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "High EQ"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.mid",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mid EQ"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.low",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Low EQ"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.kill.high",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill highs"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.kill.mid",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill mids"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.eq.kill.low",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill lows"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.filter",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.filter_res",
+    "kind": {
+      "spec": {
+        "default": 0.30000001192092896,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter resonance"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.fader",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Volume"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Headphone cue"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.assign",
+    "kind": {
+      "default": 0,
+      "options": [
+        "A",
+        "Thru",
+        "B"
+      ],
+      "type": "choice"
+    },
+    "label": "Crossfader side"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.color",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Colour FX"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.color_type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Filter",
+        "Noise",
+        "Space",
+        "Dub echo",
+        "Crush"
+      ],
+      "type": "choice"
+    },
+    "label": "Colour FX type"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.pan",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Pan"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.punch",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Punch"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.warmth",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Warmth"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.width",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 2.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Stereo width"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.space",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Space (reverb send)"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.echo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo send"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.duck_source",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Off",
+        "Deck A",
+        "Deck B",
+        "Deck C",
+        "Deck D"
+      ],
+      "type": "choice"
+    },
+    "label": "Duck under"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.duck",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Ducking amount"
+  },
+  {
+    "group": "Mixer C",
+    "id": "mixer.C.gate",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Noise gate"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.type",
+    "kind": {
+      "default": 1,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 type"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 1 on"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 amount"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 beats"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 1"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.1.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 2"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 type"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 2 on"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 amount"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 beats"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 1"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.2.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 2"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 type"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 3 on"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 amount"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 beats"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 1"
+  },
+  {
+    "group": "FX C",
+    "id": "fx.C.3.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.play",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Play / pause"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.cue",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Cue"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.sync",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Sync"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.master",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Tempo master"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keylock",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Key lock"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.tempo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Tempo"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.tempo_range",
+    "kind": {
+      "default": 3,
+      "options": [
+        "±6%",
+        "±8%",
+        "±10%",
+        "±16%",
+        "±50%",
+        "±100%"
+      ],
+      "type": "choice"
+    },
+    "label": "Tempo range"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.tempo_reset",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reset tempo"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.nudge_down",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge slower"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.nudge_up",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Nudge faster"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.key_shift",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Semitones"
+      },
+      "type": "continuous"
+    },
+    "label": "Key shift"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.vocals",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Vocals level"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.vocals.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute vocals"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.drums",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Drums level"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.drums.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute drums"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.bass",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Bass level"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.bass.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute bass"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.melody",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Melody level"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.stem.melody.mute",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mute melody"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.key_sync",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Key sync"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 1"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.1.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 1"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.2.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 3"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.3.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 3"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.4.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 5"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.5.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 5"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 6"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.6.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 6"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 7"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.7.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 7"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 8"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.8.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 8"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.9",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 9"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.9.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 9"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.10",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 10"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.10.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 10"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.11",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 11"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.11.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 11"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.12",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 12"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.12.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 12"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.13",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 13"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.13.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 13"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.14",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 14"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.14.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 14"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.15",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 15"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.15.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 15"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.16",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Hot cue 16"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.hotcue.16.delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete hot cue 16"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 1"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/32"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/16"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 3"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/8"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 5"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1/2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 6"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 1"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 7"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Slicer pad 8"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.roll.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Roll 4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 1"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 2"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 3"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 4"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 5"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 6"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 7"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Key pad 8"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.cue",
+    "kind": {
+      "default": 0,
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad cue"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.keypad.range",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Low",
+        "Middle",
+        "High"
+      ],
+      "type": "choice"
+    },
+    "label": "Key pad range"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slice.size",
+    "kind": {
+      "default": 1,
+      "options": [
+        "1 bar",
+        "2 bars",
+        "4 bars"
+      ],
+      "type": "choice"
+    },
+    "label": "Slicer length"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.auto",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Loop"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.size",
+    "kind": {
+      "default": 7,
+      "options": [
+        "1/32",
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Loop size"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve loop"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double loop"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.in",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop in"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.out",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop out"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.reloop",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Reloop"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.let_end",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Let it end"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.roll",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Loop roll"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.move_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop back"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.loop.move_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Move loop forward"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.beatjump.back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump back"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.beatjump.fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Beat jump forward"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.beatjump.size",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1",
+        "2",
+        "4",
+        "8",
+        "16",
+        "32"
+      ],
+      "type": "choice"
+    },
+    "label": "Beat jump size"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.slip",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Slip"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.censor",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Censor"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.reverse",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Reverse"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.brake",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Brake"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.spinup",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Spin up"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Instant double"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.eject",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Eject"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.set_downbeat",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Set downbeat"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.halve",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Halve BPM"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.double",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Double BPM"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.nudge_back",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid earlier"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.nudge_fwd",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Shift grid later"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.warp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Pin beat here"
+  },
+  {
+    "group": "Deck D",
+    "id": "deck.D.grid.unwarp",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Remove pin"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.trim",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 12.0,
+        "min": -12.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Trim"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.high",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "High EQ"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.mid",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mid EQ"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.low",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Low EQ"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.kill.high",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill highs"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.kill.mid",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill mids"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.eq.kill.low",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Kill lows"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.filter",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.filter_res",
+    "kind": {
+      "spec": {
+        "default": 0.30000001192092896,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Filter resonance"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.fader",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Volume"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Headphone cue"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.assign",
+    "kind": {
+      "default": 2,
+      "options": [
+        "A",
+        "Thru",
+        "B"
+      ],
+      "type": "choice"
+    },
+    "label": "Crossfader side"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.color",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Colour FX"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.color_type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Filter",
+        "Noise",
+        "Space",
+        "Dub echo",
+        "Crush"
+      ],
+      "type": "choice"
+    },
+    "label": "Colour FX type"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.pan",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Pan"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.punch",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Punch"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.warmth",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Warmth"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.width",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 2.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Stereo width"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.space",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Space (reverb send)"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.echo",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo send"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.duck_source",
+    "kind": {
+      "default": 0,
+      "options": [
+        "Off",
+        "Deck A",
+        "Deck B",
+        "Deck C",
+        "Deck D"
+      ],
+      "type": "choice"
+    },
+    "label": "Duck under"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.duck",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Ducking amount"
+  },
+  {
+    "group": "Mixer D",
+    "id": "mixer.D.gate",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Noise gate"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.type",
+    "kind": {
+      "default": 1,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 type"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 1 on"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 amount"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 beats"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 1"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.1.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 2"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 type"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 2 on"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 amount"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 beats"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 1"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.2.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 2"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 type"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 3 on"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 amount"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 beats"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 1"
+  },
+  {
+    "group": "FX D",
+    "id": "fx.D.3.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 2"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.type",
+    "kind": {
+      "default": 1,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 type"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 1 on"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 amount"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 1 beats"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 1"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.1.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 1 parameter 2"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 type"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 2 on"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 amount"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 2 beats"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 1"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.2.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 2 parameter 2"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.type",
+    "kind": {
+      "default": 0,
+      "options": [
+        "None",
+        "Echo",
+        "Ping-pong delay",
+        "Reverb",
+        "Filter LFO",
+        "Flanger",
+        "Phaser",
+        "Chorus",
+        "Gater",
+        "Slicer",
+        "Beat repeat",
+        "Bitcrusher",
+        "Distortion",
+        "Tape stop",
+        "Pitch delay",
+        "Ring modulator",
+        "Noise riser",
+        "Dub echo"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 type"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.on",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "FX 3 on"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 amount"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.beats",
+    "kind": {
+      "default": 4,
+      "options": [
+        "1/16",
+        "1/8",
+        "1/4",
+        "1/2",
+        "3/4",
+        "1",
+        "2",
+        "4",
+        "8",
+        "16"
+      ],
+      "type": "choice"
+    },
+    "label": "FX 3 beats"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.p1",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 1"
+  },
+  {
+    "group": "Master FX",
+    "id": "fx.master.3.p2",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "FX 3 parameter 2"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.crossfader",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": -1.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Crossfader"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.crossfader_curve",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Smooth blend",
+        "Constant power",
+        "Sharp cut"
+      ],
+      "type": "choice"
+    },
+    "label": "Crossfader curve"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.crossfader_reverse",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Reverse crossfader"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.fader_curve",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Linear",
+        "Smooth",
+        "Steep"
+      ],
+      "type": "choice"
+    },
+    "label": "Channel fader curve"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.eq_mode",
+    "kind": {
+      "default": 1,
+      "options": [
+        "Classic",
+        "Isolator"
+      ],
+      "type": "choice"
+    },
+    "label": "EQ mode"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.master",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -120.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Master volume"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.booth",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -120.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Booth volume"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.cue_mix",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Cue mix"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.headphones",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -120.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Headphone volume"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.split_cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Split cue"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.glue",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Glue"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.space.level",
+    "kind": {
+      "spec": {
+        "default": -3.0,
+        "max": 6.0,
+        "min": -60.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Reverb return"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.space.size",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Reverb size"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.echo.level",
+    "kind": {
+      "spec": {
+        "default": -3.0,
+        "max": 6.0,
+        "min": -60.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo return"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.echo.feedback",
+    "kind": {
+      "spec": {
+        "default": 0.5,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Echo repeats"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.echo.time",
+    "kind": {
+      "default": 2,
+      "options": [
+        "1/4 beat",
+        "1/2 beat",
+        "3/4 beat",
+        "1 beat",
+        "2 beats",
+        "4 beats"
+      ],
+      "type": "choice"
+    },
+    "label": "Echo time"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.auto_gain",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Auto-gain"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.limiter",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Master limiter"
+  },
+  {
+    "group": "Mixer",
+    "id": "mixer.bypass",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Hear it plain (A/B)"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.1",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 1"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.1.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 1 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.2",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 2"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.2.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 2 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.3",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 3"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.3.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 3 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.4",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 4"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.4.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 4 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.5",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 5"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.5.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 5 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.6",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 6"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.6.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 6 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.7",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 7"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.7.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 7 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.8",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Pad 8"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.pad.8.mode",
+    "kind": {
+      "default": 0,
+      "options": [
+        "One-shot",
+        "Gate",
+        "Loop"
+      ],
+      "type": "choice"
+    },
+    "label": "Pad 8 mode"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.volume",
+    "kind": {
+      "spec": {
+        "default": 1.0,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Sampler volume"
+  },
+  {
+    "group": "Sampler",
+    "id": "sampler.stop_all",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Stop all pads"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.on_air",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mic on"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.level",
+    "kind": {
+      "spec": {
+        "default": 0.800000011920929,
+        "max": 1.0,
+        "min": 0.0,
+        "unit": "None"
+      },
+      "type": "continuous"
+    },
+    "label": "Mic volume"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.gain",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 30.0,
+        "min": -20.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mic gain"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.cue",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mic in headphones"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.talkover",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Talk-over"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.talkover_depth",
+    "kind": {
+      "spec": {
+        "default": -12.0,
+        "max": 0.0,
+        "min": -30.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Talk-over amount"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.eq.high",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mic high EQ"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.eq.mid",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mic mid EQ"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.eq.low",
+    "kind": {
+      "spec": {
+        "default": 0.0,
+        "max": 6.0,
+        "min": -26.0,
+        "unit": "Decibels"
+      },
+      "type": "continuous"
+    },
+    "label": "Mic low EQ"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.low_cut",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Low cut"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.gate",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Cut background noise"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.mono",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mono"
+  },
+  {
+    "group": "Mic",
+    "id": "mic.record",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Record the mic"
+  },
+  {
+    "group": "Transport",
+    "id": "global.quantize",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Snap to beat"
+  },
+  {
+    "group": "Transport",
+    "id": "global.quantize_size",
+    "kind": {
+      "default": 3,
+      "options": [
+        "1/8 beat",
+        "1/4 beat",
+        "1/2 beat",
+        "1 beat",
+        "1 bar",
+        "1 phrase"
+      ],
+      "type": "choice"
+    },
+    "label": "Snap size"
+  },
+  {
+    "group": "Transport",
+    "id": "global.safety_loop",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Safety loop"
+  },
+  {
+    "group": "Transport",
+    "id": "global.record",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Record"
+  },
+  {
+    "group": "Transport",
+    "id": "global.master_bpm",
+    "kind": {
+      "spec": {
+        "default": 124.0,
+        "max": 200.0,
+        "min": 60.0,
+        "unit": "Bpm"
+      },
+      "type": "continuous"
+    },
+    "label": "Master tempo"
+  },
+  {
+    "group": "App",
+    "id": "app.workspace.library",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Go to Library"
+  },
+  {
+    "group": "App",
+    "id": "app.workspace.decks",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Go to Decks"
+  },
+  {
+    "group": "App",
+    "id": "app.workspace.arrange",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Go to Arrange"
+  },
+  {
+    "group": "App",
+    "id": "app.workspace.edit",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Go to Edit"
+  },
+  {
+    "group": "App",
+    "id": "app.workspace.mix",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Go to Mix"
+  },
+  {
+    "group": "App",
+    "id": "app.palette",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Command palette"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_copy",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Copy clips"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_cut",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Cut clips"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_paste",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Paste clips"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_duplicate",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Duplicate clips"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_delete",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Delete clips"
+  },
+  {
+    "group": "App",
+    "id": "app.clip_split",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Cut clip in two"
+  },
+  {
+    "group": "App",
+    "id": "app.select_all",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Select all clips"
+  },
+  {
+    "group": "App",
+    "id": "app.marker_add",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Add marker"
+  },
+  {
+    "group": "App",
+    "id": "app.marker_next",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Next marker"
+  },
+  {
+    "group": "App",
+    "id": "app.marker_prev",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Previous marker"
+  },
+  {
+    "group": "App",
+    "id": "app.preview",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Preview track"
+  },
+  {
+    "group": "App",
+    "id": "app.arrange_loop",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Loop playback"
+  },
+  {
+    "group": "App",
+    "id": "app.arrange_play",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Play or stop the mix"
+  },
+  {
+    "group": "App",
+    "id": "app.undo",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Undo"
+  },
+  {
+    "group": "App",
+    "id": "app.redo",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Redo"
+  },
+  {
+    "group": "App",
+    "id": "app.view_mode",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Easy or Pro"
+  },
+  {
+    "group": "App",
+    "id": "app.explain",
+    "kind": {
+      "type": "momentary"
+    },
+    "label": "Explain mode"
+  },
+  {
+    "group": "App",
+    "id": "app.settings",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Settings"
+  },
+  {
+    "group": "App",
+    "id": "app.coach",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Coach"
+  },
+  {
+    "group": "App",
+    "id": "app.save",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Save mix project"
+  },
+  {
+    "group": "App",
+    "id": "app.save_as",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Save mix project as"
+  },
+  {
+    "group": "App",
+    "id": "app.open",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Open mix project"
+  },
+  {
+    "group": "App",
+    "id": "app.sampler",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Sampler pads"
+  },
+  {
+    "group": "App",
+    "id": "app.tools",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Tools panel"
+  },
+  {
+    "group": "App",
+    "id": "app.tools_full",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Tools full screen"
+  },
+  {
+    "group": "App",
+    "id": "app.guide",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Guide and practice labs"
+  },
+  {
+    "group": "App",
+    "id": "app.autodj",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Auto DJ"
+  },
+  {
+    "group": "App",
+    "id": "app.mix_it",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Mix it"
+  },
+  {
+    "group": "App",
+    "id": "app.hear_mix",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Hear the mix first"
+  },
+  {
+    "group": "App",
+    "id": "app.mix_now",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Mix now"
+  },
+  {
+    "group": "App",
+    "id": "app.rehearse_set",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Rehearse the set"
+  },
+  {
+    "group": "App",
+    "id": "app.make_mix",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Make a mix from the queue"
+  },
+  {
+    "group": "App",
+    "id": "app.best_order",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Best order for the queue"
+  },
+  {
+    "group": "App",
+    "id": "app.save_queue",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Save the queue as a playlist"
+  },
+  {
+    "group": "App",
+    "id": "app.sequencer",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Step sequencer"
+  },
+  {
+    "group": "App",
+    "id": "app.assistant",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Mix assistant"
+  },
+  {
+    "group": "App",
+    "id": "app.tour",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Take the 2-minute tour"
+  },
+  {
+    "group": "App",
+    "id": "app.feedback",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Mix feedback"
+  },
+  {
+    "group": "App",
+    "id": "app.edit_track",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Edit track"
+  }
+]

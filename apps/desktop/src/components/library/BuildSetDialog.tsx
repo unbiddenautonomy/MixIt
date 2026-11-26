@@ -18,18 +18,33 @@ import { useApp, useNotation } from "../../store/app";
 import { setQueue } from "../../store/autodj";
 import { useLibrary } from "../../store/library";
 import { Btn, Segmented } from "../ui/Button";
-import { refreshPlaylists, refreshRows } from "./data";
+import { refreshPlaylists, refreshRows, rowsById } from "./data";
+import type { SetPlan } from "../../lib/ask";
 
 interface Req {
   seed: TrackRow | null;
   playlist: number | null;
+  /** Settings to start with (from Ask MixIt). */
+  plan?: SetPlan;
 }
 
 const useBuild = create<{ req: Req | null }>(() => ({ req: null }));
 
-/** Opens the set builder, starting with `seed` or choosing from `playlist` when given. */
-export function openBuildSet(opts: { seed?: TrackRow | null; playlist?: number | null } = {}) {
-  useBuild.setState({ req: { seed: opts.seed ?? null, playlist: opts.playlist ?? null } });
+/** What the set builder was opened with (null while closed). */
+export const buildSetOpenedWith = () => useBuild.getState().req;
+
+/** Opens the set builder, starting with `seed` or choosing from `playlist` when given,
+ *  or with the settings a typed request asked for (`plan`). */
+export function openBuildSet(opts: { seed?: TrackRow | null; playlist?: number | null; plan?: SetPlan } = {}) {
+  const plan = opts.plan;
+  useBuild.setState({ req: { seed: opts.seed ?? null, playlist: opts.playlist ?? plan?.playlist ?? null, plan } });
+  // The opening track the plan names, once its row is at hand.
+  if (plan?.seed != null && !opts.seed) {
+    void rowsById([plan.seed]).then(([row]) => {
+      const req = useBuild.getState().req;
+      if (row && req?.plan === plan) useBuild.setState({ req: { ...req, seed: row } });
+    });
+  }
 }
 
 export function BuildSetHost() {
@@ -68,15 +83,19 @@ function Builder({ req }: { req: Req }) {
   const notation = useNotation();
   // With a set clock running, the time you have left (in the lengths offered).
   const [minutes, setMinutes] = useState(() => {
+    if (req.plan?.minutes) return req.plan.minutes;
     const left = setMinutesLeft(useSetClock.getState().endsAt);
     return left == null ? 60 : LENGTHS.reduce((best, [m]) => (Math.abs(m - left) < Math.abs(best - left) ? m : best), 60);
   });
-  const [shape, setShape] = useState<SetShape>("build");
+  const [shape, setShape] = useState<SetShape>(req.plan?.shape ?? "build");
   const [from, setFrom] = useState<number | "all">(req.playlist ?? "all");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(req.plan?.query ?? "");
   const [seed, setSeed] = useState<TrackRow | null>(req.seed);
+  useEffect(() => {
+    if (req.seed) setSeed(req.seed);
+  }, [req.seed]);
   const [variety, setVariety] = useState(0);
-  const [vocals, setVocals] = useState<VocalPlan>("any");
+  const [vocals, setVocals] = useState<VocalPlan>(req.plan?.vocals ?? "any");
   const [set, setSet] = useState<TrackRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");

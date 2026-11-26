@@ -384,6 +384,8 @@ export interface Settings {
   trainedStems?: boolean;
   /** Let a trained listener hear each track (downloaded once), for search by sound. */
   soundSearch?: boolean;
+  /** Ask MixIt: the command palette also understands requests typed in plain words. */
+  ask?: boolean;
 }
 
 /** The mic channel, as the engine reports it. */

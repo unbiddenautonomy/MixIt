@@ -282,6 +282,7 @@ export class DemoBackend implements Backend {
     micVoice: true,
     micDenoise: "strong",
     soundSearch: true,
+    ask: true,
     trainedStems: true,
   };
   /** The simulated mic channel. */

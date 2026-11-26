@@ -189,6 +189,9 @@ function Mixing({ s }: { s: Settings }) {
           <Toggle on={s.soundSearch !== false} onChange={(v) => updateSettings({ soundSearch: v })} label="Listen to my tracks" />
         </Field>
       )}
+      <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
+        <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
+      </Field>
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
       </Field>
