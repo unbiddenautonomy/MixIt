@@ -13,6 +13,7 @@ import { closePreview, resolveRoute, seekPreview, setPreviewGain, setPreviewRout
 import { loadOnDeck } from "../deck/Deck";
 import { useWaveform } from "../deck/useWaveform";
 import { Cover } from "../ui/Cover";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 /** Where the preview is now, moved on by the time since the last snapshot. */
 export function previewPosition(): number {
@@ -151,6 +152,7 @@ function Strip({ trackId, duration }: { trackId: number; duration: number }) {
   const cues = useTrackPreview((s) => s.cues);
   const ref = useRef<HTMLCanvasElement>(null);
   const bg = useRef<HTMLCanvasElement | null>(null);
+  const ratio = useDevicePixelRatio();
 
   useEffect(() => {
     const c = ref.current;
@@ -186,7 +188,7 @@ function Strip({ trackId, duration }: { trackId: number; duration: number }) {
     const ro = new ResizeObserver(paint);
     ro.observe(c);
     return () => ro.disconnect();
-  }, [wave, duration, sections, cues]);
+  }, [wave, duration, sections, cues, ratio]);
 
   useEffect(() => {
     let raf = 0;

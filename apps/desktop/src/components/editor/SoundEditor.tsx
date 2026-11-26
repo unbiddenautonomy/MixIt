@@ -38,6 +38,7 @@ import { afterStep, clipboardLength, FADE_SHAPES, groupSteps, lengthAfter, type 
 import { LOUDNESS_TARGETS } from "../../lib/studio";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 // ------------------------------------------------------------------ state
 
@@ -591,6 +592,7 @@ function Wave() {
   // Visible window (seconds); null shows everything.
   const [win, setWin] = useState<[number, number] | null>(null);
   const H = 220;
+  const ratio = useDevicePixelRatio();
   const len = view?.seconds ?? 1;
   const [v0, v1] = win ?? [0, len];
   const xOf = useCallback((t: number) => ((t - v0) / Math.max(1e-6, v1 - v0)) * width, [v0, v1, width]);
@@ -645,7 +647,7 @@ function Wave() {
       }
       if (hi > lo) g.fillRect(x, mid - hi * (mid - 6), 1, Math.max(1, (hi - lo) * (mid - 6)));
     }
-  }, [view, width, v0, v1, xOf, tOf, len]);
+  }, [view, width, v0, v1, xOf, tOf, len, ratio]);
 
   const drag = useRef<{ t0: number } | null>(null);
   const tAt = (e: React.PointerEvent | React.WheelEvent) => tOf(e.clientX - canvas.current!.getBoundingClientRect().left);

@@ -35,7 +35,7 @@ import {
   type UnitId,
   type Win,
 } from "./model";
-import { HANDLE_PX, UNITS, isControl, isUnitId, pageFor, required, type Side } from "./units";
+import { HANDLE_PX, UNITS, isControl, isUnitId, minOf, pageFor, required, type Side } from "./units";
 
 export type Result = Layout | Refusal;
 
@@ -377,9 +377,9 @@ function addToPage(env: Env, win: Win, page: PageId, p: Place) {
     return;
   }
   const size = sizeOf(env, win.id);
-  const need = minSize(root, env).w + HANDLE_PX + UNITS[p.unit].min[env.mode].w;
+  const need = minSize(root, env).w + HANDLE_PX + minOf(p.unit, env).w;
   if (need <= size.w) {
-    win.pages[page] = appendRight(root, p, Math.max(0.25, Math.min(0.5, UNITS[p.unit].min[env.mode].w / size.w)));
+    win.pages[page] = appendRight(root, p, Math.max(0.25, Math.min(0.5, minOf(p.unit, env).w / size.w)));
     return;
   }
   const st = largestStack(root, size);

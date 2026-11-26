@@ -12,6 +12,9 @@
 // made-up screens; `useScreens` and the functions after it apply them to real windows.
 import { create } from "zustand";
 import { backend } from "../backend";
+import { useApp } from "../store/app";
+
+const newLayoutOn = () => !!useApp.getState().settings?.layoutEngine;
 import type { Screen } from "../backend/types";
 
 export type { Screen };
@@ -164,8 +167,10 @@ export async function refreshScreens(first = false) {
   if (!changed && !first) return;
   const { keep, back } = reconcile(before.placement, screens, main);
   for (const p of back) await b.closePart?.(p);
-  // A set of screens seen before gets its layout back.
-  const want = { ...keep, ...layoutFor(loadLayouts(), screens, main) };
+  // A set of screens seen before gets its layout back. The new layout (a preview) has one
+  // window for now, so while it is on every part stays in the main window; the placement
+  // saved for these screens is left alone and comes back when it is turned off.
+  const want = newLayoutOn() ? {} : { ...keep, ...layoutFor(loadLayouts(), screens, main) };
   useScreens.setState({ placement: want });
   for (const p of PARTS) {
     const on = want[p];

@@ -370,6 +370,8 @@ export interface Settings {
   micStereo: boolean;
   /** How knobs follow a drag: "linear" (up or right is more, the default), "aim" (point at the value) or "turn" (circle round it). */
   knobDrag?: "linear" | "aim" | "turn";
+  /** Draws the main window from the new layout (a preview while it is being built). */
+  layoutEngine?: boolean;
   /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
   faderStart?: boolean;
   /** Loops the end of the only track playing so the music never stops (on unless turned off). */

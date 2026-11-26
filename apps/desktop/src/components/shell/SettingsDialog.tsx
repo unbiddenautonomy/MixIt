@@ -18,6 +18,7 @@ import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
 import { addMusicFolder } from "../library/Library";
 import { KNOB_DRAG_MODES } from "../../lib/knobDrag";
+import { resetLayout } from "../../store/layout";
 import { TEMPO_RANGES, TEMPO_RANGE_LABELS } from "../deck/Deck";
 
 const BUFFERS = [64, 128, 256, 512, 1024, 2048];
@@ -289,6 +290,14 @@ function Display({ s }: { s: Settings }) {
       </Field>
       <Field label="Explain mode">
         <Toggle on={s.explain} onChange={(v) => updateSettings({ explain: v })} label="Show explanations in every tooltip" />
+      </Field>
+      <Field label="New layout (preview)" hint="Try the new screen layout while it is being built: every part can fold away with its arrow and share space with a drag. Turn it off to go straight back to the layout you have now, which is kept as it was.">
+        <Toggle on={!!s.layoutEngine} onChange={(v) => updateSettings({ layoutEngine: v })} label="Use the new layout" />
+        {s.layoutEngine && (
+          <button type="button" className="mt-2 text-xs text-zinc-400 underline-offset-2 hover:text-zinc-100 hover:underline" onClick={() => resetLayout()}>
+            Back to the standard layout
+          </button>
+        )}
       </Field>
     </div>
   );

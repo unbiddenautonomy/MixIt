@@ -34,7 +34,8 @@ import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
 import { ToolPanel } from "./components/shell/ToolPanel";
 import { handleShortcut, openCapturedMix, runApp, toggleRecording } from "./lib/appCommands";
-import { PART_NAMES, thisPart, useScreens, watchScreens, type Part } from "./lib/screens";
+import { PART_NAMES, refreshScreens, thisPart, useScreens, watchScreens, type Part } from "./lib/screens";
+import { LayoutWindow } from "./components/layout/LayoutWindow";
 import { startWindowSync } from "./lib/windowSync";
 import { MoveToScreen } from "./components/shell/MoveToScreen";
 import { pushEngineState } from "./lib/engineSync";
@@ -49,7 +50,18 @@ export function App() {
   const error = useApp((s) => s.error);
   const workspace = useApp((s) => s.workspace);
   const guideOpen = useApp((s) => s.guideOpen);
+  const newLayout = useApp((s) => !!s.settings?.layoutEngine);
   const theme = useTheme();
+
+  // The new layout has one window for now: the library and tools come back from other
+  // screens while it is on, and go back where they were when it is turned off.
+  // Not on the first run: watchScreens has just placed the parts itself.
+  const layoutSeen = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!ready || thisPart) return;
+    if (layoutSeen.current !== null && layoutSeen.current !== newLayout) void refreshScreens(true).catch(() => undefined);
+    layoutSeen.current = newLayout;
+  }, [ready, newLayout]);
 
   useEffect(() => {
     let off: (() => void)[] = [];
@@ -169,9 +181,18 @@ export function App() {
         <TopBar />
         <div className="flex min-h-0 flex-1">
           <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
-            {workspace === "mix" && <MixView />}
-            {workspace === "library" && <Library full />}
-            {workspace === "arrange" && <Arrange />}
+            {newLayout ? (
+              <>
+                {workspace === "mix" && <Coach />}
+                <LayoutWindow />
+              </>
+            ) : (
+              <>
+                {workspace === "mix" && <MixView />}
+                {workspace === "library" && <Library full />}
+                {workspace === "arrange" && <Arrange />}
+              </>
+            )}
           </main>
           {guideOpen && <GuidePanel />}
         </div>

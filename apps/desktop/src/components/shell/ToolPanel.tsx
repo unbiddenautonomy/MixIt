@@ -139,18 +139,30 @@ export function ToolPanel({ detached = false, wide = false }: { detached?: boole
         )}
       </div>
       <div className={clsx("flex min-h-0 flex-1 flex-col", full && "mx-auto w-full max-w-5xl")}>
-        {tab === "pads" && <SamplerTab />}
-        {tab === "steps" && <SamplerTab steps />}
-        {tab === "effects" && <EffectsTab />}
-        {tab === "inputs" && (
-          <div className="min-h-0 flex-1 overflow-y-auto" style={{ ["--accent" as string]: "#f472b6" }}>
-            <MicPanel />
-          </div>
-        )}
-        {tab === "recording" && <RecordingTab />}
+        <ToolBody tab={tab} />
       </div>
     </section>
   );
+}
+
+/** One tool on its own, for the layout to place as a part. */
+export function ToolBody({ tab }: { tab: ToolTab }) {
+  switch (tab) {
+    case "pads":
+      return <SamplerTab />;
+    case "steps":
+      return <SamplerTab steps />;
+    case "effects":
+      return <EffectsTab />;
+    case "inputs":
+      return (
+        <div className="min-h-0 flex-1 overflow-y-auto" style={{ ["--accent" as string]: "#f472b6" }}>
+          <MicPanel />
+        </div>
+      );
+    case "recording":
+      return <RecordingTab />;
+  }
 }
 
 /** Recording: start and stop (also in the top bar), where it goes, and what comes with it. */

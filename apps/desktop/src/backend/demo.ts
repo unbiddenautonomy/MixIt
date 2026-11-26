@@ -277,6 +277,7 @@ export class DemoBackend implements Backend {
     micStereo: false,
     faderStart: false,
     knobDrag: "linear",
+    layoutEngine: false,
     safetyLoop: true,
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
