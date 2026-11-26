@@ -159,6 +159,16 @@ const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE tracks ADD COLUMN vocals INTEGER;
     "#,
+    // 4: how each track sounds to a trained listener (CLAP), as little-endian f32s,
+    // kept per model so a new model never gets compared with an old one's numbers.
+    r#"
+    CREATE TABLE sound_embeddings (
+        track_id    INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+        model       TEXT NOT NULL,
+        vec         BLOB NOT NULL,
+        PRIMARY KEY (track_id, model)
+    );
+    "#,
 ];
 
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;

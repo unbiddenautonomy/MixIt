@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { HistoryEntry, LibraryStats, PlaylistDto, SessionDto, SuggestionRow, TagDto, TrackRow } from "../backend/types";
 
-export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history"; session?: number } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "insights" } | { type: "tag"; name: string } | { type: "similar"; id: number; title: string };
+export type Source = { type: "all" } | { type: "playlist"; id: number } | { type: "history"; session?: number } | { type: "suggest" } | { type: "autodj" } | { type: "care" } | { type: "insights" } | { type: "tag"; name: string } | { type: "similar"; id: number; title: string } | { type: "described"; text: string };
 
 export type SortKey = "title" | "artist" | "bpm" | "key" | "energy" | "duration" | "rating" | "genre" | "addedAt" | "playCount" | "album" | "label" | "comment" | "year" | "lastPlayed" | "lufs" | "vocals" | null;
 

@@ -7,19 +7,23 @@ rust-version.workspace = true
 publish.workspace = true
 
 [features]
-default = ["onnx", "voice"]
+default = ["onnx", "voice", "sound"]
 # Runs the models with ONNX Runtime. Without it the crate still builds (model files,
 # downloads, the chunking plan) and every model reports that it is not available.
 onnx = ["dep:ort"]
 # Cleans the mic: echo cancelling (WebRTC's AEC3, pure Rust) and noise removal
 # (DeepFilterNet3, built in, or RNNoise for the lowest delay).
 voice = ["dep:sonora", "dep:nnnoiseless", "dep:deep_filter", "dep:ndarray"]
+# Search by sound: CLAP describes how each track sounds, and words, in the same terms.
+sound = ["onnx", "dep:tokenizers"]
 
 [dependencies]
 mixit-io = { path = "../mixit-io" }
 thiserror.workspace = true
 ureq = "3"
 sha2 = "0.10"
+realfft.workspace = true
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
 ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "download-binaries", "copy-dylibs"], optional = true }
 sonora = { version = "0.3", optional = true }
 nnnoiseless = { version = "0.5", default-features = false, optional = true }

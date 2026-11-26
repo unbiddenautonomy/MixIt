@@ -39,13 +39,16 @@ anyhow.workspace = true
 mixit-cli = { path = "../../../crates/mixit-cli" }
 
 [features]
-default = ["stems-model", "mic-clean"]
+default = ["stems-model", "mic-clean", "sound-search"]
 # The trained stem splitter (HTDemucs through ONNX Runtime). Without it, stems always
 # use the quick split.
 stems-model = ["dep:mixit-ml", "mixit-ml/onnx"]
 # Cleans the mic: takes out the music it hears from the speakers and background noise.
 # Without it the mic comes through as it is.
 mic-clean = ["mixit-host/voice-clean"]
+# Search by sound: a trained listener (CLAP) hears each track once, so tracks can be
+# found by describing them and "sounds like" hears them as a person would.
+sound-search = ["dep:mixit-ml", "mixit-ml/sound"]
 
 [lints]
 workspace = true

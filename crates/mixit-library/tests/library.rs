@@ -1092,3 +1092,53 @@ fn searches_for_vocals_and_instrumentals() {
     let expect = a.grid.beat_at(first * a.grid.sample_rate as f64);
     assert!((beat - expect).abs() < 2.0, "first sung beat {beat}, truth {expect}");
 }
+
+#[test]
+fn the_trained_listener_s_numbers_steer_sounds_like_and_descriptions() {
+    let tmp = TempDir::new("listener");
+    let music = tmp.0.join("Music");
+    std::fs::create_dir_all(&music).unwrap();
+    let paths = [
+        write_track(&music, "a.wav", Style::House, 124.0, Key::new(9, Mode::Minor)),
+        write_track(&music, "b.wav", Style::House, 126.0, Key::new(2, Mode::Major)),
+        write_track(&music, "c.wav", Style::HipHop, 90.0, Key::new(9, Mode::Minor)),
+    ];
+    let lib = Library::open(&tmp.0.join("library.db")).unwrap();
+    lib.add_folder(&music).unwrap();
+    lib.rescan_all(|_, _| {}).unwrap();
+    let ids: Vec<i64> = paths.iter().map(|p| lib.track_by_path(p).unwrap().unwrap().id).collect();
+    assert_eq!(lib.unheard("m1").unwrap().len(), 3);
+
+    // Not analysed and not heard: nothing to go on.
+    assert!(lib.sounds_like(ids[0], 5).unwrap().is_empty());
+    // Heard by the listener only: a points the way c does, b elsewhere.
+    let unit = |x: f32, y: f32| {
+        let n = (x * x + y * y).sqrt();
+        let mut v = vec![0.0f32; 8];
+        v[0] = x / n;
+        v[1] = y / n;
+        v
+    };
+    lib.save_embedding(ids[0], "m1", &unit(1.0, 0.1)).unwrap();
+    lib.save_embedding(ids[1], "m1", &unit(0.2, 1.0)).unwrap();
+    lib.save_embedding(ids[2], "m1", &unit(1.0, 0.0)).unwrap();
+    // Another model's numbers are never mixed in.
+    lib.save_embedding(ids[1], "m2", &unit(1.0, 0.1)).unwrap();
+    assert!(lib.unheard("m1").unwrap().is_empty());
+    assert_eq!(lib.unheard("m2").unwrap().len(), 2);
+    assert_eq!(lib.embeddings("m1").unwrap().len(), 3);
+
+    let alike = lib.sounds_like(ids[0], 5).unwrap();
+    assert_eq!(alike[0].0, ids[2], "{alike:?}");
+    assert!(alike[0].1 > 0.9 && alike[1].1 < 0.1, "{alike:?}");
+
+    // A description pointing b's way finds b first.
+    let found = lib.sounds_described("m1", &unit(0.0, 1.0), 5).unwrap();
+    assert_eq!(found.len(), 3);
+    assert_eq!(found[0].0, ids[1], "{found:?}");
+    assert!(found.iter().all(|(_, s)| (0.0..=1.0).contains(s)));
+    // Saving again replaces.
+    lib.save_embedding(ids[1], "m1", &unit(1.0, 0.0)).unwrap();
+    assert_eq!(lib.embeddings("m1").unwrap().len(), 3);
+    assert_ne!(lib.sounds_described("m1", &unit(0.0, 1.0), 1).unwrap()[0].0, ids[1]);
+}

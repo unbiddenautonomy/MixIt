@@ -7,6 +7,7 @@
 pub mod audio;
 pub mod commands;
 pub mod dto;
+pub mod listen;
 pub mod nowplaying;
 pub mod sampler;
 pub mod sound;
@@ -110,6 +111,9 @@ pub fn run() {
             commands::tracks_remove,
             commands::suggest_next,
             commands::sounds_like,
+            listen::sound_listen,
+            listen::sound_search,
+            listen::sound_search_status,
             commands::build_set,
             commands::playlists,
             commands::playlist_tracks,

@@ -102,6 +102,15 @@ export class TauriBackend implements Backend {
   soundsLike(trackId: number, limit?: number) {
     return invoke<T.SoundMatch[]>("sounds_like", { trackId, limit: limit ?? null });
   }
+  soundSearch(text: string, limit?: number) {
+    return invoke<T.SoundMatch[]>("sound_search", { text, limit: limit ?? null });
+  }
+  soundSearchStatus() {
+    return invoke<T.SoundSearchStatus>("sound_search_status");
+  }
+  soundListen() {
+    return invoke<void>("sound_listen");
+  }
   suggestNext(trackId: number, energy: "steady" | "up" | "down", limit?: number) {
     return invoke<T.SuggestionRow[]>("suggest_next", { trackId, energy, limit: limit ?? null, tolerance: null });
   }

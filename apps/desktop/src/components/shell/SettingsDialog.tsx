@@ -184,6 +184,11 @@ function Mixing({ s }: { s: Settings }) {
           <Toggle on={s.trainedStems !== false} onChange={(v) => updateSettings({ trainedStems: v })} label="Use the trained splitter" />
         </Field>
       )}
+      {backend().kind === "tauri" && (
+        <Field label="Search by sound" hint="A trained listener hears each track once, right after it is analysed, so you can find tracks by describing them (“dark rolling bass”) and “sounds like” hears them more as you would. It is downloaded once (about 207 MB). Off, “sounds like” uses the analysis alone.">
+          <Toggle on={s.soundSearch !== false} onChange={(v) => updateSettings({ soundSearch: v })} label="Listen to my tracks" />
+        </Field>
+      )}
       <Field label="Coach">
         <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
       </Field>

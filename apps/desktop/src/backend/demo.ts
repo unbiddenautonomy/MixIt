@@ -281,6 +281,7 @@ export class DemoBackend implements Backend {
     nowPlayingFormat: "{artist} - {title}",
     micVoice: true,
     micDenoise: "strong",
+    soundSearch: true,
     trainedStems: true,
   };
   /** The simulated mic channel. */
@@ -1465,6 +1466,35 @@ export class DemoBackend implements Backend {
       .sort((x, y) => y.score - x.score || x.track.id - y.track.id)
       .slice(0, limit);
   }
+
+  /** The demo has no listener: it matches a description's words to each track's genre, title, energy and voice. */
+  async soundSearch(text: string, limit = 60): Promise<T.SoundMatch[]> {
+    const words = text.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+    if (!words.length) return [];
+    const calm = ["calm", "chill", "soft", "gentle", "mellow", "deep", "warm", "slow", "ambient"];
+    const loud = ["hard", "energetic", "peak", "banger", "heavy", "loud", "driving", "pumping", "big"];
+    return this.tracks
+      .map((t) => t.row)
+      .filter((r) => r.analysis === "done" && !r.missing)
+      .map((r) => {
+        const about = `${r.genre} ${r.title} ${r.artist}`.toLowerCase();
+        let score = 0.15 + words.filter((w) => about.includes(w)).length * 0.25;
+        const e = r.energy ?? 5;
+        if (words.some((w) => calm.includes(w))) score += 0.2 * (1 - e / 10);
+        if (words.some((w) => loud.includes(w))) score += 0.2 * (e / 10);
+        if (words.some((w) => ["vocal", "vocals", "voice", "singing", "singer"].includes(w))) score += 0.2 * ((r.vocals ?? 0) / 100);
+        if (words.includes("instrumental")) score += 0.2 * (1 - (r.vocals ?? 0) / 100);
+        score += (((r.id * 7919) % 97) / 97 - 0.5) * 0.04;
+        return { track: r, score: Math.max(0, Math.min(1, score)) };
+      })
+      .sort((x, y) => y.score - x.score || x.track.id - y.track.id)
+      .slice(0, limit);
+  }
+  async soundSearchStatus(): Promise<T.SoundSearchStatus> {
+    const rows = this.tracks.map((t) => t.row).filter((r) => !r.missing);
+    return { available: this.settings.soundSearch !== false, heard: rows.filter((r) => r.analysis === "done").length, total: rows.length };
+  }
+  async soundListen(): Promise<void> {}
 
   async playlists(): Promise<T.PlaylistDto[]> {
     const rows = await Promise.all(
