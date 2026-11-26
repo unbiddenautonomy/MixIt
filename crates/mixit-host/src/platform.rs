@@ -197,6 +197,37 @@ impl Os {
     }
 }
 
+/// Make a track: ACE-Step runs as a local helper server, set up with `uv` (Astral's
+/// Python manager) in a folder beside the models (the desktop app's `make.rs`).
+impl Os {
+    /// Environment for the helper server: Apple Silicon Macs use the MLX backend, as
+    /// ACE-Step's own macOS start script does.
+    pub fn ace_step_env(self, arm64: bool) -> &'static [(&'static str, &'static str)] {
+        match (self, arm64) {
+            (Os::MacOs, true) => {
+                &[("ACESTEP_LM_BACKEND", "mlx"), ("TOKENIZERS_PARALLELISM", "false"), ("ACESTEP_INIT_LLM", "auto")]
+            }
+            _ => &[("TOKENIZERS_PARALLELISM", "false"), ("ACESTEP_INIT_LLM", "auto")],
+        }
+    }
+
+    /// How to install `uv` when it is missing, as a line to paste into a terminal.
+    pub fn uv_install_line(self) -> &'static str {
+        match self {
+            Os::Windows => "powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
+            Os::MacOs | Os::Linux => "curl -LsSf https://astral.sh/uv/install.sh | sh",
+        }
+    }
+
+    /// The program and arguments that ask a process (and what it started) to stop.
+    pub fn stop_process(self, pid: u32) -> (&'static str, Vec<String>) {
+        match self {
+            Os::Windows => ("taskkill", vec!["/T".into(), "/F".into(), "/PID".into(), pid.to_string()]),
+            Os::MacOs | Os::Linux => ("kill", vec!["-TERM".into(), pid.to_string()]),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,5 +339,13 @@ mod tests {
         );
         assert_eq!(Os::MacOs.bundle_args(), ["--bundles", "app"]);
         assert_eq!(Os::MacOs.login_shell().0, "/bin/zsh");
+        // Make a track's helper: MLX only on Apple Silicon.
+        assert!(Os::MacOs.ace_step_env(true).contains(&("ACESTEP_LM_BACKEND", "mlx")));
+        assert!(!Os::MacOs.ace_step_env(false).iter().any(|(k, _)| *k == "ACESTEP_LM_BACKEND"));
+        assert!(!Os::Linux.ace_step_env(true).iter().any(|(k, _)| *k == "ACESTEP_LM_BACKEND"));
+        assert!(Os::Windows.uv_install_line().contains("install.ps1"));
+        assert!(Os::MacOs.uv_install_line().contains("install.sh"));
+        assert_eq!(Os::Linux.stop_process(42), ("kill", vec!["-TERM".to_string(), "42".to_string()]));
+        assert_eq!(Os::Windows.stop_process(42).0, "taskkill");
     }
 }

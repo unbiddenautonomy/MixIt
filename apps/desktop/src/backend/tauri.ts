@@ -191,6 +191,10 @@ export class TauriBackend implements Backend {
   samplerStopAll() { return invoke<void>("sampler_stop_all"); }
   samplerSequence(sequencer: T.SequencerDto) { return invoke<void>("sampler_sequence", { sequencer }); }
   padNotes(pad: number) { return invoke<T.PadNotes>("pad_notes", { pad }); }
+  makeStatus() { return invoke<T.MakeStatus>("make_status"); }
+  makeInstall() { return invoke<void>("make_install"); }
+  makeTrack(request: T.MakeRequest) { return invoke<void>("make_track", { request }); }
+  makeCancel() { return invoke<void>("make_cancel"); }
   addPracticeTracks() { return invoke<void>("practice_add"); }
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   importTraktor(path: string) { return invoke<void>("import_traktor", { path }); }

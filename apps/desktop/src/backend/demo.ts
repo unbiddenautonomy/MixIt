@@ -284,6 +284,8 @@ export class DemoBackend implements Backend {
     soundSearch: true,
     beatHelper: true,
     soundToNotes: true,
+    makeTrack: true,
+    makeTrackFolder: null,
     cleanVocals: false,
     ask: true,
     checkUpdates: true,
@@ -2027,6 +2029,48 @@ export class DemoBackend implements Backend {
   async samplerSequence(sequencer: T.SequencerDto) {
     if (sequencer.on && !this.seq.on) this.seqStep = -1;
     this.seq = { ...sequencer, pads: sequencer.pads.map((r) => [...r]) };
+  }
+
+  // Make a track: the demo "sets up" in a moment and "makes" a track from its library.
+  private makeInstalled = false;
+  private making: number | null = null;
+  async makeStatus(): Promise<T.MakeStatus> {
+    return { enabled: this.settings.makeTrack !== false, installed: this.makeInstalled, folder: "~/Library/Application Support/MixIt/Models/ace-step", running: this.makeInstalled, uv: true, uvInstall: "curl -LsSf https://astral.sh/uv/install.sh | sh", busy: this.making !== null };
+  }
+  private makeSteps(steps: string[], done: () => string) {
+    let i = 0;
+    this.making = window.setInterval(() => {
+      if (i < steps.length) {
+        this.emit("job", { kind: "make", done: 0, total: 0, message: steps[i++], finished: false, error: null });
+        return;
+      }
+      window.clearInterval(this.making!);
+      this.making = null;
+      this.emit("job", { kind: "make", done: 1, total: 1, message: done(), finished: true, error: null });
+    }, 200);
+  }
+  async makeInstall() {
+    this.makeSteps(["Getting the track maker's code", "Getting Python and the libraries it needs (a few GB, only once)"], () => {
+      this.makeInstalled = true;
+      return "The track maker is set up. The first track also downloads its models (several GB), so it takes a while.";
+    });
+  }
+  async makeTrack(r: T.MakeRequest) {
+    if (!this.makeInstalled) throw new Error("Set up the track maker first");
+    const name = r.name.trim() || r.description.trim().split(/\s+/).slice(0, 6).join(" ") || "New track";
+    this.makeSteps(["Starting the track maker", "Making the track (2 s)", "Making the track (4 s)"], () => {
+      const path = `~/Music/MixIt/Made/${name}.wav`;
+      const base = this.tracks[0];
+      const id = Math.max(...this.tracks.map((t) => t.row.id)) + 1;
+      this.tracks.push({ ...base, row: { ...base.row, id, path, title: name, artist: "", album: "", bpm: r.bpm ?? base.row.bpm, playCount: 0, lastPlayed: null, addedAt: Math.floor(Date.now() / 1000), rating: 0, color: null, comment: `Made with MixIt from: ${r.description.trim()}` } });
+      this.emit("library-changed", null);
+      return JSON.stringify({ trackId: id, path });
+    });
+  }
+  async makeCancel() {
+    if (this.making !== null) window.clearInterval(this.making);
+    this.making = null;
+    this.emit("job", { kind: "make", done: 0, total: 0, message: "", finished: true, error: "Stopped" });
   }
 
   /** The demo "hears" a two-bar riff in A minor at 120 BPM on any pad with a sound. */

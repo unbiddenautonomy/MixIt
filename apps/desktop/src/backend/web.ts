@@ -904,6 +904,16 @@ export class WebAudioBackend extends DemoBackend {
     this.engine.send({ op: "sequence", sequencer });
   }
 
+  async makeStatus(): Promise<T.MakeStatus> {
+    return { enabled: false, installed: false, folder: "", running: false, uv: false, uvInstall: "", busy: false };
+  }
+  async makeInstall() {
+    throw new Error("Making a track needs the desktop app.");
+  }
+  async makeTrack() {
+    throw new Error("Making a track needs the desktop app.");
+  }
+
   async padNotes(): Promise<T.PadNotes> {
     throw new Error("Turning a sound into notes needs the desktop app.");
   }

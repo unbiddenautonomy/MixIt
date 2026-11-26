@@ -9,6 +9,7 @@ pub mod beats;
 pub mod commands;
 pub mod dto;
 pub mod listen;
+pub mod make;
 pub mod notes;
 pub mod nowplaying;
 pub mod sampler;
@@ -177,11 +178,20 @@ pub fn run() {
             commands::sampler_stop_all,
             commands::sampler_sequence,
             notes::pad_notes,
+            make::make_status,
+            make::make_install,
+            make::make_track,
+            make::make_cancel,
             commands::stems_split,
             commands::stems_cancel,
             windows::part_open,
             windows::part_close,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running MixIt");
+        .build(tauri::generate_context!())
+        .expect("error while building MixIt")
+        .run(|_, event| {
+            if let tauri::RunEvent::Exit = event {
+                make::stop_server();
+            }
+        });
 }

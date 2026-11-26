@@ -22,6 +22,7 @@ import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SmartPlaylistHost } from "./components/library/SmartPlaylistDialog";
 import { BuildSetHost } from "./components/library/BuildSetDialog";
+import { MakeTrackHost } from "./components/library/MakeTrackDialog";
 import { TidyHost } from "./components/library/TidyDialog";
 import { SettingsDialog } from "./components/shell/SettingsDialog";
 import { TrackEditor } from "./components/editor/TrackEditor";
@@ -188,6 +189,7 @@ export function App() {
       <DialogHost />
       <SmartPlaylistHost />
       <BuildSetHost />
+      <MakeTrackHost />
       <TidyHost />
       <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" closeButton />
     </Tooltip.Provider>

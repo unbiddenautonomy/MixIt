@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, FinishTarget, PadNotes, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
+import type { BackupInfo, FinishTarget, MakeRequest, MakeStatus, PadNotes, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -228,6 +228,13 @@ export interface Backend {
   samplerSequence(sequencer: SequencerDto): Promise<void>;
   /** The notes a pad's sound plays, heard by the note listener (desktop only). */
   padNotes(pad: number): Promise<PadNotes>;
+
+  /** Make a track (desktop only): where it stands, setting it up (a "make" job), making
+   * a track (a "make" job whose message is JSON {trackId, path}) and stopping either. */
+  makeStatus(): Promise<MakeStatus>;
+  makeInstall(): Promise<void>;
+  makeTrack(request: MakeRequest): Promise<void>;
+  makeCancel(): Promise<void>;
 
   /** Generates the practice tracks for the guide's labs and adds them to the library. */
   addPracticeTracks(): Promise<void>;

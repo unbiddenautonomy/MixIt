@@ -18,6 +18,7 @@ import { addMusicFolder, DJ_APPS, importFromApp, type DjApp } from "../library/L
 import { refreshRows, showSoundsLike } from "../library/data";
 import { setSetEnd } from "../../lib/setClock";
 import { openBuildSet } from "../library/BuildSetDialog";
+import { makeAvailable, openMakeTrack } from "../library/MakeTrackDialog";
 import { openTidy } from "../library/TidyDialog";
 import { instantDouble } from "../../lib/performance";
 import { toast } from "sonner";
@@ -76,6 +77,7 @@ function extras(): Extra[] {
       keywords: ["set clock", "timer", "countdown", "time left", "gig"],
     })),
     { id: "x.set_clock.off", label: "Clear the set clock", group: "Mix", run: () => setSetEnd(null), keywords: ["set clock", "timer", "countdown"] },
+    ...(makeAvailable() ? [{ id: "x.make_track", label: "Make a track…", group: "Library", run: () => openMakeTrack(), keywords: ["make", "create", "generate", "compose", "new track", "song", "ai"] }] : []),
     { id: "x.build_set", label: "Build a set…", group: "Library", run: () => (s.set({ workspace: "library" }), openBuildSet()), keywords: ["set", "plan", "warm-up", "peak", "energy", "playlist", "generate"] },
     {
       id: "x.tidy",

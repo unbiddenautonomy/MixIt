@@ -208,6 +208,11 @@ function Mixing({ s }: { s: Settings }) {
           <Toggle on={s.soundToNotes !== false} onChange={(v) => updateSettings({ soundToNotes: v })} label="Turn a pad's notes into a pattern" />
         </Field>
       )}
+      {backend().kind === "tauri" && (
+        <Field label="Make a track" hint="Describe a track and a helper on this computer (ACE-Step, free and open) makes it and adds it to your library. It is big, so nothing is downloaded until you press Set it up in the Make a track window: about 5 GB, plus several GB of models for the first track. Off, the button is hidden.">
+          <Toggle on={s.makeTrack !== false} onChange={(v) => updateSettings({ makeTrack: v })} label="Show Make a track" />
+        </Field>
+      )}
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
         <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
       </Field>
