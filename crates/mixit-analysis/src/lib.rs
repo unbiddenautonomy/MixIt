@@ -19,6 +19,7 @@
 //!   tracks that sound alike (see [`timbre`]).
 
 pub mod grid;
+pub mod heard;
 pub mod key;
 pub mod loudness;
 pub mod onset;

@@ -169,6 +169,18 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (track_id, model)
     );
     "#,
+    // 5: the beat helper's second opinion on a track's grid: `data` is its grid when it
+    // differs from the analysis's (NULL when they agree), until the person uses or
+    // dismisses it.
+    r#"
+    CREATE TABLE grid_suggestions (
+        track_id    INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+        model       TEXT NOT NULL,
+        data        TEXT,
+        why         TEXT,
+        dismissed   INTEGER NOT NULL DEFAULT 0
+    );
+    "#,
 ];
 
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;

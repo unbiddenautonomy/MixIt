@@ -114,6 +114,9 @@ pub struct Settings {
     /// Lets a trained listener (downloaded once, about 207 MB) hear each track after
     /// analysis, for search by sound and a better "sounds like".
     pub sound_search: bool,
+    /// A trained beat tracker (downloaded once, about 191 MB) gives a second opinion on
+    /// tracks whose grid the analysis wasn't sure of, offered on the deck to use or not.
+    pub beat_helper: bool,
     /// Ask MixIt: the command palette also understands requests typed in plain words.
     pub ask: bool,
     /// Looks for new code in the checkout MixIt was built from, a little after it starts.
@@ -151,6 +154,7 @@ impl Default for Settings {
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
             trained_stems: true,
             sound_search: true,
+            beat_helper: true,
             ask: true,
             check_updates: true,
             update_source: None,

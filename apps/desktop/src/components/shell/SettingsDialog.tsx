@@ -190,6 +190,11 @@ function Mixing({ s }: { s: Settings }) {
           <Toggle on={s.soundSearch !== false} onChange={(v) => updateSettings({ soundSearch: v })} label="Listen to my tracks" />
         </Field>
       )}
+      {backend().kind === "tauri" && (
+        <Field label="Beat helper" hint="When MixIt isn't sure where a track's beats fall (live drummers, swing, no clear kick), a trained beat tracker listens again right after analysis. If it hears the beats or bars somewhere else, the deck offers its grid for you to use or not; nothing changes on its own. It is downloaded once (about 191 MB). Off, the analysis's grid is all there is.">
+          <Toggle on={s.beatHelper !== false} onChange={(v) => updateSettings({ beatHelper: v })} label="Get a second opinion on unsure beats" />
+        </Field>
+      )}
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
         <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
       </Field>

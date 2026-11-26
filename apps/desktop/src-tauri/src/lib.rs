@@ -5,6 +5,7 @@
 //! Parts of the screen can open in windows of their own on other screens ([`windows`]).
 
 pub mod audio;
+pub mod beats;
 pub mod commands;
 pub mod dto;
 pub mod listen;
@@ -113,6 +114,8 @@ pub fn run() {
             commands::suggest_next,
             commands::sounds_like,
             listen::sound_listen,
+            beats::grid_suggestion_use,
+            beats::grid_reset,
             listen::sound_search,
             listen::sound_search_status,
             update::update_check,

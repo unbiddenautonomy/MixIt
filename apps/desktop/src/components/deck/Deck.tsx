@@ -69,6 +69,7 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
       <Header deck={deck} />
       {info ? <Overview deck={deck} height={compact ? 32 : 46} /> : <EmptyDeck letter={L} compact={compact} />}
       <SafetyNote deck={deck} />
+      <GridOffer deck={deck} />
       <div className={clsx("flex min-w-0", compact ? "items-center gap-2" : "gap-3")}>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Transport deck={deck} pro={pro} compact={compact} />
@@ -93,6 +94,43 @@ function SafetyNote({ deck }: { deck: number }) {
       <span className="min-w-0 flex-1">Looping the last bars so the music doesn't stop. Mix in the next track, or let it end.</span>
       <button type="button" onClick={() => void tap(`deck.${L}.let_end`)} className="shrink-0 rounded bg-amber-300/20 px-1.5 py-0.5 font-medium text-amber-100 hover:bg-amber-300/30" data-testid={`let-end-${L}`}>
         Let it end
+      </button>
+    </div>
+  );
+}
+
+/** The beat helper heard this track's beats or bars somewhere else: use its grid, or keep this one. */
+function GridOffer({ deck }: { deck: number }) {
+  const offer = useApp((s) => s.decks[deck]?.detail.gridSuggestion ?? null);
+  const [busy, setBusy] = useState(false);
+  if (!offer) return null;
+  const L = String.fromCharCode(65 + deck);
+  const answer = async (useIt: boolean) => {
+    setBusy(true);
+    try {
+      await backend().useGridSuggestion(deck, useIt);
+      if (useIt)
+        toast.success("Using the beat helper's grid", {
+          description: "Undo puts MixIt's own grid back.",
+          action: { label: "Undo", onClick: () => void backend().resetGrid(deck).catch((e) => toast.error(e instanceof Error ? e.message : String(e))) },
+        });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-sky-400/30 bg-sky-400/10 px-2 py-1 text-[11px] text-sky-100" role="status" data-testid={`grid-offer-${L}`}>
+      <Disc3 size={13} className="shrink-0 text-sky-300" />
+      <span className="min-w-0 flex-1">
+        MixIt wasn't sure of this track's beat. A second listen hears {offer.why} ({fmtBpm(offer.bpm)} BPM, {offer.beatsPerBar} beats a bar).
+      </span>
+      <button type="button" disabled={busy} onClick={() => void answer(true)} className="shrink-0 rounded bg-sky-300/20 px-1.5 py-0.5 font-medium text-sky-100 hover:bg-sky-300/30 disabled:opacity-50" data-testid={`grid-offer-use-${L}`}>
+        Use it
+      </button>
+      <button type="button" disabled={busy} onClick={() => void answer(false)} className="shrink-0 rounded px-1.5 py-0.5 text-sky-200/80 hover:bg-white/5 hover:text-sky-100 disabled:opacity-50" data-testid={`grid-offer-keep-${L}`}>
+        Keep this one
       </button>
     </div>
   );

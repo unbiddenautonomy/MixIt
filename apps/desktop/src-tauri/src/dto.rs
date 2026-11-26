@@ -154,6 +154,8 @@ pub struct TrackDetail {
     pub audible: (f64, f64),
     /// Where the track has a voice: (start, end) seconds.
     pub vocals: Vec<(f64, f64)>,
+    /// The beat helper's grid, waiting to be used or not (see `beats.rs`).
+    pub grid_suggestion: Option<crate::beats::GridSuggestion>,
 }
 
 impl TrackDetail {
@@ -191,6 +193,7 @@ impl TrackDetail {
             cues: vec![],
             audible: (0.0, t.duration),
             vocals: vec![],
+            grid_suggestion: None,
         };
         if let Some(a) = a {
             let g = grid.unwrap_or(&a.grid);

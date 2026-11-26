@@ -82,8 +82,22 @@ pub const CLAP_TOKENIZER: ModelInfo = ModelInfo {
     source: CLAP_SOURCE,
 };
 
+/// The beat helper (Beat This!, its main model): 30 s of log-mel spectrogram in, how
+/// likely a beat and a downbeat are at each of its 50 frames a second out.
+pub const BEAT_THIS: ModelInfo = ModelInfo {
+    id: "beat-this-final0",
+    name: "Beat helper (Beat This!)",
+    file: "beat_this_final0.onnx",
+    url: "https://huggingface.co/musetric/beat-this-onnx/resolve/25308706dda545c0d5950065bb0604ad71bcf1f5/beat_this.onnx",
+    sha256: "1337dc6c21257ed6b803418efc320df42b5d8eb296ef16648ef60457cd4b9e55",
+    bytes: 190_649_026,
+    source: "Beat This! by Foscarin, Schlüter and Widmer (CPJKU, JKU Linz), MIT code and weights \
+             (github.com/CPJKU/beat_this); final0 checkpoint exported to ONNX by musetric \
+             (huggingface.co/musetric/beat-this-onnx, tagged MIT).",
+};
+
 /// Every model MixIt knows about.
-pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER];
+pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS];
 
 /// The models folder.
 #[derive(Clone, Debug)]

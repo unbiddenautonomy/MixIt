@@ -121,7 +121,7 @@ pub fn pulse_envelope(o: &Onsets) -> Vec<f32> {
 }
 
 /// Indexes beats consecutively, counting skipped beats from the local interval.
-fn index_beats(times: &[f64]) -> Vec<(f64, f64)> {
+pub(crate) fn index_beats(times: &[f64]) -> Vec<(f64, f64)> {
     if times.is_empty() {
         return vec![];
     }
@@ -138,7 +138,7 @@ fn index_beats(times: &[f64]) -> Vec<(f64, f64)> {
 }
 
 /// Robust local regression time at index `k` from (k, t) pairs within `radius` beats.
-fn local_time(pts: &[(f64, f64)], k: f64, radius: f64) -> Option<f64> {
+pub(crate) fn local_time(pts: &[(f64, f64)], k: f64, radius: f64) -> Option<f64> {
     let mut sel: Vec<(f64, f64)> = pts.iter().copied().filter(|p| (p.0 - k).abs() <= radius).collect();
     for _ in 0..3 {
         if sel.len() < 4 {
@@ -164,7 +164,7 @@ fn local_time(pts: &[(f64, f64)], k: f64, radius: f64) -> Option<f64> {
 }
 
 /// Drops anchors that the straight line between their neighbours predicts within `tol`.
-fn simplify(anchors: &[(f64, f64)], tol: f64) -> Vec<(f64, f64)> {
+pub(crate) fn simplify(anchors: &[(f64, f64)], tol: f64) -> Vec<(f64, f64)> {
     if anchors.len() <= 2 {
         return anchors.to_vec();
     }

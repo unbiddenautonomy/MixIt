@@ -108,6 +108,16 @@ export interface TrackDetail {
   audible: [number, number];
   /** Where the track has a voice: [start, end] seconds. */
   vocals?: [number, number][];
+  /** The beat helper's grid, waiting to be used or not. */
+  gridSuggestion?: GridSuggestion | null;
+}
+
+/** A second opinion on a track's grid, from the beat helper. */
+export interface GridSuggestion {
+  /** What it hears differently, in plain words ("a different tempo"). */
+  why: string;
+  bpm: number;
+  beatsPerBar: number;
 }
 
 /** How a built set's energy moves. */
@@ -384,6 +394,7 @@ export interface Settings {
   trainedStems?: boolean;
   /** Let a trained listener hear each track (downloaded once), for search by sound. */
   soundSearch?: boolean;
+  beatHelper?: boolean;
   /** Ask MixIt: the command palette also understands requests typed in plain words. */
   ask?: boolean;
   /** Looks for new code in the checkout MixIt was built from, a little after it starts. */

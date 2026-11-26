@@ -282,6 +282,7 @@ export class DemoBackend implements Backend {
     micVoice: true,
     micDenoise: "strong",
     soundSearch: true,
+    beatHelper: true,
     ask: true,
     checkUpdates: true,
     trainedStems: true,
@@ -593,7 +594,39 @@ export class DemoBackend implements Backend {
       cues: [...t.cues, ...this.savedCues(t)],
       audible: [0, t.row.duration - 1],
       vocals: t.vocals,
+      gridSuggestion: this.gridHelp(t),
     };
+  }
+
+  /** Tracks whose beat helper offer was used or dismissed. */
+  protected helped = new Set<number>();
+
+  /** The demo's beat helper hears the hip-hop tracks' bars start a beat later. */
+  protected gridHelp(t: DemoTrack): T.GridSuggestion | null {
+    if (t.row.genre !== "Hip Hop" || this.helped.has(t.row.id) || t.pins) return null;
+    return { why: "the bars starting on a different beat", bpm: t.row.bpm ?? 0, beatsPerBar: 4 };
+  }
+
+  async useGridSuggestion(deck: number, useIt: boolean) {
+    const t = this.deckTrack(deck);
+    if (!t) throw new Error("no track on this deck");
+    const offer = this.gridHelp(t);
+    this.helped.add(t.row.id);
+    if (useIt && offer) {
+      this.analysedBeat.set(t.row.id, t.firstBeat);
+      await this.setGrid(deck, { downbeatAt: t.firstBeat + t.period });
+    } else this.deckLoaded(deck);
+  }
+
+  /** Where the analysis put beat 1, for tracks whose grid was replaced. */
+  protected analysedBeat = new Map<number, number>();
+
+  async resetGrid(deck: number) {
+    const t = this.deckTrack(deck);
+    if (!t) throw new Error("no track on this deck");
+    const first = this.analysedBeat.get(t.row.id);
+    if (first != null) await this.setGrid(deck, { downbeatAt: first });
+    else this.deckLoaded(deck);
   }
 
   protected saved = new Map<number, T.CueDto[]>();

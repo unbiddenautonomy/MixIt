@@ -56,6 +56,10 @@ export interface Backend {
   deleteMemoryCue(deck: number, seconds: number): Promise<void>;
   /** Edits the beat grid of the deck's track and saves it (the deck is reloaded in place). */
   setGrid(deck: number, edit: GridEdit): Promise<void>;
+  /** Uses the beat helper's grid for the deck's track (`useIt`), or keeps the one it has. */
+  useGridSuggestion(deck: number, useIt: boolean): Promise<void>;
+  /** Drops the person's grid edits on the deck's track: the analysis's grid again. */
+  resetGrid(deck: number): Promise<void>;
   deleteHotCue(deck: number, slot: number): Promise<void>;
   setMainCue(deck: number, seconds: number): Promise<void>;
   setLoop(deck: number, start: number, end: number, active: boolean): Promise<void>;

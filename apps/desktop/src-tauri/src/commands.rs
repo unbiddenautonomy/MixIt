@@ -262,7 +262,7 @@ pub fn delete_memory_cue(app: AppHandle, state: State<'_, AppState>, deck: u8, s
     Ok(())
 }
 
-fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
+pub fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
     let mut decks = state.decks.lock();
     let d = decks[deck].as_mut().ok_or("no track")?;
     let lib = state.library.lock();
@@ -270,7 +270,34 @@ fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
     let a = lib.analysis(d.track_id).map_err(err)?;
     let cues = lib.cues(d.track_id).map_err(err)?;
     d.info.detail = TrackDetail::new(&t, a.as_ref(), Some(&d.grid), &cues);
+    d.info.detail.grid_suggestion = crate::beats::suggestion(&lib, d.track_id);
     Ok(d.info.clone())
+}
+
+/// Puts a whole new grid on a deck's track: saved as the person's grid, and sent to
+/// the engine.
+pub fn replace_grid(state: &AppState, deck: usize, grid: mixit_core::Beatgrid) -> R<()> {
+    let track_id = {
+        let mut decks = state.decks.lock();
+        let d = decks.get_mut(deck).and_then(|d| d.as_mut()).ok_or("no track on this deck")?;
+        if d.grid.locked {
+            return Err("The beat grid is locked. Unlock it in the track editor first.".into());
+        }
+        d.grid = grid.clone();
+        d.track_id
+    };
+    state.library.lock().save_grid(track_id, &grid).map_err(err)?;
+    replace_grid_unsaved(state, deck, grid)
+}
+
+/// Puts a grid on a deck without saving it (it is already the library's).
+pub fn replace_grid_unsaved(state: &AppState, deck: usize, grid: mixit_core::Beatgrid) -> R<()> {
+    if let Some(d) = state.decks.lock().get_mut(deck).and_then(|d| d.as_mut()) {
+        d.grid = grid.clone();
+    }
+    let sr = state.audio.lock().sample_rate;
+    state.audio.lock().send(Command::Deck(DeckId(deck as u8), DeckCommand::SetGrid(Arc::new(grid.resampled(sr)))));
+    Ok(())
 }
 
 // ------------------------------------------------------------------------- decks
@@ -346,7 +373,8 @@ pub fn load_track_blocking(state: &AppState, deck: u8, track_id: i64, start_at: 
     }
     let token = state.token();
     dt.token = token;
-    let detail = TrackDetail::new(&track, analysis.as_ref(), Some(&grid), &cues);
+    let mut detail = TrackDetail::new(&track, analysis.as_ref(), Some(&grid), &cues);
+    detail.grid_suggestion = crate::beats::suggestion(&state.library.lock(), track_id);
     let info = DeckInfo { deck, token, detail, sample_rate: sr };
     {
         let mut a = state.audio.lock();
@@ -557,11 +585,15 @@ fn analyse_all(app: &AppHandle, lib: &Library, progress: &dyn Fn(usize, usize, S
         .map_err(err)?;
     let heard =
         crate::listen::listen_all(app, lib, progress).unwrap_or_else(|e| format!("Couldn't listen to the tracks: {e}"));
+    let beats = crate::beats::help_all(app, lib, progress)
+        .unwrap_or_else(|e| format!("The beat helper couldn't check the tracks: {e}"));
+    let also = |m: String| if m.is_empty() { m } else { format!(". {m}") };
     Ok(format!(
-        "Analysed {} tracks{}{}",
+        "Analysed {} tracks{}{}{}",
         s.analysed,
         if s.failed > 0 { format!(", {} failed", s.failed) } else { String::new() },
-        if heard.is_empty() { String::new() } else { format!(". {heard}") }
+        also(heard),
+        also(beats)
     ))
 }
 
