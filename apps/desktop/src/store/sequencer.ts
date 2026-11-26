@@ -3,7 +3,7 @@
 // is sent to the engine as a whole, which is small and keeps the two in step.
 import { create } from "zustand";
 import { backend } from "../backend";
-import type { SequencerDto } from "../backend/types";
+import type { HeardNote, SequencerDto } from "../backend/types";
 
 export const MAX_STEPS = 64;
 export const PAGE = 16;
@@ -17,6 +17,8 @@ export interface SequencerState {
   swing: number;
   /** pads[p][s] for every step up to MAX_STEPS, so shortening keeps the steps after it. */
   pads: boolean[][];
+  /** pitches[p][s]: semitones pad p is pitched on step s (0 = as recorded). */
+  pitches: number[][];
   /** Which 16 steps the grid shows. */
   page: number;
   /** The grid turns the page with the playhead. */
@@ -24,6 +26,10 @@ export interface SequencerState {
 }
 
 const empty = () => Array.from({ length: PADS }, () => Array<boolean>(MAX_STEPS).fill(false));
+const level = () => Array.from({ length: PADS }, () => Array<number>(MAX_STEPS).fill(0));
+/** Farthest a step is pitched either way (semitones). */
+export const MAX_PITCH = 24;
+const clampPitch = (n: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Math.round(n) || 0));
 
 function restore(): Partial<SequencerState> {
   try {
@@ -32,7 +38,9 @@ function restore(): Partial<SequencerState> {
     const v = JSON.parse(raw) as Partial<SequencerState>;
     const pads = empty();
     v.pads?.forEach((row, p) => row.forEach((on, s) => p < PADS && s < MAX_STEPS && (pads[p][s] = !!on)));
-    return { steps: v.steps, stepBeats: v.stepBeats, swing: v.swing, pads, follow: v.follow };
+    const pitches = level();
+    v.pitches?.forEach((row, p) => row.forEach((n, s) => p < PADS && s < MAX_STEPS && (pitches[p][s] = clampPitch(Number(n)))));
+    return { steps: v.steps, stepBeats: v.stepBeats, swing: v.swing, pads, pitches, follow: v.follow };
   } catch {
     return {};
   }
@@ -44,13 +52,14 @@ export const useSequencer = create<SequencerState>(() => ({
   stepBeats: 0.25,
   swing: 0,
   pads: empty(),
+  pitches: level(),
   page: 0,
   follow: true,
   ...restore(),
 }));
 
 export function sequencerDto(s: SequencerState = useSequencer.getState()): SequencerDto {
-  return { on: s.on, steps: s.steps, stepBeats: s.stepBeats, swing: s.swing, pads: s.pads.map((r) => r.slice(0, s.steps)) };
+  return { on: s.on, steps: s.steps, stepBeats: s.stepBeats, swing: s.swing, pads: s.pads.map((r) => r.slice(0, s.steps)), pitches: s.pitches.map((r) => r.slice(0, s.steps)) };
 }
 
 let timer = 0;
@@ -72,7 +81,7 @@ function push(now = false) {
 function save() {
   const s = useSequencer.getState();
   try {
-    localStorage.setItem(KEY, JSON.stringify({ steps: s.steps, stepBeats: s.stepBeats, swing: s.swing, pads: s.pads, follow: s.follow }));
+    localStorage.setItem(KEY, JSON.stringify({ steps: s.steps, stepBeats: s.stepBeats, swing: s.swing, pads: s.pads, pitches: s.pitches, follow: s.follow }));
   } catch {
     /* storage is optional */
   }
@@ -99,6 +108,31 @@ export function setStep(pad: number, step: number, on: boolean) {
   });
 }
 
+/** Pitches a step of a pad up or down (semitones; 0 plays the sound as recorded). */
+export function setPitch(pad: number, step: number, semitones: number) {
+  update((s) => {
+    const n = clampPitch(semitones);
+    if (s.pitches[pad]?.[step] === n) return {};
+    const pitches = s.pitches.map((r) => [...r]);
+    pitches[pad][step] = n;
+    return { pitches };
+  });
+}
+
+/** Puts a whole row on a pad: which steps play and how far each is pitched. */
+export function setRow(pad: number, row: boolean[], pitches: number[], steps?: number) {
+  update((s) => {
+    const pads = s.pads.map((r) => [...r]);
+    const pitch = s.pitches.map((r) => [...r]);
+    for (let i = 0; i < MAX_STEPS; i++) {
+      pads[pad][i] = !!row[i];
+      pitch[pad][i] = clampPitch(pitches[i] ?? 0);
+    }
+    const n = steps ?? s.steps;
+    return { pads, pitches: pitch, steps: n, page: Math.min(s.page, Math.max(0, Math.ceil(n / PAGE) - 1)) };
+  });
+}
+
 export function setSteps(steps: number) {
   update((s) => ({ steps, page: Math.min(s.page, Math.max(0, Math.ceil(steps / PAGE) - 1)) }));
 }
@@ -109,7 +143,10 @@ export const setPage = (page: number) => useSequencer.setState({ page, follow: f
 export const setFollow = (follow: boolean) => update({ follow });
 
 export function clearPattern(pad?: number) {
-  update((s) => ({ pads: s.pads.map((r, p) => (pad === undefined || p === pad ? r.map(() => false) : r)) }));
+  update((s) => ({
+    pads: s.pads.map((r, p) => (pad === undefined || p === pad ? r.map(() => false) : r)),
+    pitches: s.pitches.map((r, p) => (pad === undefined || p === pad ? r.map(() => 0) : r)),
+  }));
 }
 
 /** Copies the first half of the pattern over the second (for a 32-step pattern, bar 1 onto bar 2). */
@@ -117,7 +154,8 @@ export function doublePattern() {
   update((s) => {
     const n = s.steps;
     if (n * 2 > MAX_STEPS) return {};
-    return { steps: n * 2, pads: s.pads.map((r) => r.map((on, i) => (i < n ? on : i < 2 * n ? r[i - n] : on))) };
+    const twice = <T>(r: T[]) => r.map((v, i) => (i < n ? v : i < 2 * n ? r[i - n] : v));
+    return { steps: n * 2, pads: s.pads.map(twice), pitches: s.pitches.map(twice) };
   });
 }
 
@@ -126,9 +164,14 @@ export function shiftRow(pad: number, by: number) {
   update((s) => {
     const n = s.steps;
     const pads = s.pads.map((r) => [...r]);
+    const pitches = s.pitches.map((r) => [...r]);
     const row = s.pads[pad].slice(0, n);
-    for (let i = 0; i < n; i++) pads[pad][(i + by + n) % n] = row[i];
-    return { pads };
+    const pitch = s.pitches[pad].slice(0, n);
+    for (let i = 0; i < n; i++) {
+      pads[pad][(i + by + n) % n] = row[i];
+      pitches[pad][(i + by + n) % n] = pitch[i];
+    }
+    return { pads, pitches };
   });
 }
 
@@ -210,16 +253,80 @@ export function applyPreset(p: Preset, padKits: (string | null)[]): number {
   let filled = 0;
   update(() => {
     const pads = empty();
+    const pitches = level();
     padKits.forEach((kit, pad) => {
       const row = kit ? p.rows[kit] : undefined;
       if (!row) return;
       filled++;
       for (let s = 0; s < p.steps; s++) pads[pad][s] = row[s] === "x";
     });
-    return { pads, steps: p.steps, stepBeats: p.stepBeats, swing: p.swing, page: 0 };
+    return { pads, pitches, steps: p.steps, stepBeats: p.stepBeats, swing: p.swing, page: 0 };
   });
   return filled;
 }
 
 /** A drum kit laid out for the sequencer, one sound per pad. */
 export const DRUM_KIT = ["kick", "snare", "clap", "hat", "open_hat", "rim", "tom", "shaker"];
+
+// ------------------------------------------------------------------ notes to a pattern
+
+const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+/** A MIDI note's name, like "A3". */
+export const noteName = (midi: number) => `${NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+
+export interface NotePattern {
+  /** Steps the pattern needs (8, 16, 32 or 64). */
+  steps: number;
+  row: boolean[];
+  /** Semitones from `root` on each step. */
+  pitches: number[];
+  /** The note that plays the pad as recorded. */
+  root: number;
+  /** Notes placed, and notes left out (past 64 steps, or sharing a step with a clearer one). */
+  placed: number;
+  dropped: number;
+}
+
+/** The note heard most often (by time), which by default plays the pad as recorded. */
+export function commonNote(notes: HeardNote[]): number {
+  const time = new Map<number, number>();
+  for (const n of notes) time.set(n.pitch, (time.get(n.pitch) ?? 0) + n.length);
+  let best = 60;
+  let most = -1;
+  for (const [p, t] of time) if (t > most || (t === most && p < best)) [best, most] = [p, t];
+  return best;
+}
+
+/**
+ * Lays heard notes on sequencer steps: each note on the step nearest its start at `bpm`,
+ * one note a step (the clearest), empty bars before the first note left out, and each
+ * step pitched by its distance from `root` (out-of-range notes move by octaves).
+ */
+export function notesToPattern(notes: HeardNote[], bpm: number, stepBeats: number, root = commonNote(notes)): NotePattern {
+  const perStep = (60 / bpm) * stepBeats;
+  const perBar = Math.max(1, Math.round(4 / stepBeats));
+  const at = notes.map((n) => Math.round(n.start / perStep));
+  const first = at.length ? Math.min(...at) : 0;
+  const shift = Math.floor(first / perBar) * perBar;
+  const best = new Map<number, HeardNote>();
+  let dropped = 0;
+  notes.forEach((n, i) => {
+    const s = at[i] - shift;
+    if (s >= MAX_STEPS) return void dropped++;
+    const had = best.get(s);
+    if (had) dropped++;
+    if (!had || n.strength > had.strength) best.set(s, n);
+  });
+  const last = Math.max(-1, ...best.keys());
+  const steps = [8, 16, 32, 64].find((n) => n > last && n >= perBar) ?? MAX_STEPS;
+  const row = Array<boolean>(MAX_STEPS).fill(false);
+  const pitches = Array<number>(MAX_STEPS).fill(0);
+  for (const [s, n] of best) {
+    let d = n.pitch - root;
+    while (d > MAX_PITCH) d -= 12;
+    while (d < -MAX_PITCH) d += 12;
+    row[s] = true;
+    pitches[s] = d;
+  }
+  return { steps, row, pitches, root, placed: best.size, dropped };
+}

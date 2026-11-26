@@ -18,6 +18,7 @@ import {
   missingSounds,
   setFollow,
   setPage,
+  setPitch,
   setSequencerOn,
   setStep,
   setStepBeats,
@@ -31,6 +32,7 @@ import { useTelemetry } from "../../store/telemetry";
 import { Segmented } from "../ui/Button";
 import { Knob } from "../ui/Knob";
 import { loadPad } from "./SamplerPanel";
+import { PadNotesDialog, notesAvailable, openPadNotes } from "./PadNotesDialog";
 
 const STEP_OPTIONS = [8, 16, 32, 64];
 const RATE_OPTIONS = [
@@ -65,13 +67,23 @@ function startPreset(p: Preset) {
 /** Paints squares while the pointer is held down, so a row can be filled in one drag. */
 const paint = { active: false, value: true };
 
-function Cell({ pad, step, on, now, color, beatStart }: { pad: number; step: number; on: boolean; now: boolean; color: string; beatStart: boolean }) {
+const pitchText = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `${n}` : "");
+
+/** A lit square in a row with pitches shows its pitch as a line, high for up and low for
+ * down (a melody reads as a contour; the exact number is in the tooltip). */
+function Cell({ pad, step, on, pitch, tuned, now, color, beatStart }: { pad: number; step: number; on: boolean; pitch: number; tuned: boolean; now: boolean; color: string; beatStart: boolean }) {
   return (
     <button
       type="button"
-      aria-label={`Pad ${pad + 1}, step ${step + 1}`}
+      aria-label={`Pad ${pad + 1}, step ${step + 1}${on && pitch ? `, ${pitchText(pitch)} semitones` : ""}`}
       aria-pressed={on}
       data-step={step}
+      title={on ? `${pitch ? `${pitchText(pitch)} semitones. ` : ""}Scroll or press the up and down arrows to play this square higher or lower (hold Shift for a whole octave)` : undefined}
+      onWheel={(e) => {
+        if (!on) return;
+        e.preventDefault();
+        setPitch(pad, step, pitch + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1));
+      }}
       onPointerDown={(e) => {
         e.preventDefault();
         (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
@@ -84,17 +96,24 @@ function Cell({ pad, step, on, now, color, beatStart }: { pad: number; step: num
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
           setStep(pad, step, !on);
+        } else if (on && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+          e.preventDefault();
+          setPitch(pad, step, pitch + (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 12 : 1));
         }
       }}
-      className={clsx("h-[15px] min-w-0 flex-1 rounded-[3px] border transition-colors duration-75", beatStart && step > 0 && "ml-[3px]", now ? "border-white/70" : "border-transparent")}
+      className={clsx("relative h-[15px] min-w-0 flex-1 overflow-hidden rounded-[3px] border transition-colors duration-75", beatStart && step > 0 && "ml-[3px]", now ? "border-white/70" : "border-transparent")}
       style={{ background: on ? (now ? color : `${color}cc`) : now ? "rgba(255,255,255,0.16)" : beatStart ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.05)" }}
-    />
+    >
+      {on && tuned && <span className="pointer-events-none absolute inset-x-[2px] h-[2px] -translate-y-1/2 rounded-full bg-black/60" style={{ top: `${50 - (Math.max(-12, Math.min(12, pitch)) / 12) * 38}%` }} />}
+    </button>
   );
 }
 
 function Row({ pad, page, steps, perBeat, playing }: { pad: number; page: number; steps: number; perBeat: number; playing: number }) {
   const p = useApp((s) => s.pads[pad]);
   const row = useSequencer((s) => s.pads[pad]);
+  const pitches = useSequencer((s) => s.pitches[pad]);
+  const tuned = useSequencer((s) => s.pitches[pad]?.some((n, i) => n !== 0 && s.pads[pad][i]) ?? false);
   const color = hex(p?.color ?? 0x64748b);
   const empty = !p || p.source.type === "empty";
   const from = page * PAGE;
@@ -117,7 +136,7 @@ function Row({ pad, page, steps, perBeat, playing }: { pad: number; page: number
       <div className="flex min-w-0 flex-1 gap-[2px]">
         {Array.from({ length: count }, (_, i) => {
           const s = from + i;
-          return <Cell key={s} pad={pad} step={s} on={!!row[s]} now={s === playing} color={color} beatStart={perBeat > 0 && i % perBeat === 0} />;
+          return <Cell key={s} pad={pad} step={s} on={!!row[s]} pitch={pitches?.[s] ?? 0} tuned={tuned} now={s === playing} color={color} beatStart={perBeat > 0 && i % perBeat === 0} />;
         })}
       </div>
       <div className="hidden w-[22px] shrink-0 flex-col group-hover:flex">
@@ -234,6 +253,12 @@ export function Sequencer() {
                 </DropdownMenu.Item>
               ))}
               <DropdownMenu.Separator className="my-1 h-px bg-white/10" />
+              {notesAvailable() && (
+                <DropdownMenu.Item className="menu-item flex-col items-start" onSelect={() => openPadNotes()}>
+                  <span>Turn a pad's notes into a pattern…</span>
+                  <span className="text-[10px] leading-snug text-zinc-500">Hears a riff, bassline or hummed tune and plays it back on any pad.</span>
+                </DropdownMenu.Item>
+              )}
               <DropdownMenu.Item className="menu-item" disabled={steps * 2 > 64} onSelect={doublePattern}>
                 Double the pattern (copy it after itself)
               </DropdownMenu.Item>
@@ -266,8 +291,9 @@ export function Sequencer() {
         </div>
       </div>
       <p className="text-[11px] leading-snug text-zinc-400">
-        Tap squares to place a pad's sound on that step, or drag across a row. The pattern loops in time with the playing track, so it always lands on the beat. Click a pad name to hear it; right-click it to clear its row.
+        Tap squares to place a pad's sound on that step, or drag across a row. Scroll over a lit square to play it higher or lower. The pattern loops in time with the playing track, so it always lands on the beat. Click a pad name to hear it; right-click it to clear its row.
       </p>
+      <PadNotesDialog />
     </div>
   );
 }

@@ -112,7 +112,20 @@ pub const MEL_ROFORMER: ModelInfo = ModelInfo {
 };
 
 /// Every model MixIt knows about.
-pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS, MEL_ROFORMER];
+/// Sound to notes (Basic Pitch): 2 s of 22.05 kHz mono in, how likely each piano key is
+/// sounding and starting in each of 172 frames out.
+pub const BASIC_PITCH: ModelInfo = ModelInfo {
+    id: "basic-pitch",
+    name: "Sound to notes (Basic Pitch)",
+    file: "basic_pitch_nmp.onnx",
+    url: "https://raw.githubusercontent.com/spotify/basic-pitch/fa5997af0a8210982619003269994a1be25eddf3/basic_pitch/saved_models/icassp_2022/nmp.onnx",
+    sha256: "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec",
+    bytes: 230_444,
+    source: "Basic Pitch by Bittner, Bosch, Rubinstein, Meseguer-Brocal and Ewert (Spotify), \
+             Apache-2.0 code and weights (github.com/spotify/basic-pitch); the ONNX file it ships.",
+};
+
+pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS, MEL_ROFORMER, BASIC_PITCH];
 
 /// The models folder.
 #[derive(Clone, Debug)]

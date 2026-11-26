@@ -38,6 +38,12 @@ struct Pad {
     fade: MicroFade,
     /// Sequencer steps this pad plays (bit n = step n).
     pattern: u64,
+    /// Playback speed on each sequencer step (1 = as recorded; 2 = an octave up).
+    step_rates: [f64; MAX_STEPS as usize],
+    /// Playback speed of the sounding hit, of the next one, and of the fading tail.
+    rate: f64,
+    next_rate: f64,
+    tail_rate: f64,
     /// Stopped during the current block (reported once).
     stopped_now: bool,
     /// The previous hit, fading out under a retrigger: position and frames left.
@@ -60,6 +66,10 @@ impl Pad {
             delay: None,
             fade: MicroFade::new((0.002 * sr) as u32, false),
             pattern: 0,
+            step_rates: [1.0; MAX_STEPS as usize],
+            rate: 1.0,
+            next_rate: 1.0,
+            tail_rate: 1.0,
             stopped_now: false,
             tail_pos: 0.0,
             tail_left: 0,
@@ -141,6 +151,7 @@ impl Sampler {
             for p in self.pads.iter_mut() {
                 if p.audio.is_some() && p.pattern >> step & 1 == 1 {
                     p.delay = Some(at);
+                    p.next_rate = p.step_rates[step as usize];
                 }
             }
         }
@@ -161,6 +172,8 @@ impl Sampler {
             p.delay = None;
             return;
         }
+        // A hit by hand plays the sound as recorded.
+        p.next_rate = 1.0;
         // A quantised hit starts later (the pad keeps sounding until then); an immediate
         // one restarts now.
         match (p.quantized, env.quantize) {
@@ -173,6 +186,7 @@ impl Sampler {
             _ => {
                 p.delay = None;
                 p.pos = 0.0;
+                p.rate = 1.0;
                 p.playing = true;
                 p.fade.set_open(false);
                 p.fade.fade_in();
@@ -230,6 +244,14 @@ impl Sampler {
             S::SetQuantized(pad, on) if pad < n => self.pads[pad].quantized = on,
             S::SetVolume(v) => self.volume.set(v.clamp(0.0, 1.0)),
             S::SeqPattern { pad, steps } if pad < n => self.pads[pad].pattern = steps,
+            S::SeqPitches { pad, from, semitones } if (pad as usize) < n => {
+                let rates = &mut self.pads[pad as usize].step_rates;
+                for (i, s) in semitones.iter().enumerate() {
+                    if let Some(r) = rates.get_mut(from as usize + i) {
+                        *r = 2f64.powf(f64::from((*s).clamp(-36, 36)) / 12.0);
+                    }
+                }
+            }
             S::SeqSettings { on, steps, step_beats, swing } => {
                 let q = &mut self.seq;
                 if on && !q.on {
@@ -286,12 +308,14 @@ impl Sampler {
                         render_voice(p, &ctx, 0, at, out_l, out_r);
                         if p.playing {
                             p.tail_pos = p.pos;
+                            p.tail_rate = p.rate;
                             p.tail_left = xf;
                         }
                     }
                     p.delay = None;
                     p.playing = true;
                     p.pos = 0.0;
+                    p.rate = p.next_rate;
                     p.fade.set_open(false);
                     p.fade.fade_in();
                     ev.send(Event::PadStarted { pad: idx });
@@ -344,12 +368,12 @@ fn render_voice(p: &mut Pad, v: &Voice, from: usize, to: usize, out_l: &mut [f32
                 l += tl * p.gain * vol * k;
                 r += tr * p.gain * vol * k;
             }
-            p.tail_pos += step;
+            p.tail_pos += step * p.tail_rate;
             p.tail_left -= 1;
         }
         out_l[i] += l * gl;
         out_r[i] += r * gr;
-        p.pos += step;
+        p.pos += step * p.rate;
         if p.fade.is_silent() {
             p.playing = false;
             p.stopped_now = true;

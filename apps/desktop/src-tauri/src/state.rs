@@ -120,6 +120,9 @@ pub struct Settings {
     /// A trained beat tracker (downloaded once, about 191 MB) gives a second opinion on
     /// tracks whose grid the analysis wasn't sure of, offered on the deck to use or not.
     pub beat_helper: bool,
+    /// A small trained note listener (downloaded once, 230 KB) turns the notes a pad
+    /// plays into a sequencer pattern.
+    pub sound_to_notes: bool,
     /// Ask MixIt: the command palette also understands requests typed in plain words.
     pub ask: bool,
     /// Looks for new code in the checkout MixIt was built from, a little after it starts.
@@ -159,6 +162,7 @@ impl Default for Settings {
             clean_vocals: false,
             sound_search: true,
             beat_helper: true,
+            sound_to_notes: true,
             ask: true,
             check_updates: true,
             update_source: None,

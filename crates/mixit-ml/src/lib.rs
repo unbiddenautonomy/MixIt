@@ -8,6 +8,8 @@
 //!
 //! * [`beats`]: Beat This!, a trained beat and downbeat tracker, as a second opinion
 //!   where MixIt's own beat finder is unsure.
+//! * [`notes`]: Basic Pitch, which hears the notes a sound plays, for turning a melody
+//!   into a pattern on the pads.
 //! * [`stems`]: HTDemucs, the trained four-stem splitter (vocals, drums, bass and the
 //!   rest).
 //! * [`sound`]: CLAP, which describes how a track sounds, for search by sound, behind
@@ -19,6 +21,7 @@
 
 pub mod beats;
 pub mod models;
+pub mod notes;
 pub mod sound;
 pub mod stems;
 pub mod vocal_split;

@@ -203,6 +203,11 @@ function Mixing({ s }: { s: Settings }) {
           <Toggle on={s.beatHelper !== false} onChange={(v) => updateSettings({ beatHelper: v })} label="Get a second opinion on unsure beats" />
         </Field>
       )}
+      {backend().kind === "tauri" && (
+        <Field label="Sound to notes" hint="In the sequencer, a small trained listener can hear the notes a pad plays (a riff, a bassline, a hummed tune) and put them on the squares, each at its own pitch, to play back on any pad. It is downloaded the first time you use it (230 KB). Off, you draw patterns by hand.">
+          <Toggle on={s.soundToNotes !== false} onChange={(v) => updateSettings({ soundToNotes: v })} label="Turn a pad's notes into a pattern" />
+        </Field>
+      )}
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
         <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
       </Field>

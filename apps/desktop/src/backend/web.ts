@@ -904,6 +904,10 @@ export class WebAudioBackend extends DemoBackend {
     this.engine.send({ op: "sequence", sequencer });
   }
 
+  async padNotes(): Promise<T.PadNotes> {
+    throw new Error("Turning a sound into notes needs the desktop app.");
+  }
+
   async samplerStopAll() {
     this.engine.send({ op: "action", id: "sampler.stop_all", input: { type: "press" } });
   }

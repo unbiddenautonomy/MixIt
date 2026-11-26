@@ -397,6 +397,8 @@ export interface Settings {
   cleanVocals?: boolean;
   soundSearch?: boolean;
   beatHelper?: boolean;
+  /** A small trained note listener turns the notes a pad plays into a sequencer pattern. */
+  soundToNotes?: boolean;
   /** Ask MixIt: the command palette also understands requests typed in plain words. */
   ask?: boolean;
   /** Looks for new code in the checkout MixIt was built from, a little after it starts. */
@@ -574,6 +576,23 @@ export interface SequencerDto {
   swing: number;
   /** pads[p][s]: whether pad p plays on step s. */
   pads: boolean[][];
+  /** pitches[p][s]: how far pad p is pitched on step s, in semitones (missing = 0). */
+  pitches?: number[][];
+}
+
+/** A note heard in a sound: when (s), how long (s), which key (MIDI number) and how clearly (0 to 1). */
+export interface HeardNote {
+  start: number;
+  length: number;
+  pitch: number;
+  strength: number;
+}
+
+/** The notes a pad's sound plays, with its length (s) and tempo if known. */
+export interface PadNotes {
+  notes: HeardNote[];
+  seconds: number;
+  bpm: number | null;
 }
 
 export interface PadPatch {

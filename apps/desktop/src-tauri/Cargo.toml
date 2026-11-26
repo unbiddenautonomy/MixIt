@@ -39,7 +39,7 @@ anyhow.workspace = true
 mixit-cli = { path = "../../../crates/mixit-cli" }
 
 [features]
-default = ["stems-model", "mic-clean", "sound-search", "beat-helper"]
+default = ["stems-model", "mic-clean", "sound-search", "beat-helper", "sound-to-notes"]
 # The trained stem splitter (HTDemucs through ONNX Runtime). Without it, stems always
 # use the quick split.
 stems-model = ["dep:mixit-ml", "mixit-ml/onnx"]
@@ -52,6 +52,9 @@ sound-search = ["dep:mixit-ml", "mixit-ml/sound"]
 # The beat helper: a trained beat tracker (Beat This!) gives a second opinion on tracks
 # whose grid the analysis wasn't sure of. Without it the analysis's grid is all there is.
 beat-helper = ["dep:mixit-ml", "mixit-ml/onnx"]
+# Sound to notes: a small trained note listener (Basic Pitch) hears the notes a pad plays,
+# so the sequencer can play them on another pad. Without it the sequencer is drawn by hand.
+sound-to-notes = ["dep:mixit-ml", "mixit-ml/onnx"]
 
 [lints]
 workspace = true

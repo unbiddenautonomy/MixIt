@@ -9,6 +9,7 @@ pub mod beats;
 pub mod commands;
 pub mod dto;
 pub mod listen;
+pub mod notes;
 pub mod nowplaying;
 pub mod sampler;
 pub mod sound;
@@ -175,6 +176,7 @@ pub fn run() {
             commands::sampler_reset,
             commands::sampler_stop_all,
             commands::sampler_sequence,
+            notes::pad_notes,
             commands::stems_split,
             commands::stems_cancel,
             windows::part_open,

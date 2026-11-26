@@ -190,6 +190,7 @@ export class TauriBackend implements Backend {
   samplerReset() { return invoke<T.PadInfo[]>("sampler_reset"); }
   samplerStopAll() { return invoke<void>("sampler_stop_all"); }
   samplerSequence(sequencer: T.SequencerDto) { return invoke<void>("sampler_sequence", { sequencer }); }
+  padNotes(pad: number) { return invoke<T.PadNotes>("pad_notes", { pad }); }
   addPracticeTracks() { return invoke<void>("practice_add"); }
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   importTraktor(path: string) { return invoke<void>("import_traktor", { path }); }

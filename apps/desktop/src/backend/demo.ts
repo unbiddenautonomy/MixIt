@@ -283,6 +283,7 @@ export class DemoBackend implements Backend {
     micDenoise: "strong",
     soundSearch: true,
     beatHelper: true,
+    soundToNotes: true,
     cleanVocals: false,
     ask: true,
     checkUpdates: true,
@@ -2026,6 +2027,16 @@ export class DemoBackend implements Backend {
   async samplerSequence(sequencer: T.SequencerDto) {
     if (sequencer.on && !this.seq.on) this.seqStep = -1;
     this.seq = { ...sequencer, pads: sequencer.pads.map((r) => [...r]) };
+  }
+
+  /** The demo "hears" a two-bar riff in A minor at 120 BPM on any pad with a sound. */
+  async padNotes(pad: number): Promise<T.PadNotes> {
+    const p = this.pads[pad];
+    if (!p || p.source.type === "empty") throw new Error(`Pad ${pad + 1} is empty`);
+    const riff: [number, number][] = [[0, 57], [0.25, 60], [0.5, 64], [1, 62], [1.25, 60], [1.5, 57], [2, 55], [2.5, 57], [2.75, 60], [3, 64], [3.5, 67], [3.75, 64]];
+    // Times in beats; a beat is half a second.
+    const notes = riff.map(([at, pitch], i) => ({ start: at / 2, length: (((riff[i + 1]?.[0] ?? 4) - at) / 2) * 0.9, pitch, strength: 0.75 }));
+    return { notes, seconds: 4, bpm: 120 };
   }
 
   protected samplerMask(): number {
