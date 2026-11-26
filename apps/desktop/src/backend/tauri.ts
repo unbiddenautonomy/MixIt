@@ -155,6 +155,8 @@ export class TauriBackend implements Backend {
   devices() { return invoke<T.DeviceInfo[]>("audio_devices"); }
   audioStatus() { return invoke<T.AudioStatus>("audio_status"); }
   saveSettings(settings: T.Settings) { return invoke<T.Settings>("settings_set", { settings }); }
+  layoutsLoad() { return invoke<string | null>("layouts_get"); }
+  layoutsSave(text: string) { return invoke<void>("layouts_set", { text }); }
   recordStart() { return invoke<string>("record_start"); }
   recordStop() { return invoke<string>("record_stop"); }
   importTrack(path: string) { return invoke<T.TrackRow>("library_import", { path }); }

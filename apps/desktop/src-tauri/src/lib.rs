@@ -142,6 +142,8 @@ pub fn run() {
             commands::mic_record_start,
             commands::mic_record_stop,
             commands::settings_set,
+            commands::layouts_get,
+            commands::layouts_set,
             commands::record_start,
             commands::record_stop,
             commands::automix,

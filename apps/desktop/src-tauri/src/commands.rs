@@ -1435,6 +1435,27 @@ pub fn settings_set(app: AppHandle, state: State<'_, AppState>, settings: Settin
     Ok(settings)
 }
 
+/// Where saved layouts are kept in the library's settings. A newer layout format gets a key
+/// of its own, so going back to an older MixIt never loses it.
+const LAYOUTS_KEY: &str = "layouts.v1";
+/// Far more than any real set of layouts; stops a runaway write from filling the library.
+const LAYOUTS_MAX: usize = 1 << 20;
+
+/// The saved layouts, as the UI wrote them (or nothing yet). Kept apart from the settings,
+/// because saving those also sends the mixer's values to the engine.
+#[tauri::command]
+pub fn layouts_get(state: State<'_, AppState>) -> R<Option<String>> {
+    state.library.lock().setting(LAYOUTS_KEY).map_err(err)
+}
+
+#[tauri::command]
+pub fn layouts_set(state: State<'_, AppState>, text: String) -> R<()> {
+    if text.len() > LAYOUTS_MAX {
+        return Err("The layouts are too large to save.".into());
+    }
+    state.library.lock().set_setting(LAYOUTS_KEY, &text).map_err(err)
+}
+
 #[tauri::command]
 pub fn record_start(state: State<'_, AppState>) -> R<String> {
     let mut rec = state.recording.lock();

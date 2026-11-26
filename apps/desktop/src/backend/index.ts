@@ -167,6 +167,10 @@ export interface Backend {
   devices(): Promise<DeviceInfo[]>;
   audioStatus(): Promise<AudioStatus>;
   saveSettings(s: Settings): Promise<Settings>;
+  /** The saved screen layouts (src/lib/layout/book.ts), as last written, or null before the first save. */
+  layoutsLoad(): Promise<string | null>;
+  /** Keeps the screen layouts. Apart from the settings, so saving them never touches the engine. */
+  layoutsSave(text: string): Promise<void>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
   /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */

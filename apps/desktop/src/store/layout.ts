@@ -5,18 +5,30 @@
 // For now the layout has one window: parts can be folded, resized and switched between
 // tabs, but not yet sent to other screens. The environment says "one window" (`browser`),
 // so normalise brings every part into the main window, whatever a saved layout says.
+//
+// Saving: a layout is kept for each set of screens (lib/layout/book.ts), through the
+// backend, half a second after the last change. A quick copy goes into browser storage at
+// the same moment, so quitting inside that half second (or a failed write) loses nothing:
+// at the next start the copy saved last wins.
 import { toast } from "sonner";
 import { create } from "zustand";
+import { backend } from "../backend";
+import { emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, type Book } from "../lib/layout/book";
 import { loadLayout } from "../lib/layout/check";
-import { MAIN, isFolded, placesOf, type Env, type Layout, type PageId, type UnitId } from "../lib/layout/model";
+import { MAIN, isFolded, placesOf, setupKey, type Env, type Layout, type PageId, type UnitId } from "../lib/layout/model";
 import { isRefusal, normalise, run, type Op } from "../lib/layout/ops";
 import { migrateOld, serialise } from "../lib/layout/persist";
 import { presetFor } from "../lib/layout/presets";
+import { thisPart, useScreens } from "../lib/screens";
 import { toolHooks, useApp, type ToolTab } from "./app";
 
-/** Where the layout is kept until saving moves into the library's settings file. */
-export const LAYOUT_KEY = "mixit.layout.v1";
+/** Where the first preview kept its one layout; moved into the book once. */
+export const OLD_LAYOUT_KEY = "mixit.layout.v1";
+/** The quick copy of the book in browser storage. */
+export const QUICK_KEY = "mixit.layouts.quick";
 const SAVE_DELAY_MS = 500;
+/** How long to wait at start for the list of screens before going on without it. */
+const SCREENS_WAIT_MS = 1500;
 
 interface LayoutState {
   layout: Layout | null;
@@ -41,56 +53,169 @@ export function layoutEnv(): Env {
   };
 }
 
+// ------------------------------------------------------------------ saving
+
+let book: Book = emptyBook();
+/** The set of screens the layout showing belongs to. */
+let setup = "";
+/** The saved layouts came from a newer MixIt: use them, never write over them. */
+let readOnly = false;
+let pending: Layout | null = null;
 let saveTimer = 0;
-function save(layout: Layout) {
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => saveNow(layout), SAVE_DELAY_MS);
-}
+let writing: Promise<void> = Promise.resolve();
+let warned = false;
 
-function saveNow(layout: Layout) {
+function storage(): Storage | null {
   try {
-    localStorage.setItem(LAYOUT_KEY, serialise(layout));
-  } catch {
-    /* not remembered: storage full or blocked */
-  }
-}
-
-function readOld(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
+    return window.localStorage;
   } catch {
     return null;
   }
 }
 
-/**
- * The layout to start with: the saved one if it loads, else today's settings moved
- * across, else the built-in one. A saved layout that can't be read is set aside, not
- * overwritten, so nothing is lost while we find out why.
- */
-export function startLayout(): Layout {
-  const env = layoutEnv();
-  const text = readOld(LAYOUT_KEY);
-  if (text) {
-    const r = loadLayout(text, env);
-    if (r.layout) return r.layout;
-    try {
-      localStorage.setItem(`${LAYOUT_KEY}.bad-${Date.now()}`, text);
-    } catch {
-      /* not kept */
-    }
-    if (r.problem === "newer") toast.message("This layout was made by a newer MixIt, so the standard one is showing.");
-    else toast.warning("Your layout couldn't be loaded, so MixIt opened the standard one.");
-    return presetFor(env);
-  }
-  const app = useApp.getState();
-  return migrateOld({ toolTab: readOld("mixit.tools.tab"), toolSize: readOld("mixit.tools.size"), libraryHeight: app.libraryHeight, windowHeight: window.innerHeight }, env);
+function save(layout: Layout) {
+  pending = layout;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(flush, SAVE_DELAY_MS);
 }
 
-/** Loads the layout when the new layout is switched on. */
-export function initLayout() {
-  if (!useLayout.getState().layout) useLayout.setState({ layout: startLayout() });
+/** Writes a waiting change now, under the screens it was made for. */
+function flush() {
+  window.clearTimeout(saveTimer);
+  saveTimer = 0;
+  const layout = pending;
+  pending = null;
+  if (!layout) return;
+  book = putLayout(book, setup, layout, Date.now());
+  writeBook();
 }
+
+function writeBook() {
+  if (readOnly) return;
+  const text = serialise(book);
+  try {
+    storage()?.setItem(QUICK_KEY, text);
+  } catch {
+    /* the library copy is enough */
+  }
+  // One write at a time, in order, so an older layout can never land after a newer one.
+  writing = writing
+    .then(() => backend().layoutsSave(text))
+    .catch(() => {
+      if (warned) return;
+      warned = true;
+      toast.warning("MixIt couldn't save your layout. Your changes stay until you close MixIt.");
+    });
+}
+
+function readQuick(key: string): string | null {
+  try {
+    return storage()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The screens' key once they are known (the desktop app), or "" (a browser, or no answer in time). */
+async function screensKey(): Promise<string> {
+  if (!backend().screens) return "";
+  if (!useScreens.getState().supported)
+    await new Promise<void>((done) => {
+      const t = window.setTimeout(finish, SCREENS_WAIT_MS);
+      const off = useScreens.subscribe((s) => s.supported && finish());
+      function finish() {
+        window.clearTimeout(t);
+        off();
+        done();
+      }
+    });
+  return setupKey(useScreens.getState().screens);
+}
+
+/**
+ * The layout to start with, for these screens: the one saved for them if it loads; else
+ * the one used last with other screens; else the first preview's layout or today's
+ * settings moved across; else the built-in one.
+ */
+function layoutFor(key: string, env: Env, first: boolean): Layout {
+  const picked = pickLayout(book, key, env);
+  book = picked.book;
+  if (picked.layout) return picked.layout;
+  if (picked.problem === "bad") toast.warning("Your saved layout for these screens couldn't be loaded. MixIt kept a copy and opened another one.");
+  const other = lastUsed(book, key);
+  if (other) {
+    const r = pickLayout(book, other, env);
+    book = r.book;
+    if (r.layout) return r.layout;
+  }
+  if (!first) return useLayout.getState().layout ?? presetFor(env);
+  const old = readQuick(OLD_LAYOUT_KEY);
+  if (old) {
+    const r = loadLayout(old, env);
+    if (r.layout) return r.layout;
+  }
+  if (picked.problem) return presetFor(env);
+  const app = useApp.getState();
+  return migrateOld({ toolTab: readQuick("mixit.tools.tab"), toolSize: readQuick("mixit.tools.size"), libraryHeight: app.libraryHeight, windowHeight: window.innerHeight }, env);
+}
+
+let starting: Promise<void> | null = null;
+
+/** Loads the layouts when the new layout is switched on (the main window only). */
+export function initLayout(): Promise<void> {
+  if (thisPart || useLayout.getState().layout) return Promise.resolve();
+  starting ??= (async () => {
+    const [text, key] = await Promise.all([backend().layoutsLoad().catch(() => null), screensKey()]);
+    const lib = readBook(text);
+    const r = newerOf(lib, readBook(readQuick(QUICK_KEY)));
+    book = r.book;
+    readOnly = r.problem === "newer";
+    if (readOnly) toast.message("These layouts were made by a newer MixIt. You can change the layout, but it won't be saved.");
+    else if (r.problem === "bad") toast.warning("Your saved layouts couldn't be read. MixIt kept a copy and opened the standard one.");
+    if (!readOnly && lib.problem === "bad" && text) {
+      // Kept in this browser's storage too: an unreadable book could be too large to keep in itself.
+      try {
+        storage()?.setItem(`${QUICK_KEY}.bad-${Date.now()}`, text);
+      } catch {
+        /* the copy inside the book is all there is */
+      }
+    }
+    setup = key;
+    let layout: Layout;
+    try {
+      layout = layoutFor(key, layoutEnv(), true);
+    } catch {
+      // Never a blank window: whatever went wrong, the built-in layout works.
+      layout = presetFor(layoutEnv());
+    }
+    useLayout.setState({ layout });
+    // Kept straight away, so the moved-across layout is what the next start finds.
+    book = putLayout(book, setup, layout, Date.now());
+    writeBook();
+  })().finally(() => {
+    starting = null;
+    // The screens may have changed while loading.
+    const s = useScreens.getState();
+    if (s.supported) switchSetup(setupKey(s.screens));
+  });
+  return starting;
+}
+
+/** A different set of screens: keeps what was there under the old one and brings back theirs. */
+function switchSetup(key: string) {
+  if (thisPart || starting || key === setup || !useLayout.getState().layout) return;
+  flush();
+  setup = key;
+  const before = useLayout.getState().layout;
+  const layout = layoutFor(key, layoutEnv(), false);
+  if (layout !== before) useLayout.setState({ layout });
+  book = putLayout(book, setup, layout, Date.now());
+  writeBook();
+}
+
+useScreens.subscribe((s, prev) => {
+  if (s.screens !== prev.screens) switchSetup(setupKey(s.screens));
+});
 
 /** Runs one layout operation. A refusal is shown in plain words and changes nothing. */
 export function layoutAct(op: Op): boolean {
@@ -112,7 +237,8 @@ export function layoutAct(op: Op): boolean {
 export function resetLayout() {
   const next = presetFor(layoutEnv());
   useLayout.setState({ layout: next });
-  saveNow(next);
+  save(next);
+  flush();
 }
 
 /** The layout area changed size. Only the size changes: folds made to fit are worked out when drawing. */
@@ -143,8 +269,7 @@ useApp.subscribe((s, prev) => {
 // Save straight away when the window closes, rather than lose the last half second.
 if (typeof window !== "undefined")
   window.addEventListener("beforeunload", () => {
-    const { layout } = useLayout.getState();
-    if (layout && saveTimer) saveNow(layout);
+    if (pending) flush();
   });
 
 const TOOL_UNIT: Record<ToolTab, UnitId> = { pads: "tool.pads", steps: "tool.steps", effects: "tool.effects", inputs: "tool.mic", recording: "tool.record" };

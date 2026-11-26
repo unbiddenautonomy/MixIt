@@ -242,6 +242,8 @@ const LOOP_SIZES = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32];
 const JUMP_SIZES = [1, 2, 4, 8, 16, 32];
 const RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 
+const DEMO_LAYOUTS = "mixit.demo.layouts";
+
 export class DemoBackend implements Backend {
   readonly kind: Backend["kind"] = "demo";
   protected tracks: DemoTrack[] = [];
@@ -1685,6 +1687,21 @@ export class DemoBackend implements Backend {
   async saveSettings(s: T.Settings) {
     this.settings = s;
     return s;
+  }
+  // The browser has no library file, so layouts stay in this browser's storage.
+  async layoutsLoad(): Promise<string | null> {
+    try {
+      return localStorage.getItem(DEMO_LAYOUTS);
+    } catch {
+      return null;
+    }
+  }
+  async layoutsSave(text: string) {
+    try {
+      localStorage.setItem(DEMO_LAYOUTS, text);
+    } catch {
+      throw new Error("This browser wouldn't keep the layout (its storage is full or blocked).");
+    }
   }
   async inputDevices(): Promise<T.DeviceInfo[]> {
     return [

@@ -355,7 +355,7 @@ try {
     await page.click('[data-folded="tool.effects"]');
     // The layout is saved.
     await sleep(700);
-    const saved = await page.evaluate(() => localStorage.getItem("mixit.layout.v1"));
+    const saved = await page.evaluate(() => localStorage.getItem("mixit.demo.layouts"));
     expect(saved && saved.includes('"mixer"'), "the layout was not saved");
     // The Library page is drawn from the layout too.
     await page.click('button:has-text("Library")');

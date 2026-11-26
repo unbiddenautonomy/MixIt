@@ -51,7 +51,7 @@ export function LayoutWindow() {
   // Not saved: a unit the person opened while the window was too small for it.
   const [kept, setKept] = useState<ReadonlySet<UnitId>>(new Set());
 
-  useEffect(() => initLayout(), []);
+  useEffect(() => void initLayout(), []);
   useEffect(() => showLayoutPage(page), [page]);
   useLayoutEffect(() => {
     const el = area.current;
@@ -99,7 +99,7 @@ export function LayoutWindow() {
     <LayoutCtx.Provider value={ctx}>
       <div ref={area} data-testid="layout" className={clsx("relative min-h-0 min-w-0 flex-1", fit.scroll ? "overflow-auto" : "overflow-hidden")}>
         <div className="flex h-full w-full" style={fit.scroll ? { minWidth: need.w, minHeight: need.h } : undefined}>
-          {root ? <NodeView node={root} path={[]} parentDir={null} /> : <EmptyPage page={page} />}
+          {root ? <NodeView node={root} path={[]} parentDir={null} /> : layout ? <EmptyPage page={page} /> : null}
         </div>
       </div>
       {shown.map((unit) =>
@@ -185,6 +185,8 @@ function SplitView({ node, path }: { node: Split; path: number[] }) {
     const length = (row ? el.clientWidth : el.clientHeight) - (kids.length - 1) * HANDLE_PX;
     const start = row ? e.clientX : e.clientY;
     const base = [...node.sizes];
+    // The layout this drag is about; if it is replaced mid-drag (screens changed), the drag is dropped.
+    const at = useLayout.getState().layout;
     const pair = base[a] + base[b];
     let latest = base;
     const move = (ev: PointerEvent) => {
@@ -201,7 +203,7 @@ function SplitView({ node, path }: { node: Split; path: number[] }) {
       window.removeEventListener("keydown", key, true);
       setLive(null);
       // The operation holds each side to its smallest size.
-      if (commit && latest !== base) layoutAct({ op: "resize", win: MAIN, page: ctx.page, path, sizes: latest });
+      if (commit && latest !== base && useLayout.getState().layout === at) layoutAct({ op: "resize", win: MAIN, page: ctx.page, path, sizes: latest });
     };
     const up = () => end(true);
     const cancel = () => end(false);
