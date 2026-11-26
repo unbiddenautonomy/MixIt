@@ -67,8 +67,17 @@ if (list.length !== UNIT_IDS.length || UNIT_IDS.some((id) => !UNITS[id])) throw 
 
 export const isUnitId = (x: unknown): x is UnitId => typeof x === "string" && (UNIT_IDS as readonly string[]).includes(x);
 
+/**
+ * Units that aren't drawn yet: Make a track isn't built, Studio is still a dialog, the
+ * guide is still the side panel, the clock is still in the top bar, and Auto DJ and
+ * Suggestions are still pages of the library. They keep their places in every layout,
+ * so each one appears where it belongs the day it becomes a part of its own.
+ */
+export const NOT_YET: ReadonlySet<UnitId> = new Set<UnitId>(["tool.make", "studio", "guide", "clock", "autodj", "suggestions"]);
+
 /** Decks C and D take part only with four decks. A disabled unit keeps its place but isn't drawn. */
 export function enabled(unit: UnitId, env: Pick<Env, "decks">): boolean {
+  if (NOT_YET.has(unit)) return false;
   return env.decks === 4 || (unit !== "deck.C" && unit !== "deck.D");
 }
 

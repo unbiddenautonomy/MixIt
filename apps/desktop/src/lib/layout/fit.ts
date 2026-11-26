@@ -61,10 +61,9 @@ export interface Fit {
 }
 
 /**
- * Folds units, those with the highest fold priority first, until the tree fits the size.
- * A fold that doesn't help with the side that is too small is skipped, so a too-narrow
- * window never folds things that only take height. Units with fold priority 0 (decks A
- * and B) never fold by themselves.
+ * Folds units, those with the highest fold priority first, until the tree fits the size,
+ * then opens again whatever can stay open, so a too-narrow window doesn't keep folds that
+ * only saved height. Units with fold priority 0 (decks A and B) never fold by themselves.
  */
 export function fitTree(root: LayoutNode | undefined, given: { w: number; h: number }, env: Opts, hard: { w: number; h: number } = { w: 0, h: 0 }): Fit {
   const auto = new Set<UnitId>();
@@ -82,21 +81,25 @@ export function fitTree(root: LayoutNode | undefined, given: { w: number; h: num
       const pb = shownPlace(b.st, env);
       return (pb ? UNITS[pb.unit].foldPriority : -1) - (pa ? UNITS[pa.unit].foldPriority : -1) || b.order - a.order;
     });
-  let progress = true;
-  while (progress && !fits(m)) {
-    progress = false;
-    for (const { st } of candidates) {
-      if (fits(m)) break;
-      const p = shownPlace(st, env);
-      if (!p || UNITS[p.unit].foldPriority === 0 || stackFolded(st, env, auto)) continue;
-      auto.add(p.unit);
-      const next = minSize(root, env, auto);
-      const helps = (m.w > size.w && next.w < m.w) || (m.h > size.h && next.h < m.h);
-      if (helps) {
-        m = next;
-        progress = true;
-      } else auto.delete(p.unit);
-    }
+  // Fold in priority order until it fits. Folds aren't judged one at a time: when two rows
+  // are both too wide, neither fold helps on its own.
+  const order: UnitId[] = [];
+  for (const { st } of candidates) {
+    if (fits(m)) break;
+    const p = shownPlace(st, env);
+    if (!p || UNITS[p.unit].foldPriority === 0 || stackFolded(st, env, auto)) continue;
+    auto.add(p.unit);
+    order.push(p.unit);
+    m = minSize(root, env, auto);
   }
+  // If that got it to fit, open again (last folded first) everything that can stay open.
+  // If it didn't, everything stays folded and the window scrolls.
+  if (fits(m))
+    for (const unit of [...order].reverse()) {
+      auto.delete(unit);
+      const next = minSize(root, env, auto);
+      if (fits(next)) m = next;
+      else auto.add(unit);
+    }
   return { autoFolded: auto, scroll: below || !fits(m) };
 }

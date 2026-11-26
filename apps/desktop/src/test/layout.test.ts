@@ -302,9 +302,14 @@ describe("fitting a window", () => {
     const e = env();
     const mix = presetFor(e).windows[0].pages.mix!;
     const fit = fitTree(mix, { w: 700, h: 900 }, e);
-    const folded = [...fit.autoFolded];
-    expect(folded[0]).toBe("details");
-    expect(folded).not.toContain("deck.A");
+    // Both rows are too wide: the side column and the mixer fold, the decks and library stay open.
+    expect([...fit.autoFolded].sort()).toEqual(["details", "mixer"]);
+    expect(fit.scroll).toBe(false);
+    // 830 px fits Easy as it is; Pro's mixer is wider, and only the row that is too wide gives way.
+    const near = fitTree(mix, { w: 830, h: 900 }, e);
+    expect([...near.autoFolded]).toEqual([]);
+    const pro = env({ mode: "pro" });
+    expect([...fitTree(mix, { w: 830, h: 900 }, pro).autoFolded]).toEqual(["mixer"]);
   });
 
   it("scrolls rather than cutting off when nothing more can fold", () => {
