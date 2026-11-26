@@ -368,6 +368,8 @@ export interface Settings {
   nowPlayingFormat?: string;
   /** Browser only: echo cancelling and noise reduction for a voice. */
   micVoice?: boolean;
+  /** Desktop: split stems with the trained model (downloaded once) instead of the quick split. */
+  trainedStems?: boolean;
 }
 
 /** The mic channel, as the engine reports it. */

@@ -28,6 +28,7 @@ mixit-generator.workspace = true
 mixit-project.workspace = true
 mixit-library.workspace = true
 mixit-host.workspace = true
+mixit-ml = { workspace = true, optional = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 serde.workspace = true
@@ -36,6 +37,12 @@ parking_lot.workspace = true
 crossbeam-channel.workspace = true
 anyhow.workspace = true
 mixit-cli = { path = "../../../crates/mixit-cli" }
+
+[features]
+default = ["stems-model"]
+# The trained stem splitter (HTDemucs through ONNX Runtime). Without it, stems always
+# use the quick split.
+stems-model = ["dep:mixit-ml"]
 
 [lints]
 workspace = true

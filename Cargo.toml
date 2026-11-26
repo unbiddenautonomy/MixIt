@@ -11,6 +11,7 @@ members = [
     "crates/mixit-project",
     "crates/mixit-library",
     "crates/mixit-host",
+    "crates/mixit-ml",
     "crates/mixit-cli",
     "crates/mixit-web",
     "apps/desktop/src-tauri",
@@ -27,6 +28,7 @@ default-members = [
     "crates/mixit-project",
     "crates/mixit-library",
     "crates/mixit-host",
+    "crates/mixit-ml",
     "crates/mixit-cli",
     "crates/mixit-web",
 ]
@@ -49,6 +51,7 @@ mixit-io = { path = "crates/mixit-io" }
 mixit-project = { path = "crates/mixit-project" }
 mixit-library = { path = "crates/mixit-library" }
 mixit-host = { path = "crates/mixit-host" }
+mixit-ml = { path = "crates/mixit-ml" }
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

@@ -115,6 +115,9 @@ pub struct AppDirs {
     pub backups: PathBuf,
     /// The person's own MixIt folder inside Music: recordings, mixes, practice tracks.
     pub music: PathBuf,
+    /// Downloaded model files (the stem splitter and other helpers). Not a cache: a
+    /// model is large and fetched once, so it lives beside the library.
+    pub models: PathBuf,
 }
 
 pub const APP_FOLDER: &str = "MixIt";
@@ -149,7 +152,8 @@ impl AppDirs {
             .or_else(|| home.as_ref().map(|h| if os == Os::Linux { h.clone() } else { h.join("Music") }))
             .unwrap_or_else(|| data.clone())
             .join(APP_FOLDER);
-        AppDirs { db, cache, backups, music }
+        let models = data.join("Models");
+        AppDirs { db, cache, backups, music, models }
     }
 }
 
@@ -194,17 +198,20 @@ mod tests {
         assert_eq!(w.backups, PathBuf::from("C:/Users/dj/AppData/Local/MixIt/Backups"));
         assert_eq!(w.cache, PathBuf::from("C:/Users/dj/AppData/Local/MixIt/decoded"));
         assert_eq!(w.music, PathBuf::from("C:/Users/dj/Music/MixIt"));
+        assert_eq!(w.models, PathBuf::from("C:/Users/dj/AppData/Local/MixIt/Models"));
 
         let m = AppDirs::resolve(Os::MacOs, &known(Os::MacOs), none);
         assert_eq!(m.db, PathBuf::from("/Users/dj/Library/Application Support/MixIt/library.db"));
         assert_eq!(m.cache, PathBuf::from("/Users/dj/Library/Caches/MixIt/decoded"));
         assert_eq!(m.music, PathBuf::from("/Users/dj/Music/MixIt"));
+        assert_eq!(m.models, PathBuf::from("/Users/dj/Library/Application Support/MixIt/Models"));
 
         // No XDG music folder: the MixIt folder goes in home, as before.
         let l = AppDirs::resolve(Os::Linux, &known(Os::Linux), none);
         assert_eq!(l.db, PathBuf::from("/home/dj/.local/share/MixIt/library.db"));
         assert_eq!(l.cache, PathBuf::from("/home/dj/.cache/MixIt/decoded"));
         assert_eq!(l.music, PathBuf::from("/home/dj/MixIt"));
+        assert_eq!(l.models, PathBuf::from("/home/dj/.local/share/MixIt/Models"));
     }
 
     #[test]

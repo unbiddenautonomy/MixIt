@@ -280,6 +280,7 @@ export class DemoBackend implements Backend {
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
     micVoice: true,
+    trainedStems: true,
   };
   /** The simulated mic channel. */
   protected mic = { onAir: false, level: 0.8, gain: 0, talkover: true, depth: -12, recordingSince: null as number | null };

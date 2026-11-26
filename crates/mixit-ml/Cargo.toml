@@ -1,0 +1,28 @@
+[package]
+name = "mixit-ml"
+description = "Trained models on the person's own computer: the model files, ONNX Runtime and the stem splitter."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["onnx"]
+# Runs the models with ONNX Runtime. Without it the crate still builds (model files,
+# downloads, the chunking plan) and every model reports that it is not available.
+onnx = ["dep:ort"]
+
+[dependencies]
+mixit-io = { path = "../mixit-io" }
+thiserror.workspace = true
+ureq = "3"
+sha2 = "0.10"
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "download-binaries", "copy-dylibs"], optional = true }
+
+[dev-dependencies]
+mixit-core = { path = "../mixit-core" }
+mixit-generator = { path = "../mixit-generator" }
+mixit-analysis = { path = "../mixit-analysis" }
+
+[lints]
+workspace = true
