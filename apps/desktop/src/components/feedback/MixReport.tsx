@@ -2,9 +2,10 @@
 // (each with a practice lab and a guide topic), and every transition checked.
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
-import { AlertTriangle, BookOpen, Check, FlaskConical, Lightbulb, Pencil, X } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, FlaskConical, Lightbulb, Pencil, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import type { MixProject } from "../../backend/types";
+import type { FinishTarget, MixProject } from "../../backend/types";
 import { clock, type Finding, type MixReport, type TransitionCheck } from "../../lib/feedback";
 import { useGuide } from "../../guide/model";
 import { labById } from "../../guide/labs";
@@ -151,6 +152,7 @@ function Body({ report, project, onEdit }: { report: MixReport; project: MixProj
           </section>
         )}
         <Tracklist />
+        <FinishMix project={project} />
       </div>
       <div className="flex items-center gap-2 border-t border-white/[0.06] px-5 py-3">
         <p className="flex-1 text-xs text-zinc-500">{project ? "Every move you made was captured, so you can fix a transition in Arrange instead of mixing again." : "Record a longer mix to get it as an editable project too."}</p>
@@ -293,6 +295,98 @@ function Tracklist() {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+/** The tracks a mix played (each once), to finish it like one of them. */
+export function finishReferences(project: MixProject | null): { path: string; title: string }[] {
+  const seen = new Map<string, string>();
+  for (const c of project?.clips ?? []) {
+    if (c.track.path && !seen.has(c.track.path)) seen.set(c.track.path, c.track.artist ? `${c.track.title} · ${c.track.artist}` : c.track.title);
+  }
+  return [...seen].map(([path, title]) => ({ path, title }));
+}
+
+type FinishState = { step: "idle" } | { step: "working"; message: string } | { step: "done"; file: string; notes: string[] } | { step: "failed"; error: string };
+
+/** Finish my mix: a copy of the recording with its tone evened out and its loudness set,
+ * like a track the mix played or to club or streaming level. */
+function FinishMix({ project }: { project: MixProject | null }) {
+  const path = useReport((s) => s.path);
+  const [state, setState] = useState<FinishState>({ step: "idle" });
+  const [like, setLike] = useState("");
+  const refs = finishReferences(project);
+  // The copy being written, as finishMix named it.
+  const out = useRef("");
+  useEffect(() => setState({ step: "idle" }), [path]);
+  useEffect(
+    () =>
+      backend().onJob((j) => {
+        if (j.kind !== "finish") return;
+        if (!j.finished) setState({ step: "working", message: j.message });
+        else if (j.error) setState({ step: "failed", error: j.error });
+        else setState({ step: "done", file: out.current, notes: j.message.split(". ").filter(Boolean) });
+      }),
+    [],
+  );
+  // A browser recording went to the downloads, where MixIt cannot read it back.
+  if (!path || backend().kind === "web" || path.endsWith("in your downloads")) return null;
+  const run = async (target: FinishTarget) => {
+    setState({ step: "working", message: "Starting" });
+    try {
+      out.current = await backend().finishMix(path, target);
+    } catch (e) {
+      setState({ step: "failed", error: String(e) });
+    }
+  };
+  const working = state.step === "working";
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border border-white/[0.06] p-3" data-testid="finish-mix">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Finish my mix</h3>
+        <span className="text-[11px] text-zinc-500">Evens out the sound from deep bass to the top and sets the loudness, in a copy beside the recording.</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Btn size="sm" disabled={working} onClick={() => void run({ kind: "club" })} title="Loud, for playing out on a club system">
+          <Sparkles size={12} /> For a club
+        </Btn>
+        <Btn size="sm" disabled={working} onClick={() => void run({ kind: "streaming" })} title="The level music apps and mix sites play at, so nothing is turned down">
+          <Sparkles size={12} /> For streaming
+        </Btn>
+        {refs.length > 0 && (
+          <>
+            <select
+              aria-label="Track to sound like"
+              className="h-7 max-w-56 rounded-md border border-white/10 bg-zinc-800 px-1.5 text-xs text-zinc-200"
+              value={like}
+              onChange={(e) => setLike(e.target.value)}
+            >
+              <option value="">Sound like a track…</option>
+              {refs.map((r) => (
+                <option key={r.path} value={r.path}>
+                  {r.title}
+                </option>
+              ))}
+            </select>
+            <Btn size="sm" disabled={working || !like} onClick={() => void run({ kind: "like", path: like })} title="Matches that track's balance and loudness">
+              <Sparkles size={12} /> Like this one
+            </Btn>
+          </>
+        )}
+      </div>
+      {state.step === "working" && <p className="text-xs text-zinc-400">{state.message}…</p>}
+      {state.step === "failed" && <p className="text-xs text-amber-300">{state.error}</p>}
+      {state.step === "done" && (
+        <div className="text-xs text-zinc-300">
+          <ul className="list-disc pl-4">
+            {state.notes.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+          {state.file && <p className="mt-1 text-zinc-500">Saved as {state.file}</p>}
+        </div>
+      )}
     </section>
   );
 }

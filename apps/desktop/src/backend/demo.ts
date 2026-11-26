@@ -1782,6 +1782,21 @@ export class DemoBackend implements Backend {
     return "~/Music/MixIt/Recordings/demo.wav";
   }
 
+  async finishMix(path: string, target: T.FinishTarget) {
+    const out = path.replace(/\.wav$/i, "") + " (finished).wav";
+    const steps = target.kind === "like" ? ["Reading the recording", "Listening to the track to match", "Finishing the tone and loudness"] : ["Reading the recording", "Finishing the tone and loudness"];
+    void (async () => {
+      for (const [i, message] of steps.entries()) {
+        this.emit("job", { kind: "finish", done: i, total: steps.length, message, finished: false, error: null });
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const loud = target.kind === "club" ? "-9 LUFS, club level" : target.kind === "streaming" ? "-14 LUFS, streaming level" : "-11 LUFS";
+      const message = `Turned down the low mids, where mud builds up by 2 dB. Brought up the air by 1 dB. Made it 5.2 dB louder (${loud})`;
+      this.emit("job", { kind: "finish", done: steps.length, total: steps.length, message, finished: true, error: null });
+    })();
+    return out;
+  }
+
   /** Files the demo "wrote", for tests. */
   readonly savedTexts = new Map<string, string>();
 

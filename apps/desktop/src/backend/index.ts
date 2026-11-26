@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
+import type { BackupInfo, FinishTarget, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -175,6 +175,10 @@ export interface Backend {
   recordStop(): Promise<string>;
   /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */
   saveText(path: string, text: string): Promise<void>;
+  /** Finishes a recording's tone and loudness and writes "<name> (finished).wav" beside
+   * it, leaving the recording as it was. Returns that file; a "finish" job says when it
+   * is done and, in its message, what changed. Desktop only: not in a browser. */
+  finishMix(path: string, target: FinishTarget): Promise<string>;
 
   /** Microphones and line inputs. The mic itself opens and closes with the settings. */
   inputDevices(): Promise<DeviceInfo[]>;

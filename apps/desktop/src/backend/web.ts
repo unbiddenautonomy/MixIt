@@ -412,6 +412,10 @@ export class WebAudioBackend extends DemoBackend {
     return `${name}, in your downloads`;
   }
 
+  async finishMix(): Promise<string> {
+    throw new Error("Finishing a mix needs the desktop app: the browser recording is already in your downloads.");
+  }
+
   async saveText(path: string, text: string) {
     download(new Blob([text], { type: "text/plain" }), fileName(path) || path);
   }

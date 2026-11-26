@@ -147,6 +147,7 @@ pub fn run() {
             commands::settings_set,
             commands::record_start,
             commands::record_stop,
+            commands::finish_mix,
             commands::automix,
             commands::project_save,
             commands::project_open,

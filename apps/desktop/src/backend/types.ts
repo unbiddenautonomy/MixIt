@@ -626,8 +626,11 @@ export interface HistoryEntry {
   artist: string;
 }
 
+/** What to finish a recorded mix like: club or streaming level, or a track's sound. */
+export type FinishTarget = { kind: "club" } | { kind: "streaming" } | { kind: "like"; path: string };
+
 export interface JobProgress {
-  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems" | "update";
+  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems" | "update" | "finish";
   done: number;
   total: number;
   message: string;

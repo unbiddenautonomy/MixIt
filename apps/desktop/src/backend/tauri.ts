@@ -159,6 +159,7 @@ export class TauriBackend implements Backend {
   saveSettings(settings: T.Settings) { return invoke<T.Settings>("settings_set", { settings }); }
   recordStart() { return invoke<string>("record_start"); }
   recordStop() { return invoke<string>("record_stop"); }
+  finishMix(path: string, target: T.FinishTarget) { return invoke<string>("finish_mix", { path, target: target.kind, like: target.kind === "like" ? target.path : null }); }
   importTrack(path: string) { return invoke<T.TrackRow>("library_import", { path }); }
   registerFiles(_files: File[]): string[] { return []; }
   inputDevices() { return invoke<T.DeviceInfo[]>("input_devices"); }
