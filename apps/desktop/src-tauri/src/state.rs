@@ -101,6 +101,9 @@ pub struct Settings {
     /// Raising a channel fader from the bottom starts its deck; closing it stops the
     /// deck and goes back to the cue point.
     pub fader_start: bool,
+    /// How knobs follow a drag: "linear" (up or right is more), "aim" (point at the
+    /// value) or "turn" (circle round the knob). Only the UI reads it.
+    pub knob_drag: String,
     /// Loops the end of the only track playing so the music never stops.
     pub safety_loop: bool,
     /// A text file that gets the track now playing, for streaming software to show.
@@ -146,6 +149,7 @@ impl Default for Settings {
             mic_voice: true,
             mic_denoise: "strong".into(),
             fader_start: false,
+            knob_drag: "linear".into(),
             safety_loop: true,
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),

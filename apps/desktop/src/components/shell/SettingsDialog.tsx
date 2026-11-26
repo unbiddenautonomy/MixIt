@@ -17,6 +17,7 @@ import { updateSettings } from "../../lib/appCommands";
 import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
 import { addMusicFolder } from "../library/Library";
+import { KNOB_DRAG_MODES } from "../../lib/knobDrag";
 import { TEMPO_RANGES, TEMPO_RANGE_LABELS } from "../deck/Deck";
 
 const BUFFERS = [64, 128, 256, 512, 1024, 2048];
@@ -169,6 +170,9 @@ function Mixing({ s }: { s: Settings }) {
       </Field>
       <Field label="Tempo range" hint="How far the tempo slider goes. ±8% is the club standard; wider ranges are for mixing different genres.">
         <Segmented value={s.tempoRange} onChange={(v) => updateSettings({ tempoRange: v })} options={TEMPO_RANGES.map((r, i) => ({ value: r, label: TEMPO_RANGE_LABELS[i] }))} />
+      </Field>
+      <Field label="Knob drag" hint={`How a knob follows your mouse or trackpad. ${KNOB_DRAG_MODES.map((m) => `${m.label}: ${m.hint}`).join(" ")} In every way, hold Shift for fine control, double-click to reset, and press Esc mid-drag to put it back.`}>
+        <Segmented value={s.knobDrag ?? "linear"} onChange={(v) => updateSettings({ knobDrag: v })} options={KNOB_DRAG_MODES.map((m) => ({ value: m.value, label: m.label }))} />
       </Field>
       <Field label="Recording" hint="Recordings go to your Music folder as WAV.">
         <Toggle on={s.recordFloat} onChange={(v) => updateSettings({ recordFloat: v })} label="32-bit float (no clipping, larger files)" />

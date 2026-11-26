@@ -52,6 +52,10 @@ export function Mixer({ count }: { count: number }) {
   );
 }
 
+/** What the knob bubbles say. */
+const db = (v: number) => (Math.abs(v) < 0.05 ? "0 dB" : `${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} dB`);
+const eqReadout = (v: number) => (v <= -25.9 ? "Off" : db(v));
+const filterReadout = (v: number) => (Math.abs(v) < 0.005 ? "Off" : `${v < 0 ? "Cut highs" : "Cut lows"} ${Math.round(Math.abs(v) * 100)}%`);
 
 function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: boolean }) {
   const L = String.fromCharCode(65 + deck);
@@ -61,7 +65,7 @@ function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: 
   const band = (key: "high" | "mid" | "low", label: string, kill: 0 | 1 | 2) => (
     <div className="relative">
       <Ctl id={`mixer.${L}.eq.${key}`} side="left">
-        <Knob value={ch[key]} min={-26} max={6} def={0} bipolar size={size} color={color} killed={ch.kills[kill]} onChange={(v) => setValue(`mixer.${L}.eq.${key}`, v)} label={label} />
+        <Knob value={ch[key]} min={-26} max={6} def={0} bipolar size={size} color={color} killed={ch.kills[kill]} onChange={(v) => setValue(`mixer.${L}.eq.${key}`, v)} label={label} readout={eqReadout} />
       </Ctl>
       {pro && (
         <Ctl id={`mixer.${L}.eq.kill.${key}`} label={`Kill ${label.toLowerCase()}`} explain={`Removes the ${label.toLowerCase()} completely while on.`} className="absolute -left-1 top-0">
@@ -97,14 +101,14 @@ function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: 
         {band("high", "High", 2)}
         {pro ? (
           <Ctl id={`mixer.${L}.trim`} side="right">
-            <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="var(--color-zinc-400)" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" />
+            <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="var(--color-zinc-400)" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" readout={db} />
           </Ctl>
         ) : (
           <div />
         )}
         {band("mid", "Mid", 1)}
         <Ctl id={`mixer.${L}.filter`} side="right">
-          <Knob value={ch.filter} min={-1} max={1} def={0} bipolar size={size} color="#e879f9" onChange={(v) => setValue(`mixer.${L}.filter`, v)} label="Filter" />
+          <Knob value={ch.filter} min={-1} max={1} def={0} bipolar size={size} color="#e879f9" onChange={(v) => setValue(`mixer.${L}.filter`, v)} label="Filter" readout={filterReadout} />
         </Ctl>
         {band("low", "Low", 0)}
       </div>
@@ -132,7 +136,7 @@ function MasterSection({ pro }: { pro: boolean }) {
         <StudioButton strip={MASTER_STRIP} />
       </div>
       <Ctl id="mixer.master" side="right">
-        <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" />
+        <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" readout={db} />
       </Ctl>
       <div className="flex items-end gap-1">
         <Meter read={(t) => t.master.peak} height={pro ? 70 : 96} width={5} />
@@ -147,7 +151,7 @@ function MasterSection({ pro }: { pro: boolean }) {
       </Ctl>
       <div className="mt-auto flex flex-col items-center gap-1 border-t border-white/[0.06] pt-1.5">
         <Ctl id="mixer.headphones" side="right">
-          <Knob value={phones} min={-40} max={6} def={-6} size={26} color="#fbbf24" onChange={(v) => setValue("mixer.headphones", v)} label="Phones" />
+          <Knob value={phones} min={-40} max={6} def={-6} size={26} color="#fbbf24" onChange={(v) => setValue("mixer.headphones", v)} label="Phones" readout={db} />
         </Ctl>
         {pro && (
           <Ctl id="mixer.cue_mix" side="right">

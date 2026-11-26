@@ -1,8 +1,11 @@
 import clsx from "clsx";
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
+import { defaultReadout } from "../../lib/knobDrag";
 import { useValueDrag } from "./drag";
+import { bubbleText } from "./Knob";
+import { ValueBubble } from "./ValueBubble";
 
-export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "vertical", length = 120, color = "var(--accent)", label, className, onRelease }: {
+export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "vertical", length = 120, color = "var(--accent)", label, className, onRelease, readout }: {
   value: number;
   min?: number;
   max?: number;
@@ -14,22 +17,32 @@ export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "v
   label?: string;
   className?: string;
   onRelease?: () => void;
+  /** What the bubble says while it moves (a percentage when left out). */
+  readout?: (v: number) => string;
 }) {
   const vertical = orientation === "vertical";
   const track = useRef<HTMLDivElement>(null);
-  const h = useValueDrag({ value, min, max, def: def ?? (min + max) / 2, onChange, travel: length - 16, axis: vertical ? "y" : "x", onRelease });
   const n = (value - min) / (max - min);
-  // Click on the track jumps there; drag on the thumb moves relatively.
-  const jump = (e: React.PointerEvent) => {
-    if (e.target !== track.current) return;
-    const r = track.current!.getBoundingClientRect();
-    const f = vertical ? 1 - (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width;
-    onChange(min + Math.max(0, Math.min(1, f)) * (max - min));
+  // A press on the track away from the thumb jumps there first; on the thumb, it just drags.
+  const press = (e: PointerEvent, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const span = (vertical ? r.height : r.width) - 16;
+    const at = vertical ? r.bottom - 8 - e.clientY : e.clientX - r.left - 8;
+    if (Math.abs(at - n * span) <= 10) return undefined;
+    return min + Math.max(0, Math.min(1, at / span)) * (max - min);
   };
+  const { ref, handlers, busy } = useValueDrag({ value, min, max, def: def ?? (min + max) / 2, onChange, fader: { travel: length - 16, axis: vertical ? "y" : "x" }, onRelease, onPress: press });
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      track.current = el;
+      ref(el);
+    },
+    [ref],
+  );
   return (
     <div className={clsx("flex select-none items-center gap-1", vertical ? "flex-col" : "flex-row", className)}>
       <div
-        ref={track}
+        ref={setRef}
         role="slider"
         tabIndex={0}
         aria-label={label}
@@ -37,15 +50,7 @@ export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "v
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
-        onPointerDown={(e) => {
-          jump(e);
-          h.onPointerDown(e);
-        }}
-        onPointerMove={h.onPointerMove}
-        onPointerUp={h.onPointerUp}
-        onDoubleClick={h.onDoubleClick}
-        onWheel={h.onWheel}
-        onKeyDown={h.onKeyDown}
+        {...handlers}
         className="relative cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         style={vertical ? { width: 28, height: length, touchAction: "none" } : { height: 28, width: length, touchAction: "none" }}
       >
@@ -61,6 +66,7 @@ export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "v
           <div className={clsx("absolute bg-zinc-800", vertical ? "inset-x-1 top-1/2 h-px" : "inset-y-1 left-1/2 w-px")} />
         </div>
       </div>
+      <ValueBubble anchor={track.current} show={busy} text={bubbleText(label, readout ? readout(value) : defaultReadout(n, min < 0 && max > 0))} />
       {label && <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">{label}</div>}
     </div>
   );
