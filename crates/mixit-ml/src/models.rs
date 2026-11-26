@@ -36,12 +36,12 @@ pub const HTDEMUCS: ModelInfo = ModelInfo {
     id: "htdemucs",
     name: "Stem splitter (HTDemucs)",
     file: "htdemucs_fp16weights.onnx",
-    url: "https://huggingface.co/adowu/htdemucs-onnx/resolve/main/htdemucs_fp16weights.onnx",
+    url: "https://huggingface.co/adowu/htdemucs-onnx/resolve/e6b688a9a9f977e2efaba79d0f18b9b0cfc606ea/htdemucs_fp16weights.onnx",
     sha256: "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
     bytes: 165_612_636,
     source: "HTDemucs by Rouard, Massa and Défossez (Meta AI), MIT code; ONNX export by StemSplit \
-             (huggingface.co/adowu/htdemucs-onnx, tagged MIT). Upstream weights licence to confirm \
-             in the licence audit.",
+             (huggingface.co/adowu/htdemucs-onnx, tagged MIT). The weights are released with the MIT \
+             code (github.com/facebookresearch/demucs) under no separate terms.",
 };
 
 const CLAP_SOURCE: &str = "CLAP (larger_clap_music_and_speech) by LAION, Apache-2.0; ONNX export with 8-bit \
