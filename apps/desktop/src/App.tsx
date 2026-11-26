@@ -1,5 +1,6 @@
 // The app shell: connects to the backend, wires its events into the stores, installs the
 // keyboard map, and lays out the three workspaces.
+import { checkSoonAfterStart, updateFinished } from "./lib/update";
 import { clearArtwork } from "./lib/artwork";
 import { installRegistry } from "./lib/shortcuts";
 import * as Tooltip from "@radix-ui/react-tooltip";
@@ -79,6 +80,7 @@ export function App() {
             .then((m) => (m.status ? syncMic() : undefined))
             .catch(() => undefined);
           maybeWelcome();
+          checkSoonAfterStart();
         }
         let libTimer = 0;
         off = [
@@ -87,6 +89,7 @@ export function App() {
           b.onDeckEnded((deck) => (thisPart ? undefined : toast.message(`Deck ${String.fromCharCode(65 + deck)} reached the end`))),
           b.onJob((j) => {
             useApp.getState().setJob(j);
+            updateFinished(j);
             if (j.finished) {
               if (j.error) toast.error(j.error);
               else if (j.kind === "render") toast.success("Mix rendered", { description: j.message });

@@ -13,6 +13,7 @@ pub mod sampler;
 pub mod sound;
 pub mod state;
 pub mod telemetry;
+pub mod update;
 pub mod windows;
 
 use tauri::Manager;
@@ -114,6 +115,10 @@ pub fn run() {
             listen::sound_listen,
             listen::sound_search,
             listen::sound_search_status,
+            update::update_check,
+            update::update_install,
+            update::update_cancel,
+            update::update_restart,
             commands::build_set,
             commands::playlists,
             commands::playlist_tracks,

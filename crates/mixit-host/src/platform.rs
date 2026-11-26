@@ -157,6 +157,46 @@ impl AppDirs {
     }
 }
 
+/// Updating a copy of MixIt built from a git checkout: it pulls the checkout, rebuilds
+/// and puts the new app in place of itself (the desktop app's `update.rs`).
+impl Os {
+    /// The installed app to replace, found from the running program's path: the `.app`
+    /// bundle holding it on macOS. `None` where MixIt can't replace itself yet.
+    pub fn installed_app(self, exe: &Path) -> Option<PathBuf> {
+        match self {
+            Os::MacOs => exe.ancestors().find(|p| p.extension().is_some_and(|e| e == "app")).map(Path::to_path_buf),
+            Os::Windows | Os::Linux => None,
+        }
+    }
+
+    /// Where `tauri build` leaves the app in a checkout (the workspace's target folder).
+    pub fn built_app(self, source: &Path) -> Option<PathBuf> {
+        match self {
+            Os::MacOs => Some(source.join("target/release/bundle/macos/MixIt.app")),
+            Os::Windows | Os::Linux => None,
+        }
+    }
+
+    /// What to pass `tauri build` so it makes only the app, not an installer.
+    pub fn bundle_args(self) -> &'static [&'static str] {
+        match self {
+            Os::MacOs => &["--bundles", "app"],
+            Os::Windows | Os::Linux => &["--no-bundle"],
+        }
+    }
+
+    /// A shell that runs a command line the way a terminal window would, with the PATH
+    /// the person's login sets up (Node from nvm, Rust from rustup): an app started from
+    /// the Dock or Finder doesn't get it.
+    pub fn login_shell(self) -> (&'static str, &'static [&'static str]) {
+        match self {
+            Os::MacOs => ("/bin/zsh", &["-l", "-c"]),
+            Os::Linux => ("/bin/bash", &["-l", "-c"]),
+            Os::Windows => ("cmd", &["/C"]),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,5 +294,19 @@ mod tests {
             assert!(p.buffer_frames.is_power_of_two() && (128..=1024).contains(&p.buffer_frames));
         }
         assert!(Os::Windows.profile().keep_library_local);
+    }
+
+    #[test]
+    fn a_mac_app_finds_its_own_bundle_to_replace() {
+        let exe = Path::new("/Applications/MixIt.app/Contents/MacOS/mixit-desktop");
+        assert_eq!(Os::MacOs.installed_app(exe), Some(PathBuf::from("/Applications/MixIt.app")));
+        assert_eq!(Os::MacOs.installed_app(Path::new("/Users/me/MixIt/target/release/mixit-desktop")), None);
+        assert_eq!(Os::Linux.installed_app(exe), None);
+        assert_eq!(
+            Os::MacOs.built_app(Path::new("/Users/me/MixIt")),
+            Some(PathBuf::from("/Users/me/MixIt/target/release/bundle/macos/MixIt.app"))
+        );
+        assert_eq!(Os::MacOs.bundle_args(), ["--bundles", "app"]);
+        assert_eq!(Os::MacOs.login_shell().0, "/bin/zsh");
     }
 }

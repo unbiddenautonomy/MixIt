@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, TagDto,
+import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -130,6 +130,13 @@ export interface Backend {
   soundSearchStatus(): Promise<SoundSearchStatus>;
   /** Starts listening to the tracks not heard yet (a library job). */
   soundListen(): Promise<void>;
+
+  /** Fetches the checkout this copy was built from and says what's new. */
+  updateCheck(): Promise<UpdateStatus>;
+  /** Pulls, rebuilds and replaces the app (job "update"); restart to use it. */
+  updateInstall(): Promise<void>;
+  updateCancel(): Promise<void>;
+  updateRestart(): Promise<void>;
 
   playlists(): Promise<PlaylistDto[]>;
   playlistTracks(id: number): Promise<TrackRow[]>;

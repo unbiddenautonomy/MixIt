@@ -116,6 +116,10 @@ pub struct Settings {
     pub sound_search: bool,
     /// Ask MixIt: the command palette also understands requests typed in plain words.
     pub ask: bool,
+    /// Looks for new code in the checkout MixIt was built from, a little after it starts.
+    pub check_updates: bool,
+    /// The checkout Update pulls and builds (empty: the one this copy was built from).
+    pub update_source: Option<String>,
 }
 
 impl Default for Settings {
@@ -148,6 +152,8 @@ impl Default for Settings {
             trained_stems: true,
             sound_search: true,
             ask: true,
+            check_updates: true,
+            update_source: None,
         }
     }
 }
