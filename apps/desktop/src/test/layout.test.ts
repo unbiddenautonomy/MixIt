@@ -4,7 +4,7 @@ import { fitTree, minSize } from "../lib/layout/fit";
 import { MAIN, allPlaces, defaultPerformanceScreen, findWin, placesOf, refOf, resolveScreen, setupKey, split, stack, stacksOf, type Env, type Layout, type ScreenInfo, type UnitId } from "../lib/layout/model";
 import { closeWindow, collapse, fixSizes, fold, isRefusal, mirror, newWindow, normalise, placeUnit, resize, send, sendHome, showPage, windowMoved, type Result } from "../lib/layout/ops";
 import { migrateOld, parseLayout, serialise } from "../lib/layout/persist";
-import { laptop, presetFor } from "../lib/layout/presets";
+import { BUILT_INS, builtInName, laptop, presetFor } from "../lib/layout/presets";
 import { LayoutFeed, LayoutWriter } from "../lib/layout/sync";
 import { setupKey as oldSetupKey } from "../lib/screens";
 
@@ -33,6 +33,34 @@ function ok(r: Result, e: Env): Layout {
 const where = (l: Layout, unit: UnitId) => placesOf(l, unit).map((f) => `${f.win.id}/${f.page}`);
 
 describe("layout presets", () => {
+  it("every built-in layout keeps the rules on one, two and three screens, with two or four decks", () => {
+    const three = env({ screens: [laptopScreen, dell, projector] });
+    for (const b of BUILT_INS)
+      for (const e of [env(), two, three, env({ browser: true }), env({ decks: 4, mode: "pro" }), env({ screens: two.screens, controller: true })]) {
+        const l = presetFor(e, { kind: b.id });
+        expect(check(l, e, { roundTrip: true }), `${b.id} on ${e.screens.length} screens`).toEqual([]);
+        expect(builtInName(l.preset), b.id).toBeTruthy();
+        expect(l.edited).toBe(false);
+      }
+  });
+
+  it("Controller folds the mixer and pads both ways, Arrange opens on Arrange, Prepare gives track details room", () => {
+    for (const e of [env(), two]) {
+      const c = presetFor(e, { kind: "controller" });
+      for (const u of ["mixer", "tool.pads"] as UnitId[]) expect(placesOf(c, u)[0].place.folded, u).toEqual({ noController: true, controller: true });
+      expect(placesOf(c, "waves")[0].place.folded.noController).toBe(false);
+      expect(presetFor(e, { kind: "arrange" }).windows[0].page).toBe("arrange");
+      const p = presetFor(e, { kind: "prepare" });
+      // Track details sit in a stack of their own, not as a tab among the tools.
+      expect(placesOf(p, "details")[0].stack.units.map((x) => x.unit)).toEqual(["details"]);
+      expect(placesOf(presetFor(e), "details")[0].stack.units.length).toBeGreaterThan(1);
+    }
+    expect(presetFor(two, { kind: "prepare" }).preset).toBe("prepare");
+    expect(presetFor(two).preset).toBe("laptop+screen");
+    expect(builtInName("laptop+screen")).toBe("Laptop + screen");
+    expect(builtInName("p123")).toBeNull();
+  });
+
   it("the laptop layout fits 13-inch and 15-inch laptops, and never folds the decks or mixer to do it", () => {
     // The area under the top bar, as the app gives it to the layout (measured in the browser).
     const area = (w: number, h: number) => ({ w: w - 16, h: h - 112 });

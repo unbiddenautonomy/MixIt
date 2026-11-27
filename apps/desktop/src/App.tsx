@@ -37,6 +37,8 @@ import { ToolPanel } from "./components/shell/ToolPanel";
 import { handleShortcut, openCapturedMix, runApp, toggleRecording } from "./lib/appCommands";
 import { PART_NAMES, isMainWindow, refreshScreens, thisPart, thisWin, useScreens, watchScreens, type Part } from "./lib/screens";
 import { LayoutWindow } from "./components/layout/LayoutWindow";
+import { builtInLayout } from "./lib/layoutCommands";
+import type { BuiltIn } from "./lib/layout/presets";
 import { startWindowSync, syncHooks } from "./lib/windowSync";
 import { MoveToScreen } from "./components/shell/MoveToScreen";
 import { pushEngineState } from "./lib/engineSync";
@@ -159,7 +161,7 @@ export function App() {
           watchScreens(),
           startLayoutShare(),
           hookLibrarySync(),
-          startWindowSync(isMainWindow, (id) => (id === "global.record" ? void toggleRecording() : runApp(id))),
+          startWindowSync(isMainWindow, (id) => (id === "global.record" ? void toggleRecording() : id.startsWith("layout.preset.") ? builtInLayout(id.slice(14) as BuiltIn) : runApp(id as Exclude<typeof id, `layout.preset.${string}`>))),
         ];
       } catch (e) {
         useApp.getState().set({ error: e instanceof Error ? e.message : String(e) });

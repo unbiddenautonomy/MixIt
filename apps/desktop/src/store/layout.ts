@@ -14,12 +14,12 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { backend } from "../backend";
-import { addPreset, emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, removePreset, renamePreset, type Book } from "../lib/layout/book";
+import { MAX_PRESETS, addPreset, cleanName, emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, readPresetFile, presetFile, removePreset, renamePreset, type Book } from "../lib/layout/book";
 import { loadLayout } from "../lib/layout/check";
 import { MAIN, isFolded, orderedScreens, placesOf, refOf, resolveScreen, setupKey, type Env, type Layout, type PageId, type ScreenRef, type UnitId } from "../lib/layout/model";
 import { isRefusal, normalise, run, type Op } from "../lib/layout/ops";
 import { migrateOld, serialise } from "../lib/layout/persist";
-import { presetFor } from "../lib/layout/presets";
+import { BUILT_INS, builtInName, presetFor, type BuiltIn } from "../lib/layout/presets";
 import { isMainWindow, layoutScreens, thisWin, useScreens } from "../lib/screens";
 import { toolHooks, useApp, type ToolTab } from "./app";
 
@@ -85,10 +85,10 @@ export function mainScreenRef(env: Env = layoutEnv()) {
   return s && env.screens.length ? refOf(env.screens, s) : null;
 }
 
-/** The built-in layout for these screens. */
-function builtIn(env: Env): Layout {
+/** A built-in layout (Standard unless named) for these screens. */
+function builtIn(env: Env, kind: BuiltIn = "standard"): Layout {
   const main = mainScreenRef(env);
-  return presetFor(env, { mainScreen: main?.name ?? null });
+  return presetFor(env, { mainScreen: main?.name ?? null, kind });
 }
 
 // ------------------------------------------------------------------ saving
@@ -389,7 +389,7 @@ export function savePreset(name: string): string | null {
   if (!layout) return "The layout isn't ready yet.";
   if (readOnly) return "These layouts were made by a newer MixIt, so nothing can be saved here.";
   const next = addPreset(book, name, { ...layout, edited: false }, setup, Date.now());
-  if ("full" in next) return "You have 20 saved layouts already. Delete one first.";
+  if ("full" in next) return `You have ${MAX_PRESETS} saved layouts already. Delete one first.`;
   book = next;
   writeBook();
   showPresets();
@@ -420,11 +420,62 @@ export function applySavedPreset(id: string): string | null {
   return null;
 }
 
-/** Applies the built-in layout for these screens (undoable). */
-export function applyStandard() {
-  const { why, token } = layoutChange({ op: "preset", layout: builtIn(layoutEnv()) });
+/** Applies a built-in layout for these screens (undoable). */
+export function applyBuiltIn(kind: BuiltIn = "standard") {
+  const { why, token } = layoutChange({ op: "preset", layout: builtIn(layoutEnv(), kind) });
+  const name = BUILT_INS.find((b) => b.id === kind)!.name;
   if (why) toast.message(why);
-  else if (token) offerUndo("Switched to the standard layout.", () => layoutUndo(token));
+  else if (token) offerUndo(kind === "standard" ? "Switched to the standard layout." : `Switched to the ${name} layout.`, () => layoutUndo(token));
+}
+
+export const applyStandard = () => applyBuiltIn("standard");
+
+/** The name of the layout showing, with "(changed)" once it has been changed since it was picked. */
+export function layoutName(layout: Layout | null, presets: { id: string; name: string }[]): string | null {
+  if (!layout) return null;
+  const name = builtInName(layout.preset) ?? presets.find((p) => p.id === layout.preset)?.name ?? null;
+  if (!name) return null;
+  return layout.edited ? `${name} (changed)` : name;
+}
+
+/** Saves a copy of a saved layout as "<name> copy" (or "copy 2"...). Returns why not, or null. */
+export function duplicatePreset(id: string): string | null {
+  const p = book.presets.find((x) => x.id === id);
+  if (!p) return "That saved layout is gone.";
+  const r = loadLayout(p.layout, layoutEnv());
+  if (!r.layout) return "That saved layout couldn't be read.";
+  return addUnderFreeName(`${p.name} copy`, r.layout, p.setup);
+}
+
+function addUnderFreeName(base: string, layout: Layout, from: string): string | null {
+  if (readOnly) return "These layouts were made by a newer MixIt, so nothing can be saved here.";
+  const taken = new Set(book.presets.map((p) => p.name.toLowerCase()));
+  let name = cleanName(base);
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = cleanName(`${base} ${n}`);
+  const next = addPreset(book, name, { ...layout, edited: false }, from, Date.now());
+  if ("full" in next) return `You have ${MAX_PRESETS} saved layouts already. Delete one first.`;
+  book = next;
+  writeBook();
+  showPresets();
+  return null;
+}
+
+/** A saved layout as the text of a small file another MixIt can import. */
+export function exportPreset(id: string): { name: string; text: string } | null {
+  const p = book.presets.find((x) => x.id === id);
+  return p ? { name: p.name, text: presetFile(p.name, p.layout, p.setup) } : null;
+}
+
+/** Adds a layout from an exported file. Returns its name, or why not. */
+export function importPreset(text: string): { name: string } | { why: string } {
+  const read = readPresetFile(text);
+  if ("why" in read) return read;
+  const r = loadLayout(read.layout, layoutEnv());
+  if (!r.layout) return { why: "That file has a layout this MixIt couldn't read." };
+  const before = new Set(book.presets.map((p) => p.id));
+  const why = addUnderFreeName(read.name, r.layout, read.setup);
+  if (why) return { why };
+  return { name: book.presets.find((p) => !before.has(p.id))?.name ?? read.name };
 }
 
 /** Runs one layout operation. A refusal is shown in plain words and changes nothing. */

@@ -11,7 +11,8 @@ import { useTelemetry } from "../store/telemetry";
 import { act, choose, setOn, setValue, tap } from "./actions";
 import { runCommand, toggleRecording, updateSettings } from "./appCommands";
 import type { AskContext, AskStep, Understood } from "./ask";
-import { bringHome, editLayout, foldPart, openInNewWindow, sendToOtherScreen, setController } from "./layoutCommands";
+import { bringHome, builtInLayout, editLayout, foldPart, openInNewWindow, sendToOtherScreen, setController } from "./layoutCommands";
+import type { BuiltIn } from "./layout/presets";
 import type { UnitId } from "./layout/model";
 import { UNITS } from "./layout/units";
 
@@ -51,6 +52,8 @@ function runAppStep(id: string) {
   const [base, want] = id.split(":") as [string, "on" | "off" | undefined];
   const s = useApp.getState();
   const on = want !== "off";
+  const preset = /^layout\.preset\.(standard|controller|prepare|arrange)$/.exec(base);
+  if (preset) return builtInLayout(preset[1] as BuiltIn);
   const part = /^layout\.(screen|window|home|fold)\.(.+)$/.exec(base);
   if (part) {
     const unit = part[2] as UnitId;

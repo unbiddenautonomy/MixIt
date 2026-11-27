@@ -200,6 +200,42 @@ describe("saved layouts", () => {
     expect(store.savePreset("L3")).toBeNull();
   });
 
+  it("duplicates, exports and imports a saved layout as a small file", async () => {
+    const { store } = await start({ text: null, sent: [], bus: null });
+    store.layoutAct({ op: "fold", unit: "mixer", folded: true, where: mix });
+    store.savePreset("Club");
+    const id = store.useLayout.getState().presets[0].id;
+    expect(store.duplicatePreset(id)).toBeNull();
+    expect(store.duplicatePreset(id)).toBeNull();
+    expect(store.useLayout.getState().presets.map((p) => p.name)).toEqual(["Club", "Club copy", "Club copy 2"]);
+    const file = store.exportPreset(id)!;
+    expect(file.name).toBe("Club");
+    // On another computer (here: after deleting it), the file brings it back, folds and all.
+    for (const p of store.useLayout.getState().presets) store.deletePreset(p.id);
+    store.layoutAct({ op: "fold", unit: "mixer", folded: false, where: mix });
+    expect(store.importPreset(file.text)).toEqual({ name: "Club" });
+    expect(store.importPreset(file.text)).toEqual({ name: "Club 2" });
+    const back = store.useLayout.getState().presets[0];
+    expect(store.applySavedPreset(back.id)).toBeNull();
+    expect(folded(store.useLayout.getState().layout, "mixer")).toBe(true);
+    expect(store.importPreset("not a layout")).toEqual({ why: "That file isn't a MixIt layout." });
+    expect(store.importPreset(JSON.stringify({ kind: "mixit-layout", version: 9, layout: {} }))).toEqual({ why: expect.stringMatching(/newer MixIt/) });
+    expect(store.importPreset(JSON.stringify({ kind: "mixit-layout", version: 1, name: "x", layout: { nonsense: true } }))).toEqual({ why: expect.stringMatching(/couldn't read/) });
+  });
+
+  it("names the layout showing, and says (changed) once it is changed", async () => {
+    const { store } = await start({ text: null, sent: [], bus: null });
+    const name = () => store.layoutName(store.useLayout.getState().layout, store.useLayout.getState().presets);
+    expect(name()).toBe("Laptop");
+    store.applyBuiltIn("prepare");
+    expect(name()).toBe("Prepare");
+    store.layoutAct({ op: "fold", unit: "mixer", folded: true, where: mix });
+    expect(name()).toBe("Prepare (changed)");
+    store.savePreset("Mine");
+    expect(store.applySavedPreset(store.useLayout.getState().presets[0].id)).toBeNull();
+    expect(name()).toBe("Mine");
+  });
+
   it("goes back to the standard layout with Undo", async () => {
     const { store } = await start({ text: null, sent: [], bus: null });
     store.layoutAct({ op: "fold", unit: "mixer", folded: true, where: mix });
