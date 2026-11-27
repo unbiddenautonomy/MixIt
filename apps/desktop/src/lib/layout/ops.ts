@@ -18,6 +18,7 @@ import {
   refOf,
   refuse,
   resolveScreen,
+  sameScreen,
   split,
   stack,
   stacksOf,
@@ -607,6 +608,24 @@ export function windowMoved(layout: Layout, env: Env, winId: string, screen: Scr
   return normalise(l, env);
 }
 
+/**
+ * Swaps two screens: every window on one goes to the other, the main window too. This is
+ * how the decks move to the other screen without losing anything the person arranged.
+ * `mainAt` is the screen the main window is on now, for a main window placed "wherever".
+ */
+export function swapScreens(layout: Layout, env: Env, a: ScreenRef, b: ScreenRef, mainAt: ScreenRef | null): Result {
+  if (env.browser) return refuse("This version of MixIt has one window.");
+  if (sameScreen(a, b)) return layout;
+  if (!resolveScreen(env.screens, a) || !resolveScreen(env.screens, b)) return refuse("That screen isn't connected any more.");
+  const l = clone(layout);
+  for (const w of l.windows) {
+    const on = w.screen ?? (w.id === MAIN ? mainAt : null);
+    if (sameScreen(on, a)) w.screen = { ...b };
+    else if (sameScreen(on, b)) w.screen = { ...a };
+  }
+  return normalise(changed(l), env);
+}
+
 /** Replaces the whole layout with a preset, fitted to the screens there are now. */
 export function applyPreset(preset: Layout, env: Env): Layout {
   return normalise({ ...preset, edited: false }, env);
@@ -626,7 +645,9 @@ export type Op =
   | { op: "resize"; win: string; page: PageId; path: number[]; sizes: number[] }
   | { op: "mirror"; unit: UnitId; win: string }
   | { op: "unmirror"; unit: UnitId; win: string }
-  | { op: "page"; win: string; page: PageId };
+  | { op: "page"; win: string; page: PageId }
+  | { op: "moved"; win: string; screen: ScreenInfo | null; bounds: Rect01 | "full"; fullscreen: boolean }
+  | { op: "swap"; a: ScreenRef; b: ScreenRef; mainAt: ScreenRef | null };
 
 export function run(layout: Layout, env: Env, o: Op): Result {
   switch (o.op) {
@@ -652,6 +673,10 @@ export function run(layout: Layout, env: Env, o: Op): Result {
       return unmirror(layout, env, o.unit, o.win);
     case "page":
       return showPage(layout, env, o.win, o.page);
+    case "moved":
+      return windowMoved(layout, env, o.win, o.screen, o.bounds, o.fullscreen);
+    case "swap":
+      return swapScreens(layout, env, o.a, o.b, o.mainAt);
   }
 }
 

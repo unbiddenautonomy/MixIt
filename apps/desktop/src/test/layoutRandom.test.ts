@@ -47,7 +47,7 @@ function sequence(seed: number, steps: number) {
     const unit: UnitId = pick(UNIT_IDS);
     const win = r() < 0.15 ? `w${Math.floor(r() * 10)}` : pick(layout.windows).id;
     const page: PageId = pick(PAGE_IDS);
-    const kind = Math.floor(r() * 11);
+    const kind = Math.floor(r() * 13);
     switch (kind) {
       case 0:
         return { op: "send", unit, win, page: r() < 0.5 ? page : undefined };
@@ -77,6 +77,15 @@ function sequence(seed: number, steps: number) {
         return { op: "mirror", unit, win };
       case 9:
         return { op: "unmirror", unit, win };
+      case 10: {
+        const bounds = r() < 0.4 ? ("full" as const) : { x: r() * 1.4 - 0.2, y: r() * 1.4 - 0.2, w: r() * 1.3, h: r() * 1.3 };
+        return { op: "moved", win, screen: r() < 0.85 ? pick(env.screens) : r() < 0.5 ? SCREENS[3] : null, bounds, fullscreen: r() < 0.2 };
+      }
+      case 11: {
+        const a = refOf(env.screens, pick(env.screens));
+        const b = r() < 0.9 ? refOf(env.screens, pick(env.screens)) : refOf(SCREENS, SCREENS[3]);
+        return { op: "swap", a, b, mainAt: r() < 0.7 ? a : null };
+      }
       default:
         return { op: "page", win, page };
     }

@@ -177,6 +177,11 @@ pub fn run() {
             commands::stems_cancel,
             windows::part_open,
             windows::part_close,
+            windows::win_open,
+            windows::win_close,
+            windows::win_title,
+            windows::win_list,
+            windows::telemetry_rate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MixIt");

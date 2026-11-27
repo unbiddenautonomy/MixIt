@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { availableMonitors, currentMonitor, cursorPosition, getCurrentWindow, type Monitor } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { decodeWaveform, type Backend, type Unlisten } from "./index";
 import type * as T from "./types";
@@ -211,7 +212,22 @@ export class TauriBackend implements Backend {
     return (await save({ defaultPath: defaultName, filters: extensions.length ? [{ name: extensions.join(", "), extensions }] : undefined })) ?? null;
   }
 
-  onTelemetry(cb: (t: T.Telemetry) => void) { return sub("telemetry", cb); }
+  // This window's own copy: windows showing nothing live get it less often (`telemetryRate`).
+  onTelemetry(cb: (t: T.Telemetry) => void) {
+    let un: (() => void) | null = null;
+    let dead = false;
+    getCurrentWebviewWindow()
+      .listen<T.Telemetry>("telemetry", (e) => cb(e.payload))
+      .then((u) => {
+        if (dead) u();
+        else un = u;
+      });
+    return () => {
+      dead = true;
+      un?.();
+    };
+  }
+  telemetryRate(slow: boolean) { return invoke<void>("telemetry_rate", { slow }); }
   onDeckLoaded(cb: (d: T.DeckInfo) => void) { return sub("deck-loaded", cb); }
   onDeckEnded(cb: (deck: number) => void) { return sub("deck-ended", cb); }
   onJob(cb: (j: T.JobProgress) => void) { return sub("job", cb); }
@@ -233,6 +249,12 @@ export class TauriBackend implements Backend {
   }
   openPart(part: string, screen: T.Screen) { return invoke<void>("part_open", { part, screen: { x: screen.x, y: screen.y } }); }
   closePart(part: string) { return invoke<void>("part_close", { part }); }
+  winOpen(id: string, title: string, place: T.WinPlace) { return invoke<void>("win_open", { id, title, place }); }
+  winClose(id: string) { return invoke<void>("win_close", { id }); }
+  winTitle(id: string, title: string) { return invoke<void>("win_title", { id, title }); }
+  winList() { return invoke<string[]>("win_list"); }
+  onWinClosed(cb: (id: string) => void) { return sub("win-closed", cb); }
+  onWinMoved(cb: (r: T.WinReport) => void) { return sub("win-moved", cb); }
   onPartClosed(cb: (part: string) => void) { return sub("part-closed", cb); }
   private me = "";
   private label() {

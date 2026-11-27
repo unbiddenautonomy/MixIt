@@ -1,5 +1,6 @@
 // The app shell: connects to the backend, wires its events into the stores, installs the
 // keyboard map, and lays out the three workspaces.
+import clsx from "clsx";
 import { checkSoonAfterStart, updateFinished } from "./lib/update";
 import { clearArtwork } from "./lib/artwork";
 import { installRegistry } from "./lib/shortcuts";
@@ -34,9 +35,9 @@ import { refreshMic, syncMic } from "./store/mic";
 import { TopBar } from "./components/shell/TopBar";
 import { ToolPanel } from "./components/shell/ToolPanel";
 import { handleShortcut, openCapturedMix, runApp, toggleRecording } from "./lib/appCommands";
-import { PART_NAMES, refreshScreens, thisPart, useScreens, watchScreens, type Part } from "./lib/screens";
+import { PART_NAMES, isMainWindow, refreshScreens, thisPart, thisWin, useScreens, watchScreens, type Part } from "./lib/screens";
 import { LayoutWindow } from "./components/layout/LayoutWindow";
-import { startWindowSync } from "./lib/windowSync";
+import { startWindowSync, syncHooks } from "./lib/windowSync";
 import { MoveToScreen } from "./components/shell/MoveToScreen";
 import { pushEngineState } from "./lib/engineSync";
 import { installKeyboard } from "./lib/keyboard";
@@ -44,6 +45,18 @@ import { useTheme } from "./lib/theme";
 import { useApp } from "./store/app";
 import { useLibrary } from "./store/library";
 import { useTelemetry } from "./store/telemetry";
+import { layoutDo, useLayout } from "./store/layout";
+import { partState, startLayoutShare } from "./store/layoutShare";
+import { PAGE_IDS, findWin, type PageId } from "./lib/layout/model";
+import { windowNumber } from "./lib/layout/windows";
+
+/** Another window changed what the library shows: this one reloads its list. */
+function hookLibrarySync() {
+  syncHooks.libraryView = () => refreshRows();
+  return () => {
+    syncHooks.libraryView = null;
+  };
+}
 
 export function App() {
   const ready = useApp((s) => s.ready);
@@ -58,7 +71,7 @@ export function App() {
   // Not on the first run: watchScreens has just placed the parts itself.
   const layoutSeen = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!ready || thisPart) return;
+    if (!ready || !isMainWindow) return;
     if (layoutSeen.current !== null && layoutSeen.current !== newLayout) void refreshScreens(true).catch(() => undefined);
     layoutSeen.current = newLayout;
   }, [ready, newLayout]);
@@ -86,7 +99,7 @@ export function App() {
         });
         // A part window on another screen shares the main window's engine and settings:
         // it must not push its own defaults over them.
-        if (!thisPart) {
+        if (isMainWindow) {
           pushEngineState();
           void refreshMic()
             .then((m) => (m.status ? syncMic() : undefined))
@@ -98,7 +111,7 @@ export function App() {
         off = [
           b.onTelemetry((t) => useTelemetry.getState().set(t)),
           b.onDeckLoaded((d) => useApp.getState().setDeck(d)),
-          b.onDeckEnded((deck) => (thisPart ? undefined : toast.message(`Deck ${String.fromCharCode(65 + deck)} reached the end`))),
+          b.onDeckEnded((deck) => (!isMainWindow ? undefined : toast.message(`Deck ${String.fromCharCode(65 + deck)} reached the end`))),
           b.onJob((j) => {
             useApp.getState().setJob(j);
             updateFinished(j);
@@ -132,7 +145,7 @@ export function App() {
           }),
           b.onAudioStatus((a) => {
             useApp.getState().set({ audio: a });
-            if (thisPart) return;
+            if (!isMainWindow) return;
             // A new device restarts the engine with default mixer and FX values.
             pushEngineState();
             void refreshMic()
@@ -140,10 +153,12 @@ export function App() {
               .catch(() => undefined);
             if (a.warning) toast.warning(a.warning);
           }),
-          b.onError((m) => (thisPart ? undefined : toast.error(m))),
+          b.onError((m) => (!isMainWindow ? undefined : toast.error(m))),
           installKeyboard(handleShortcut),
           watchScreens(),
-          startWindowSync(!thisPart, (id) => (id === "global.record" ? void toggleRecording() : runApp(id))),
+          startLayoutShare(),
+          hookLibrarySync(),
+          startWindowSync(isMainWindow, (id) => (id === "global.record" ? void toggleRecording() : runApp(id))),
         ];
       } catch (e) {
         useApp.getState().set({ error: e instanceof Error ? e.message : String(e) });
@@ -174,6 +189,7 @@ export function App() {
   }
 
   if (thisPart) return <PartWindow part={thisPart} theme={theme} />;
+  if (thisWin) return <LayoutPartWindow theme={theme} />;
 
   return (
     <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
@@ -214,6 +230,48 @@ export function App() {
     </Tooltip.Provider>
   );
 }
+
+/** One of the new layout's windows on another screen: drawn from the main window's layout. */
+function LayoutPartWindow({ theme }: { theme: string }) {
+  const id = thisWin!;
+  const win = useLayout((s) => (s.layout ? findWin(s.layout, id) : null));
+  const known = useLayout((s) => !!s.layout);
+  const pages = win ? PAGE_IDS.filter((p) => win.pages[p]) : [];
+  return (
+    <Tooltip.Provider delayDuration={600} skipDelayDuration={150}>
+      <div className="app-root flex h-full flex-col gap-2 bg-zinc-950 p-2 text-zinc-200">
+        <header className="flex h-8 shrink-0 items-center gap-2 px-1">
+          <span className="wordmark text-sm font-bold tracking-tight text-zinc-100">MixIt</span>
+          <span className="text-xs text-zinc-400">Window {windowNumber(id)}</span>
+          {pages.length > 1 && (
+            <nav className="ml-2 flex gap-0.5" aria-label="Pages in this window">
+              {pages.map((p) => (
+                <button key={p} type="button" aria-pressed={win?.page === p} onClick={() => layoutDo({ op: "page", win: id, page: p })} className={clsx("h-6 rounded-md px-2 text-xs font-medium", win?.page === p ? "bg-white/[0.08] text-zinc-100" : "text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200")}>
+                  {PAGE_NAMES[p]}
+                </button>
+              ))}
+            </nav>
+          )}
+        </header>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {win ? (
+            <LayoutWindow />
+          ) : (
+            <div className="m-auto max-w-sm text-center text-sm text-zinc-500">{known ? "This window's parts went back to Window 1. It closes by itself." : partState.waiting ? "Waiting for the main MixIt window…" : ""}</div>
+          )}
+        </main>
+      </div>
+      <CommandPalette />
+      <TrackEditor />
+      <SoundEditor />
+      <DialogHost />
+      <DragLayer />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" closeButton />
+    </Tooltip.Provider>
+  );
+}
+
+const PAGE_NAMES: Record<PageId, string> = { mix: "Mix", library: "Library", arrange: "Arrange" };
 
 /** A part of the main screen in a window of its own, on another screen. */
 function PartWindow({ part, theme }: { part: Part; theme: string }) {

@@ -10,13 +10,21 @@ import type { StoreApi, UseBoundStore } from "zustand";
 import { backend } from "../backend";
 import type { WindowMessage } from "../backend/types";
 import { useApp } from "../store/app";
+import { useLibrary } from "../store/library";
 import { useMic } from "../store/mic";
 import { useSequencer } from "../store/sequencer";
 
 type AnyStore = UseBoundStore<StoreApi<object>>;
 
-/** The stores shared between windows, and which of their values. */
-const SHARED: Record<string, { store: AnyStore; keys: string[] | null }> = {
+/** What the library shows, shared only while the new layout is on: its sidebar, list and track details can be in different windows there. */
+const LIBRARY_VIEW = ["source", "query", "sort", "sortDir", "selected", "anchor", "inspect", "suggestFor", "energy"];
+
+/** Set by the app: reloads the library's list after another window changed what it shows. */
+export const syncHooks: { libraryView: (() => void) | null } = { libraryView: null };
+
+/** The stores shared between windows, and which of their values. `when` limits sharing to when it says so. */
+const SHARED: Record<string, { store: AnyStore; keys: string[] | null; when?: () => boolean }> = {
+  lib: { store: useLibrary as unknown as AnyStore, keys: LIBRARY_VIEW, when: () => !!useApp.getState().settings?.layoutEngine },
   app: { store: useApp as unknown as AnyStore, keys: ["mixer", "pads", "kit", "settings", "targetDeck", "decks", "padTabs", "toolTab"] },
   // null: every value that is not a function.
   seq: { store: useSequencer as unknown as AnyStore, keys: null },
@@ -59,23 +67,26 @@ export function startWindowSync(main: boolean, run: (id: MainRun) => void): () =
   if (!b.broadcast || !b.onBroadcast) return () => undefined;
   const send = (m: WindowMessage) => b.broadcast?.(m);
   let applying = false;
-  const offs = Object.entries(SHARED).map(([name, { store }]) =>
+  const offs = Object.entries(SHARED).map(([name, { store, when }]) =>
     store.subscribe((next, prev) => {
-      if (applying) return;
+      if (applying || (when && !when())) return;
       const patch = changed(name, next, prev);
       if (patch) send({ kind: "sync", store: name, patch });
     }),
   );
   const offBus = b.onBroadcast((m) => {
     if (m.kind === "sync" && SHARED[m.store]) {
+      const { store, when } = SHARED[m.store];
+      if (when && !when()) return;
       applying = true;
       try {
-        SHARED[m.store].store.setState(m.patch);
+        store.setState(m.patch);
       } finally {
         applying = false;
       }
+      if (m.store === "lib" && ["source", "query", "sort", "sortDir"].some((k) => k in m.patch)) syncHooks.libraryView?.();
     } else if (m.kind === "hello" && main) {
-      for (const [name, { store }] of Object.entries(SHARED)) send({ kind: "sync", store: name, patch: shared(name, store.getState()) });
+      for (const [name, { store, when }] of Object.entries(SHARED)) if (!when || when()) send({ kind: "sync", store: name, patch: shared(name, store.getState()) });
     } else if (m.kind === "run" && main) {
       run(m.id as MainRun);
     }

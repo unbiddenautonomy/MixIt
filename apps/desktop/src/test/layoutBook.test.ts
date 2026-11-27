@@ -218,15 +218,28 @@ describe("loading and saving layouts", () => {
     const { store, scr } = await start(fake);
     const mix = { win: MAIN, page: "mix" as const };
     store.layoutAct({ op: "fold", unit: "mixer", folded: true, where: mix });
-    // A monitor comes: it starts from the layout in use.
-    scr.useScreens.setState({ screens: [laptopScreen, monitor] });
+    vi.useFakeTimers();
+    const plug = (screens: ScreenInfo[]) => {
+      scr.useScreens.setState({ screens });
+      // Nothing happens until the screens have stayed the same for a moment.
+      vi.advanceTimersByTime(store.SETTLE_MS - 10);
+      vi.advanceTimersByTime(10);
+    };
+    // A monitor comes: it starts from the layout in use (one window here).
+    plug([laptopScreen, monitor]);
     expect(folded(store.useLayout.getState().layout!, "mixer")).toBe(true);
     store.layoutAct({ op: "fold", unit: "mixer", folded: false, where: mix });
     // Unplugged: the laptop's own layout comes back, then the monitor's when it returns.
-    scr.useScreens.setState({ screens: [laptopScreen] });
+    plug([laptopScreen]);
     expect(folded(store.useLayout.getState().layout!, "mixer")).toBe(true);
-    scr.useScreens.setState({ screens: [monitor, laptopScreen] });
+    plug([monitor, laptopScreen]);
     expect(folded(store.useLayout.getState().layout!, "mixer")).toBe(false);
+    // Unplugged and back within the settle time: nothing changes.
+    scr.useScreens.setState({ screens: [laptopScreen] });
+    vi.advanceTimersByTime(500);
+    plug([monitor, laptopScreen]);
+    expect(folded(store.useLayout.getState().layout!, "mixer")).toBe(false);
+    vi.useRealTimers();
     await flushed();
     expect(Object.keys(readBook(fake.text).book.setups).sort()).toEqual(["Built-in Retina Display@2880x1800", "Built-in Retina Display@2880x1800|DELL U2720Q@3840x2160"]);
   });

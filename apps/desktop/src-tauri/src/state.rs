@@ -231,6 +231,9 @@ pub struct AppState {
     /// The sound describer, loaded on the first search by sound.
     #[cfg(feature = "sound-search")]
     pub describer: Mutex<Option<mixit_ml::sound::Clap>>,
+    /// Windows that show nothing live (a library on its own, or hidden): they get the
+    /// engine's state a few times a second instead of every frame (`telemetry.rs`).
+    pub telemetry_slow: Mutex<Vec<String>>,
 }
 
 impl AppState {
@@ -262,6 +265,7 @@ impl AppState {
             describer: Mutex::new(None),
             next_token: Mutex::new(1),
             pads: Mutex::new(pads),
+            telemetry_slow: Mutex::new(Vec::new()),
         };
         state.apply_mixer_settings();
         state.apply_mic_settings();

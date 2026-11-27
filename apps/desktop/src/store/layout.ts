@@ -2,9 +2,10 @@
 // (Settings > Display > New layout). Every change goes through `layoutAct`, which runs one
 // operation from lib/layout/ops.ts and saves the result.
 //
-// For now the layout has one window: parts can be folded, resized and switched between
-// tabs, but not yet sent to other screens. The environment says "one window" (`browser`),
-// so normalise brings every part into the main window, whatever a saved layout says.
+// In the desktop app the layout can have windows on other screens: the main window owns
+// the layout, and store/layoutShare.ts opens the other windows and keeps them drawing the
+// same one. A browser (or the app before it knows the screens) has one window, and
+// normalise brings every part into it, whatever a saved layout says.
 //
 // Saving: a layout is kept for each set of screens (lib/layout/book.ts), through the
 // backend, half a second after the last change. A quick copy goes into browser storage at
@@ -15,11 +16,11 @@ import { create } from "zustand";
 import { backend } from "../backend";
 import { emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, type Book } from "../lib/layout/book";
 import { loadLayout } from "../lib/layout/check";
-import { MAIN, isFolded, placesOf, setupKey, type Env, type Layout, type PageId, type UnitId } from "../lib/layout/model";
+import { MAIN, isFolded, orderedScreens, placesOf, refOf, resolveScreen, setupKey, type Env, type Layout, type PageId, type ScreenRef, type UnitId } from "../lib/layout/model";
 import { isRefusal, normalise, run, type Op } from "../lib/layout/ops";
 import { migrateOld, serialise } from "../lib/layout/persist";
 import { presetFor } from "../lib/layout/presets";
-import { thisPart, useScreens } from "../lib/screens";
+import { isMainWindow, layoutScreens, thisWin, useScreens } from "../lib/screens";
 import { toolHooks, useApp, type ToolTab } from "./app";
 
 /** Where the first preview kept its one layout; moved into the book once. */
@@ -29,28 +30,58 @@ export const QUICK_KEY = "mixit.layouts.quick";
 const SAVE_DELAY_MS = 500;
 /** How long to wait at start for the list of screens before going on without it. */
 const SCREENS_WAIT_MS = 1500;
+/** How long the screens must stay the same before the layout follows them (macOS reports a wake one screen at a time). */
+export const SETTLE_MS = 3000;
 
 interface LayoutState {
   layout: Layout | null;
-  /** The main window's layout area, in CSS pixels. */
+  /** This window's layout area, in CSS pixels. */
   size: { w: number; h: number };
+  /** The other windows' sizes, as they report them (the main window only). */
+  sizes: Record<string, { w: number; h: number }>;
 }
 
-export const useLayout = create<LayoutState>(() => ({ layout: null, size: { w: 1280, h: 760 } }));
+export const useLayout = create<LayoutState>(() => ({ layout: null, size: { w: 1280, h: 760 }, sizes: {} }));
 
-/** What the operations need to know: built from the settings and the window's size. */
+/** This window's id in the layout. */
+export const ME = thisWin ?? MAIN;
+
+/** Windows can be opened on other screens: the desktop app, once it knows the screens. */
+export function multiWindow(): boolean {
+  try {
+    return !!backend().winOpen && useScreens.getState().supported && useScreens.getState().screens.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** What the operations need to know: built from the settings, the screens and the windows' sizes. */
 export function layoutEnv(): Env {
   const app = useApp.getState();
   const s = app.settings;
+  const st = useLayout.getState();
+  const multi = multiWindow();
   return {
-    screens: [],
-    sizes: { [MAIN]: useLayout.getState().size },
+    screens: multi ? layoutScreens() : [],
+    sizes: { ...st.sizes, [ME]: st.size },
     mode: s?.viewMode === "pro" ? "pro" : "easy",
     decks: (s?.decks ?? 2) > 2 ? 4 : 2,
     controller: false,
-    // One window for now (see the note at the top).
-    browser: true,
+    browser: !multi,
   };
+}
+
+/** The screen the main window is on, by the layout's name for it. */
+export function mainScreenRef(env: Env = layoutEnv()) {
+  const name = useScreens.getState().main;
+  const s = name ? layoutScreens().find((_, i) => useScreens.getState().screens[i]?.name === name) : null;
+  return s && env.screens.length ? refOf(env.screens, s) : null;
+}
+
+/** The built-in layout for these screens. */
+function builtIn(env: Env): Layout {
+  const main = mainScreenRef(env);
+  return presetFor(env, { mainScreen: main?.name ?? null });
 }
 
 // ------------------------------------------------------------------ saving
@@ -129,7 +160,7 @@ async function screensKey(): Promise<string> {
         done();
       }
     });
-  return setupKey(useScreens.getState().screens);
+  return setupKey(layoutScreens());
 }
 
 /**
@@ -148,22 +179,34 @@ function layoutFor(key: string, env: Env, first: boolean): Layout {
     book = r.book;
     if (r.layout) return r.layout;
   }
-  if (!first) return useLayout.getState().layout ?? presetFor(env);
+  if (!first) {
+    // A set of screens seen for the first time: with one window, keep what's showing; with
+    // windows on screens, the built-in layout for them (the note after says where things went).
+    const now = useLayout.getState().layout;
+    return env.browser && now ? normalise(now, env) : builtIn(env);
+  }
   const old = readQuick(OLD_LAYOUT_KEY);
   if (old) {
     const r = loadLayout(old, env);
     if (r.layout) return r.layout;
   }
-  if (picked.problem) return presetFor(env);
+  if (picked.problem) return builtIn(env);
   const app = useApp.getState();
   return migrateOld({ toolTab: readQuick("mixit.tools.tab"), toolSize: readQuick("mixit.tools.size"), libraryHeight: app.libraryHeight, windowHeight: window.innerHeight }, env);
+}
+
+/** A loaded layout opens on the page the top bar shows, not the one it was saved on. */
+function onShownPage(layout: Layout): Layout {
+  const page = useApp.getState().workspace as PageId;
+  if (layout.windows[0].page === page) return layout;
+  return { ...layout, windows: [{ ...layout.windows[0], page }, ...layout.windows.slice(1)] };
 }
 
 let starting: Promise<void> | null = null;
 
 /** Loads the layouts when the new layout is switched on (the main window only). */
 export function initLayout(): Promise<void> {
-  if (thisPart || useLayout.getState().layout) return Promise.resolve();
+  if (!isMainWindow || useLayout.getState().layout) return Promise.resolve();
   starting ??= (async () => {
     const [text, key] = await Promise.all([backend().layoutsLoad().catch(() => null), screensKey()]);
     const lib = readBook(text);
@@ -186,56 +229,169 @@ export function initLayout(): Promise<void> {
       layout = layoutFor(key, layoutEnv(), true);
     } catch {
       // Never a blank window: whatever went wrong, the built-in layout works.
-      layout = presetFor(layoutEnv());
+      layout = builtIn(layoutEnv());
     }
-    useLayout.setState({ layout });
+    useLayout.setState({ layout: onShownPage(layout) });
     // Kept straight away, so the moved-across layout is what the next start finds.
     book = putLayout(book, setup, layout, Date.now());
     writeBook();
   })().finally(() => {
     starting = null;
     // The screens may have changed while loading.
-    const s = useScreens.getState();
-    if (s.supported) switchSetup(setupKey(s.screens));
+    if (useScreens.getState().supported) screensChanged();
   });
   return starting;
 }
 
+let settleTimer = 0;
+/** The screens are changing and the layout hasn't followed yet: moves the system makes to windows now aren't the person's. */
+export const settling = () => settleTimer !== 0;
+
+/** The screens changed: once they have stayed the same for a moment, the layout follows. */
+function screensChanged() {
+  if (!isMainWindow) return;
+  window.clearTimeout(settleTimer);
+  const key = setupKey(layoutScreens());
+  if (key === setup) {
+    settleTimer = 0;
+    return;
+  }
+  // The waiting change belongs to the screens it was made on.
+  flush();
+  settleTimer = window.setTimeout(() => {
+    settleTimer = 0;
+    switchSetup(setupKey(layoutScreens()));
+  }, SETTLE_MS);
+}
+
 /** A different set of screens: keeps what was there under the old one and brings back theirs. */
 function switchSetup(key: string) {
-  if (thisPart || starting || key === setup || !useLayout.getState().layout) return;
+  if (!isMainWindow || starting || key === setup || !useLayout.getState().layout) return;
   flush();
+  const seen = key in book.setups;
   setup = key;
   const before = useLayout.getState().layout;
-  const layout = layoutFor(key, layoutEnv(), false);
-  if (layout !== before) useLayout.setState({ layout });
+  const env = layoutEnv();
+  const layout = layoutFor(key, env, false);
+  if (layout !== before) useLayout.setState({ layout: onShownPage(layout) });
   book = putLayout(book, setup, layout, Date.now());
   writeBook();
+  if (!seen && !env.browser && env.screens.length > 1) tellWhereThingsWent(layout, env);
+}
+
+/** The first time a set of screens is seen: where the decks went, and a way to put them on another screen. */
+function tellWhereThingsWent(layout: Layout, env: Env) {
+  const list = orderedScreens(env.screens);
+  const at = layout.windows[0].screen ?? mainScreenRef(env);
+  const perf = at ? resolveScreen(env.screens, at) : null;
+  if (!perf) return;
+  const n = list.indexOf(perf) + 1;
+  const other = list.find((s) => s !== perf);
+  if (!other || !at) return;
+  const b: ScreenRef = refOf(env.screens, other);
+  toast.message(`The decks are on Screen ${n}, and the library is on Screen ${list.indexOf(other) + 1}.`, {
+    description: "You can swap them now, or later from the ⋯ menu on any part.",
+    duration: 15_000,
+    action: { label: "Swap screens", onClick: () => layoutAct({ op: "swap", a: at, b, mainAt: mainScreenRef() }) },
+  });
 }
 
 useScreens.subscribe((s, prev) => {
-  if (s.screens !== prev.screens) switchSetup(setupKey(s.screens));
+  if (s.screens !== prev.screens || s.supported !== prev.supported) screensChanged();
 });
 
-/** Runs one layout operation. A refusal is shown in plain words and changes nothing. */
-export function layoutAct(op: Op): boolean {
+/** Runs one layout operation in the main window. Returns why it was turned down, or null. */
+export function layoutRun(op: Op): string | null {
   const { layout } = useLayout.getState();
-  if (!layout) return false;
-  const next = run(layout, layoutEnv(), op);
-  if (isRefusal(next)) {
-    toast.message(next.reason);
-    return false;
+  if (!layout) return "The layout isn't ready yet.";
+  let next;
+  try {
+    next = run(layout, layoutEnv(), op);
+  } catch (e) {
+    console.error("[layout] operation failed", op, e);
+    return "That didn't work, so nothing changed.";
   }
-  if (next !== layout) {
+  if (isRefusal(next)) return next.reason;
+  // Many operations return a copy even when nothing changed; only a real change is drawn and saved.
+  if (next !== layout && serialise(next) !== serialise(layout)) {
     useLayout.setState({ layout: next });
     save(next);
   }
-  return true;
+  return null;
+}
+
+/** Runs one layout operation. A refusal is shown in plain words and changes nothing. */
+export function layoutAct(op: Op): boolean {
+  const why = layoutRun(op);
+  if (why) toast.message(why);
+  return !why;
+}
+
+/** Hands an operation to whoever owns the layout: run here in the main window, asked for from any other. */
+export const layoutHooks: { ask: ((op: Op, note?: string) => void) | null } = { ask: null };
+export function layoutDo(op: Op) {
+  if (isMainWindow) layoutAct(op);
+  else layoutHooks.ask?.(op);
+}
+
+// ------------------------------------------------------------------ undo
+
+/** Changes that can be undone, newest last: what the layout was before and became after. */
+const undos = new Map<string, { before: Layout; after: string }>();
+let undoCount = 0;
+const UNDO_KEEP = 10;
+/** The layout without where its windows sit on their screens: the system moving a new window into place isn't a change that blocks undo. */
+const shape = (l: Layout) => serialise({ ...l, windows: l.windows.map((w) => ({ ...w, bounds: "full", fullscreen: false })) });
+
+/** Runs an operation that the person can undo (a send, a new window, a swap). Returns why not, or a token for `layoutUndo`. */
+export function layoutChange(op: Op): { why: string | null; token: string | null } {
+  const before = useLayout.getState().layout;
+  const why = layoutRun(op);
+  const after = useLayout.getState().layout;
+  if (why || !before || !after || after === before) return { why, token: null };
+  const token = `u${++undoCount}`;
+  undos.set(token, { before, after: shape(after) });
+  while (undos.size > UNDO_KEEP) undos.delete(undos.keys().next().value!);
+  return { why: null, token };
+}
+
+/** Puts the layout back as it was before a change. Refused once anything else has changed since. */
+export function layoutUndo(token: string): string | null {
+  const u = undos.get(token);
+  const now = useLayout.getState().layout;
+  if (!u || !now) return "That can't be undone any more.";
+  if (shape(now) !== u.after) return "The layout has changed since, so that can't be undone.";
+  undos.delete(token);
+  const back = normalise(u.before, layoutEnv());
+  useLayout.setState({ layout: back });
+  save(back);
+  return null;
+}
+
+/** An undoable change from a menu, wherever it was clicked: shows `note` with Undo for a few seconds. */
+export function layoutDoUndoable(op: Op, note: string) {
+  if (!isMainWindow) return layoutHooks.ask?.(op, note);
+  const { why, token } = layoutChange(op);
+  if (why) toast.message(why);
+  else if (token) offerUndo(note, () => layoutUndo(token));
+}
+
+export function offerUndo(note: string, undo: () => string | null | void) {
+  toast.message(note, {
+    duration: 6000,
+    action: {
+      label: "Undo",
+      onClick: () => {
+        const why = undo();
+        if (why) toast.message(why);
+      },
+    },
+  });
 }
 
 /** Back to the built-in layout. */
 export function resetLayout() {
-  const next = presetFor(layoutEnv());
+  const next = builtIn(layoutEnv());
   useLayout.setState({ layout: next });
   save(next);
   flush();
@@ -256,6 +412,8 @@ export function showLayoutPage(page: PageId) {
 
 // Two or four decks, or Easy and Pro, change what is required and how big things must be.
 useApp.subscribe((s, prev) => {
+  // Only the main window changes the layout; the others get the result.
+  if (!isMainWindow) return;
   if (s.settings?.decks === prev.settings?.decks && s.settings?.viewMode === prev.settings?.viewMode) return;
   const { layout } = useLayout.getState();
   if (!layout) return;
@@ -264,6 +422,13 @@ useApp.subscribe((s, prev) => {
     useLayout.setState({ layout: next });
     save(next);
   }
+});
+
+// The main window's page can be changed from another window (a tool opened there): the top bar follows.
+useLayout.subscribe((s, prev) => {
+  if (!isMainWindow || !s.layout || s.layout === prev.layout) return;
+  const page = s.layout.windows[0].page;
+  if (page !== prev.layout?.windows[0].page && useApp.getState().workspace !== page) useApp.getState().set({ workspace: page });
 });
 
 // Save straight away when the window closes, rather than lose the last half second.
@@ -275,22 +440,28 @@ if (typeof window !== "undefined")
 const TOOL_UNIT: Record<ToolTab, UnitId> = { pads: "tool.pads", steps: "tool.steps", effects: "tool.effects", inputs: "tool.mic", recording: "tool.record" };
 
 // The Pads button, the palette and shortcuts open tools through openTool; with the new
-// layout on, that shows the tool's part (its tab, opened if folded) on the Mix page.
+// layout on, that shows the tool's part (its tab, opened if folded), in this window if it
+// is here, else wherever it is.
 toolHooks.open = (tab, toggle) => {
   const app = useApp.getState();
   const { layout } = useLayout.getState();
   if (!app.settings?.layoutEngine || !layout) return false;
   const unit = TOOL_UNIT[tab];
-  const where = placesOf(layout, unit).find((f) => f.win.id === MAIN && f.page === "mix") ?? placesOf(layout, unit).find((f) => f.win.id === MAIN);
+  const places = placesOf(layout, unit);
+  const where = places.find((f) => f.win.id === ME && f.page === "mix") ?? places.find((f) => f.win.id === ME) ?? places.find((f) => f.page === "mix") ?? places[0];
   if (!where) return false;
   const env = layoutEnv();
-  const showing = app.workspace === where.page && where.stack.units[where.stack.active] === where.place && !isFolded(where.place, env.controller);
-  const at = { win: MAIN, page: where.page };
-  if (toggle && showing) layoutAct({ op: "fold", unit, folded: true, where: at });
+  const ownPage = where.win.id === MAIN && isMainWindow ? app.workspace : where.win.page;
+  const showing = ownPage === where.page && where.stack.units[where.stack.active] === where.place && !isFolded(where.place, env.controller);
+  const at = { win: where.win.id, page: where.page };
+  if (toggle && showing) layoutDo({ op: "fold", unit, folded: true, where: at });
   else {
-    layoutAct({ op: "activate", unit, where: at });
-    layoutAct({ op: "fold", unit, folded: false, where: at });
-    if (app.workspace !== where.page) app.set({ workspace: where.page });
+    layoutDo({ op: "activate", unit, where: at });
+    layoutDo({ op: "fold", unit, folded: false, where: at });
+    if (ownPage !== where.page) {
+      if (where.win.id === MAIN && isMainWindow) app.set({ workspace: where.page });
+      else layoutDo({ op: "page", win: where.win.id, page: where.page });
+    }
   }
   // Remembered as today, so turning the new layout off keeps the last tool.
   try {

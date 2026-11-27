@@ -1,4 +1,6 @@
-// Draws the main window from the layout (Settings > Display > New layout).
+// Draws a window from the layout (Settings > Display > New layout): the main window, or
+// one of the layout's windows on another screen (`?win=`), which draws the main window's
+// layout and asks it for every change (store/layoutShare.ts).
 //
 // The tree draws empty slots; each unit is rendered once into a host element of its own
 // through a portal, and the host element is moved into whichever slot shows it. Moving a
@@ -9,14 +11,17 @@ import clsx from "clsx";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { Component, createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ErrorInfo, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { HARD_MIN, TAB_PX, drawnAt, fitTree, isCollapsed, minSize, shownPlace, visiblePlaces, type Fit } from "../../lib/layout/fit";
-import { MAIN, isFolded, type Env, type LayoutNode, type PageId, type Split, type Stack, type UnitId } from "../../lib/layout/model";
+import { TAB_PX, hardMinFor, drawnAt, fitTree, isCollapsed, minSize, shownPlace, visiblePlaces, type Fit } from "../../lib/layout/fit";
+import { MAIN, findWin, isFolded, type Env, type LayoutNode, type PageId, type Split, type Stack, type UnitId } from "../../lib/layout/model";
 import { BAR_PX, HANDLE_PX, UNITS } from "../../lib/layout/units";
 import { useApp } from "../../store/app";
-import { initLayout, layoutAct, layoutEnv, setLayoutSize, showLayoutPage, useLayout } from "../../store/layout";
+import { ME, initLayout, layoutDo, layoutEnv, setLayoutSize, showLayoutPage, useLayout } from "../../store/layout";
+import { UnitMenu } from "./UnitMenu";
 import { UnitView } from "./units";
 
 interface Ctx {
+  /** The window being drawn. */
+  win: string;
   page: PageId;
   env: Env;
   fit: Fit;
@@ -40,9 +45,13 @@ function shownUnits(node: LayoutNode | undefined, ctx: Pick<Ctx, "env" | "fit">)
 }
 
 export function LayoutWindow() {
+  const win = ME;
   const layout = useLayout((s) => s.layout);
   const size = useLayout((s) => s.size);
-  const page = useApp((s) => s.workspace) as PageId;
+  const workspace = useApp((s) => s.workspace) as PageId;
+  // The main window's page follows the top bar; another window's is in the layout.
+  const ownPage = useLayout((s) => (s.layout ? findWin(s.layout, win)?.page : undefined));
+  const page = win === MAIN ? workspace : (ownPage ?? "mix");
   // The settings these depend on, as primitives so the memo below holds.
   const decks = useApp((s) => s.settings?.decks ?? 2);
   const mode = useApp((s) => s.settings?.viewMode ?? "easy");
@@ -52,7 +61,9 @@ export function LayoutWindow() {
   const [kept, setKept] = useState<ReadonlySet<UnitId>>(new Set());
 
   useEffect(() => void initLayout(), []);
-  useEffect(() => showLayoutPage(page), [page]);
+  useEffect(() => {
+    if (win === MAIN) showLayoutPage(page);
+  }, [win, page]);
   useLayoutEffect(() => {
     const el = area.current;
     if (!el) return;
@@ -64,11 +75,12 @@ export function LayoutWindow() {
 
   // layoutEnv reads these same values from the stores; they are listed so the memo follows them.
   const env = useMemo(() => layoutEnv(), [decks, mode, size.w, size.h]);
-  const root = layout?.windows[0].pages[page];
-  const fit = useMemo(() => fitTree(root, size, env, HARD_MIN.main, kept), [root, size, env, kept]);
+  const root = layout ? findWin(layout, win)?.pages[page] : undefined;
+  const fit = useMemo(() => fitTree(root, size, env, hardMinFor(win), kept), [root, size, env, kept, win]);
   const need = useMemo(() => (root ? minSize(root, env, fit.autoFolded) : { w: 0, h: 0 }), [root, env, fit]);
   const ctx: Ctx = useMemo(
     () => ({
+      win,
       page,
       env,
       fit,
@@ -91,7 +103,7 @@ export function LayoutWindow() {
           return next;
         }),
     }),
-    [page, env, fit],
+    [win, page, env, fit],
   );
   const shown = useMemo(() => shownUnits(root, { env, fit }), [root, env, fit]);
 
@@ -138,7 +150,7 @@ function GroupBar({ node, vertical }: { node: Split; vertical: boolean }) {
   const open = () => {
     for (const p of shown) {
       ctx.keepOpen(p.unit, true);
-      if (isFolded(p, ctx.env.controller)) layoutAct({ op: "fold", unit: p.unit, folded: false, where: { win: MAIN, page: ctx.page } });
+      if (isFolded(p, ctx.env.controller)) layoutDo({ op: "fold", unit: p.unit, folded: false, where: { win: ctx.win, page: ctx.page } });
     }
   };
   return (
@@ -203,7 +215,7 @@ function SplitView({ node, path }: { node: Split; path: number[] }) {
       window.removeEventListener("keydown", key, true);
       setLive(null);
       // The operation holds each side to its smallest size.
-      if (commit && latest !== base && useLayout.getState().layout === at) layoutAct({ op: "resize", win: MAIN, page: ctx.page, path, sizes: latest });
+      if (commit && latest !== base && useLayout.getState().layout === at) layoutDo({ op: "resize", win: ctx.win, page: ctx.page, path, sizes: latest });
     };
     const up = () => end(true);
     const cancel = () => end(false);
@@ -271,10 +283,10 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
   if (!shown) return null;
   const person = isFolded(shown, ctx.env.controller);
   const auto = !person && ctx.fit.autoFolded.has(shown.unit);
-  const where = { win: MAIN, page: ctx.page };
+  const where = { win: ctx.win, page: ctx.page };
   const fold = (folded: boolean) => {
     ctx.keepOpen(shown.unit, !folded);
-    layoutAct({ op: "fold", unit: shown.unit, folded, where });
+    layoutDo({ op: "fold", unit: shown.unit, folded, where });
   };
 
   if (person || auto) return <FoldedBar unit={shown.unit} vertical={parentDir === "row"} auto={auto} onOpen={() => fold(false)} />;
@@ -291,7 +303,7 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => layoutAct({ op: "activate", unit: p.unit, where })}
+              onClick={() => layoutDo({ op: "activate", unit: p.unit, where })}
               className={clsx("h-5 truncate rounded px-1.5 font-medium", active ? "text-zinc-200" : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200", places.length === 1 && "pointer-events-none")}
             >
               {UNITS[p.unit].name}
@@ -299,6 +311,7 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
           );
         })}
         <span className="ml-auto" />
+        <UnitMenu unit={shown.unit} win={ctx.win} env={ctx.env} />
         <button type="button" title={`Fold ${UNITS[shown.unit].name}`} aria-label={`Fold ${UNITS[shown.unit].name}`} onClick={() => fold(true)} className="flex size-5 items-center justify-center rounded text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100">
           <FoldIcon size={13} />
         </button>
