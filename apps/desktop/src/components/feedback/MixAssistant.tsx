@@ -111,7 +111,7 @@ export function AssistantButton() {
         <Popover.Trigger asChild>
           <Btn size="sm" tone="ghost" active={open} aria-label="Mix assistant">
             <Stethoscope size={14} />
-            {open && problems > 0 && <span className="rounded-full bg-red-500 px-1 text-[9px] font-bold leading-[14px] text-white">{problems}</span>}
+            {open && problems > 0 && <span className="rounded-full bg-red-500 px-1 text-[11px] font-bold leading-[14px] text-white">{problems}</span>}
           </Btn>
         </Popover.Trigger>
       </Ctl>

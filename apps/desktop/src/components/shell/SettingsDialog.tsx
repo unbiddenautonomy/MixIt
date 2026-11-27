@@ -419,7 +419,7 @@ function Shortcuts() {
       {note && <div className="rounded-md bg-sky-400/10 px-2 py-1 text-[12px] text-sky-200">{note}</div>}
       {groups.map((g) => (
         <div key={g}>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
             {rows
               .filter((a) => a.group === g)

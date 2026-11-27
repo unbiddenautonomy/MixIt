@@ -27,7 +27,7 @@ export function Ctl({ id, label, explain, children, side = "top", className }: {
         <Tooltip.Content side={side} sideOffset={6} className={clsx("z-50 rounded-lg border border-white/10 bg-zinc-900/95 px-3 py-2 text-xs text-zinc-200 shadow-xl backdrop-blur", explainOn ? "max-w-72" : "max-w-56")}>
           <div className="flex items-center gap-2 font-medium text-zinc-50">
             <span>{name}</span>
-            {key && <kbd className="rounded border border-white/15 bg-white/5 px-1.5 py-px font-mono text-[10px] text-zinc-300">{key}</kbd>}
+            {key && <kbd className="rounded border border-white/15 bg-white/5 px-1.5 py-px font-mono text-[11px] text-zinc-300">{key}</kbd>}
           </div>
           {explainOn && text && <p className="mt-1 leading-snug text-zinc-300">{text}</p>}
           <Tooltip.Arrow className="fill-zinc-900" />

@@ -23,24 +23,22 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
   const tabs: { id: Tab; label: string }[] = [
     { id: "cues", label: "Hot cues" },
     { id: "loop", label: "Loop" },
-    { id: "jump", label: "Jump" },
-    { id: "slicer", label: "Slicer" },
-    { id: "roll", label: "Roll" },
-    { id: "keys", label: "Keys" },
+    // Easy keeps the three a first mix needs; the rest are in Pro.
+    ...(pro ? [{ id: "jump" as Tab, label: "Jump" }, { id: "slicer" as Tab, label: "Slicer" }, { id: "roll" as Tab, label: "Roll" }, { id: "keys" as Tab, label: "Keys" }] : []),
     { id: "fx", label: "FX" },
     ...(pro ? [{ id: "grid" as Tab, label: "Grid" }] : []),
   ];
   const current = tabs.some((t) => t.id === tab) ? tab : "cues";
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex items-center gap-0.5">
+      <div className="no-scrollbar flex items-center gap-0.5 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={clsx(
-              "rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+              "shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               current === t.id ? "bg-white/10 text-zinc-50" : "text-zinc-500 hover:text-zinc-200",
             )}
           >
@@ -119,7 +117,7 @@ function HotCues({ deck, compact }: { deck: number; compact: boolean }) {
             >
               <span className="text-[11px] font-bold leading-none">{c?.label || i + 1}</span>
               {c && !compact && (
-                <span className="font-mono text-[9px] leading-tight opacity-70">
+                <span className="font-mono text-[11px] leading-tight opacity-70">
                   {clock(c.seconds, true)}
                   {c.loopSeconds ? <Repeat size={8} className="ml-1 inline" /> : null}
                 </span>
@@ -249,7 +247,7 @@ function Jump({ deck }: { deck: number }) {
           <ChevronsRight size={14} />
         </Btn>
       </Ctl>
-      <span className="ml-1 text-[10px] text-zinc-500">beats</span>
+      <span className="ml-1 text-[11px] text-zinc-500">beats</span>
     </div>
   );
 }
@@ -300,7 +298,7 @@ function Grid({ deck }: { deck: number }) {
         )}
       </div>
       {d && (
-        <div className="flex flex-wrap gap-x-3 font-mono text-[10px] text-zinc-500">
+        <div className="flex flex-wrap gap-x-3 font-mono text-[11px] text-zinc-500">
           <span>{d.constantGrid ? "constant grid" : d.warps.length ? `warped grid, ${d.warps.length} pins` : "warped grid"}</span>
           <span>confidence {Math.round(d.tempoConfidence * 100)}%</span>
           {d.driftMs > 0 && <span>drift {d.driftMs.toFixed(1)} ms</span>}
@@ -441,7 +439,7 @@ function KeyPads({ deck, compact }: { deck: number; compact: boolean }) {
                 style={k ? { borderBottomColor: keyColor(k), borderBottomWidth: 2 } : undefined}
               >
                 <span className="text-[11px] font-bold leading-none">{st > 0 ? `+${st}` : st}</span>
-                {k && !compact && <span className="text-[9px] leading-tight opacity-70">{keyLabel(k, notation)}</span>}
+                {k && !compact && <span className="text-[11px] leading-tight opacity-70">{keyLabel(k, notation)}</span>}
               </button>
             </Ctl>
           );
@@ -458,7 +456,7 @@ function KeyPads({ deck, compact }: { deck: number; compact: boolean }) {
                   key={i}
                   type="button"
                   onClick={() => choose(`deck.${L}.keypad.cue`, i)}
-                  className={clsx("size-5 rounded font-mono text-[10px]", i === cue ? "ring-1 ring-white" : "", c ? "text-zinc-950" : "text-zinc-500 hover:text-zinc-200")}
+                  className={clsx("size-5 rounded font-mono text-[11px]", i === cue ? "ring-1 ring-white" : "", c ? "text-zinc-950" : "text-zinc-500 hover:text-zinc-200")}
                   style={c ? { background: hex(c.color, hex(HOT_CUE_COLORS[i])) } : undefined}
                   title={c ? `Play from hot cue ${i + 1}` : `Hot cue ${i + 1} is empty: the first key pad you press saves it where the track is`}
                 >

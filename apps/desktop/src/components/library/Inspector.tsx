@@ -178,7 +178,7 @@ function OneTrack() {
         {d.keySecond && <Field label="Alt. key">{keyLabel(d.keySecond, notation)}</Field>}
         {d.tuningCents !== 0 && <Field label="Tuning">{`${d.tuningCents > 0 ? "+" : ""}${d.tuningCents.toFixed(0)} cents`}</Field>}
         <Field label="Plays">{t.playCount}</Field>
-        <div className="break-all pt-1 font-mono text-[10px] leading-snug text-zinc-600">{t.path}</div>
+        <div className="break-all pt-1 font-mono text-[11px] leading-snug text-zinc-600">{t.path}</div>
         {backend().kind !== "web" && !t.missing && (
           <button type="button" onClick={() => void writeTagsToFiles([t.id])} className="mt-1 flex items-center gap-1 self-start text-[11px] text-sky-300 hover:underline" title="Put these details into the file, so other apps and DJ gear show them">
             <FileDown size={11} /> Write tags to the file
@@ -209,9 +209,9 @@ function cueName(role: string, slot: number | null): string {
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
   return (
     <div className="rounded-lg bg-white/[0.04] px-2 py-1.5">
-      <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
       <div className="font-mono text-sm font-semibold text-zinc-100">{value}</div>
-      {sub && <div className="truncate text-[10px] text-zinc-500">{sub}</div>}
+      {sub && <div className="truncate text-[11px] text-zinc-500">{sub}</div>}
     </div>
   );
 }
@@ -219,7 +219,7 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{title}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{title}</div>
       {children}
     </div>
   );
@@ -266,7 +266,7 @@ function EnergyCurve({ d }: { d: TrackDetail }) {
   const pts = d.energyCurve.map((e, i) => `${(((d.energyCurveStart + i * step) / dur) * W).toFixed(1)},${(H - 2 - (e / max) * (H - 6)).toFixed(1)}`);
   return (
     <div>
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Energy</div>
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Energy</div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-md bg-black/30" preserveAspectRatio="none" style={{ height: H }}>
         {d.sections.map((s, i) => (
           <rect key={i} x={(s.start / dur) * W} y={0} width={Math.max(0, ((s.end - s.start) / dur) * W)} height={H} fill={SECTION_COLORS[s.label] ?? "#71717a"} opacity={0.16} />

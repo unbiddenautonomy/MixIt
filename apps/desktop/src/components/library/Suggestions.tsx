@@ -94,7 +94,7 @@ export function Suggestions() {
                 className="group flex cursor-default flex-col gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 hover:border-white/[0.12] hover:bg-white/[0.05]"
               >
                 <div className="flex items-start gap-2">
-                  <div className="relative w-5 pt-0.5 text-right font-mono text-[10px] text-zinc-600">
+                  <div className="relative w-5 pt-0.5 text-right font-mono text-[11px] text-zinc-600">
                     <span className="group-hover:invisible">{i + 1}</span>
                     <PreviewButton row={t} className="absolute right-0 top-0" />
                   </div>
@@ -113,8 +113,8 @@ export function Suggestions() {
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
                     <div className={clsx("h-full rounded-full", s.score > 0.75 ? "bg-emerald-400" : s.score > 0.5 ? "bg-sky-400" : "bg-zinc-400")} style={{ width: `${Math.round(Math.max(0, Math.min(1, s.score)) * 100)}%` }} />
                   </div>
-                  <span className="font-mono text-[10px] text-zinc-500">{Math.round(s.score * 100)}</span>
-                  <span className="font-mono text-[10px] text-zinc-600">{clock(t.duration)}</span>
+                  <span className="font-mono text-[11px] text-zinc-500">{Math.round(s.score * 100)}</span>
+                  <span className="font-mono text-[11px] text-zinc-600">{clock(t.duration)}</span>
                   {seed && <HearButton from={seed} to={t} i={i} />}
                 </div>
                 <div className="flex flex-wrap gap-1 pl-7">
@@ -156,7 +156,7 @@ function HearButton({ from, to, i }: { from: TrackRow; to: TrackRow; i: number }
       }}
       title={hearing ? "Stop hearing this mix" : `Hear ${to.title} mixed in after ${from.title}, in your headphones, the way Auto DJ would do it`}
       aria-label={hearing ? "Stop hearing this mix" : `Hear the mix into ${to.title}`}
-      className={clsx("flex items-center gap-1 rounded px-1 text-[10px]", hearing ? "bg-sky-400/15 text-sky-200" : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
+      className={clsx("flex items-center gap-1 rounded px-1 text-[11px]", hearing ? "bg-sky-400/15 text-sky-200" : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100")}
       data-testid={`hear-suggestion-${i}`}
     >
       <Headphones size={10} /> {hearing ? "Hearing" : "Hear the mix"}
@@ -168,7 +168,7 @@ function Chip({ tone, children }: { tone: "zinc" | "sky" | "emerald"; children: 
   return (
     <span
       className={clsx(
-        "rounded px-1.5 py-px text-[10px] font-medium",
+        "rounded px-1.5 py-px text-[11px] font-medium",
         tone === "sky" ? "bg-sky-400/15 text-sky-300" : tone === "emerald" ? "bg-emerald-400/15 text-emerald-300" : "bg-white/[0.07] text-zinc-300",
       )}
     >

@@ -196,7 +196,7 @@ function Body({
 function LaneHelp() {
   return (
     <div className="flex flex-col gap-2 text-[11px] leading-snug text-zinc-400">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">This lane</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">This lane</div>
       <p>These settings shape every clip on this lane, the same way a deck's studio shapes what it plays live.</p>
       <p>Pan and the reverb and echo sends can change during a clip: pick them under Automation in the clip's panel and draw how they move.</p>
       <p className="text-zinc-500">Use "Hear the mix in" on a clip to listen to a change.</p>
@@ -411,7 +411,7 @@ function Meters({ deck }: { deck: number }) {
 function Bar({ label, value, max, color, explain }: { label: string; value: number; max: number; color: string; explain: string }) {
   return (
     <Ctl label={label} explain={explain} className="w-full">
-      <div className="flex w-full items-center gap-2 text-[10px] text-zinc-500">
+      <div className="flex w-full items-center gap-2 text-[11px] text-zinc-500">
         <span className="w-[70px] shrink-0">{label}</span>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
           <div className="h-full rounded-full transition-[width] duration-75" style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: color }} />
@@ -502,7 +502,7 @@ function Loudness({ settings, change }: { settings: StudioDto; change: (f: (s: S
         <div className="text-[11px] leading-snug text-zinc-500">{target.hint}</div>
         <div className="flex items-center gap-2">
           <div className="font-mono text-lg leading-none text-zinc-100">{lufs <= -69 ? "–" : lufs}</div>
-          <div className="text-[10px] text-zinc-500">LUFS, last 10 s</div>
+          <div className="text-[11px] text-zinc-500">LUFS, last 10 s</div>
           <Btn size="sm" className="ml-auto" disabled={diff === null || Math.abs(diff) <= 0.5} onClick={match} title="Sets the master output so the mix sits at the target. Play a typical part of the mix first.">
             <Target size={11} /> Match
           </Btn>
@@ -573,7 +573,7 @@ function Group({ title, explain, children }: { title: string; explain?: string; 
   return (
     <div className="flex flex-col gap-1.5">
       <Ctl label={title} explain={explain} className="self-start">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{title}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{title}</div>
       </Ctl>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
@@ -592,7 +592,7 @@ function Card({ title, on, onToggle, explain, children }: { title: string; on: b
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1" title={hint}>
-      <div className="text-[10px] text-zinc-500">{label}</div>
+      <div className="text-[11px] text-zinc-500">{label}</div>
       {children}
     </div>
   );
@@ -620,7 +620,7 @@ function Num({ label, value, min, max, step, unit, hint, onChange }: { label?: s
         onKeyDown={(e) => e.key === "Enter" && commit((e.target as HTMLInputElement).value)}
         className="h-7 w-20 rounded-md border border-white/10 bg-zinc-950 px-1.5 font-mono text-[11px] text-zinc-100 outline-none focus:border-[var(--accent)]/60"
       />
-      <span className="w-5 text-[10px] text-zinc-500">{unit}</span>
+      <span className="w-5 text-[11px] text-zinc-500">{unit}</span>
     </div>
   );
   if (!label) return box;

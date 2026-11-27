@@ -9,7 +9,7 @@ import { backend } from "../../backend";
 import { ask, askText } from "../shell/Dialogs";
 import type { PlaylistDto, SessionDto, TagDto } from "../../backend/types";
 import { clock, plural } from "../../lib/format";
-import { useApp } from "../../store/app";
+import { useApp, usePro } from "../../store/app";
 import { useLibrary, type Source } from "../../store/library";
 import { useDropTarget } from "../../lib/dnd";
 import { copyPlaylistFiles, copySetTracklist, duplicatePlaylist, refreshPlaylists, refreshRows, refreshSessions, refreshTags, saveSetAsPlaylist, tagTracks, tidyPlaylist } from "./data";
@@ -38,7 +38,9 @@ export function Sidebar() {
   const tags = useLibrary((s) => s.tags);
   const sessions = useLibrary((s) => s.sessions);
   const currentSession = useLibrary((s) => s.currentSession);
-  const pastSets = sessions.filter((s) => s.id !== currentSession);
+  // Easy keeps the list short: past sets by date, At a glance and tags are in Pro (or showing now).
+  const pro = usePro();
+  const pastSets = sessions.filter((s) => s.id !== currentSession && (pro || same(source, { type: "history", session: s.id })));
 
   const select = (s: Source) => {
     useLibrary.getState().set({ source: s, selected: [], anchor: null });
@@ -66,7 +68,7 @@ export function Sidebar() {
         dropOk
         onDrop={(ids) => enqueueIds(ids)}
       />
-      <Item icon={<BarChart3 size={14} />} label="At a glance" active={same(source, { type: "insights" })} onClick={() => select({ type: "insights" })} hint="Your collection's tempos, keys, energy, genres and plays, with tips on gaps" />
+      {(pro || same(source, { type: "insights" })) && <Item icon={<BarChart3 size={14} />} label="At a glance" active={same(source, { type: "insights" })} onClick={() => select({ type: "insights" })} hint="Your collection's tempos, keys, energy, genres and plays, with tips on gaps" />}
       {(problems > 0 || same(source, { type: "care" })) && (
         <Item
           icon={<Stethoscope size={14} className={problems ? "text-amber-300" : undefined} />}
@@ -78,18 +80,22 @@ export function Sidebar() {
         />
       )}
 
-      <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+      <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
         Playlists
         <div className="flex gap-0.5">
           <IconBtn title="New playlist" onClick={() => setCreating("list")}>
             <Plus size={12} />
           </IconBtn>
-          <IconBtn title="New smart playlist (fills itself with every track that matches your rules)" onClick={() => void newSmart()}>
-            <Wand2 size={12} />
-          </IconBtn>
-          <IconBtn title="New folder" onClick={() => setCreating("folder")}>
-            <FolderPlus size={12} />
-          </IconBtn>
+          {pro && (
+            <>
+              <IconBtn title="New smart playlist (fills itself with every track that matches your rules)" onClick={() => void newSmart()}>
+                <Wand2 size={12} />
+              </IconBtn>
+              <IconBtn title="New folder" onClick={() => setCreating("folder")}>
+                <FolderPlus size={12} />
+              </IconBtn>
+            </>
+          )}
           <IconBtn title="Build a set: MixIt picks tracks for the time you have, with the energy moving the way you choose" onClick={() => openBuildSet()}>
             <TrendingUp size={12} />
           </IconBtn>
@@ -101,7 +107,9 @@ export function Sidebar() {
         <PlaylistItem key={p.id} p={p} depth={0} kidsOf={children} source={source} select={select} />
       ))}
 
-      <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+      {(pro || source.type === "tag") && (
+      <>
+      <div className="mt-3 flex items-center justify-between px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
         Tags
         <IconBtn
           title="New tag"
@@ -123,6 +131,8 @@ export function Sidebar() {
       {tags.map((t) => (
         <TagItem key={t.id} t={t} source={source} select={select} />
       ))}
+      </>
+      )}
     </nav>
   );
 }
@@ -143,7 +153,7 @@ export async function newSmart() {
 
 function IconBtn({ title, onClick, children }: { title: string; onClick: () => void; children: ReactNode }) {
   return (
-    <button type="button" title={title} onClick={onClick} className="rounded p-0.5 text-zinc-500 hover:bg-white/10 hover:text-zinc-200">
+    <button type="button" title={title} onClick={onClick} className="flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-white/10 hover:text-zinc-200">
       {children}
     </button>
   );
@@ -167,7 +177,7 @@ function Item({ icon, label, count, active, onClick, hint, depth = 0, onDrop, dr
     >
       <span className="text-zinc-400">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count != null && <span className="font-mono text-[10px] text-zinc-500">{count}</span>}
+      {count != null && <span className="font-mono text-[11px] text-zinc-500">{count}</span>}
     </button>
   );
 }

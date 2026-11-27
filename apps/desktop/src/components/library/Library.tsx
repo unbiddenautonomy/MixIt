@@ -102,7 +102,7 @@ function Toolbar({ movable }: { movable: boolean }) {
       </div>
       {/* Auto DJ shows its own queue count; the library row count there would read as the queue's. */}
       {source.type !== "care" && source.type !== "insights" && source.type !== "autodj" && (
-        <span className="font-mono text-[10px] text-zinc-500">
+        <span className="font-mono text-[11px] text-zinc-500">
           {rows}
           {selected > 1 && ` · ${selected} selected`}
         </span>
@@ -322,7 +322,7 @@ function QueryHelp() {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button type="button" className="absolute right-2 text-zinc-500 hover:text-zinc-200" aria-label="Search help">
+        <button type="button" className="absolute right-1 flex size-6 items-center justify-center text-zinc-500 hover:text-zinc-200" aria-label="Search help">
           <HelpCircle size={13} />
         </button>
       </Popover.Trigger>

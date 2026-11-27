@@ -372,7 +372,7 @@ function Body() {
         </div>
         <aside className="flex w-64 shrink-0 flex-col gap-3">
           <div className="flex items-center gap-1">
-            <div className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Steps</div>
+            <div className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Steps</div>
             <Btn size="sm" tone="ghost" disabled={!steps.length} onClick={undo} aria-label="Undo" title={`Undo (${keyLabel("Mod+Z")})`}>
               <Undo2 size={12} />
             </Btn>
@@ -554,7 +554,7 @@ function SaveSection() {
   };
   return (
     <div className="mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Save</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Save</div>
       <div className="flex items-center gap-1.5">
         <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" aria-label="Pad">
           {pads.map((p, i) => (
@@ -623,7 +623,7 @@ function Wave() {
     // Time grid.
     const span = v1 - v0;
     const step = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60].find((s) => span / s <= 12) ?? 120;
-    g.font = "10px ui-sans-serif, system-ui";
+    g.font = "11px ui-sans-serif, system-ui";
     for (let t = Math.ceil(v0 / step) * step; t <= v1; t += step) {
       const x = xOf(t);
       g.fillStyle = "rgba(255,255,255,0.05)";
@@ -698,7 +698,7 @@ function Wave() {
       />
       {sel && sel.end > sel.start && (
         <div className="pointer-events-none absolute top-0 rounded bg-sky-400/20 ring-1 ring-sky-300/50" style={{ left: xOf(sel.start), width: Math.max(1, xOf(sel.end) - xOf(sel.start)), height: H }}>
-          <span className="absolute bottom-1 left-1 rounded bg-zinc-950/80 px-1 font-mono text-[10px] text-sky-200">{(sel.end - sel.start).toFixed(2)} s</span>
+          <span className="absolute bottom-1 left-1 rounded bg-zinc-950/80 px-1 font-mono text-[11px] text-sky-200">{(sel.end - sel.start).toFixed(2)} s</span>
         </div>
       )}
       <div className="pointer-events-none absolute top-0 w-px bg-amber-300" style={{ left: xOf(cursor), height: H }} />

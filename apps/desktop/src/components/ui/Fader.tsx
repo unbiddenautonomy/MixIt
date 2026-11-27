@@ -67,7 +67,7 @@ export function Fader({ value, min = 0, max = 1, def, onChange, orientation = "v
         </div>
       </div>
       <ValueBubble anchor={track.current} show={busy} text={bubbleText(label, readout ? readout(value) : defaultReadout(n, min < 0 && max > 0))} />
-      {label && <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">{label}</div>}
+      {label && <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">{label}</div>}
     </div>
   );
 }

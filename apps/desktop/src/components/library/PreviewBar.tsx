@@ -80,7 +80,7 @@ function Bar() {
                 type="button"
                 onClick={() => seekPreview(s.start)}
                 title={`Jump to ${s.label.toLowerCase()} (${clock(s.start)})`}
-                className="hidden h-6 items-center gap-1 rounded-md border border-white/[0.06] px-1.5 text-[10px] text-zinc-400 hover:text-zinc-100 xl:flex"
+                className="hidden h-6 items-center gap-1 rounded-md border border-white/[0.06] px-1.5 text-[11px] text-zinc-400 hover:text-zinc-100 xl:flex"
               >
                 <span className="size-1.5 rounded-full" style={{ background: SECTION_COLORS[s.label] ?? "#52525b" }} />
                 {s.label}

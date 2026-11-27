@@ -98,6 +98,19 @@ export const CONCEPTS: Concept[] = [
     ],
     glossary: ["coach"],
   },
+  {
+    id: "easy-pro",
+    title: "Easy and Pro",
+    group: "Basics",
+    summary: "Easy shows what a first mix needs; Pro shows every control. Nothing is locked, and nothing moves.",
+    body: [
+      "Easy and Pro use the same screen, so switching never moves anything; Pro only adds controls. Switch at the top, or press {Mod+E}.",
+      "Easy keeps: the decks' Cue, Play, Sync, key lock, match key and tempo; Hot cues, Loop and FX pads; each channel's EQ, filter, headphone cue and volume; the crossfader, Mix it, the master level and the headphones; and the library's Collection, Suggestions, History, Auto DJ and playlists.",
+      "Pro adds: Master, key shift, Slip, reverse and nudge on the decks; Jump, Slicer, Roll, Keys and Grid pads; gain, EQ kills, the studio buttons and the loudness readout on the mixer; A/B and the set clock at the top; past sets by date, At a glance, tags, smart playlists and folders in the library; and the Rating and Genre columns.",
+      "Everything hidden in Easy is still in the command palette ({Mod+K}), and a column or tool you turn on yourself stays on in Easy.",
+    ],
+    glossary: ["easy-pro"],
+  },
   // ---------------------------------------------------------------- your screen
   {
     id: "screen-layout",

@@ -33,7 +33,7 @@ export function MicButton() {
     <Ctl label="Mic" explain="Talk to the crowd over the music, record your own sounds onto a pad, or bring in a turntable or phone." side="bottom">
       <Btn size="sm" tone={enabled && onAir ? "danger" : "ghost"} active={shown} aria-label="Mic" onClick={() => openTool("inputs", true)}>
         {enabled ? <Mic size={14} /> : <MicOff size={14} className="text-zinc-500" />}
-        {enabled && onAir && <span className="text-[10px] font-bold uppercase tracking-wide">On air</span>}
+        {enabled && onAir && <span className="text-[11px] font-bold uppercase tracking-wide">On air</span>}
         {recording && <Circle size={8} className="animate-pulse text-red-400" fill="currentColor" />}
       </Btn>
     </Ctl>
@@ -344,14 +344,14 @@ export function MicStrip({ compact }: { compact: boolean }) {
   const len = compact ? 84 : 104;
   return (
     <div style={{ ["--accent" as string]: MIC_COLOR }} className="mr-1 flex w-[52px] flex-col items-center gap-1.5 rounded-xl bg-black/20 px-1 py-1.5">
-      <button type="button" onClick={() => useMicPanel.open()} className="flex items-center gap-1 text-[10px] font-black uppercase" style={{ color: MIC_COLOR }} aria-label="Mic settings">
+      <button type="button" onClick={() => useMicPanel.open()} className="flex items-center gap-1 text-[11px] font-black uppercase" style={{ color: MIC_COLOR }} aria-label="Mic settings">
         <Mic size={11} /> Mic
       </button>
       <Ctl id="mic.on_air" side="right">
         <button
           type="button"
           onClick={() => setOn("mic.on_air", !m.onAir)}
-          className={clsx("w-11 rounded-md border px-1 py-0.5 text-[9px] font-bold uppercase leading-tight", m.onAir ? "border-transparent bg-red-500 text-white shadow-[0_0_12px_-2px_#ef4444]" : "border-white/10 text-zinc-400 hover:text-zinc-100")}
+          className={clsx("w-11 rounded-md border px-1 py-0.5 text-[11px] font-bold uppercase leading-tight", m.onAir ? "border-transparent bg-red-500 text-white shadow-[0_0_12px_-2px_#ef4444]" : "border-white/10 text-zinc-400 hover:text-zinc-100")}
           aria-pressed={m.onAir}
         >
           {m.onAir ? "On air" : "Off"}
@@ -361,13 +361,13 @@ export function MicStrip({ compact }: { compact: boolean }) {
         <button
           type="button"
           onClick={() => setOn("mic.talkover", !m.talkover)}
-          className={clsx("w-11 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight", m.talkover ? "border-white/20 text-zinc-200" : "border-white/10 text-zinc-500")}
+          className={clsx("w-11 rounded-md border px-1 py-0.5 text-[11px] font-semibold leading-tight", m.talkover ? "border-white/20 text-zinc-200" : "border-white/10 text-zinc-500")}
           aria-pressed={m.talkover}
         >
           Talk-over
         </button>
       </Ctl>
-      <div className={clsx("h-3 font-mono text-[9px]", duck < -1 ? "text-amber-300" : "text-transparent")}>{duck < -1 ? `${duck} dB` : "0"}</div>
+      <div className={clsx("h-3 font-mono text-[11px]", duck < -1 ? "text-amber-300" : "text-transparent")}>{duck < -1 ? `${duck} dB` : "0"}</div>
       <div className="mt-auto flex items-end gap-1">
         <Meter read={(t) => t.mic.peak} height={len} width={3} />
         <Ctl id="mic.level" side="right">

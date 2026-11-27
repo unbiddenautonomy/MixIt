@@ -202,7 +202,7 @@ export function CommandPalette() {
                       {asked.say}
                       {asked.ask.kind === "explain" && <span className="ml-2 text-[11px] text-zinc-500">{registry.find((a) => a.id === (asked.ask as { id: string }).id)?.explain}</span>}
                     </span>
-                    <kbd className="rounded border border-white/10 px-1.5 font-mono text-[10px] text-zinc-400">↵</kbd>
+                    <kbd className="rounded border border-white/10 px-1.5 font-mono text-[11px] text-zinc-400">↵</kbd>
                   </Command.Item>
                 </Command.Group>
               )}
@@ -218,7 +218,7 @@ export function CommandPalette() {
                         <span className="font-mono text-[11px] text-zinc-500">
                           {fmtBpm(t.bpm)} {keyLabel(t.key, notation)}
                         </span>
-                        <span className="rounded bg-white/[0.07] px-1.5 text-[10px] text-zinc-300">Load {l}</span>
+                        <span className="rounded bg-white/[0.07] px-1.5 text-[11px] text-zinc-300">Load {l}</span>
                       </Command.Item>
                     )),
                   )}
@@ -273,7 +273,7 @@ export function CommandPalette() {
                               {a.label}
                               <span className="ml-2 text-[11px] text-zinc-500">{a.explain}</span>
                             </span>
-                            {a.shortcut && <kbd className="rounded border border-white/10 px-1.5 font-mono text-[10px] text-zinc-400">{shortcutLabel(a.shortcut)}</kbd>}
+                            {a.shortcut && <kbd className="rounded border border-white/10 px-1.5 font-mono text-[11px] text-zinc-400">{shortcutLabel(a.shortcut)}</kbd>}
                           </Command.Item>,
                         ],
                   )}

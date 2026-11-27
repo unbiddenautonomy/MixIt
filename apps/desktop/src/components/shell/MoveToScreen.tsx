@@ -63,7 +63,7 @@ export function MoveToScreen({ part }: { part: Part }) {
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={4} className="menu">
-            <DropdownMenu.Label className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{PART_NAMES[part]}</DropdownMenu.Label>
+            <DropdownMenu.Label className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{PART_NAMES[part]}</DropdownMenu.Label>
             {targets.map((s) => (
               <DropdownMenu.Item key={s.name} className="menu-item" onSelect={() => void movePart(part, s)}>
                 Move to {screenLabel(screens, s)}

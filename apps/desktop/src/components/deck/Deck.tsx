@@ -102,7 +102,7 @@ function EmptyDeck({ letter, compact }: { letter: string; compact: boolean }) {
   return (
     <div className={clsx("flex items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 text-xs text-zinc-500", compact ? "h-8" : "h-[46px]")}>
       <Music2 size={14} />
-      Drag a track here, or select one and press <kbd className="rounded border border-white/10 px-1 font-mono text-[10px]">Enter</kbd> to load deck {letter}
+      Drag a track here, or select one and press <kbd className="rounded border border-white/10 px-1 font-mono text-[11px]">Enter</kbd> to load deck {letter}
     </div>
   );
 }
@@ -174,16 +174,16 @@ function Header({ deck }: { deck: number }) {
             <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold text-zinc-950" style={{ background: keyColor(key) }}>
               {keylock && pro && <Lock size={10} />}
               {keyLabel(key, notation)}
-              {keyShift !== 0 && <span className="text-[10px] font-semibold opacity-70">{keyShift > 0 ? `+${keyShift}` : keyShift}</span>}
+              {keyShift !== 0 && <span className="text-[11px] font-semibold opacity-70">{keyShift > 0 ? `+${keyShift}` : keyShift}</span>}
             </span>
           </Ctl>
           <div className="text-right">
             <div className="font-mono text-base font-semibold leading-none tabular-nums text-zinc-50">{fmtBpm(bpm)}</div>
-            <div className={clsx("font-mono text-[10px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent-ink)]")}>{signedPct(tempo)}</div>
+            <div className={clsx("font-mono text-[11px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent-ink)]")}>{signedPct(tempo)}</div>
           </div>
           <BeatCounter deck={deck} />
           <TimeReadout deck={deck} />
-          {master && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
+          {master && pro && <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--accent-ink)]">Master</span>}
           {/* Pinned to the right end when the readouts take their own row. */}
           <div className="ml-auto flex items-center gap-1">
             <Ctl label="Edit track" explain="Open the track editor: fix the beat grid, name and colour cues, choose where the track starts and turn a passage into a loop or a sampler pad.">
@@ -207,7 +207,7 @@ function TimeReadout({ deck }: { deck: number }) {
   const left = Math.max(0, dur - pos);
   const warn = left < 30 && dur > 0;
   return (
-    <button type="button" onClick={() => setRemaining((r) => !r)} title="Elapsed or remaining" className={clsx("w-16 text-right font-mono text-sm tabular-nums", warn ? "animate-pulse text-red-400" : "text-zinc-200")}>
+    <button type="button" onClick={() => setRemaining((r) => !r)} title="Elapsed or remaining" className={clsx("min-h-6 w-16 text-right font-mono text-sm tabular-nums", warn ? "animate-pulse text-red-400" : "text-zinc-200")}>
       {remaining ? `-${clock(left, true)}` : clock(pos, true)}
     </button>
   );
@@ -255,11 +255,13 @@ function Transport({ deck, pro, compact }: { deck: number; pro: boolean; compact
         <Ctl id={`deck.${L}.keylock`} label="Key lock" explain="Keeps the pitch steady when you change the tempo.">
           <Btn size="sm" active={keylock} onClick={() => setOn(`deck.${L}.keylock`, !keylock)} aria-label="Key lock">
             <Lock size={12} />
+            {!pro && !compact && <span>Key lock</span>}
           </Btn>
         </Ctl>
         <Ctl id={`deck.${L}.key_sync`} label="Match key" explain="Shifts this deck's key to fit the other deck, with key lock on.">
           <Btn size="sm" disabled={!loaded} onClick={() => tap(`deck.${L}.key_sync`)} aria-label="Match key">
             <KeyRound size={12} />
+            {!pro && !compact && <span>Match key</span>}
           </Btn>
         </Ctl>
         {pro && !compact && (
@@ -306,7 +308,7 @@ function Tempo({ deck, pro, compact }: { deck: number; pro: boolean; compact: bo
         <Ctl id={`deck.${L}.tempo`}>
           <Fader value={tempo} min={-1} max={1} def={0} orientation="horizontal" length={96} onChange={(v) => setValue(`deck.${L}.tempo`, v)} label="Tempo" />
         </Ctl>
-        <Btn size="sm" tone="ghost" className="!h-5 !px-1" disabled={!loaded || tempo === 0} onClick={() => setValue(`deck.${L}.tempo`, 0)} aria-label="Reset tempo">
+        <Btn size="sm" tone="ghost" className="!h-6 !px-1.5" disabled={!loaded || tempo === 0} onClick={() => setValue(`deck.${L}.tempo`, 0)} aria-label="Reset tempo">
           <RotateCcw size={11} />
         </Btn>
       </div>
@@ -317,7 +319,7 @@ function Tempo({ deck, pro, compact }: { deck: number; pro: boolean; compact: bo
       {pro && !compact && (
         <button
           type="button"
-          className="flex items-center font-mono text-[10px] text-zinc-400 hover:text-zinc-100"
+          className="flex items-center font-mono text-[11px] text-zinc-400 hover:text-zinc-100"
           title="Tempo range"
           onClick={() => choose(`deck.${L}.tempo_range`, (rangeIndex + 1) % TEMPO_RANGES.length)}
         >
@@ -343,7 +345,7 @@ function Tempo({ deck, pro, compact }: { deck: number; pro: boolean; compact: bo
         </Ctl>
       )}
       <Ctl id={`deck.${L}.tempo_reset`} label="Reset tempo" explain="Back to the track's original tempo.">
-        <Btn size="sm" tone="ghost" className="!h-5 !px-1" disabled={!loaded || tempo === 0} onClick={() => (pro ? tap(`deck.${L}.tempo_reset`) : act(`deck.${L}.tempo`, { type: "value", value: 0 }))} aria-label="Reset tempo">
+        <Btn size="sm" tone="ghost" className="!h-6 !px-1.5" disabled={!loaded || tempo === 0} onClick={() => (pro ? tap(`deck.${L}.tempo_reset`) : act(`deck.${L}.tempo`, { type: "value", value: 0 }))} aria-label="Reset tempo">
           <RotateCcw size={11} />
         </Btn>
       </Ctl>

@@ -139,7 +139,7 @@ function Editor({ deck, info }: { deck: number; info: DeckInfo }) {
             <button className="rounded p-1 hover:bg-white/10" onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} title="Zoom out" aria-label="Zoom out">
               <Minus size={12} />
             </button>
-            <span className="w-8 text-center font-mono text-[10px]">{ZOOMS[zoom]}s</span>
+            <span className="w-8 text-center font-mono text-[11px]">{ZOOMS[zoom]}s</span>
             <button className="rounded p-1 hover:bg-white/10" onClick={() => setZoom((z) => Math.max(0, z - 1))} title="Zoom in" aria-label="Zoom in">
               <Plus size={12} />
             </button>
@@ -257,7 +257,7 @@ function Detail({ deck, d, seconds, sel, setSel }: { deck: number; d: TrackDetai
           g.fillStyle = phrase ? "rgba(244,63,94,0.95)" : isBar ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)";
           g.fillRect(bx - (phrase ? 1 : 0.5), 0, phrase ? 2 : 1, H - 14);
           if (isBar && k >= 0) {
-            g.font = "600 10px ui-sans-serif, system-ui";
+            g.font = "600 11px ui-sans-serif, system-ui";
             g.fillText(String(Math.floor(k / d.beatsPerBar) + 1), bx + 3, H - 3);
           }
         }
@@ -270,7 +270,7 @@ function Detail({ deck, d, seconds, sel, setSel }: { deck: number; d: TrackDetai
             g.fillStyle = col;
             g.fillRect(cx - 1, 0, 2, H - 14);
             const label = cu.role === "hot" ? `${(cu.slot ?? 0) + 1}${cu.label ? ` ${cu.label}` : ""}` : cu.label || "Marker";
-            g.font = "700 10px ui-sans-serif, system-ui";
+            g.font = "700 11px ui-sans-serif, system-ui";
             const w = g.measureText(label).width + 8;
             g.beginPath();
             g.roundRect(cx, 0, w, 14, 3);
@@ -505,7 +505,7 @@ function HotRow({ deck, slot, cue, at }: { deck: number; slot: number; cue: CueD
   return (
     <div className={clsx("flex items-center gap-1.5 rounded-md px-1.5 py-0.5", cue ? "bg-white/[0.03]" : "opacity-70")}>
       <button
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-zinc-950"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold text-zinc-950"
         style={{ background: hex(color) }}
         title={cue ? "Change colour" : `Hot cue ${slot + 1}`}
         onClick={() => cue && save({ color: HOT_CUE_COLORS[(HOT_CUE_COLORS.indexOf(color) + 1) % HOT_CUE_COLORS.length] })}
