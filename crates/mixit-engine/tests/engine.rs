@@ -224,6 +224,60 @@ fn sync_matches_tempo_and_phase() {
 }
 
 #[test]
+fn sync_on_the_incoming_deck_follows_the_one_playing() {
+    // The usual way: A plays without Sync, B is cued up, and Sync is pressed on B only.
+    // B must come to A's tempo and beat, not take the lead itself.
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(B, DeckCommand::Load(ramp_track(60.0, 126.0)));
+    r.deck(A, DeckCommand::Play);
+    r.run(30_000);
+    r.deck(B, DeckCommand::Sync(true));
+    r.run(256);
+    assert_eq!(r.tel().master_deck, Some(A));
+    // Started while synced, and synced while already playing: both land in time.
+    r.deck(B, DeckCommand::Play);
+    r.run(96_000);
+    let t = r.tel();
+    assert_eq!(t.master_deck, Some(A));
+    assert!((t.decks[0].bpm - 120.0).abs() < 0.2, "A moved to {} BPM", t.decks[0].bpm);
+    assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "B at {} BPM", t.decks[1].bpm);
+    let phase = (t.decks[0].beat - t.decks[1].beat).rem_euclid(1.0);
+    assert!(phase.min(1.0 - phase) < 0.01, "phase difference {phase} beats");
+
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(B, DeckCommand::Load(ramp_track(60.0, 126.0)));
+    r.deck(A, DeckCommand::Play);
+    r.deck(B, DeckCommand::Seek(7_000.0));
+    r.deck(B, DeckCommand::Play);
+    r.run(30_000);
+    r.deck(B, DeckCommand::Sync(true));
+    r.run(96_000);
+    let t = r.tel();
+    assert_eq!(t.master_deck, Some(A));
+    assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "B at {} BPM", t.decks[1].bpm);
+    let phase = (t.decks[0].beat - t.decks[1].beat).rem_euclid(1.0);
+    assert!(phase.min(1.0 - phase) < 0.01, "phase difference {phase} beats");
+    // When A stops, the lead passes to B, which keeps going at 120.
+    r.deck(A, DeckCommand::Pause);
+    r.run(48_000);
+    let t = r.tel();
+    assert_eq!(t.master_deck, Some(B));
+    assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "B jumped to {} BPM", t.decks[1].bpm);
+}
+
+#[test]
+fn sync_with_nothing_playing_leads_itself() {
+    let mut r = Rig::new();
+    r.deck(A, DeckCommand::Load(ramp_track(60.0, 120.0)));
+    r.deck(B, DeckCommand::Load(ramp_track(60.0, 126.0)));
+    r.deck(B, DeckCommand::Sync(true));
+    r.run(256);
+    assert_eq!(r.tel().master_deck, Some(B));
+}
+
+#[test]
 fn clock_follows_the_playing_deck_without_sync() {
     let mut r = Rig::new();
     r.deck(A, DeckCommand::Load(ramp_track(20.0, 124.0)));
