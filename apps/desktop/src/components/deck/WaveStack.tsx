@@ -56,7 +56,7 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
             g.fillRect(x - (phrase ? 1 : 0.5), 0, phrase ? 2 : 1, bar ? H : H * 0.18);
             if (!bar) g.fillRect(x - 0.5, H * 0.82, 1, H * 0.18);
             if (phrase) {
-              g.font = "600 9px ui-sans-serif, system-ui";
+              g.font = "600 11px ui-sans-serif, system-ui";
               g.fillText(`${Math.floor(k / d.beatsPerBar) + 1}`, x + 3, 10);
             }
           }
@@ -89,12 +89,12 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
               g.roundRect(x, 0, 14, 13, 3);
               g.fill();
               g.fillStyle = "#09090b";
-              g.font = "700 10px ui-sans-serif, system-ui";
+              g.font = "700 11px ui-sans-serif, system-ui";
               g.fillText(String((cu.slot ?? 0) + 1), x + 4, 10);
             } else if (cu.role === "mixIn" || cu.role === "mixOut") {
               g.fillStyle = cu.role === "mixIn" ? "#1abc9c" : "#e67e22";
               g.fillRect(x - 1, 0, 2, H);
-              g.font = "600 9px ui-sans-serif, system-ui";
+              g.font = "600 11px ui-sans-serif, system-ui";
               g.fillText(cu.role === "mixIn" ? "MIX IN" : "MIX OUT", x + 4, H - 4);
             }
           }
@@ -159,23 +159,23 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
 export function WaveStack({ decks }: { decks: number[] }) {
   const [zoom, setZoom] = useState(3);
   const seconds = ZOOMS[zoom];
-  const h = decks.length > 2 ? 44 : 76;
+  const h = decks.length > 2 ? 44 : 60;
   return (
     <div className="screen relative shrink-0 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950">
       {decks.map((d, i) => (
         <div key={d} className={clsx("relative", i > 0 && "border-t border-white/[0.06]")}>
-          <div className="pointer-events-none absolute left-2 top-1.5 z-10 rounded px-1.5 text-[10px] font-bold text-zinc-950" style={{ background: DECK_COLORS[d] }}>
+          <div className="pointer-events-none absolute left-2 top-1.5 z-10 rounded px-1.5 text-[11px] font-bold text-zinc-950" style={{ background: DECK_COLORS[d] }}>
             {String.fromCharCode(65 + d)}
           </div>
           <Lane deck={d} seconds={seconds} height={h} />
         </div>
       ))}
       <div className="absolute right-2 top-1.5 z-10 flex items-center gap-0.5 rounded-md bg-black/60 p-0.5 text-zinc-300 backdrop-blur">
-        <button className="rounded p-0.5 hover:bg-white/10" onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} title="Zoom out">
+        <button className="flex size-6 items-center justify-center rounded hover:bg-white/10" onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} title="Zoom out">
           <Minus size={12} />
         </button>
-        <span className="w-7 text-center font-mono text-[10px]">{seconds}s</span>
-        <button className="rounded p-0.5 hover:bg-white/10" onClick={() => setZoom((z) => Math.max(0, z - 1))} title="Zoom in">
+        <span className="w-7 text-center font-mono text-[11px]">{seconds}s</span>
+        <button className="flex size-6 items-center justify-center rounded hover:bg-white/10" onClick={() => setZoom((z) => Math.max(0, z - 1))} title="Zoom in">
           <Plus size={12} />
         </button>
       </div>

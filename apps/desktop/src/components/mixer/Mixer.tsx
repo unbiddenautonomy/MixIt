@@ -52,16 +52,20 @@ export function Mixer({ count }: { count: number }) {
   );
 }
 
+/** What the knob bubbles say. */
+const db = (v: number) => (Math.abs(v) < 0.05 ? "0 dB" : `${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} dB`);
+const eqReadout = (v: number) => (v <= -25.9 ? "Off" : db(v));
+const filterReadout = (v: number) => (Math.abs(v) < 0.005 ? "Off" : `${v < 0 ? "Cut highs" : "Cut lows"} ${Math.round(Math.abs(v) * 100)}%`);
 
 function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: boolean }) {
   const L = String.fromCharCode(65 + deck);
   const ch = useApp((s) => s.mixer.channels[deck]);
   const color = DECK_COLORS[deck];
-  const size = compact ? 26 : 30;
+  const size = compact ? 26 : 32;
   const band = (key: "high" | "mid" | "low", label: string, kill: 0 | 1 | 2) => (
     <div className="relative">
       <Ctl id={`mixer.${L}.eq.${key}`} side="left">
-        <Knob value={ch[key]} min={-26} max={6} def={0} bipolar size={size} color={color} killed={ch.kills[kill]} onChange={(v) => setValue(`mixer.${L}.eq.${key}`, v)} label={label} />
+        <Knob value={ch[key]} min={-26} max={6} def={0} bipolar size={size} color={color} killed={ch.kills[kill]} onChange={(v) => setValue(`mixer.${L}.eq.${key}`, v)} label={label} readout={eqReadout} />
       </Ctl>
       {pro && (
         <Ctl id={`mixer.${L}.eq.kill.${key}`} label={`Kill ${label.toLowerCase()}`} explain={`Removes the ${label.toLowerCase()} completely while on.`} className="absolute -left-1 top-0">
@@ -75,44 +79,53 @@ function Channel({ deck, pro, compact }: { deck: number; pro: boolean; compact: 
       )}
     </div>
   );
+  // The EQ sits in one column beside the fader, as on a hardware mixer, so the channel
+  // is short and the deck row beside it can be too. The fader runs the column's height.
+  const knobs = pro ? 5 : 4;
+  const unit = size + 17; // knob, gap and its 11 px label
+  const faderLen = knobs * unit + (knobs - 1) * 4 - 28 - 4 - 4 - 15;
   return (
-    <div style={{ ["--accent" as string]: color }} className="flex w-[86px] flex-col items-center gap-1.5 rounded-xl bg-black/20 px-1 py-1.5">
-      <div className="flex w-full items-center justify-between px-1">
-        <span className="text-[11px] font-black" style={{ color }}>
+    <div style={{ ["--accent" as string]: color }} className={clsx("flex flex-col gap-1.5 rounded-xl bg-black/20 px-1.5 py-1.5", compact ? "w-[92px]" : "w-[108px]")} data-testid={`channel-${L}`}>
+      <div className="flex h-6 w-full items-center justify-between px-0.5">
+        <span className="text-[13px] font-black" style={{ color }}>
           {L}
         </span>
-        <StudioButton strip={deck} />
-        <Ctl id={`mixer.${L}.cue`} side="top">
-          <button
-            type="button"
-            onClick={() => setOn(`mixer.${L}.cue`, !ch.cue)}
-            className={clsx("flex h-5 w-7 items-center justify-center rounded-md border transition-colors", ch.cue ? "border-transparent bg-amber-400 text-zinc-950" : "border-white/10 text-zinc-400 hover:text-zinc-100")}
-            aria-label="Headphone cue"
-          >
-            <Headphones size={11} />
-          </button>
-        </Ctl>
+        {pro && <StudioButton strip={deck} />}
       </div>
-      <div className="grid grid-cols-2 gap-x-1 gap-y-1">
-        {band("high", "High", 2)}
-        {pro ? (
-          <Ctl id={`mixer.${L}.trim`} side="right">
-            <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="var(--color-zinc-400)" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" />
+      <div className="flex items-start justify-between gap-1">
+        <div className="flex flex-col items-center gap-1">
+          {pro && (
+            <Ctl id={`mixer.${L}.trim`} side="left">
+              <Knob value={ch.trim} min={-12} max={12} def={0} bipolar size={size} color="var(--color-zinc-400)" onChange={(v) => setValue(`mixer.${L}.trim`, v)} label="Gain" readout={db} />
+            </Ctl>
+          )}
+          {band("high", "High", 2)}
+          {band("mid", "Mid", 1)}
+          {band("low", "Low", 0)}
+          <Ctl id={`mixer.${L}.filter`} side="left">
+            <Knob value={ch.filter} min={-1} max={1} def={0} bipolar size={size} color="#e879f9" onChange={(v) => setValue(`mixer.${L}.filter`, v)} label="Filter" readout={filterReadout} />
           </Ctl>
-        ) : (
-          <div />
-        )}
-        {band("mid", "Mid", 1)}
-        <Ctl id={`mixer.${L}.filter`} side="right">
-          <Knob value={ch.filter} min={-1} max={1} def={0} bipolar size={size} color="#e879f9" onChange={(v) => setValue(`mixer.${L}.filter`, v)} label="Filter" />
-        </Ctl>
-        {band("low", "Low", 0)}
-      </div>
-      <div className="flex items-end gap-1.5">
-        <Meter read={(t) => t.decks[deck]?.peak ?? [0, 0]} height={compact ? 84 : 104} width={4} />
-        <Ctl id={`mixer.${L}.fader`} side="left">
-          <Fader value={ch.fader} min={0} max={1} def={1} length={compact ? 84 : 104} color={color} onChange={(v) => setValue(`mixer.${L}.fader`, v)} label="Volume" />
-        </Ctl>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <Ctl id={`mixer.${L}.cue`} side="top">
+            <button
+              type="button"
+              onClick={() => setOn(`mixer.${L}.cue`, !ch.cue)}
+              className={clsx("flex h-7 w-11 items-center justify-center gap-1 rounded-md border text-[11px] font-medium transition-colors", ch.cue ? "border-transparent bg-amber-400 text-zinc-950" : "border-white/10 text-zinc-400 hover:text-zinc-100")}
+              aria-label="Headphone cue"
+              aria-pressed={ch.cue}
+            >
+              <Headphones size={12} />
+              {!pro && <span>Cue</span>}
+            </button>
+          </Ctl>
+          <div className="flex items-start gap-1">
+            <Meter read={(t) => t.decks[deck]?.peak ?? [0, 0]} height={faderLen} width={4} />
+            <Ctl id={`mixer.${L}.fader`} side="right">
+              <Fader value={ch.fader} min={0} max={1} def={1} length={faderLen} color={color} onChange={(v) => setValue(`mixer.${L}.fader`, v)} label="Volume" />
+            </Ctl>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -128,26 +141,30 @@ function MasterSection({ pro }: { pro: boolean }) {
   return (
     <div className="ml-1 flex w-[70px] flex-col items-center gap-1.5 rounded-xl border border-white/[0.05] bg-black/30 px-1 py-1.5">
       <div className="flex items-center gap-1">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Master</div>
-        <StudioButton strip={MASTER_STRIP} />
+        <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Master</div>
+        {pro && <StudioButton strip={MASTER_STRIP} />}
       </div>
       <Ctl id="mixer.master" side="right">
-        <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" />
+        <Knob value={master} min={-40} max={6} def={0} size={30} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.master", v)} label="Level" readout={db} />
       </Ctl>
       <div className="flex items-end gap-1">
         <Meter read={(t) => t.master.peak} height={pro ? 70 : 96} width={5} />
       </div>
-      <Ctl label="Loudness" explain="How loud the whole mix is right now (in LUFS). Clubs and streaming sit around −14 to −8; louder only squashes the sound. The orange number is how much MixIt is turning it down to stop distortion.">
+{pro ? (
+              <Ctl label="Loudness" explain="How loud the whole mix is right now (in LUFS). Clubs and streaming sit around −14 to −8; louder only squashes the sound. The orange number is how much MixIt is turning it down to stop distortion.">
         <div className="text-center font-mono leading-tight">
           <div className={clsx("text-[11px]", lufs > -6 ? "text-orange-400" : "text-zinc-200")}>{lufs <= -69 ? "–" : lufs}</div>
-          <div className="text-[9px] text-zinc-500">LUFS</div>
-          {gr < -0.3 && <div className={clsx("text-[9px]", gr < -4 ? "text-red-400" : "text-orange-400")}>{gr} GR</div>}
-          {clipped && <div className="text-[9px] font-bold text-red-500">CLIP</div>}
+          <div className="text-[11px] text-zinc-500">LUFS</div>
+          {gr < -0.3 && <div className={clsx("text-[11px]", gr < -4 ? "text-red-400" : "text-orange-400")}>{gr} GR</div>}
+          {clipped && <div className="text-[11px] font-bold text-red-500">CLIP</div>}
         </div>
       </Ctl>
+      ) : (
+        clipped && <div className="text-center font-mono text-[11px] font-bold text-red-500">CLIP</div>
+      )}
       <div className="mt-auto flex flex-col items-center gap-1 border-t border-white/[0.06] pt-1.5">
         <Ctl id="mixer.headphones" side="right">
-          <Knob value={phones} min={-40} max={6} def={-6} size={26} color="#fbbf24" onChange={(v) => setValue("mixer.headphones", v)} label="Phones" />
+          <Knob value={phones} min={-40} max={6} def={-6} size={26} color="#fbbf24" onChange={(v) => setValue("mixer.headphones", v)} label="Phones" readout={db} />
         </Ctl>
         {pro && (
           <Ctl id="mixer.cue_mix" side="right">
@@ -186,13 +203,13 @@ function Crossfader() {
   const x = useApp((s) => s.mixer.crossfader);
   return (
     <div className="flex items-center gap-2 px-1">
-      <span className="text-[10px] font-black" style={{ color: DECK_COLORS[0] }}>
+      <span className="text-[11px] font-black" style={{ color: DECK_COLORS[0] }}>
         A
       </span>
       <Ctl id="mixer.crossfader" className="flex-1">
         <Fader value={x} min={-1} max={1} def={0} orientation="horizontal" length={200} color="var(--color-zinc-100)" onChange={(v) => setValue("mixer.crossfader", v)} label="Crossfader" className="w-full" />
       </Ctl>
-      <span className="text-[10px] font-black" style={{ color: DECK_COLORS[1] }}>
+      <span className="text-[11px] font-black" style={{ color: DECK_COLORS[1] }}>
         B
       </span>
     </div>
@@ -294,7 +311,7 @@ function MixerOptions({ count }: { count: number }) {
   const m = useApp((s) => s.mixer);
   const row = (label: string, explain: string, children: React.ReactNode) => (
     <div className="flex flex-col gap-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
       {children}
       <div className="text-[11px] leading-snug text-zinc-500">{explain}</div>
     </div>

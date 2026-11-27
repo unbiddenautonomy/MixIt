@@ -164,39 +164,41 @@ pub const FX_TYPES: [&str; 18] = [
     "Dub echo",
 ];
 
-/// Shortcuts for the first two decks (see Product and UX in the plan).
+/// Shortcuts for the first two decks: deck A under the left hand, deck B under the right,
+/// mirrored so each finger does the same job on both (little finger Cue, ring Play, middle
+/// Sync, index tempo leader; loop keys with Loop in the middle, halve left and double right).
 fn deck_shortcuts(d: usize) -> [Option<&'static str>; 13] {
     match d {
         // play, cue, sync, hc1..4, loop, halve, double, nudge-, nudge+, sync-master
         0 => [
-            Some("Z"),
             Some("X"),
+            Some("Z"),
             Some("C"),
             Some("1"),
             Some("2"),
             Some("3"),
             Some("4"),
-            Some("Q"),
             Some("W"),
+            Some("Q"),
             Some("E"),
             Some("A"),
             Some("S"),
-            None,
+            Some("V"),
         ],
         1 => [
-            Some("M"),
-            Some(","),
             Some("."),
+            Some("/"),
+            Some(","),
             Some("7"),
             Some("8"),
             Some("9"),
             Some("0"),
-            Some("U"),
             Some("I"),
+            Some("U"),
             Some("O"),
             Some("J"),
             Some("K"),
-            None,
+            Some("M"),
         ],
         _ => [None; 13],
     }
@@ -1596,6 +1598,36 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         "Gives the tools panel the whole screen under the waveforms, or puts it back beside the library.",
         true,
         Some("Mod+Shift+F"),
+        None,
+    );
+    b.add(
+        "app.layout_edit",
+        "Edit layout",
+        ag,
+        ActionKind::Toggle,
+        "Lets you move parts of the screen by dragging their names: onto an edge to put one beside another, onto the middle to make it a tab. Press again (or Esc) when you're done.",
+        true,
+        Some("Mod+Shift+L"),
+        None,
+    );
+    b.add(
+        "app.layout_standard",
+        "Standard layout",
+        ag,
+        ActionKind::Trigger,
+        "Puts every part of the screen back where MixIt first had it, for the screens you have now. You can undo it.",
+        false,
+        None,
+        None,
+    );
+    b.add(
+        "app.controller",
+        "Playing with a DJ controller",
+        ag,
+        ActionKind::Toggle,
+        "Tells MixIt a DJ controller is plugged in, so the parts it has knobs for (the mixer) fold away to make room. Turn it off when you unplug it.",
+        true,
+        None,
         None,
     );
     b.add(

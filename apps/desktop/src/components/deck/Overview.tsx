@@ -7,12 +7,14 @@ import { livePosition, useTelemetry } from "../../store/telemetry";
 import { hex } from "../../lib/format";
 import { drawWave, pyramid, SECTION_COLORS, setupCanvas } from "../../lib/waveform";
 import { useWaveform } from "./useWaveform";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 export function Overview({ deck, height = 46 }: { deck: number; height?: number }) {
   const info = useApp((s) => s.decks[deck]);
   const wave = useWaveform(info?.detail.track.id);
   const ref = useRef<HTMLCanvasElement>(null);
   const bg = useRef<HTMLCanvasElement | null>(null);
+  const ratio = useDevicePixelRatio();
 
   // Static layer: waveform and sections, redrawn when the track or size changes.
   useEffect(() => {
@@ -45,7 +47,7 @@ export function Overview({ deck, height = 46 }: { deck: number; height?: number 
     const ro = new ResizeObserver(paint);
     ro.observe(c);
     return () => ro.disconnect();
-  }, [info, wave]);
+  }, [info, wave, ratio]);
 
   useEffect(() => {
     let raf = 0;

@@ -13,6 +13,9 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
 
+// Easy tucks some parts away (At a glance, the set clock, A/B); steps about them switch to Pro.
+const view = (page, mode) => page.evaluate((mode) => { const a = window.mixit.useApp.getState(); a.set({ settings: { ...a.settings, viewMode: mode } }); }, mode);
+
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
@@ -111,9 +114,11 @@ try {
   });
 
   await step("the collection overview draws", async () => {
+    await view(page, "pro");
     await page.click("text=At a glance");
     await page.waitForSelector("text=Your collection at a glance");
     expect((await page.locator("svg").count()) > 3, "no charts");
+    await view(page, "easy");
   });
 
   await step("Fix library checks missing files, duplicates and messy details", async () => {
@@ -241,6 +246,7 @@ try {
   });
 
   await step("the set clock counts down an hour", async () => {
+    await view(page, "pro");
     await page.click('[data-testid="set-clock"]');
     await page.click('[data-testid="set-length-60"]');
     await page.waitForSelector('[data-testid="set-clock"]:has-text("left")', { timeout: 3000 });
@@ -250,13 +256,151 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("knobs follow a drag: south-west turns down, Esc puts it back, aim points, the ring grabs", async () => {
+    await page.click('button:has-text("Mix")');
+    const filter = () => page.evaluate(() => window.mixit.useApp.getState().mixer.channels[0].filter);
+    const setDrag = (mode) => page.evaluate((m) => { const a = window.mixit.useApp.getState(); a.set({ settings: { ...a.settings, knobDrag: m } }); }, mode);
+    const knob = page.locator('[role=slider][aria-label="Filter"]').first();
+    await knob.dblclick();
+    const b = await knob.boundingBox();
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height / 2;
+    const drag = async (x0, y0, dx, dy, steps = 10) => {
+      await page.mouse.move(x0, y0);
+      await page.mouse.down();
+      for (let i = 1; i <= steps; i++) await page.mouse.move(x0 + (dx * i) / steps, y0 + (dy * i) / steps);
+    };
+    // Up and down (the default): a pull south-west turns it down, even far off the knob.
+    await setDrag("linear");
+    await drag(cx, cy, -30, 30);
+    expect((await filter()) < -0.5, `south-west left the filter at ${await filter()}`);
+    expect(await page.locator('[role=status]:has-text("Filter")').count(), "no value bubble while dragging");
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    expect((await filter()) === 0, `Esc left the filter at ${await filter()}`);
+    await drag(cx, cy, 200, -200, 20);
+    await page.mouse.up();
+    expect((await filter()) === 1, `a long pull north-east stopped at ${await filter()}`);
+    await knob.dblclick();
+    expect((await filter()) === 0, "double-click did not reset");
+    // Aim: the knob points where you pull.
+    await setDrag("aim");
+    await drag(cx, cy, -40, 40);
+    expect((await filter()) === -1, `aiming south-west gave ${await filter()}`);
+    await page.mouse.move(cx + 40, cy);
+    await page.mouse.up();
+    expect(Math.abs((await filter()) - 2 / 3) < 0.02, `aiming east gave ${await filter()}`);
+    // The ring: a press just outside the drawing grabs the knob.
+    await setDrag("linear");
+    await knob.dblclick();
+    await drag(cx + b.width / 2 + 5, cy, 0, -30, 5);
+    await page.mouse.up();
+    expect((await filter()) > 0.2, `the ring did not grab: ${await filter()}`);
+    await knob.dblclick();
+  });
+
   await step("settings open, with fader start under Mixing", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ settingsOpen: true }));
     await page.waitForSelector('[role="dialog"] >> text=Settings', { timeout: 5000 });
     await page.click('[role="tab"]:has-text("Mixing")');
     await page.waitForSelector("text=Fader start", { timeout: 5000 });
+    await page.waitForSelector("text=Knob drag", { timeout: 5000 });
     await page.keyboard.press("Escape");
   });
+
+  await step("the new layout draws the Mix screen from parts, folds and opens them, and goes back", async () => {
+    const setLayout = (on) => page.evaluate((on) => {
+      const s = window.mixit.useApp.getState();
+      s.set({ settings: { ...s.settings, layoutEngine: on } });
+    }, on);
+    await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix" }));
+    await setLayout(true);
+    try {
+      await layoutChecks();
+    } finally {
+      // Whatever happened, the steps after this one expect the layout people have today.
+      await setLayout(false);
+    }
+    await page.waitForSelector('[data-testid="tool-panel"]', { timeout: 5000 });
+    expect(!(await page.$('[data-testid="layout"]')), "the new layout is still showing");
+  });
+
+  async function layoutChecks() {
+    for (const u of ["waves", "deck.A", "deck.B", "mixer", "library", "sidebar", "details"]) await page.waitForSelector(`[data-slot="${u}"]`, { timeout: 5000 });
+    const width = (sel) => page.$eval(sel, (e) => e.getBoundingClientRect().width);
+    const before = await width('[data-slot="deck.A"]');
+    // Fold the mixer: it becomes a bar and the decks take its room.
+    await page.click('button[aria-label="Fold Mixer"]');
+    await page.waitForSelector('[data-folded="mixer"]', { timeout: 3000 });
+    expect(!(await page.$('[data-slot="mixer"]')), "the folded mixer is still drawn");
+    const wider = await width('[data-slot="deck.A"]');
+    expect(wider > before + 100, `deck A did not grow when the mixer folded (${before} → ${wider})`);
+    // Open it again from its bar.
+    await page.click('[data-folded="mixer"]');
+    await page.waitForSelector('[data-slot="mixer"]', { timeout: 3000 });
+    // Drag the handle between the sidebar and the list: the sidebar gets wider, and stays so.
+    const side0 = await width('[data-slot="sidebar"]');
+    const handle = await page.$eval('[data-slot="sidebar"]', (e) => {
+      const sep = e.closest("section").parentElement.nextElementSibling;
+      const r = sep.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(handle.x, handle.y);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 40, handle.y, { steps: 4 });
+    await page.mouse.move(handle.x + 80, handle.y, { steps: 4 });
+    await page.mouse.up();
+    await sleep(200);
+    const side1 = await width('[data-slot="sidebar"]');
+    expect(side1 > side0 + 50, `the sidebar did not widen with the handle (${side0} → ${side1})`);
+    // Opening a tool (the Pads button, the palette, a shortcut) shows its part.
+    await page.evaluate(async () => (await import("/src/store/app.ts")).openTool("effects"));
+    await page.waitForSelector('[data-slot="tool.effects"]', { timeout: 3000 });
+    await page.evaluate(async () => (await import("/src/store/app.ts")).openTool("effects", true));
+    await page.waitForSelector('[data-folded="tool.effects"]', { timeout: 3000 });
+    await page.click('[data-folded="tool.effects"]');
+    // The layout is saved.
+    await sleep(700);
+    const saved = await page.evaluate(() => localStorage.getItem("mixit.demo.layouts"));
+    expect(saved && saved.includes('"mixer"'), "the layout was not saved");
+    // The Library page is drawn from the layout too.
+    await page.click('button:has-text("Library")');
+    await page.waitForSelector('[data-slot="library"]', { timeout: 3000 });
+    await page.click('button:has-text("Mix")');
+    await page.waitForSelector('[data-slot="mixer"]', { timeout: 3000 });
+    // Edit layout: drag the sidebar by its tab onto the right edge of the track list, then undo it.
+    const left = (sel) => page.$eval(sel, (e) => e.getBoundingClientRect().left);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "the sidebar did not start left of the list");
+    // Outside Edit layout a tab can't be dragged.
+    await page.click('button[aria-label^="Edit the layout"]');
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    const tab = await page.$eval('[data-drop="sidebar"] [role="tab"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    const dest = await page.$eval('[data-drop="library"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.right - 8, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(tab.x, tab.y);
+    await page.mouse.down();
+    await page.mouse.move(tab.x + 30, tab.y + 10, { steps: 3 });
+    await page.mouse.move(dest.x, dest.y, { steps: 8 });
+    await page.waitForSelector("text=/^Move .+ here$/", { timeout: 3000 });
+    await page.mouse.up();
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) > (await left('[data-slot="library"]')), "the sidebar did not move right of the list");
+    await page.keyboard.press("Control+z");
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "undo did not put the sidebar back");
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
+    // Its shortcut turns it on and off too.
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
+  }
 
   await step("the guide finds a topic", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ guideOpen: true }));
@@ -669,6 +813,7 @@ try {
   });
 
   await step("A/B plays the mix plain and back", async () => {
+    await view(page, "pro");
     await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix" }));
     await page.click('[data-testid="ab-bypass"]');
     await page.waitForFunction(() => window.mixit.useApp.getState().mixer.bypass === true, null, { timeout: 3000 });
@@ -694,6 +839,8 @@ try {
 
   await step("a deck splits its track into stems and switches the vocals off", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix", toolSize: "docked" }));
+    // The stems sit with the pads, on their own tab.
+    await page.click('[data-deck="A"] button:text-is("Stems")');
     await page.click('[data-testid="stems-split-A"]');
     await page.waitForSelector('[data-testid="stem-A-vocals"]', { timeout: 5000 });
     await page.click('[data-testid="stem-A-vocals"]');

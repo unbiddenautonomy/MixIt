@@ -11,6 +11,9 @@ import { useTelemetry } from "../store/telemetry";
 import { act, choose, setOn, setValue, tap } from "./actions";
 import { runCommand, toggleRecording, updateSettings } from "./appCommands";
 import type { AskContext, AskStep, Understood } from "./ask";
+import { bringHome, editLayout, foldPart, openInNewWindow, sendToOtherScreen, setController } from "./layoutCommands";
+import type { UnitId } from "./layout/model";
+import { UNITS } from "./layout/units";
 
 /** What Ask MixIt knows about the app right now. */
 export function askContext(): AskContext {
@@ -48,7 +51,23 @@ function runAppStep(id: string) {
   const [base, want] = id.split(":") as [string, "on" | "off" | undefined];
   const s = useApp.getState();
   const on = want !== "off";
+  const part = /^layout\.(screen|window|home|fold)\.(.+)$/.exec(base);
+  if (part) {
+    const unit = part[2] as UnitId;
+    if (!(unit in UNITS)) return;
+    if (part[1] === "screen") sendToOtherScreen(unit);
+    else if (part[1] === "window") openInNewWindow(unit);
+    else if (part[1] === "home") bringHome(unit);
+    else foldPart(unit, on);
+    return;
+  }
   switch (base) {
+    case "app.layout_edit":
+      editLayout(want ? on : undefined);
+      return;
+    case "app.controller":
+      setController(want ? on : undefined);
+      return;
     case "app.view.pro":
     case "app.view.easy":
       void updateSettings({ viewMode: base === "app.view.pro" ? "pro" : "easy" });

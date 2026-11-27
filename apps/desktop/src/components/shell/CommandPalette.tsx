@@ -26,6 +26,7 @@ import { understand } from "../../lib/ask";
 import { askContext, runAsk } from "../../lib/askRun";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
+import { keysIn } from "../../lib/platform";
 import { LABS } from "../../guide/labs";
 import { useGuide } from "../../guide/model";
 
@@ -203,7 +204,7 @@ export function CommandPalette() {
                       {asked.say}
                       {asked.ask.kind === "explain" && <span className="ml-2 text-[11px] text-zinc-500">{registry.find((a) => a.id === (asked.ask as { id: string }).id)?.explain}</span>}
                     </span>
-                    <kbd className="rounded border border-white/10 px-1.5 font-mono text-[10px] text-zinc-400">↵</kbd>
+                    <kbd className="rounded border border-white/10 px-1.5 font-mono text-[11px] text-zinc-400">↵</kbd>
                   </Command.Item>
                 </Command.Group>
               )}
@@ -219,7 +220,7 @@ export function CommandPalette() {
                         <span className="font-mono text-[11px] text-zinc-500">
                           {fmtBpm(t.bpm)} {keyLabel(t.key, notation)}
                         </span>
-                        <span className="rounded bg-white/[0.07] px-1.5 text-[10px] text-zinc-300">Load {l}</span>
+                        <span className="rounded bg-white/[0.07] px-1.5 text-[11px] text-zinc-300">Load {l}</span>
                       </Command.Item>
                     )),
                   )}
@@ -243,7 +244,7 @@ export function CommandPalette() {
                       <BookOpen size={13} className="text-zinc-500" />
                       <span className="min-w-0 flex-1 truncate">
                         {c.title}
-                        <span className="ml-2 text-[11px] text-zinc-500">{c.summary}</span>
+                        <span className="ml-2 text-[11px] text-zinc-500">{keysIn(c.summary)}</span>
                       </span>
                     </Command.Item>
                   ))}
@@ -274,7 +275,7 @@ export function CommandPalette() {
                               {a.label}
                               <span className="ml-2 text-[11px] text-zinc-500">{a.explain}</span>
                             </span>
-                            {a.shortcut && <kbd className="rounded border border-white/10 px-1.5 font-mono text-[10px] text-zinc-400">{shortcutLabel(a.shortcut)}</kbd>}
+                            {a.shortcut && <kbd className="rounded border border-white/10 px-1.5 font-mono text-[11px] text-zinc-400">{shortcutLabel(a.shortcut)}</kbd>}
                           </Command.Item>,
                         ],
                   )}

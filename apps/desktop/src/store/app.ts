@@ -190,8 +190,12 @@ function savedTool<T extends string>(key: string, allowed: readonly T[], fallbac
   }
 }
 
+/** Set by the new layout while it is on: it opens tools as parts of the layout instead of the tools panel. */
+export const toolHooks: { open?: (tab: ToolTab, toggle: boolean) => boolean } = {};
+
 /** Opens the tools panel on a tab (pressing the open tab again tucks the panel away when `toggle`). */
 export function openTool(tab: ToolTab, toggle = false) {
+  if (toolHooks.open?.(tab, toggle)) return;
   const s = useApp.getState();
   const showing = s.workspace === "mix" && s.toolSize !== "closed" && s.toolTab === tab;
   setTools({ toolTab: tab, toolSize: toggle && showing ? "closed" : s.toolSize === "closed" ? "docked" : s.toolSize });

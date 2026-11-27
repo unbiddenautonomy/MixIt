@@ -139,18 +139,30 @@ export function ToolPanel({ detached = false, wide = false }: { detached?: boole
         )}
       </div>
       <div className={clsx("flex min-h-0 flex-1 flex-col", full && "mx-auto w-full max-w-5xl")}>
-        {tab === "pads" && <SamplerTab />}
-        {tab === "steps" && <SamplerTab steps />}
-        {tab === "effects" && <EffectsTab />}
-        {tab === "inputs" && (
-          <div className="min-h-0 flex-1 overflow-y-auto" style={{ ["--accent" as string]: "#f472b6" }}>
-            <MicPanel />
-          </div>
-        )}
-        {tab === "recording" && <RecordingTab />}
+        <ToolBody tab={tab} />
       </div>
     </section>
   );
+}
+
+/** One tool on its own, for the layout to place as a part. */
+export function ToolBody({ tab }: { tab: ToolTab }) {
+  switch (tab) {
+    case "pads":
+      return <SamplerTab />;
+    case "steps":
+      return <SamplerTab steps />;
+    case "effects":
+      return <EffectsTab />;
+    case "inputs":
+      return (
+        <div className="min-h-0 flex-1 overflow-y-auto" style={{ ["--accent" as string]: "#f472b6" }}>
+          <MicPanel />
+        </div>
+      );
+    case "recording":
+      return <RecordingTab />;
+  }
 }
 
 /** Recording: start and stop (also in the top bar), where it goes, and what comes with it. */
@@ -174,7 +186,7 @@ export function RecordingTab() {
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Where it goes</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Where it goes</div>
         {desktop ? <span className="break-all font-mono text-[11px] text-zinc-300">{dir || "Your Music folder"}</span> : <span>Your browser's downloads, as a WAV file.</span>}
       </div>
       <label className="flex items-start gap-2">
@@ -184,7 +196,7 @@ export function RecordingTab() {
         </span>
       </label>
       <div className="flex flex-col gap-1">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">What comes with it</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">What comes with it</div>
         <span>The tracklist, saved beside the recording as a CUE sheet and a text list.</span>
         <span>Every move you make, so you can open the mix in Arrange and fix a transition.</span>
         <span>Feedback on how the mix went, once you stop.</span>

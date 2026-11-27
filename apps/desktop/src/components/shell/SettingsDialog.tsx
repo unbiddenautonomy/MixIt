@@ -17,6 +17,9 @@ import { updateSettings } from "../../lib/appCommands";
 import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
 import { addMusicFolder } from "../library/Library";
+import { KNOB_DRAG_MODES } from "../../lib/knobDrag";
+import { COACH_MODES, coachMode, coachSettings } from "./Coach";
+import { setController, standardLayout } from "../../lib/layoutCommands";
 import { TEMPO_RANGES, TEMPO_RANGE_LABELS } from "../deck/Deck";
 
 const BUFFERS = [64, 128, 256, 512, 1024, 2048];
@@ -170,6 +173,9 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Tempo range" hint="How far the tempo slider goes. ±8% is the club standard; wider ranges are for mixing different genres.">
         <Segmented value={s.tempoRange} onChange={(v) => updateSettings({ tempoRange: v })} options={TEMPO_RANGES.map((r, i) => ({ value: r, label: TEMPO_RANGE_LABELS[i] }))} />
       </Field>
+      <Field label="Knob drag" hint={`How a knob follows your mouse or trackpad. ${KNOB_DRAG_MODES.map((m) => `${m.label}: ${m.hint}`).join(" ")} In every way, hold Shift for fine control, double-click to reset, and press Esc mid-drag to put it back.`}>
+        <Segmented value={s.knobDrag ?? "linear"} onChange={(v) => updateSettings({ knobDrag: v })} options={KNOB_DRAG_MODES.map((m) => ({ value: m.value, label: m.label }))} />
+      </Field>
       <Field label="Recording" hint="Recordings go to your Music folder as WAV.">
         <Toggle on={s.recordFloat} onChange={(v) => updateSettings({ recordFloat: v })} label="32-bit float (no clipping, larger files)" />
       </Field>
@@ -216,8 +222,8 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
         <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
       </Field>
-      <Field label="Coach">
-        <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
+      <Field label="Coach" hint="Tips while you mix wait behind the lightbulb at the top. Pop up opens a new one by itself.">
+        <Segmented value={coachMode(s)} onChange={(v) => updateSettings(coachSettings(v))} options={COACH_MODES} />
       </Field>
     </div>
   );
@@ -309,6 +315,19 @@ function Display({ s }: { s: Settings }) {
       <Field label="Explain mode">
         <Toggle on={s.explain} onChange={(v) => updateSettings({ explain: v })} label="Show explanations in every tooltip" />
       </Field>
+      <Field label="New layout (preview)" hint="Try the new screen layout while it is being built: every part can fold away with its arrow and share space with a drag. Turn it off to go straight back to the layout you have now, which is kept as it was.">
+        <Toggle on={!!s.layoutEngine} onChange={(v) => updateSettings({ layoutEngine: v })} label="Use the new layout" />
+        {s.layoutEngine && (
+          <button type="button" className="mt-2 text-xs text-zinc-400 underline-offset-2 hover:text-zinc-100 hover:underline" onClick={() => standardLayout()}>
+            Back to the standard layout
+          </button>
+        )}
+      </Field>
+      {s.layoutEngine && (
+        <Field label="DJ controller" hint="Turn this on while a DJ controller is plugged in. The parts it has knobs for (the mixer) fold away to make room, and come back when you turn it off. What you fold is remembered apart for each. MixIt can't tell by itself yet.">
+          <Toggle on={!!s.controllerConnected} onChange={(v) => setController(v)} label="I'm playing with a DJ controller" />
+        </Field>
+      )}
     </div>
   );
 }
@@ -423,7 +442,7 @@ function Shortcuts() {
       {note && <div className="rounded-md bg-sky-400/10 px-2 py-1 text-[12px] text-sky-200">{note}</div>}
       {groups.map((g) => (
         <div key={g}>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
             {rows
               .filter((a) => a.group === g)

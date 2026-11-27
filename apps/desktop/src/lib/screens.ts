@@ -12,6 +12,9 @@
 // made-up screens; `useScreens` and the functions after it apply them to real windows.
 import { create } from "zustand";
 import { backend } from "../backend";
+import { useApp } from "../store/app";
+
+const newLayoutOn = () => !!useApp.getState().settings?.layoutEngine;
 import type { Screen } from "../backend/types";
 
 export type { Screen };
@@ -100,6 +103,28 @@ export const thisPart: Part | null = (() => {
   }
 })();
 
+/** The new layout's window this is ("w2"...), when it is one (`?win=`). */
+export const thisWin: string | null = (() => {
+  try {
+    const w = new URLSearchParams(window.location.search).get("win");
+    return w && /^w\d{1,3}$/.test(w) ? w : null;
+  } catch {
+    return null;
+  }
+})();
+
+/** The main window: it alone pushes engine state, records, shows app-wide notes and changes the layout. */
+export const isMainWindow = thisPart === null && thisWin === null;
+
+/**
+ * The screens as the layout sees them: by the system's own names. The backend adds " at x,y"
+ * to tell identical monitors apart, which would change a screen's name whenever the screens
+ * are rearranged; the layout tells them apart by order instead (`ScreenRef.nth`).
+ */
+export function layoutScreens(screens: Screen[] = useScreens.getState().screens): Screen[] {
+  return screens.map((s) => ({ ...s, name: s.name.replace(/ at -?\d+,-?\d+$/, "") }));
+}
+
 interface ScreensState {
   /** Windows can be opened (the desktop app). */
   supported: boolean;
@@ -153,6 +178,11 @@ export async function refreshScreens(first = false) {
   const b = backend();
   if (!b.screens) return;
   const { screens, main } = await b.screens();
+  if (thisWin) {
+    // A layout window only lists the screens; the main window places every window.
+    useScreens.setState({ supported: true, screens, main: null, placement: {} });
+    return;
+  }
   if (thisPart) {
     // A part window only lists the screens for its menu; `main` is the screen it is on.
     useScreens.setState({ supported: true, screens, main: null, placement: main ? { [thisPart]: main } : {} });
@@ -164,8 +194,10 @@ export async function refreshScreens(first = false) {
   if (!changed && !first) return;
   const { keep, back } = reconcile(before.placement, screens, main);
   for (const p of back) await b.closePart?.(p);
-  // A set of screens seen before gets its layout back.
-  const want = { ...keep, ...layoutFor(loadLayouts(), screens, main) };
+  // A set of screens seen before gets its layout back. The new layout (a preview) has one
+  // window for now, so while it is on every part stays in the main window; the placement
+  // saved for these screens is left alone and comes back when it is turned off.
+  const want = newLayoutOn() ? {} : { ...keep, ...layoutFor(loadLayouts(), screens, main) };
   useScreens.setState({ placement: want });
   for (const p of PARTS) {
     const on = want[p];
@@ -180,7 +212,7 @@ export function watchScreens(): () => void {
   const b = backend();
   if (!b.screens) return () => undefined;
   void refreshScreens(true).catch(() => undefined);
-  if (thisPart) {
+  if (!isMainWindow) {
     const t = window.setInterval(() => void refreshScreens().catch(() => undefined), 5000);
     return () => window.clearInterval(t);
   }

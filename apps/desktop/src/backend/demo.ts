@@ -242,6 +242,8 @@ const LOOP_SIZES = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32];
 const JUMP_SIZES = [1, 2, 4, 8, 16, 32];
 const RANGES = [0.06, 0.08, 0.1, 0.16, 0.5, 1];
 
+const DEMO_LAYOUTS = "mixit.demo.layouts";
+
 export class DemoBackend implements Backend {
   readonly kind: Backend["kind"] = "demo";
   protected tracks: DemoTrack[] = [];
@@ -267,6 +269,7 @@ export class DemoBackend implements Backend {
     decks: 2,
     explain: false,
     coach: true,
+    coachPopup: false,
     recordFloat: false,
     autoGain: true,
     limiter: true,
@@ -276,6 +279,9 @@ export class DemoBackend implements Backend {
     micChannel: 0,
     micStereo: false,
     faderStart: false,
+    knobDrag: "linear",
+    layoutEngine: false,
+    controllerConnected: false,
     safetyLoop: true,
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
@@ -1721,6 +1727,21 @@ export class DemoBackend implements Backend {
     this.settings = s;
     return s;
   }
+  // The browser has no library file, so layouts stay in this browser's storage.
+  async layoutsLoad(): Promise<string | null> {
+    try {
+      return localStorage.getItem(DEMO_LAYOUTS);
+    } catch {
+      return null;
+    }
+  }
+  async layoutsSave(text: string) {
+    try {
+      localStorage.setItem(DEMO_LAYOUTS, text);
+    } catch {
+      throw new Error("This browser wouldn't keep the layout (its storage is full or blocked).");
+    }
+  }
   async inputDevices(): Promise<T.DeviceInfo[]> {
     return [
       { id: "demo:mic", name: "Built-in microphone (simulated)", host: "Demo", max_channels: 2, sample_rates: [48000], default_sample_rate: 48000, buffer_range: null, is_default: true },
@@ -2450,8 +2471,8 @@ function demoRegistry(): T.ActionSpec[] {
     out.push({ id, label, group, kind, explain, easy, shortcut, glossary: null });
   const cont = (min: number, max: number, def: number): T.ActionKind => ({ type: "continuous", spec: { min, max, default: def, unit: "None", taper: "Linear", smoothing_ms: 10, step: 0 } });
   const keys = [
-    ["Z", "X", "C", "1", "2", "3", "4", "Q", "W", "E", "A", "S"],
-    ["M", ",", ".", "7", "8", "9", "0", "U", "I", "O", "J", "K"],
+    ["X", "Z", "C", "1", "2", "3", "4", "W", "Q", "E", "A", "S"],
+    [".", "/", ",", "7", "8", "9", "0", "I", "U", "O", "J", "K"],
   ];
   ["A", "B", "C", "D"].forEach((l, i) => {
     const g = `Deck ${l}`;
@@ -2538,6 +2559,9 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.sampler", "Sampler pads", "App", { type: "toggle" }, "Shows or hides the sampler pads in the tools panel under the decks.", "Mod+P");
   add("app.tools", "Tools panel", "App", { type: "toggle" }, "Shows or tucks away the tools panel under the decks: pads, step sequencer, effects, mic and recording.", "Mod+Shift+T");
   add("app.tools_full", "Tools full screen", "App", { type: "toggle" }, "Gives the tools panel the whole screen under the waveforms, or puts it back beside the library.", "Mod+Shift+F");
+  add("app.layout_edit", "Edit layout", "App", { type: "toggle" }, "Lets you move parts of the screen by dragging their names: onto an edge to put one beside another, onto the middle to make it a tab. Press again (or Esc) when you're done.", "Mod+Shift+L");
+  add("app.layout_standard", "Standard layout", "App", { type: "trigger" }, "Puts every part of the screen back where MixIt first had it, for the screens you have now. You can undo it.", null, false);
+  add("app.controller", "Playing with a DJ controller", "App", { type: "toggle" }, "Tells MixIt a DJ controller is plugged in, so the parts it has knobs for (the mixer) fold away to make room. Turn it off when you unplug it.", null);
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
   add("app.sequencer", "Step sequencer", "App", { type: "toggle" }, "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.", null);
   add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);

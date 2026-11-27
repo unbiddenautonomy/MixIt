@@ -50,6 +50,20 @@ export function keyLabel(shortcut: string | null | undefined, cfg: PlatformConfi
     .join(cfg.joiner);
 }
 
+/** The modifier written for prose: "⌘" on a Mac ("⌘-click"), "Ctrl" elsewhere ("Ctrl-click"). */
+export function modName(cfg: PlatformConfig = platform): string {
+  return cfg.keys.Mod;
+}
+
+/**
+ * Text with each shortcut in braces written for this system: "paste with {Mod+V}" reads
+ * "paste with ⌘V" on a Mac and "paste with Ctrl+V" elsewhere; "{Mod}-click" reads "⌘-click".
+ * Braces holding anything else are left alone.
+ */
+export function keysIn(text: string, cfg: PlatformConfig = platform): string {
+  return text.replace(/\{((?:Mod|Shift|Alt)(?:\+[^{}\s]+)*)\}/g, (_, k: string) => keyLabel(k, cfg));
+}
+
 /** The last part of a path, whichever separator the system uses. */
 export function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;

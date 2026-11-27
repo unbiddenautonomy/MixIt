@@ -4,6 +4,7 @@
 // step can be undone, or taken out later while keeping the ones after it.
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
+import { keyLabel } from "../../lib/platform";
 import {
   ArrowLeftToLine,
   ArrowRightToLine,
@@ -38,6 +39,7 @@ import { afterStep, clipboardLength, FADE_SHAPES, groupSteps, lengthAfter, type 
 import { LOUDNESS_TARGETS } from "../../lib/studio";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 // ------------------------------------------------------------------ state
 
@@ -336,9 +338,9 @@ function Body() {
             </Btn>
             <Sep />
             <Tool icon={<Crop size={12} />} label="Keep selection" hint="Keeps only the selected part" disabled={!selected} onClick={act.trim} />
-            <Tool icon={<Scissors size={12} />} label="Cut" hint="Removes the selection and keeps it for pasting (Ctrl+X)" disabled={!selected} onClick={act.cut} />
-            <Tool icon={<Copy size={12} />} label="Copy" hint="Keeps a copy of the selection for pasting (Ctrl+C)" disabled={!selected} onClick={act.copy} />
-            <Tool icon={<ClipboardPaste size={12} />} label="Paste" hint="Inserts what you cut or copied at the cursor (Ctrl+V)" disabled={clipboardLength(ops) <= 0} onClick={act.paste} />
+            <Tool icon={<Scissors size={12} />} label="Cut" hint={`Removes the selection and keeps it for pasting (${keyLabel("Mod+X")})`} disabled={!selected} onClick={act.cut} />
+            <Tool icon={<Copy size={12} />} label="Copy" hint={`Keeps a copy of the selection for pasting (${keyLabel("Mod+C")})`} disabled={!selected} onClick={act.copy} />
+            <Tool icon={<ClipboardPaste size={12} />} label="Paste" hint={`Inserts what you cut or copied at the cursor (${keyLabel("Mod+V")})`} disabled={clipboardLength(ops) <= 0} onClick={act.paste} />
             <Tool icon={<Trash2 size={12} />} label="Delete" hint="Removes the selection; the rest closes up (Delete)" disabled={!selected} onClick={act.delete} />
             <Tool icon={<VolumeX size={12} />} label="Silence" hint="Makes the selection silent, keeping the length" disabled={!selected} onClick={act.silence} />
             <Sep />
@@ -360,7 +362,7 @@ function Body() {
           </div>
           <Wave />
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
-            <span>Drag to select · click to place the cursor · Shift+click to extend · Ctrl+scroll to zoom</span>
+            <span>Drag to select · click to place the cursor · Shift+click to extend · {keyLabel("Mod")}+scroll to zoom</span>
             {view && (
               <span className="ml-auto font-mono text-zinc-400">
                 {view.seconds.toFixed(2)} s · peak {view.peakDb <= -98 ? "–" : `${view.peakDb.toFixed(1)} dB`} · {view.lufs <= -98 ? "too short to measure loudness" : `${view.lufs.toFixed(1)} LUFS`}
@@ -370,11 +372,11 @@ function Body() {
         </div>
         <aside className="flex w-64 shrink-0 flex-col gap-3">
           <div className="flex items-center gap-1">
-            <div className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Steps</div>
-            <Btn size="sm" tone="ghost" disabled={!steps.length} onClick={undo} aria-label="Undo" title="Undo (Ctrl+Z)">
+            <div className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Steps</div>
+            <Btn size="sm" tone="ghost" disabled={!steps.length} onClick={undo} aria-label="Undo" title={`Undo (${keyLabel("Mod+Z")})`}>
               <Undo2 size={12} />
             </Btn>
-            <Btn size="sm" tone="ghost" disabled={!redoN} onClick={redo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+            <Btn size="sm" tone="ghost" disabled={!redoN} onClick={redo} aria-label="Redo" title={`Redo (${keyLabel("Mod+Shift+Z")})`}>
               <Redo2 size={12} />
             </Btn>
           </div>
@@ -552,7 +554,7 @@ function SaveSection() {
   };
   return (
     <div className="mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Save</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Save</div>
       <div className="flex items-center gap-1.5">
         <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" aria-label="Pad">
           {pads.map((p, i) => (
@@ -591,6 +593,7 @@ function Wave() {
   // Visible window (seconds); null shows everything.
   const [win, setWin] = useState<[number, number] | null>(null);
   const H = 220;
+  const ratio = useDevicePixelRatio();
   const len = view?.seconds ?? 1;
   const [v0, v1] = win ?? [0, len];
   const xOf = useCallback((t: number) => ((t - v0) / Math.max(1e-6, v1 - v0)) * width, [v0, v1, width]);
@@ -620,7 +623,7 @@ function Wave() {
     // Time grid.
     const span = v1 - v0;
     const step = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60].find((s) => span / s <= 12) ?? 120;
-    g.font = "10px ui-sans-serif, system-ui";
+    g.font = "11px ui-sans-serif, system-ui";
     for (let t = Math.ceil(v0 / step) * step; t <= v1; t += step) {
       const x = xOf(t);
       g.fillStyle = "rgba(255,255,255,0.05)";
@@ -645,7 +648,7 @@ function Wave() {
       }
       if (hi > lo) g.fillRect(x, mid - hi * (mid - 6), 1, Math.max(1, (hi - lo) * (mid - 6)));
     }
-  }, [view, width, v0, v1, xOf, tOf, len]);
+  }, [view, width, v0, v1, xOf, tOf, len, ratio]);
 
   const drag = useRef<{ t0: number } | null>(null);
   const tAt = (e: React.PointerEvent | React.WheelEvent) => tOf(e.clientX - canvas.current!.getBoundingClientRect().left);
@@ -695,7 +698,7 @@ function Wave() {
       />
       {sel && sel.end > sel.start && (
         <div className="pointer-events-none absolute top-0 rounded bg-sky-400/20 ring-1 ring-sky-300/50" style={{ left: xOf(sel.start), width: Math.max(1, xOf(sel.end) - xOf(sel.start)), height: H }}>
-          <span className="absolute bottom-1 left-1 rounded bg-zinc-950/80 px-1 font-mono text-[10px] text-sky-200">{(sel.end - sel.start).toFixed(2)} s</span>
+          <span className="absolute bottom-1 left-1 rounded bg-zinc-950/80 px-1 font-mono text-[11px] text-sky-200">{(sel.end - sel.start).toFixed(2)} s</span>
         </div>
       )}
       <div className="pointer-events-none absolute top-0 w-px bg-amber-300" style={{ left: xOf(cursor), height: H }} />

@@ -7352,6 +7352,30 @@
   },
   {
     "group": "App",
+    "id": "app.layout_edit",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Edit layout"
+  },
+  {
+    "group": "App",
+    "id": "app.layout_standard",
+    "kind": {
+      "type": "trigger"
+    },
+    "label": "Standard layout"
+  },
+  {
+    "group": "App",
+    "id": "app.controller",
+    "kind": {
+      "type": "toggle"
+    },
+    "label": "Playing with a DJ controller"
+  },
+  {
+    "group": "App",
     "id": "app.guide",
     "kind": {
       "type": "toggle"

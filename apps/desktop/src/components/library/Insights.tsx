@@ -82,12 +82,12 @@ export function InsightsView() {
             {data.mostPlayed.map((r, i) => (
               <li key={r.id}>
                 <button type="button" className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-[12px] hover:bg-white/[0.05]" onClick={() => open(`"${r.title}"`)}>
-                  <span className="w-4 text-right font-mono text-[10px] text-zinc-500">{i + 1}</span>
+                  <span className="w-4 text-right font-mono text-[11px] text-zinc-500">{i + 1}</span>
                   <span className="min-w-0 flex-1 truncate text-zinc-200">
                     {r.title}
                     {r.artist && <span className="text-zinc-500"> · {r.artist}</span>}
                   </span>
-                  <span className="font-mono text-[10px] text-zinc-400">{plural(r.playCount, "play")}</span>
+                  <span className="font-mono text-[11px] text-zinc-400">{plural(r.playCount, "play")}</span>
                 </button>
               </li>
             ))}
@@ -102,9 +102,9 @@ function Tile({ label, value, hint, tone, onClick }: { label: string; value: str
   const C = onClick ? "button" : "div";
   return (
     <C type={onClick ? "button" : undefined} onClick={onClick} className={clsx("flex flex-col rounded-xl border border-white/[0.06] bg-zinc-900/50 px-3 py-2 text-left", onClick && "hover:border-white/15")} data-testid="insight-tile">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
       <span className={clsx("text-xl font-semibold tabular-nums", tone === "warn" ? "text-amber-300" : "text-zinc-50")}>{value}</span>
-      {hint && <span className="text-[10px] text-zinc-500">{hint}</span>}
+      {hint && <span className="text-[11px] text-zinc-500">{hint}</span>}
     </C>
   );
 }
@@ -150,7 +150,7 @@ function Bars({ buckets, unit, every = 1 }: { buckets: Bucket[]; unit: string; e
       <div className="flex gap-[2px]">
         {buckets.map((b, i) => (
           <span key={`${b.label}-${i}`} className="relative h-3 min-w-0 flex-1">
-            {i % every === 0 && <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] text-zinc-500">{b.label}</span>}
+            {i % every === 0 && <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] text-zinc-500">{b.label}</span>}
           </span>
         ))}
       </div>
@@ -169,7 +169,7 @@ function Ranked({ buckets }: { buckets: Bucket[] }) {
             <span className="relative h-2.5 flex-1">
               <span className="absolute inset-y-0 left-0 rounded-r-[4px] bg-sky-500/70" style={{ width: `${(b.count / max) * 100}%` }} />
             </span>
-            <span className="w-10 text-right font-mono text-[10px] text-zinc-400">{b.count}</span>
+            <span className="w-10 text-right font-mono text-[11px] text-zinc-400">{b.count}</span>
           </button>
         </li>
       ))}

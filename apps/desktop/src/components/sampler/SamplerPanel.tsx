@@ -255,7 +255,7 @@ function PadButton({ pad }: { pad: number }) {
                     }
               }
             >
-              <div className="flex items-center justify-between gap-1 text-[9px] leading-none">
+              <div className="flex items-center justify-between gap-1 text-[11px] leading-none">
                 <span className="font-mono text-zinc-400">{key}</span>
                 {!empty && <Icon size={10} className="text-zinc-300" />}
               </div>
@@ -330,7 +330,7 @@ function PadEditor() {
         </div>
       )}
       {!empty && (
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500">
           <span>{p.seconds ? `${p.seconds.toFixed(p.seconds < 10 ? 2 : 1)} s` : "loading…"}</span>
           {p.bpm != null && <span>{p.bpm.toFixed(1)} BPM</span>}
           {pro && (
@@ -434,13 +434,13 @@ export function EffectsTab() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" aria-label="Effects">
       <div className="flex flex-col gap-1.5">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Whole mix</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Whole mix</div>
         <p className="text-[11px] leading-snug text-zinc-400">Effects on everything the audience hears, after the mixer. Try a reverb wash or an echo at the end of a set.</p>
         <FxUnit unit={MASTER_FX} stacked />
       </div>
       {Array.from({ length: count }, (_, d) => (
         <div key={d} className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Deck {DECK_LETTERS[d]}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Deck {DECK_LETTERS[d]}</div>
           <FxUnit unit={d} stacked />
         </div>
       ))}

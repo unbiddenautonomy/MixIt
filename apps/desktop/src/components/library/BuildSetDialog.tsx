@@ -238,7 +238,7 @@ function Builder({ req }: { req: Req }) {
               <ol className="max-h-56 overflow-y-auto text-xs">
                 {set.map((r, i) => (
                   <li key={r.id} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className={clsx("grid grid-cols-[22px_1fr_56px_40px_34px_42px] items-center gap-2 rounded px-1 py-1", hover === i && "bg-white/[0.05]")}>
-                    <span className="text-right font-mono text-[10px] text-zinc-600">{i + 1}</span>
+                    <span className="text-right font-mono text-[11px] text-zinc-600">{i + 1}</span>
                     <span className="min-w-0 truncate">
                       <span className="text-zinc-100">{r.title}</span>
                       <span className="text-zinc-500"> · {r.artist}</span>

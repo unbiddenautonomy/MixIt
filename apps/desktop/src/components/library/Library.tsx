@@ -40,15 +40,29 @@ export function Library({ full = false, movable = false }: { full?: boolean; mov
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-900/40">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Toolbar movable={movable} />
-        <SetFlow />
-        <HistoryBar />
-        {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : source.type === "insights" ? <InsightsView /> : <TrackTable />}
-        <PreviewBar />
-        <RehearsalBar />
-      </div>
+      <LibraryMain movable={movable} />
       {source.type !== "autodj" && source.type !== "care" && source.type !== "insights" && (full || source.type !== "suggest") && <Inspector />}
+    </div>
+  );
+}
+
+/**
+ * The library without its sidebar and track details: the search, the list and the bars
+ * under it. The layout places the sidebar and details as parts of their own.
+ */
+export function LibraryMain({ movable = false, standalone = false }: { movable?: boolean; standalone?: boolean }) {
+  const source = useLibrary((s) => s.source);
+  useEffect(() => {
+    if (standalone) refreshAll();
+  }, [standalone]);
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      <Toolbar movable={movable} />
+      <SetFlow />
+      <HistoryBar />
+      {source.type === "suggest" ? <Suggestions /> : source.type === "autodj" ? <AutoDjView /> : source.type === "care" ? <LibraryCare /> : source.type === "insights" ? <InsightsView /> : <TrackTable />}
+      <PreviewBar />
+      <RehearsalBar />
     </div>
   );
 }
@@ -88,7 +102,7 @@ function Toolbar({ movable }: { movable: boolean }) {
       </div>
       {/* Auto DJ shows its own queue count; the library row count there would read as the queue's. */}
       {source.type !== "care" && source.type !== "insights" && source.type !== "autodj" && (
-        <span className="font-mono text-[10px] text-zinc-500">
+        <span className="font-mono text-[11px] text-zinc-500">
           {rows}
           {selected > 1 && ` · ${selected} selected`}
         </span>
@@ -308,7 +322,7 @@ function QueryHelp() {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button type="button" className="absolute right-2 text-zinc-500 hover:text-zinc-200" aria-label="Search help">
+        <button type="button" className="absolute right-1 flex size-6 items-center justify-center text-zinc-500 hover:text-zinc-200" aria-label="Search help">
           <HelpCircle size={13} />
         </button>
       </Popover.Trigger>

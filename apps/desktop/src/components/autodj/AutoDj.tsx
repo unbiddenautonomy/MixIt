@@ -57,8 +57,8 @@ export function AutoDjView() {
           <section className={clsx("rounded-xl border border-white/[0.06] bg-black/20", drop.over && "ring-1 ring-sky-400")}>
             <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Queue</div>
-              <span className="font-mono text-[10px] text-zinc-500">{queue.length}</span>
-              <span className="font-mono text-[10px] text-zinc-500">{clock(queue.reduce((a, t) => a + t.duration, 0))}</span>
+              <span className="font-mono text-[11px] text-zinc-500">{queue.length}</span>
+              <span className="font-mono text-[11px] text-zinc-500">{clock(queue.reduce((a, t) => a + t.duration, 0))}</span>
               <FlowSummary />
               {queue.length > 1 && (
                 <button
@@ -190,7 +190,7 @@ function Controls() {
         <Popover.Trigger asChild>
           <Btn size="sm" tone="ghost" className="self-end" data-testid="autodj-options" title="Key fixing, short endings, tempo, and what happens when the queue runs out">
             <SlidersHorizontal size={12} /> Options
-            <span className="font-mono text-[10px] text-zinc-500">{[options.keyMatch, options.extend !== false, glide, keepGoing].filter(Boolean).length} on</span>
+            <span className="font-mono text-[11px] text-zinc-500">{[options.keyMatch, options.extend !== false, glide, keepGoing].filter(Boolean).length} on</span>
           </Btn>
         </Popover.Trigger>
         <Popover.Portal>
@@ -245,7 +245,7 @@ function Controls() {
 function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1" title={hint}>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
       {children}
     </div>
   );
@@ -267,7 +267,7 @@ function NowNext() {
   return (
     <section className="grid gap-3 sm:grid-cols-2">
       <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3" style={{ borderColor: current !== null ? `${DECK_COLORS[current]}55` : undefined }}>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Now playing{current !== null && ` · deck ${L(current)}`}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Now playing{current !== null && ` · deck ${L(current)}`}</div>
         {info ? (
           <>
             <div className="mt-1 truncate text-sm font-semibold text-zinc-100">{info.detail.track.title}</div>
@@ -285,7 +285,7 @@ function NowNext() {
         )}
       </div>
       <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3" style={{ borderColor: next ? `${DECK_COLORS[next.deck]}55` : undefined }}>
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
           Next{next && ` · deck ${L(next.deck)}`}
           {phase === "waiting" && wait !== null && <span className="ml-auto font-mono normal-case tracking-normal text-sky-300">mixing in {countdown(wait)}</span>}
           {phase === "mixing" && progress !== null && <span className="ml-auto font-mono normal-case tracking-normal text-sky-300">mixing {progress}%</span>}
@@ -332,7 +332,7 @@ function QueueRow({ t, i, last }: { t: TrackRow; i: number; last: boolean }) {
   const notation = useApp((s) => s.settings?.keyNotation ?? "camelot");
   return (
     <li className="group relative flex items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 text-xs last:border-b-0 hover:bg-white/[0.03]">
-      <span className="w-5 text-right font-mono text-[10px] text-zinc-500">{i + 1}</span>
+      <span className="w-5 text-right font-mono text-[11px] text-zinc-500">{i + 1}</span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-zinc-100">{t.title}</div>
         <div className="truncate text-[11px] text-zinc-500">{t.artist}</div>
@@ -371,7 +371,7 @@ function FlowSummary() {
   if (rows.length < 2) return null;
   const s = summary(flow(rows));
   return (
-    <span className="flex items-center gap-2 text-[10px] text-zinc-500" title="How easy each change of track is to mix" data-testid="queue-flow">
+    <span className="flex items-center gap-2 text-[11px] text-zinc-500" title="How easy each change of track is to mix" data-testid="queue-flow">
       {(["smooth", "ok", "rough"] as const).map((g) =>
         s[g] ? (
           <span key={g} className="flex items-center gap-1">
@@ -397,7 +397,7 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
   const queueLen = useAutoDj((s) => s.queue.length);
   const bridge = useMemo(() => (t.grade === "rough" ? bridgeChoices(i, 1)[0] : undefined), [a.id, b.id, t.grade, library, queueLen]);
   return (
-    <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[10px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-white/[0.04] bg-black/10 py-0.5 pl-9 pr-3 text-[11px] text-zinc-500" data-testid={`mix-link-${i}`} data-grade={t.grade}>
       <span className={clsx("size-1.5 shrink-0 rounded-full", g.dot)} />
       <span className="min-w-[8rem] flex-1 basis-0 truncate" title={why}>
         <span className="text-zinc-400">{g.label}</span>
@@ -419,7 +419,7 @@ function MixLink({ a, b, i }: { a: TrackRow; b: TrackRow; i: number }) {
         onChange={(e) => chooseTransition(a.id, b.id, (e.target.value || null) as TransitionId | null)}
         title="How Auto DJ mixes into this track. Auto lets it choose from the music; pick one to decide yourself. Hear this mix, Rehearse the set and Make a mix follow your choice."
         aria-label={`Transition into ${b.title}`}
-        className={clsx("h-5 shrink-0 rounded border border-white/10 bg-zinc-900 px-0.5 text-[10px] outline-none", chosen ? "text-sky-200" : "text-zinc-400")}
+        className={clsx("h-5 shrink-0 rounded border border-white/10 bg-zinc-900 px-0.5 text-[11px] outline-none", chosen ? "text-sky-200" : "text-zinc-400")}
         data-testid={`choose-mix-${i}`}
       >
         <option value="">Auto</option>
@@ -464,7 +464,7 @@ function Log() {
           {log.length === 0 && <li className="text-zinc-500">Start Auto DJ and each step appears here, newest first.</li>}
           {log.map((e) => (
             <li key={`${e.at}-${e.text}`} className="flex gap-2">
-              <span className="shrink-0 font-mono text-[10px] text-zinc-600">{new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+              <span className="shrink-0 font-mono text-[11px] text-zinc-600">{new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
               <span>{e.text}</span>
             </li>
           ))}

@@ -128,7 +128,7 @@ function Row({ pad, page, steps, perBeat, playing }: { pad: number; page: number
           e.preventDefault();
           clearPattern(pad);
         }}
-        className="flex w-[64px] shrink-0 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] text-zinc-300 hover:bg-white/[0.06]"
+        className="flex w-[64px] shrink-0 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] text-zinc-300 hover:bg-white/[0.06]"
       >
         <span className="size-2 shrink-0 rounded-full" style={{ background: empty ? "transparent" : color, border: empty ? "1px dashed #52525b" : undefined }} />
         <span className="truncate">{empty ? `Pad ${pad + 1}` : p.name}</span>
@@ -140,10 +140,10 @@ function Row({ pad, page, steps, perBeat, playing }: { pad: number; page: number
         })}
       </div>
       <div className="hidden w-[22px] shrink-0 flex-col group-hover:flex">
-        <button type="button" title="Move this row one step earlier" onClick={() => shiftRow(pad, -1)} className="h-[9px] text-[8px] leading-none text-zinc-500 hover:text-zinc-200">
+        <button type="button" title="Move this row one step earlier" onClick={() => shiftRow(pad, -1)} className="h-[9px] text-[11px] leading-none text-zinc-500 hover:text-zinc-200">
           ◀
         </button>
-        <button type="button" title="Move this row one step later" onClick={() => shiftRow(pad, 1)} className="h-[9px] text-[8px] leading-none text-zinc-500 hover:text-zinc-200">
+        <button type="button" title="Move this row one step later" onClick={() => shiftRow(pad, 1)} className="h-[9px] text-[11px] leading-none text-zinc-500 hover:text-zinc-200">
           ▶
         </button>
       </div>
@@ -200,7 +200,7 @@ export function Sequencer() {
         <Segmented value={stepBeats} onChange={setStepBeats} options={RATE_OPTIONS} />
         <div className="ml-auto flex items-center gap-1" title="Swing pushes every second square a little later, for a looser, bouncier groove">
           <Knob value={swing} min={0} max={0.5} def={0} size={22} onChange={setSwing} />
-          <span className="w-[30px] text-[10px] tabular-nums text-zinc-400">{Math.round(swing * 200)}%</span>
+          <span className="w-[30px] text-[11px] tabular-nums text-zinc-400">{Math.round(swing * 200)}%</span>
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -225,13 +225,13 @@ export function Sequencer() {
                 type="button"
                 onClick={() => setPage(i)}
                 title={`Show steps ${i * PAGE + 1} to ${Math.min(steps, (i + 1) * PAGE)}`}
-                className={clsx("relative h-6 w-5 rounded-md text-[10px] tabular-nums", i === page ? "bg-white/15 text-zinc-50" : "text-zinc-400 hover:text-zinc-200")}
+                className={clsx("relative h-6 w-5 rounded-md text-[11px] tabular-nums", i === page ? "bg-white/15 text-zinc-50" : "text-zinc-400 hover:text-zinc-200")}
               >
                 {i + 1}
                 {playing >= 0 && Math.floor(playing / PAGE) === i && <span className="absolute bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-[var(--accent)]" />}
               </button>
             ))}
-            <label className="ml-0.5 flex items-center gap-1 text-[10px] text-zinc-400" title="Turn the page with the playhead">
+            <label className="ml-0.5 flex items-center gap-1 text-[11px] text-zinc-400" title="Turn the page with the playhead">
               <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} className="accent-[var(--accent)]" />
               Follow
             </label>
@@ -245,11 +245,11 @@ export function Sequencer() {
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={4} className="menu max-w-[260px]">
-              <DropdownMenu.Label className="px-2 py-1 text-[10px] uppercase tracking-wide text-zinc-500">Start from a pattern</DropdownMenu.Label>
+              <DropdownMenu.Label className="px-2 py-1 text-[11px] uppercase tracking-wide text-zinc-500">Start from a pattern</DropdownMenu.Label>
               {PRESETS.map((p) => (
                 <DropdownMenu.Item key={p.id} className="menu-item flex-col items-start" onSelect={() => startPreset(p)}>
                   <span>{p.name}</span>
-                  <span className="text-[10px] leading-snug text-zinc-500">{p.help}</span>
+                  <span className="text-[11px] leading-snug text-zinc-500">{p.help}</span>
                 </DropdownMenu.Item>
               ))}
               <DropdownMenu.Separator className="my-1 h-px bg-white/10" />
@@ -282,7 +282,7 @@ export function Sequencer() {
               const s = page * PAGE + i;
               const beatStart = perBeat > 0 && i % perBeat === 0;
               return (
-                <span key={s} className={clsx("min-w-0 flex-1 text-center text-[8px] tabular-nums", beatStart && i > 0 && "ml-[3px]", s === playing ? "text-[var(--accent)]" : "text-zinc-600")}>
+                <span key={s} className={clsx("min-w-0 flex-1 text-center text-[11px] tabular-nums", beatStart && i > 0 && "ml-[3px]", s === playing ? "text-[var(--accent)]" : "text-zinc-600")}>
                   {beatStart ? Math.floor((s * stepBeats) % 4) + 1 : ""}
                 </span>
               );
