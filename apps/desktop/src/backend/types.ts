@@ -372,6 +372,8 @@ export interface Settings {
   knobDrag?: "linear" | "aim" | "turn";
   /** Draws the main window from the new layout (a preview while it is being built). */
   layoutEngine?: boolean;
+  /** A DJ controller is plugged in (said by the person; MixIt can't tell yet). The layout keeps its folds apart for each. */
+  controllerConnected?: boolean;
   /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
   faderStart?: boolean;
   /** Loops the end of the only track playing so the music never stops (on unless turned off). */

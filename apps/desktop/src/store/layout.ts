@@ -73,7 +73,7 @@ export function layoutEnv(): Env {
     sizes: { ...st.sizes, [ME]: st.size },
     mode: s?.viewMode === "pro" ? "pro" : "easy",
     decks: (s?.decks ?? 2) > 2 ? 4 : 2,
-    controller: false,
+    controller: !!s?.controllerConnected,
     browser: !multi,
   };
 }

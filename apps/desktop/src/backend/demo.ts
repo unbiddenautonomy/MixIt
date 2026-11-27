@@ -280,6 +280,7 @@ export class DemoBackend implements Backend {
     faderStart: false,
     knobDrag: "linear",
     layoutEngine: false,
+    controllerConnected: false,
     safetyLoop: true,
     nowPlayingFile: null,
     nowPlayingFormat: "{artist} - {title}",
@@ -2453,6 +2454,9 @@ function demoRegistry(): T.ActionSpec[] {
   add("app.sampler", "Sampler pads", "App", { type: "toggle" }, "Shows or hides the sampler pads in the tools panel under the decks.", "Mod+P");
   add("app.tools", "Tools panel", "App", { type: "toggle" }, "Shows or tucks away the tools panel under the decks: pads, step sequencer, effects, mic and recording.", "Mod+Shift+T");
   add("app.tools_full", "Tools full screen", "App", { type: "toggle" }, "Gives the tools panel the whole screen under the waveforms, or puts it back beside the library.", "Mod+Shift+F");
+  add("app.layout_edit", "Edit layout", "App", { type: "toggle" }, "Lets you move parts of the screen by dragging their names: onto an edge to put one beside another, onto the middle to make it a tab. Press again (or Esc) when you're done.", "Mod+Shift+L");
+  add("app.layout_standard", "Standard layout", "App", { type: "trigger" }, "Puts every part of the screen back where MixIt first had it, for the screens you have now. You can undo it.", null, false);
+  add("app.controller", "Playing with a DJ controller", "App", { type: "toggle" }, "Tells MixIt a DJ controller is plugged in, so the parts it has knobs for (the mixer) fold away to make room. Turn it off when you unplug it.", null);
   add("app.guide", "Guide and practice labs", "App", { type: "toggle" }, "Opens the built-in guide: what each part of DJing means, step-by-step practice labs, and fixes for common problems.", "Mod+G");
   add("app.sequencer", "Step sequencer", "App", { type: "toggle" }, "Plays the sampler pads in a looping pattern that follows the beat. Opens the sequencer and starts or stops it.", null);
   add("app.autodj", "Auto DJ", "App", { type: "toggle" }, "Mixes a queue of tracks for you, choosing where and how to mix each one, and explains every choice.", null);

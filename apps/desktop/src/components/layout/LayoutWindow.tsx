@@ -70,6 +70,7 @@ export function LayoutWindow() {
   // The settings these depend on, as primitives so the memo below holds.
   const decks = useApp((s) => s.settings?.decks ?? 2);
   const mode = useApp((s) => s.settings?.viewMode ?? "easy");
+  const controller = useApp((s) => !!s.settings?.controllerConnected);
   const area = useRef<HTMLDivElement>(null);
   const hosts = useRef(new Map<UnitId, HTMLDivElement>());
   // Not saved: a unit the person opened while the window was too small for it.
@@ -173,7 +174,7 @@ export function LayoutWindow() {
   }, []);
 
   // layoutEnv reads these same values from the stores; they are listed so the memo follows them.
-  const env = useMemo(() => layoutEnv(), [decks, mode, size.w, size.h]);
+  const env = useMemo(() => layoutEnv(), [decks, mode, controller, size.w, size.h]);
   const root = layout ? findWin(layout, win)?.pages[page] : undefined;
   const fit = useMemo(() => fitTree(root, size, env, hardMinFor(win), kept), [root, size, env, kept, win]);
   const need = useMemo(() => (root ? minSize(root, env, fit.autoFolded) : { w: 0, h: 0 }), [root, env, fit]);

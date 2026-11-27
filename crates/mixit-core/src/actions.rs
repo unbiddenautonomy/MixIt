@@ -1599,6 +1599,36 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
         None,
     );
     b.add(
+        "app.layout_edit",
+        "Edit layout",
+        ag,
+        ActionKind::Toggle,
+        "Lets you move parts of the screen by dragging their names: onto an edge to put one beside another, onto the middle to make it a tab. Press again (or Esc) when you're done.",
+        true,
+        Some("Mod+Shift+L"),
+        None,
+    );
+    b.add(
+        "app.layout_standard",
+        "Standard layout",
+        ag,
+        ActionKind::Trigger,
+        "Puts every part of the screen back where MixIt first had it, for the screens you have now. You can undo it.",
+        false,
+        None,
+        None,
+    );
+    b.add(
+        "app.controller",
+        "Playing with a DJ controller",
+        ag,
+        ActionKind::Toggle,
+        "Tells MixIt a DJ controller is plugged in, so the parts it has knobs for (the mixer) fold away to make room. Turn it off when you unplug it.",
+        true,
+        None,
+        None,
+    );
+    b.add(
         "app.guide",
         "Guide and practice labs",
         ag,

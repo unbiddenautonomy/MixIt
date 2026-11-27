@@ -107,6 +107,9 @@ pub struct Settings {
     /// Draws the main window from the new layout, a preview while it is being built.
     /// Only the UI reads it.
     pub layout_engine: bool,
+    /// A DJ controller is plugged in, as the person says (MixIt can't tell by itself yet).
+    /// The layout folds what the controller has and keeps its folds apart. Only the UI reads it.
+    pub controller_connected: bool,
     /// Loops the end of the only track playing so the music never stops.
     pub safety_loop: bool,
     /// A text file that gets the track now playing, for streaming software to show.
@@ -154,6 +157,7 @@ impl Default for Settings {
             fader_start: false,
             knob_drag: "linear".into(),
             layout_engine: false,
+            controller_connected: false,
             safety_loop: true,
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),

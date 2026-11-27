@@ -17,6 +17,7 @@ import type { Settings } from "../backend/types";
 import { openTool, setTools, useApp, type Workspace } from "../store/app";
 import { isMainWindow } from "./screens";
 import { runInMain } from "./windowSync";
+import { editLayout, setController, standardLayout } from "./layoutCommands";
 import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
@@ -173,6 +174,15 @@ export function runApp(id: string): boolean {
       return true;
     case "guide":
       s.set({ guideOpen: !s.guideOpen });
+      return true;
+    case "layout_edit":
+      editLayout();
+      return true;
+    case "layout_standard":
+      standardLayout();
+      return true;
+    case "controller":
+      setController();
       return true;
     case "autodj":
       if (useAutoDj.getState().phase === "off") {

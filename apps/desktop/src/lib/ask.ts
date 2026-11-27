@@ -921,8 +921,61 @@ const PANELS: [string, RegExp, string][] = [
   ["app.tools", /\btools? ?panel|tools\b/, "the tools panel"],
 ];
 
+// The parts of the screen, by the words people use for them (lib/layout/units.ts names them).
+const PARTS: [string, RegExp, string][] = [
+  ["sidebar", /\b(?:playlists?|collections?|crates|sidebar|side bar)\b/, "collections and playlists"],
+  ["details", /\b(?:track )?(?:details|info|information)\b/, "track details"],
+  ["autodj", /\bauto ?-?dj(?: queue)?\b/, "the Auto DJ queue"],
+  ["suggestions", /\bsuggestions?\b/, "suggestions"],
+  ["library", /\b(?:library|track ?list|my (?:music|tracks))\b/, "the library"],
+  ["waves", /\bwave ?forms?\b|\bwaves\b/, "the waveforms"],
+  ["mixer", /\bmixer\b/, "the mixer"],
+  ["tool.pads", /\b(?:sampler(?: pads)?|pads)\b/, "the pads"],
+  ["tool.steps", /\b(?:step )?sequencer|steps\b/, "the step sequencer"],
+  ["tool.effects", /\beffects?(?: panel)?|fx(?: panel)?\b/, "the effects"],
+  ["tool.mic", /\bmic(?:rophone)?(?: panel)?\b/, "the mic"],
+  ["tool.record", /\brecord(?:ing|er)? panel|recorder\b/, "the recording panel"],
+  ["tool.make", /\bmake a track\b/, "Make a track"],
+  ["studio", /\bstudio\b/, "the studio"],
+  ["guide", /\bguide\b/, "the guide"],
+  ["clock", /\b(?:clock|meters)\b/, "the clock and meters"],
+  ["arrange", /\barrange(?:r| view)?|timeline\b/, "Arrange"],
+];
+
+function partIn(t: string): { id: string; name: string } | null {
+  const deck = /\bdeck ([a-d])\b/.exec(t);
+  if (deck) return { id: `deck.${deck[1].toUpperCase()}`, name: `Deck ${deck[1].toUpperCase()}` };
+  for (const [id, re, name] of PARTS) if (re.test(t)) return { id, name };
+  return null;
+}
+
+/** Edit layout, the controller switch, the standard layout, and moving or folding one part. */
+function layoutCommands(t: string): Understood | null {
+  const app = (id: string, say: string) => control([{ do: "app", id }], say);
+  if (has(t, /\b(?:no|without|unplugged|disconnected|unplug|disconnect|removed?) (?:a |my |the )?(?:dj |midi )?controller\b|\bcontroller (?:is )?(?:off|unplugged|disconnected|gone|out)\b/)) return app("app.controller:off", "Playing without a DJ controller");
+  if (has(t, /\b(?:using|playing (?:with|on)|plugged in|connected|have|got|with|plug in|connect) (?:a |my |the )?(?:dj |midi )?controller\b|\bcontroller (?:is )?(?:on|connected|plugged in|in)\b/)) return app("app.controller:on", "Playing with a DJ controller");
+  if (has(t, /\b(?:standard|default|original|normal|usual) (?:screen )?layout\b|\breset (?:the |my )?(?:screen layout|layout|screen)\b/)) return app("app.layout_standard", "Go back to the standard layout");
+  if (has(t, /\b(?:done|finish(?:ed)?|stop|leave|exit|quit|end) (?:editing |changing )?(?:the |my )?layout\b|\bdone editing\b/)) return app("app.layout_edit:off", "Finish editing the layout");
+  if (has(t, /\b(?:edit|change|rearrange|re-arrange|customi[sz]e|arrange|move around|organi[sz]e) (?:the |my )?(?:screen )?layout\b|\brearrange (?:the |my )?(?:screen|parts|windows)\b|\bmove (?:things|parts|stuff|panels) around\b|\bedit layout(?: mode)?\b/))
+    return app("app.layout_edit:on", "Edit the layout: drag parts by their names");
+  const part = partIn(t);
+  if (!part) return null;
+  const moving = /^(?:move|send|put|throw|drag|take|show|open|pop|pull)\b/;
+  if (has(t, moving) && has(t, /\b(?:new|own|separate|another|its own|a) window\b|\bpop (?:it )?out\b/)) return app(`layout.window.${part.id}`, `Open ${part.name} in a new window`);
+  if (has(t, moving) && has(t, /\b(?:other|second|2nd|external|another|big|extra|next) (?:screen|monitor|display)\b|\bscreen 2\b|\b(?:projector|tv)\b/)) return app(`layout.screen.${part.id}`, `Move ${part.name} to the other screen`);
+  // "Bring the library back"; a deck only with where to ("bring deck b back in" is about its sound).
+  const home = /\b(?:back )?(?:to|into|in|on) (?:the )?(?:main|first) (?:window|screen)\b|\bto window 1\b|\bback home\b|\bback where it (?:was|belongs)\b/;
+  if (has(t, /^(?:bring|move|put|send|get|take)\b/) && (has(t, home) || (!part.id.startsWith("deck.") && has(t, /^(?:bring|move|put|get) (?:the |my )?[a-z ]+ back$/))))
+    return app(`layout.home.${part.id}`, `Bring ${part.name} back to the main window`);
+  if (has(t, /^(?:unfold|expand|uncollapse|unminimi[sz]e)\b/)) return app(`layout.fold.${part.id}:off`, `Open ${part.name} again`);
+  if (has(t, /^(?:fold|collapse|minimi[sz]e|shrink)\b/)) return app(`layout.fold.${part.id}:on`, `Fold ${part.name} away`);
+  return null;
+}
+
 function appCommands({ t }: C): Understood | null {
   if (has(t, /\b(?:stop|silence|kill) (?:all )?(?:the )?(?:pads|samples|sounds)\b/)) return null;
+  const lay = layoutCommands(t);
+  if (lay) return lay;
   if (has(t, /^(?:undo|undo (?:that|it|the last (?:thing|change))|take that back|go back a step)$/)) return control([{ do: "app", id: "app.undo" }], "Undo");
   if (has(t, /^(?:redo|redo (?:that|it))$/)) return control([{ do: "app", id: "app.redo" }], "Redo");
   if (has(t, /\b(?:settings|preferences|options)\b/) && has(t, /\b(?:open|show|go to|change|settings|preferences)\b/)) return control([{ do: "app", id: "app.settings" }], "Open Settings");

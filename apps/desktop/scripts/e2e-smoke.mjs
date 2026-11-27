@@ -389,6 +389,11 @@ try {
     expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "undo did not put the sidebar back");
     await page.keyboard.press("Escape");
     await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
+    // Its shortcut turns it on and off too.
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
   }
 
   await step("the guide finds a topic", async () => {
