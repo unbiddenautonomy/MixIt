@@ -463,6 +463,16 @@ impl Deck {
         1.0 + self.tempo * self.range
     }
 
+    /// Rate the deck will start at: the tempo fader, or the leader's tempo while synced.
+    /// Shown while paused, so pressing Sync on a cued-up deck shows the matched tempo at once.
+    fn standing_rate(&self, env: &DeckEnv) -> f64 {
+        if self.sync && !env.is_master && env.clock_running {
+            env.clock_bpm * self.sync_mult / self.base_bpm().max(1.0)
+        } else {
+            self.fader_rate()
+        }
+    }
+
     fn diverted(&self) -> bool {
         self.reader.lp.is_some_and(|l| l.active) || self.reverse || self.scratching || self.roll || self.censor
     }
@@ -1496,7 +1506,7 @@ impl Deck {
             playing: self.playing,
             position: a,
             duration: frames,
-            bpm: base * self.rate.abs().max(if self.running { 0.0 } else { self.fader_rate() }),
+            bpm: base * self.rate.abs().max(if self.running { 0.0 } else { self.standing_rate(env) }),
             base_bpm: base,
             rate: self.rate,
             tempo: self.tempo,

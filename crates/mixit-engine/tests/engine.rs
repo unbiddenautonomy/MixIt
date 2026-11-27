@@ -233,8 +233,10 @@ fn sync_on_the_incoming_deck_follows_the_one_playing() {
     r.deck(A, DeckCommand::Play);
     r.run(30_000);
     r.deck(B, DeckCommand::Sync(true));
-    r.run(256);
-    assert_eq!(r.tel().master_deck, Some(A));
+    r.run(4_800);
+    let t = r.tel();
+    assert_eq!(t.master_deck, Some(A));
+    assert!((t.decks[1].bpm - 120.0).abs() < 0.2, "paused B already shows {} BPM", t.decks[1].bpm);
     // Started while synced, and synced while already playing: both land in time.
     r.deck(B, DeckCommand::Play);
     r.run(96_000);
