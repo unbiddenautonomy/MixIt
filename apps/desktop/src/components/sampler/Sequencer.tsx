@@ -256,7 +256,7 @@ export function Sequencer() {
               {notesAvailable() && (
                 <DropdownMenu.Item className="menu-item flex-col items-start" onSelect={() => openPadNotes()}>
                   <span>Turn a pad's notes into a pattern…</span>
-                  <span className="text-[10px] leading-snug text-zinc-500">Hears a riff, bassline or hummed tune and plays it back on any pad.</span>
+                  <span className="text-[11px] leading-snug text-zinc-500">Hears a riff, bassline or hummed tune and plays it back on any pad.</span>
                 </DropdownMenu.Item>
               )}
               <DropdownMenu.Item className="menu-item" disabled={steps * 2 > 64} onSelect={doublePattern}>
