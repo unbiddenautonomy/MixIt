@@ -302,9 +302,13 @@ impl Engine {
                         self.set_master(Some(id));
                     }
                     DeckCommand::Sync(true) => {
-                        // First deck to sync with no master becomes the master.
+                        // With no master yet, the leader is the music already playing: the
+                        // deck the clock follows (playing and heard). Pressing Sync on the
+                        // incoming deck then brings it to that deck, as a DJ means it to.
+                        // Only when nothing else is playing does the deck lead itself.
                         if self.master.is_none() && !self.clock_explicit {
-                            self.set_master(Some(id));
+                            let leader = self.playing_leader(Some(id)).unwrap_or(id);
+                            self.set_master(Some(leader));
                             self.update_envs();
                         }
                         let env = self.envs[i];
@@ -381,6 +385,20 @@ impl Engine {
                 GlobalCommand::SetSafetyLoop(on) => self.safety_loop = on,
             },
         }
+    }
+
+    /// The deck the clock follows when nobody is master: loaded, playing, heard and with a
+    /// tempo (other than `except`). A synced one comes first.
+    fn playing_leader(&self, except: Option<DeckId>) -> Option<DeckId> {
+        let playing = |d: &&Deck| {
+            Some(d.id) != except && d.is_loaded() && d.is_playing() && d.is_audible() && d.effective_bpm() > 1.0
+        };
+        self.decks
+            .iter()
+            .filter(playing)
+            .find(|d| d.sync_enabled())
+            .or_else(|| self.decks.iter().find(playing))
+            .map(|d| d.id)
     }
 
     /// Another synced, playing deck to hand the master role to.

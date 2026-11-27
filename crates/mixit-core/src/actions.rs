@@ -164,39 +164,41 @@ pub const FX_TYPES: [&str; 18] = [
     "Dub echo",
 ];
 
-/// Shortcuts for the first two decks (see Product and UX in the plan).
+/// Shortcuts for the first two decks: deck A under the left hand, deck B under the right,
+/// mirrored so each finger does the same job on both (little finger Cue, ring Play, middle
+/// Sync, index tempo leader; loop keys with Loop in the middle, halve left and double right).
 fn deck_shortcuts(d: usize) -> [Option<&'static str>; 13] {
     match d {
         // play, cue, sync, hc1..4, loop, halve, double, nudge-, nudge+, sync-master
         0 => [
-            Some("Z"),
             Some("X"),
+            Some("Z"),
             Some("C"),
             Some("1"),
             Some("2"),
             Some("3"),
             Some("4"),
-            Some("Q"),
             Some("W"),
+            Some("Q"),
             Some("E"),
             Some("A"),
             Some("S"),
-            None,
+            Some("V"),
         ],
         1 => [
-            Some("M"),
-            Some(","),
             Some("."),
+            Some("/"),
+            Some(","),
             Some("7"),
             Some("8"),
             Some("9"),
             Some("0"),
-            Some("U"),
             Some("I"),
+            Some("U"),
             Some("O"),
             Some("J"),
             Some("K"),
-            None,
+            Some("M"),
         ],
         _ => [None; 13],
     }
