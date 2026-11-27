@@ -154,6 +154,8 @@ export const CONCEPTS: Concept[] = [
     group: "Your screen",
     summary: "Play, cue, loop and open every part from the keyboard, and change any key.",
     body: [
+      "Deck A is under your left hand and deck B under your right, each in the order its buttons sit on screen: Z, X, C are Cue, Play and Sync on deck A, and M, comma and period the same on deck B. The row above does the loop (Q, W, E and U, I, O: Loop, Halve, Double), the middle row nudges slower and faster (A, S and J, K), and with Shift it jumps a beat back or forward. Hot cues are 1 to 4 and 7 to 0. V and / make a deck the tempo leader.",
+      "The deck keys go by where they sit, not the letter printed on them, so on any keyboard layout deck A stays on the left and deck B on the right.",
       "{Mod+K} opens the command palette: type the name of anything (a control, a setting, a track) or a request in plain words, like \"cut the bass on deck B\". It shows each action's key beside it.",
       "Hold F1 or ? to see what every control does, with its key. The Keys tab in this guide lists every shortcut, written the way your computer names its keys.",
       "To change a key, open Settings > Shortcuts, click the key beside an action and press the new one. MixIt says if another action already uses it.",
