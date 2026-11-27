@@ -86,6 +86,18 @@ export const CONCEPTS: Concept[] = [
     controls: ["deck.A.play"],
     lab: "phrase-drop",
   },
+  {
+    id: "coach",
+    title: "The coach",
+    group: "Basics",
+    summary: "Tips while you mix, like two keys that clash, wait behind the lightbulb at the top.",
+    body: [
+      "MixIt listens to what the decks are doing and keeps a few plain tips ready: two basses up at once, keys that clash, two voices singing together, a track that will run past the end of your set. The lightbulb at the top lights up and shows how many there are. Click it to read them; most have a button that does the fix for you.",
+      "Settings > Mixing > Coach chooses how they reach you. Only when I ask (the start) keeps them behind the lightbulb. Pop up opens a new tip by itself: a hint closes again after a few seconds, a warning stays until you close it with × or Esc. Off hides the lightbulb.",
+      "Hide this tip stops one tip from showing again until MixIt restarts. A tip never takes the keyboard, so the deck keys keep working while it's open.",
+    ],
+    glossary: ["coach"],
+  },
   // ---------------------------------------------------------------- your screen
   {
     id: "screen-layout",

@@ -13,6 +13,7 @@ import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../
 import { openTool, useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { AssistantButton } from "../feedback/MixAssistant";
+import { CoachButton } from "./Coach";
 import { EditLayoutButton } from "../layout/EditBar";
 import { editLayout } from "../../lib/layoutCommands";
 import { useGuide } from "../../guide/model";
@@ -74,6 +75,7 @@ export function TopBar() {
           </Btn>
         </Ctl>
         {settings?.layoutEngine && <EditLayoutButton />}
+        <CoachButton />
         <AssistantButton />
         <Ctl id="app.guide" side="bottom">
           <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">
@@ -142,7 +144,7 @@ function HelpMenu({ explain, coach }: { explain: boolean; coach: boolean }) {
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={6} className="menu w-72">
           {item(<HelpCircle size={13} />, "Explain mode", "Hover any control to see what it does.", () => useApp.getState().set({ explain: !explain }), explain, key("app.explain"))}
-          {item(<GraduationCap size={13} />, "Coach tips", "Tips while you mix, like keys that clash.", () => updateSettings({ coach: !coach }), coach, key("app.coach"))}
+          {item(<GraduationCap size={13} />, "Coach tips", "The lightbulb at the top, with tips while you mix, like keys that clash.", () => updateSettings({ coach: !coach }), coach, key("app.coach"))}
           <DropdownMenu.Separator className="menu-sep" />
           {item(<Compass size={13} />, "Take the tour", "A short walk round the screen.", () => startTour())}
           {item(<BookOpen size={13} />, "Guide and practice labs", "What each part does, step-by-step practice, and fixes.", () => openGuide({ tab: "learn", topic: null }), undefined, key("app.guide"))}

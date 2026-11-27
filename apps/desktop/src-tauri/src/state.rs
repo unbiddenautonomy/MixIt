@@ -81,6 +81,9 @@ pub struct Settings {
     pub decks: u8,
     pub explain: bool,
     pub coach: bool,
+    /// New coach tips open by themselves; otherwise they wait behind the lightbulb in the
+    /// top bar. Only the UI reads it.
+    pub coach_popup: bool,
     pub record_float: bool,
     pub auto_gain: bool,
     pub limiter: bool,
@@ -144,6 +147,7 @@ impl Default for Settings {
             decks: 2,
             explain: false,
             coach: true,
+            coach_popup: false,
             record_float: false,
             auto_gain: true,
             limiter: true,

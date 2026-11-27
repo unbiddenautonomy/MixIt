@@ -18,7 +18,6 @@ import { Library } from "./components/library/Library";
 import { GuidePanel } from "./components/guide/GuidePanel";
 import { Mixer } from "./components/mixer/Mixer";
 import { StudioPanel } from "./components/studio/StudioPanel";
-import { Coach } from "./components/shell/Coach";
 import { CommandPalette } from "./components/shell/CommandPalette";
 import { DialogHost } from "./components/shell/Dialogs";
 import { SmartPlaylistHost } from "./components/library/SmartPlaylistDialog";
@@ -200,7 +199,6 @@ export function App() {
           <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
             {newLayout ? (
               <>
-                {workspace === "mix" && <Coach />}
                 <LayoutWindow />
               </>
             ) : (
@@ -336,7 +334,6 @@ function MixView() {
           {four && <Deck deck={3} compact />}
         </div>
       </div>
-      <Coach />
       {!(libraryAway && toolsAway) && (
         <>
           <Splitter />

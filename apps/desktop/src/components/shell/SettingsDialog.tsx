@@ -18,6 +18,7 @@ import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
 import { addMusicFolder } from "../library/Library";
 import { KNOB_DRAG_MODES } from "../../lib/knobDrag";
+import { COACH_MODES, coachMode, coachSettings } from "./Coach";
 import { setController, standardLayout } from "../../lib/layoutCommands";
 import { TEMPO_RANGES, TEMPO_RANGE_LABELS } from "../deck/Deck";
 
@@ -198,8 +199,8 @@ function Mixing({ s }: { s: Settings }) {
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">
         <Toggle on={s.ask !== false} onChange={(v) => updateSettings({ ask: v })} label="Understand requests in plain words" />
       </Field>
-      <Field label="Coach">
-        <Toggle on={s.coach} onChange={(v) => updateSettings({ coach: v })} label="Show tips while I mix" />
+      <Field label="Coach" hint="Tips while you mix wait behind the lightbulb at the top. Pop up opens a new one by itself.">
+        <Segmented value={coachMode(s)} onChange={(v) => updateSettings(coachSettings(v))} options={COACH_MODES} />
       </Field>
     </div>
   );

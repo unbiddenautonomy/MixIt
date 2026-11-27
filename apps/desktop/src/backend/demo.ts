@@ -269,6 +269,7 @@ export class DemoBackend implements Backend {
     decks: 2,
     explain: false,
     coach: true,
+    coachPopup: false,
     recordFloat: false,
     autoGain: true,
     limiter: true,
