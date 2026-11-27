@@ -793,6 +793,34 @@ fn sequencer_retriggers_a_long_sound_without_clicks() {
 }
 
 #[test]
+fn sequencer_steps_play_the_pad_at_their_own_pitch() {
+    let mut r = Rig::new();
+    let x = testkit::sine(24_000, 220.0, SR as f32, 0.3);
+    let audio = Arc::new(TrackAudio::from_mono(SR, &x));
+    r.send(Command::Sampler(SamplerCommand::Load { pad: 0, audio, bpm: None }));
+    r.send(Command::Global(GlobalCommand::SetClockBpm(120.0)));
+    // Beat 1 as recorded, beat 2 an octave up, beat 3 a fifth down.
+    let mut semitones = [0i8; 16];
+    semitones[4] = 12;
+    semitones[8] = -7;
+    r.send(Command::Sampler(SamplerCommand::SeqPitches { pad: 0, from: 0, semitones }));
+    r.send(Command::Sampler(SamplerCommand::SeqPattern { pad: 0, steps: 0b1_0001_0001 }));
+    r.send(Command::Sampler(SamplerCommand::SeqSettings { on: true, steps: 16, step_beats: 0.25, swing: 0.0 }));
+    let out = r.run(24_000 * 3);
+    let lat = r.latency();
+    // Frequency from zero crossings over 4 000 frames well inside each hit.
+    let freq = |from: usize| {
+        let w = &out[from..from + 4_000];
+        let crossings = w.windows(2).filter(|p| (p[0] < 0.0) != (p[1] < 0.0)).count();
+        crossings as f64 / 2.0 / (4_000.0 / SR as f64)
+    };
+    let heard = [freq(lat + 1_000), freq(lat + 24_000 + 1_000), freq(lat + 48_000 + 1_000)];
+    for (got, want) in heard.iter().zip([220.0, 440.0, 220.0 * 2f64.powf(-7.0 / 12.0)]) {
+        assert!((got / want - 1.0).abs() < 0.04, "heard {heard:?}");
+    }
+}
+
+#[test]
 fn key_pads_play_the_cue_in_another_key() {
     use mixit_engine::actions::{ActionDispatcher, ActionInput};
     let mut r = Rig::new();

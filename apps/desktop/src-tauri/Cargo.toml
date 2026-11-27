@@ -34,12 +34,13 @@ tauri-plugin-dialog = "2"
 serde.workspace = true
 serde_json.workspace = true
 parking_lot.workspace = true
+ureq = { version = "3", features = ["json"] }
 crossbeam-channel.workspace = true
 anyhow.workspace = true
 mixit-cli = { path = "../../../crates/mixit-cli" }
 
 [features]
-default = ["stems-model", "mic-clean", "sound-search"]
+default = ["stems-model", "mic-clean", "sound-search", "beat-helper", "sound-to-notes"]
 # The trained stem splitter (HTDemucs through ONNX Runtime). Without it, stems always
 # use the quick split.
 stems-model = ["dep:mixit-ml", "mixit-ml/onnx"]
@@ -49,6 +50,12 @@ mic-clean = ["mixit-host/voice-clean"]
 # Search by sound: a trained listener (CLAP) hears each track once, so tracks can be
 # found by describing them and "sounds like" hears them as a person would.
 sound-search = ["dep:mixit-ml", "mixit-ml/sound"]
+# The beat helper: a trained beat tracker (Beat This!) gives a second opinion on tracks
+# whose grid the analysis wasn't sure of. Without it the analysis's grid is all there is.
+beat-helper = ["dep:mixit-ml", "mixit-ml/onnx"]
+# Sound to notes: a small trained note listener (Basic Pitch) hears the notes a pad plays,
+# so the sequencer can play them on another pad. Without it the sequencer is drawn by hand.
+sound-to-notes = ["dep:mixit-ml", "mixit-ml/onnx"]
 
 [lints]
 workspace = true

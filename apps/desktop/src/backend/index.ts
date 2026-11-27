@@ -2,7 +2,7 @@
 // Tauri bridge; in a plain browser (development, screenshots, the future web app) it is
 // the in-browser demo backend.
 
-import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
+import type { BackupInfo, FinishTarget, MakeRequest, MakeStatus, PadNotes, BuildSetRequest, SessionDto, SoundMatch, SoundSearchStatus, UpdateStatus, TagDto,
   ActionInput,
   AppInfo,
   AudioStatus,
@@ -58,6 +58,10 @@ export interface Backend {
   deleteMemoryCue(deck: number, seconds: number): Promise<void>;
   /** Edits the beat grid of the deck's track and saves it (the deck is reloaded in place). */
   setGrid(deck: number, edit: GridEdit): Promise<void>;
+  /** Uses the beat helper's grid for the deck's track (`useIt`), or keeps the one it has. */
+  useGridSuggestion(deck: number, useIt: boolean): Promise<void>;
+  /** Drops the person's grid edits on the deck's track: the analysis's grid again. */
+  resetGrid(deck: number): Promise<void>;
   deleteHotCue(deck: number, slot: number): Promise<void>;
   setMainCue(deck: number, seconds: number): Promise<void>;
   setLoop(deck: number, start: number, end: number, active: boolean): Promise<void>;
@@ -177,6 +181,10 @@ export interface Backend {
   recordStop(): Promise<string>;
   /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */
   saveText(path: string, text: string): Promise<void>;
+  /** Finishes a recording's tone and loudness and writes "<name> (finished).wav" beside
+   * it, leaving the recording as it was. Returns that file; a "finish" job says when it
+   * is done and, in its message, what changed. Desktop only: not in a browser. */
+  finishMix(path: string, target: FinishTarget): Promise<string>;
 
   /** Microphones and line inputs. The mic itself opens and closes with the settings. */
   inputDevices(): Promise<DeviceInfo[]>;
@@ -224,6 +232,15 @@ export interface Backend {
   samplerStopAll(): Promise<void>;
   /** Puts the step sequencer's patterns and settings on the engine. */
   samplerSequence(sequencer: SequencerDto): Promise<void>;
+  /** The notes a pad's sound plays, heard by the note listener (desktop only). */
+  padNotes(pad: number): Promise<PadNotes>;
+
+  /** Make a track (desktop only): where it stands, setting it up (a "make" job), making
+   * a track (a "make" job whose message is JSON {trackId, path}) and stopping either. */
+  makeStatus(): Promise<MakeStatus>;
+  makeInstall(): Promise<void>;
+  makeTrack(request: MakeRequest): Promise<void>;
+  makeCancel(): Promise<void>;
 
   /** Generates the practice tracks for the guide's labs and adds them to the library. */
   addPracticeTracks(): Promise<void>;

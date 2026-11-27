@@ -36,12 +36,12 @@ pub const HTDEMUCS: ModelInfo = ModelInfo {
     id: "htdemucs",
     name: "Stem splitter (HTDemucs)",
     file: "htdemucs_fp16weights.onnx",
-    url: "https://huggingface.co/adowu/htdemucs-onnx/resolve/main/htdemucs_fp16weights.onnx",
+    url: "https://huggingface.co/adowu/htdemucs-onnx/resolve/e6b688a9a9f977e2efaba79d0f18b9b0cfc606ea/htdemucs_fp16weights.onnx",
     sha256: "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
     bytes: 165_612_636,
     source: "HTDemucs by Rouard, Massa and Défossez (Meta AI), MIT code; ONNX export by StemSplit \
-             (huggingface.co/adowu/htdemucs-onnx, tagged MIT). Upstream weights licence to confirm \
-             in the licence audit.",
+             (huggingface.co/adowu/htdemucs-onnx, tagged MIT). The weights are released with the MIT \
+             code (github.com/facebookresearch/demucs) under no separate terms.",
 };
 
 const CLAP_SOURCE: &str = "CLAP (larger_clap_music_and_speech) by LAION, Apache-2.0; ONNX export with 8-bit \
@@ -82,8 +82,50 @@ pub const CLAP_TOKENIZER: ModelInfo = ModelInfo {
     source: CLAP_SOURCE,
 };
 
+/// The beat helper (Beat This!, its main model): 30 s of log-mel spectrogram in, how
+/// likely a beat and a downbeat are at each of its 50 frames a second out.
+pub const BEAT_THIS: ModelInfo = ModelInfo {
+    id: "beat-this-final0",
+    name: "Beat helper (Beat This!)",
+    file: "beat_this_final0.onnx",
+    url: "https://huggingface.co/musetric/beat-this-onnx/resolve/25308706dda545c0d5950065bb0604ad71bcf1f5/beat_this.onnx",
+    sha256: "1337dc6c21257ed6b803418efc320df42b5d8eb296ef16648ef60457cd4b9e55",
+    bytes: 190_649_026,
+    source: "Beat This! by Foscarin, Schlüter and Widmer (CPJKU, JKU Linz), MIT code and weights \
+             (github.com/CPJKU/beat_this); final0 checkpoint exported to ONNX by musetric \
+             (huggingface.co/musetric/beat-this-onnx, tagged MIT).",
+};
+
+/// Cleaner vocals (Kimberley Jensen's Mel-Band RoFormer): 8 s of 44.1 kHz stereo as a
+/// spectrogram in, the singing in it out. Weights stored at half precision.
+pub const MEL_ROFORMER: ModelInfo = ModelInfo {
+    id: "mel-roformer-kj",
+    name: "Vocal splitter (Mel-Band RoFormer)",
+    file: "mel_roformer_kj_fp16.onnx",
+    url: "https://huggingface.co/audiojs/mel-roformer/resolve/c1aba02c00a0bee852d6754fe6ede8164f90a4b3/mel-roformer.fp16.onnx",
+    sha256: "adcbbb826f12453fbb86652b503242d565a9c81cdef1bca2fe0e54752eba91ef",
+    bytes: 464_050_097,
+    source: "Mel-Band RoFormer (Wang et al., ByteDance) vocals model by Kimberley Jensen \
+             (huggingface.co/KimberleyJSN/melbandroformer, tagged MIT); model code by Phil Wang and \
+             ZFTurbo (MIT); ONNX export with 16-bit weights by audiojs (huggingface.co/audiojs/mel-roformer, MIT). \
+             Training data not stated upstream.",
+};
+
 /// Every model MixIt knows about.
-pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER];
+/// Sound to notes (Basic Pitch): 2 s of 22.05 kHz mono in, how likely each piano key is
+/// sounding and starting in each of 172 frames out.
+pub const BASIC_PITCH: ModelInfo = ModelInfo {
+    id: "basic-pitch",
+    name: "Sound to notes (Basic Pitch)",
+    file: "basic_pitch_nmp.onnx",
+    url: "https://raw.githubusercontent.com/spotify/basic-pitch/fa5997af0a8210982619003269994a1be25eddf3/basic_pitch/saved_models/icassp_2022/nmp.onnx",
+    sha256: "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec",
+    bytes: 230_444,
+    source: "Basic Pitch by Bittner, Bosch, Rubinstein, Meseguer-Brocal and Ewert (Spotify), \
+             Apache-2.0 code and weights (github.com/spotify/basic-pitch); the ONNX file it ships.",
+};
+
+pub const ALL: &[ModelInfo] = &[HTDEMUCS, CLAP_AUDIO, CLAP_TEXT, CLAP_TOKENIZER, BEAT_THIS, MEL_ROFORMER, BASIC_PITCH];
 
 /// The models folder.
 #[derive(Clone, Debug)]

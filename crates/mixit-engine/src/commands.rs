@@ -262,6 +262,13 @@ pub enum SamplerCommand {
         pad: usize,
         steps: u64,
     },
+    /// Step sequencer: how far pad `pad` is pitched on steps `from..from + 16`, in
+    /// semitones (0 = as recorded; the sound plays faster or slower, as on a sampler).
+    SeqPitches {
+        pad: u8,
+        from: u8,
+        semitones: [i8; 16],
+    },
     /// Step sequencer settings: running, number of steps (1..=64), the length of a step in
     /// beats (0.25 = sixteenth notes) and swing (0 = straight … 0.5 = full triplet feel,
     /// delaying every second step).

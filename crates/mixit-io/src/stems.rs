@@ -17,8 +17,9 @@ const MAGIC: &[u8; 8] = b"MIXITSTM";
 const VERSION: u32 = 1;
 const HEADER: usize = 8 + 4 + 4 + 8;
 
-/// How stems were made, best first: a trained model's stems win over the quick split.
-pub const METHODS: &[&str] = &["htdemucs", "quick"];
+/// How stems were made, best first: the trained splitter with cleaner vocals, then the
+/// trained splitter alone, then the quick split.
+pub const METHODS: &[&str] = &["htdemucs+mel-roformer", "htdemucs", "quick"];
 
 /// Vocals, drums and bass, interleaved stereo.
 pub struct CachedStems {

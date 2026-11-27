@@ -530,13 +530,24 @@ pub struct SequencerDto {
     pub swing: f32,
     /// `pads[p][s]`: whether pad `p` plays on step `s`.
     pub pads: Vec<Vec<bool>>,
+    /// `pitches[p][s]`: how far pad `p` is pitched on step `s`, in semitones (missing = 0).
+    pub pitches: Vec<Vec<i8>>,
 }
 
 /// The commands that put a sequencer state on the engine (patterns first, then the
 /// settings, so a pattern that starts running is complete on its first step).
 pub fn sequencer_commands(d: &SequencerDto, pads: usize) -> Vec<crate::SamplerCommand> {
-    let mut out = Vec::with_capacity(pads + 1);
+    let steps = if d.steps == 0 { 16 } else { d.steps.min(64) } as usize;
+    let mut out = Vec::with_capacity(pads * (1 + steps.div_ceil(16)) + 1);
     for pad in 0..pads {
+        let row = d.pitches.get(pad).map(Vec::as_slice).unwrap_or(&[]);
+        for from in (0..steps).step_by(16) {
+            let mut semitones = [0i8; 16];
+            for (i, s) in semitones.iter_mut().enumerate() {
+                *s = row.get(from + i).copied().unwrap_or(0);
+            }
+            out.push(crate::SamplerCommand::SeqPitches { pad: pad as u8, from: from as u8, semitones });
+        }
         let mut bits = 0u64;
         if let Some(row) = d.pads.get(pad) {
             for (s, on) in row.iter().enumerate().take(64) {
@@ -549,7 +560,7 @@ pub fn sequencer_commands(d: &SequencerDto, pads: usize) -> Vec<crate::SamplerCo
     }
     out.push(crate::SamplerCommand::SeqSettings {
         on: d.on,
-        steps: if d.steps == 0 { 16 } else { d.steps.min(64) },
+        steps: steps as u8,
         step_beats: if d.step_beats > 0.0 { d.step_beats } else { 0.25 },
         swing: d.swing,
     });
@@ -569,16 +580,38 @@ mod sequencer_tests {
             step_beats: 0.25,
             swing: 0.2,
             pads: vec![vec![true, false, false, false, true], vec![], vec![false, true]],
+            pitches: vec![],
         };
         let cmds = sequencer_commands(&d, 4);
-        assert_eq!(cmds.len(), 5);
-        assert!(matches!(cmds[0], SamplerCommand::SeqPattern { pad: 0, steps: 0b10001 }));
-        assert!(matches!(cmds[1], SamplerCommand::SeqPattern { pad: 1, steps: 0 }));
-        assert!(matches!(cmds[2], SamplerCommand::SeqPattern { pad: 2, steps: 0b10 }));
-        assert!(matches!(cmds[4], SamplerCommand::SeqSettings { on: true, steps: 16, .. }));
+        let patterns: Vec<_> = cmds.iter().filter(|c| matches!(c, SamplerCommand::SeqPattern { .. })).collect();
+        assert_eq!(patterns.len(), 4);
+        assert!(matches!(patterns[0], SamplerCommand::SeqPattern { pad: 0, steps: 0b10001 }));
+        assert!(matches!(patterns[1], SamplerCommand::SeqPattern { pad: 1, steps: 0 }));
+        assert!(matches!(patterns[2], SamplerCommand::SeqPattern { pad: 2, steps: 0b10 }));
+        // One pitch row per pad for 16 steps, all as recorded; the settings come last.
+        assert_eq!(cmds.len(), 4 + 4 + 1);
+        assert!(matches!(cmds.last(), Some(SamplerCommand::SeqSettings { on: true, steps: 16, .. })));
         let json: SequencerDto = serde_json::from_str(r#"{"on":false,"pads":[[true]]}"#).unwrap();
         assert!(
-            matches!(sequencer_commands(&json, 1)[1], SamplerCommand::SeqSettings { steps: 16, step_beats, .. } if step_beats == 0.25)
+            matches!(sequencer_commands(&json, 1).last(), Some(SamplerCommand::SeqSettings { steps: 16, step_beats, .. }) if *step_beats == 0.25)
         );
+    }
+
+    #[test]
+    fn step_pitches_go_in_rows_of_sixteen() {
+        let json: SequencerDto =
+            serde_json::from_str(r#"{"on":true,"steps":32,"pads":[[true]],"pitches":[[0,2,-5],[],[]]}"#).unwrap();
+        let cmds = sequencer_commands(&json, 2);
+        let rows: Vec<_> = cmds
+            .iter()
+            .filter_map(|c| match c {
+                SamplerCommand::SeqPitches { pad, from, semitones } => Some((*pad, *from, *semitones)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(rows.len(), 4);
+        assert_eq!((rows[0].0, rows[0].1, &rows[0].2[..3]), (0, 0, &[0, 2, -5][..]));
+        assert_eq!((rows[1].0, rows[1].1), (0, 16));
+        assert!(rows[1].2.iter().all(|s| *s == 0));
     }
 }

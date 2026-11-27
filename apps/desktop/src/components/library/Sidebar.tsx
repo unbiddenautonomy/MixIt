@@ -17,6 +17,7 @@ import { setLabel } from "../../lib/history";
 import { STARTER_TAGS, tagQuery, tagStyle } from "../../lib/tags";
 import { editSmartPlaylist } from "./SmartPlaylistDialog";
 import { openBuildSet } from "./BuildSetDialog";
+import { makeAvailable, openMakeTrack } from "./MakeTrackDialog";
 import { enqueueIds } from "../autodj/AutoDj";
 import { enqueue, startAutoDj, useAutoDj } from "../../store/autodj";
 import { deletePlaylistWithUndo, withPlaylistUndo } from "../../lib/libraryUndo";
@@ -99,6 +100,11 @@ export function Sidebar() {
           <IconBtn title="Build a set: MixIt picks tracks for the time you have, with the energy moving the way you choose" onClick={() => openBuildSet()}>
             <TrendingUp size={12} />
           </IconBtn>
+          {makeAvailable() && (
+            <IconBtn title="Make a track: describe it and MixIt makes it on this computer" onClick={() => openMakeTrack()}>
+              <Sparkles size={12} />
+            </IconBtn>
+          )}
         </div>
       </div>
       {creating && <NewPlaylist kind={creating} done={() => setCreating(null)} />}

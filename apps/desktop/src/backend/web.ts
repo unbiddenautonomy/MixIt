@@ -412,6 +412,10 @@ export class WebAudioBackend extends DemoBackend {
     return `${name}, in your downloads`;
   }
 
+  async finishMix(): Promise<string> {
+    throw new Error("Finishing a mix needs the desktop app: the browser recording is already in your downloads.");
+  }
+
   async saveText(path: string, text: string) {
     download(new Blob([text], { type: "text/plain" }), fileName(path) || path);
   }
@@ -898,6 +902,20 @@ export class WebAudioBackend extends DemoBackend {
 
   async samplerSequence(sequencer: T.SequencerDto) {
     this.engine.send({ op: "sequence", sequencer });
+  }
+
+  async makeStatus(): Promise<T.MakeStatus> {
+    return { enabled: false, installed: false, folder: "", running: false, uv: false, uvInstall: "", busy: false };
+  }
+  async makeInstall() {
+    throw new Error("Making a track needs the desktop app.");
+  }
+  async makeTrack() {
+    throw new Error("Making a track needs the desktop app.");
+  }
+
+  async padNotes(): Promise<T.PadNotes> {
+    throw new Error("Turning a sound into notes needs the desktop app.");
   }
 
   async samplerStopAll() {

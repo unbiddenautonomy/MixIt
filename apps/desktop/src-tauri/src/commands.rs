@@ -262,7 +262,7 @@ pub fn delete_memory_cue(app: AppHandle, state: State<'_, AppState>, deck: u8, s
     Ok(())
 }
 
-fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
+pub fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
     let mut decks = state.decks.lock();
     let d = decks[deck].as_mut().ok_or("no track")?;
     let lib = state.library.lock();
@@ -270,7 +270,34 @@ fn refresh_detail(state: &AppState, deck: usize) -> R<DeckInfo> {
     let a = lib.analysis(d.track_id).map_err(err)?;
     let cues = lib.cues(d.track_id).map_err(err)?;
     d.info.detail = TrackDetail::new(&t, a.as_ref(), Some(&d.grid), &cues);
+    d.info.detail.grid_suggestion = crate::beats::suggestion(&lib, d.track_id);
     Ok(d.info.clone())
+}
+
+/// Puts a whole new grid on a deck's track: saved as the person's grid, and sent to
+/// the engine.
+pub fn replace_grid(state: &AppState, deck: usize, grid: mixit_core::Beatgrid) -> R<()> {
+    let track_id = {
+        let mut decks = state.decks.lock();
+        let d = decks.get_mut(deck).and_then(|d| d.as_mut()).ok_or("no track on this deck")?;
+        if d.grid.locked {
+            return Err("The beat grid is locked. Unlock it in the track editor first.".into());
+        }
+        d.grid = grid.clone();
+        d.track_id
+    };
+    state.library.lock().save_grid(track_id, &grid).map_err(err)?;
+    replace_grid_unsaved(state, deck, grid)
+}
+
+/// Puts a grid on a deck without saving it (it is already the library's).
+pub fn replace_grid_unsaved(state: &AppState, deck: usize, grid: mixit_core::Beatgrid) -> R<()> {
+    if let Some(d) = state.decks.lock().get_mut(deck).and_then(|d| d.as_mut()) {
+        d.grid = grid.clone();
+    }
+    let sr = state.audio.lock().sample_rate;
+    state.audio.lock().send(Command::Deck(DeckId(deck as u8), DeckCommand::SetGrid(Arc::new(grid.resampled(sr)))));
+    Ok(())
 }
 
 // ------------------------------------------------------------------------- decks
@@ -346,7 +373,8 @@ pub fn load_track_blocking(state: &AppState, deck: u8, track_id: i64, start_at: 
     }
     let token = state.token();
     dt.token = token;
-    let detail = TrackDetail::new(&track, analysis.as_ref(), Some(&grid), &cues);
+    let mut detail = TrackDetail::new(&track, analysis.as_ref(), Some(&grid), &cues);
+    detail.grid_suggestion = crate::beats::suggestion(&state.library.lock(), track_id);
     let info = DeckInfo { deck, token, detail, sample_rate: sr };
     {
         let mut a = state.audio.lock();
@@ -557,11 +585,15 @@ fn analyse_all(app: &AppHandle, lib: &Library, progress: &dyn Fn(usize, usize, S
         .map_err(err)?;
     let heard =
         crate::listen::listen_all(app, lib, progress).unwrap_or_else(|e| format!("Couldn't listen to the tracks: {e}"));
+    let beats = crate::beats::help_all(app, lib, progress)
+        .unwrap_or_else(|e| format!("The beat helper couldn't check the tracks: {e}"));
+    let also = |m: String| if m.is_empty() { m } else { format!(". {m}") };
     Ok(format!(
-        "Analysed {} tracks{}{}",
+        "Analysed {} tracks{}{}{}",
         s.analysed,
         if s.failed > 0 { format!(", {} failed", s.failed) } else { String::new() },
-        if heard.is_empty() { String::new() } else { format!(". {heard}") }
+        also(heard),
+        also(beats)
     ))
 }
 
@@ -1486,6 +1518,71 @@ pub fn record_stop(state: State<'_, AppState>) -> R<String> {
     Ok(p.to_string_lossy().into_owned())
 }
 
+/// The finished copy of a recording: "<name> (finished).wav" beside it.
+fn finished_path(recording: &Path) -> PathBuf {
+    let stem = recording.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "Mix".into());
+    recording.with_file_name(format!("{stem} (finished).wav"))
+}
+
+/// Finishes a recorded mix's tone and loudness ("Finish my mix"): like a track (`like`,
+/// its file: usually one the mix played), or to club or streaming level (`target` "club" | "streaming"), and
+/// writes the finished copy beside the recording, leaving the recording as it was.
+/// Returns that copy's path; a "finish" job reports when it is done and what changed.
+#[tauri::command]
+pub fn finish_mix(app: AppHandle, path: String, target: String, like: Option<String>) -> R<String> {
+    use mixit_analysis::finish::{CLUB_LUFS, FinishTarget, STREAMING_LUFS, finish, profile};
+    let input = PathBuf::from(&path);
+    let out = finished_path(&input);
+    let reference = like.map(PathBuf::from);
+    let level = match target.as_str() {
+        "club" => CLUB_LUFS,
+        "streaming" => STREAMING_LUFS,
+        _ if reference.is_some() => STREAMING_LUFS,
+        t => return Err(format!("finish like a track, or to club or streaming level, not {t}")),
+    };
+    let result = out.clone();
+    std::thread::Builder::new()
+        .name("mixit-finish".into())
+        .spawn(move || {
+            let step = |done: usize, message: &str| {
+                emit_job(
+                    &app,
+                    JobProgress {
+                        kind: "finish",
+                        done,
+                        total: 3,
+                        message: message.into(),
+                        finished: false,
+                        error: None,
+                    },
+                )
+            };
+            let done = (|| -> Result<String, String> {
+                step(0, "Reading the recording");
+                let mix = mixit_io::decode_file(&input).map_err(|e| format!("{}: {e}", input.display()))?;
+                let target = match &reference {
+                    Some(r) => {
+                        step(1, "Listening to the track to match");
+                        let d = mixit_io::decode_file(r).map_err(|e| format!("{}: {e}", r.display()))?;
+                        FinishTarget::Like(profile(&d.data, d.sample_rate))
+                    }
+                    None => FinishTarget::Loudness(level),
+                };
+                step(2, "Finishing the tone and loudness");
+                let (audio, finished) = finish(&mix.data, mix.sample_rate, &target);
+                mixit_io::write_wav(&out, &audio, 2, mix.sample_rate, mixit_io::WavDepth::Float32).map_err(err)?;
+                Ok(finished.notes.join(". "))
+            })();
+            let (message, error) = match done {
+                Ok(m) => (m, None),
+                Err(e) => (String::new(), Some(e)),
+            };
+            emit_job(&app, JobProgress { kind: "finish", done: 3, total: 3, message, finished: true, error });
+        })
+        .map_err(err)?;
+    Ok(result.to_string_lossy().into_owned())
+}
+
 /// Writes a tracklist or CUE sheet (only `.cue`, `.txt` and `.m3u8` files).
 #[tauri::command]
 pub fn save_text(path: String, text: String) -> R<()> {
@@ -1934,6 +2031,12 @@ mod tests {
         assert_eq!(transition_id(TransitionKind::BassSwap), "bassSwap");
         assert_eq!(transition_id(TransitionKind::Cut), "cut");
     }
+
+    #[test]
+    fn the_finished_copy_sits_beside_the_recording() {
+        let p = finished_path(Path::new("/music/Recordings/MixIt 2026-11-26 21-04.wav"));
+        assert_eq!(p, Path::new("/music/Recordings/MixIt 2026-11-26 21-04 (finished).wav"));
+    }
 }
 
 // --------------------------------------------------------------------- sampler
@@ -2020,7 +2123,7 @@ fn trained_split(
     title: &str,
     progress: &dyn Fn(f32, String),
     running: &dyn Fn() -> bool,
-) -> Result<[Vec<f32>; 3], TrainedSplit> {
+) -> Result<([Vec<f32>; 3], &'static str), TrainedSplit> {
     use mixit_ml::MlError;
     use mixit_ml::models::{HTDEMUCS, ModelStore};
     let why = |e: MlError| match e {
@@ -2036,14 +2139,44 @@ fn trained_split(
         })
         .map_err(why)?;
     let splitting = format!("Splitting {title} into stems");
+    let cleaner = state.settings.lock().clean_vocals;
+    // With cleaner vocals the stem splitter takes the first half of the bar, the vocal
+    // splitter the rest.
+    let share = if cleaner { 0.35 } else { 0.75 };
     progress(0.25, splitting.clone());
     let mut model = mixit_ml::stems::HtDemucs::load(&path).map_err(why)?;
     let s = mixit_ml::stems::split(&mut model, sr, audio, |p| {
-        progress(0.25 + 0.75 * p, splitting.clone());
+        progress(0.25 + share * p, splitting.clone());
         running()
     })
     .map_err(why)?;
-    Ok([s.vocals, s.drums, s.bass])
+    drop(model);
+    if !cleaner {
+        return Ok(([s.vocals, s.drums, s.bass], "htdemucs"));
+    }
+    // Cleaner vocals; if the vocal splitter can't be had or run, the stem splitter's
+    // vocals stay.
+    use mixit_ml::models::MEL_ROFORMER;
+    let mb = MEL_ROFORMER.bytes / 1_000_000;
+    let cleaning = format!("Taking the vocals out of {title} cleanly (the slow part)");
+    let clean = store
+        .fetch(&MEL_ROFORMER, |p| {
+            progress(0.6, format!("Getting the vocal splitter ({mb} MB, only the first time): {:.0} %", p * 100.0));
+            running()
+        })
+        .and_then(|vpath| mixit_ml::vocal_split::MelRoformer::load(&vpath))
+        .and_then(|mut model| {
+            progress(0.6, cleaning.clone());
+            mixit_ml::vocal_split::vocals(&mut model, sr, audio, |p| {
+                progress(0.6 + 0.4 * p, cleaning.clone());
+                running()
+            })
+        });
+    match clean {
+        Ok(v) => Ok(([v, s.drums, s.bass], "htdemucs+mel-roformer")),
+        Err(mixit_ml::MlError::Cancelled) => Err(TrainedSplit::Stopped),
+        Err(_) => Ok(([s.vocals, s.drums, s.bass], "htdemucs")),
+    }
 }
 
 #[cfg(not(feature = "stems-model"))]
@@ -2054,7 +2187,7 @@ fn trained_split(
     _title: &str,
     _progress: &dyn Fn(f32, String),
     _running: &dyn Fn() -> bool,
-) -> Result<[Vec<f32>; 3], TrainedSplit> {
+) -> Result<([Vec<f32>; 3], &'static str), TrainedSplit> {
     Err(TrainedSplit::Unavailable("this build has no trained splitter".into()))
 }
 
@@ -2110,7 +2243,7 @@ pub fn stems_split(app: AppHandle, state: State<'_, AppState>, track_id: i64) ->
                 None
             };
             let (parts, method) = match trained {
-                Some(parts) => (parts, "htdemucs"),
+                Some(found) => found,
                 None => {
                     let split = mixit_analysis::stems::quick_split(sr, &loaded.data, |p| {
                         progress(0.05 + 0.9 * p, splitting.clone());

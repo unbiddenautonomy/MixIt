@@ -25,6 +25,8 @@ pub struct Paths {
     pub backups: PathBuf,
     /// Downloaded model files (the stem splitter).
     pub models: PathBuf,
+    /// Tracks made with Make a track.
+    pub made: PathBuf,
 }
 
 impl Paths {
@@ -37,6 +39,7 @@ impl Paths {
             recordings: d.music.join("Recordings"),
             projects: d.music.join("Mixes"),
             practice: d.music.join("Practice"),
+            made: d.music.join("Made"),
             backups: d.backups,
             models: d.models,
         }
@@ -123,9 +126,23 @@ pub struct Settings {
     /// the quick split. Falls back to the quick split if the model can't be fetched or
     /// run, or in a build without it.
     pub trained_stems: bool,
+    /// After the stem splitter, a second, larger model (downloaded once, about 464 MB)
+    /// takes the vocals out much more cleanly. Slow: several minutes a track.
+    pub clean_vocals: bool,
     /// Lets a trained listener (downloaded once, about 207 MB) hear each track after
     /// analysis, for search by sound and a better "sounds like".
     pub sound_search: bool,
+    /// A trained beat tracker (downloaded once, about 191 MB) gives a second opinion on
+    /// tracks whose grid the analysis wasn't sure of, offered on the deck to use or not.
+    pub beat_helper: bool,
+    /// A small trained note listener (downloaded once, 230 KB) turns the notes a pad
+    /// plays into a sequencer pattern.
+    pub sound_to_notes: bool,
+    /// Make a track: ACE-Step makes new tracks from a description, run as a local
+    /// helper (set up once on request: a few GB, plus several GB of models).
+    pub make_track: bool,
+    /// Where the track maker is set up (empty: "ace-step" in the models folder).
+    pub make_track_folder: Option<String>,
     /// Ask MixIt: the command palette also understands requests typed in plain words.
     pub ask: bool,
     /// Looks for new code in the checkout MixIt was built from, a little after it starts.
@@ -166,7 +183,12 @@ impl Default for Settings {
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
             trained_stems: true,
+            clean_vocals: false,
             sound_search: true,
+            beat_helper: true,
+            sound_to_notes: true,
+            make_track: true,
+            make_track_folder: None,
             ask: true,
             check_updates: true,
             update_source: None,

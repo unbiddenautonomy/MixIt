@@ -1142,3 +1142,48 @@ fn the_trained_listener_s_numbers_steer_sounds_like_and_descriptions() {
     assert_eq!(lib.embeddings("m1").unwrap().len(), 3);
     assert_ne!(lib.sounds_described("m1", &unit(0.0, 1.0), 1).unwrap()[0].0, ids[1]);
 }
+
+#[test]
+fn the_beat_helper_s_grid_is_offered_until_used_or_dismissed() {
+    let (lib, ids) = sample_library();
+    let g = generate(&TrackSpec::short(Style::House, 124.0, Key::new(9, Mode::Minor)));
+    let mut a = mixit_analysis::analyze(&g.audio, g.sample_rate, &Default::default());
+    a.grid.confidence = 0.3;
+    lib.save_analysis(ids[0], &a).unwrap();
+    lib.save_analysis(ids[1], &a).unwrap();
+    a.grid.confidence = 0.9;
+    lib.save_analysis(ids[2], &a).unwrap();
+    // Only the unsure ones need a second opinion.
+    let unsure = |lib: &Library| lib.unsure_grids("bt", 0.6).unwrap().iter().map(|t| t.id).collect::<Vec<_>>();
+    assert_eq!(unsure(&lib), vec![ids[0], ids[1]]);
+
+    // The helper agrees on one and hears another tempo on the other.
+    let mut theirs = a.grid.clone();
+    theirs.set_bpm(130.0).unwrap();
+    lib.save_grid_suggestion(ids[0], "bt", None).unwrap();
+    lib.save_grid_suggestion(ids[1], "bt", Some((&theirs, "a different tempo"))).unwrap();
+    assert!(unsure(&lib).is_empty());
+    // A newer helper hears them again.
+    assert_eq!(lib.unsure_grids("bt2", 0.6).unwrap().len(), 2);
+    assert_eq!(lib.grid_suggestion(ids[0]).unwrap(), None);
+    let (offered, why) = lib.grid_suggestion(ids[1]).unwrap().unwrap();
+    assert_eq!((offered.bpm, why.as_str()), (130.0, "a different tempo"));
+
+    // Dismissed: no longer offered, and not heard again.
+    lib.dismiss_grid_suggestion(ids[1]).unwrap();
+    assert_eq!(lib.grid_suggestion(ids[1]).unwrap(), None);
+    assert!(unsure(&lib).is_empty());
+
+    // Re-analysis asks again; the person's own grid ends the offer.
+    lib.save_analysis(ids[1], &{
+        let mut a = a.clone();
+        a.grid.confidence = 0.3;
+        a
+    })
+    .unwrap();
+    assert_eq!(unsure(&lib), vec![ids[1]]);
+    lib.save_grid_suggestion(ids[1], "bt", Some((&theirs, "a different tempo"))).unwrap();
+    assert!(lib.grid_suggestion(ids[1]).unwrap().is_some());
+    lib.save_grid(ids[1], &a.grid).unwrap();
+    assert_eq!(lib.grid_suggestion(ids[1]).unwrap(), None);
+}

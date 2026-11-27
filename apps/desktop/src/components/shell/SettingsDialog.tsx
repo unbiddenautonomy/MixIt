@@ -189,11 +189,34 @@ function Mixing({ s }: { s: Settings }) {
       {backend().kind === "tauri" && (
         <Field label="Stems" hint="Splitting a track into vocals, drums, bass and melody. The trained splitter is much cleaner; it is downloaded once (about 166 MB) the first time you split a track. Off, or without internet, MixIt uses its quick split, which needs no download.">
           <Toggle on={s.trainedStems !== false} onChange={(v) => updateSettings({ trainedStems: v })} label="Use the trained splitter" />
+          <Toggle
+            on={!!s.cleanVocals}
+            onChange={(v) => updateSettings({ cleanVocals: v })}
+            label="Cleaner vocals (much slower)"
+          />
+          <p className="text-[11px] text-zinc-500">
+            After the trained splitter, a second, larger model takes the singing out almost without the music around it, for clean acapellas. It is downloaded once (about 464 MB) and takes several minutes a track.
+          </p>
         </Field>
       )}
       {backend().kind === "tauri" && (
         <Field label="Search by sound" hint="A trained listener hears each track once, right after it is analysed, so you can find tracks by describing them (“dark rolling bass”) and “sounds like” hears them more as you would. It is downloaded once (about 207 MB). Off, “sounds like” uses the analysis alone.">
           <Toggle on={s.soundSearch !== false} onChange={(v) => updateSettings({ soundSearch: v })} label="Listen to my tracks" />
+        </Field>
+      )}
+      {backend().kind === "tauri" && (
+        <Field label="Beat helper" hint="When MixIt isn't sure where a track's beats fall (live drummers, swing, no clear kick), a trained beat tracker listens again right after analysis. If it hears the beats or bars somewhere else, the deck offers its grid for you to use or not; nothing changes on its own. It is downloaded once (about 191 MB). Off, the analysis's grid is all there is.">
+          <Toggle on={s.beatHelper !== false} onChange={(v) => updateSettings({ beatHelper: v })} label="Get a second opinion on unsure beats" />
+        </Field>
+      )}
+      {backend().kind === "tauri" && (
+        <Field label="Sound to notes" hint="In the sequencer, a small trained listener can hear the notes a pad plays (a riff, a bassline, a hummed tune) and put them on the squares, each at its own pitch, to play back on any pad. It is downloaded the first time you use it (230 KB). Off, you draw patterns by hand.">
+          <Toggle on={s.soundToNotes !== false} onChange={(v) => updateSettings({ soundToNotes: v })} label="Turn a pad's notes into a pattern" />
+        </Field>
+      )}
+      {backend().kind === "tauri" && (
+        <Field label="Make a track" hint="Describe a track and a helper on this computer (ACE-Step, free and open) makes it and adds it to your library. It is big, so nothing is downloaded until you press Set it up in the Make a track window: about 5 GB, plus several GB of models for the first track. Off, the button is hidden.">
+          <Toggle on={s.makeTrack !== false} onChange={(v) => updateSettings({ makeTrack: v })} label="Show Make a track" />
         </Field>
       )}
       <Field label="Ask MixIt" hint="Type what you want in the command palette in your own words: “loop 4 beats”, “cut the bass on deck B”, “find instrumentals around 124 BPM”, “build a one hour warm-up set”. It works offline, and nothing you type leaves your computer.">

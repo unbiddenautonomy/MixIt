@@ -288,6 +288,11 @@ export class DemoBackend implements Backend {
     micVoice: true,
     micDenoise: "strong",
     soundSearch: true,
+    beatHelper: true,
+    soundToNotes: true,
+    makeTrack: true,
+    makeTrackFolder: null,
+    cleanVocals: false,
     ask: true,
     checkUpdates: true,
     trainedStems: true,
@@ -599,7 +604,39 @@ export class DemoBackend implements Backend {
       cues: [...t.cues, ...this.savedCues(t)],
       audible: [0, t.row.duration - 1],
       vocals: t.vocals,
+      gridSuggestion: this.gridHelp(t),
     };
+  }
+
+  /** Tracks whose beat helper offer was used or dismissed. */
+  protected helped = new Set<number>();
+
+  /** The demo's beat helper hears the hip-hop tracks' bars start a beat later. */
+  protected gridHelp(t: DemoTrack): T.GridSuggestion | null {
+    if (t.row.genre !== "Hip Hop" || this.helped.has(t.row.id) || t.pins) return null;
+    return { why: "the bars starting on a different beat", bpm: t.row.bpm ?? 0, beatsPerBar: 4 };
+  }
+
+  async useGridSuggestion(deck: number, useIt: boolean) {
+    const t = this.deckTrack(deck);
+    if (!t) throw new Error("no track on this deck");
+    const offer = this.gridHelp(t);
+    this.helped.add(t.row.id);
+    if (useIt && offer) {
+      this.analysedBeat.set(t.row.id, t.firstBeat);
+      await this.setGrid(deck, { downbeatAt: t.firstBeat + t.period });
+    } else this.deckLoaded(deck);
+  }
+
+  /** Where the analysis put beat 1, for tracks whose grid was replaced. */
+  protected analysedBeat = new Map<number, number>();
+
+  async resetGrid(deck: number) {
+    const t = this.deckTrack(deck);
+    if (!t) throw new Error("no track on this deck");
+    const first = this.analysedBeat.get(t.row.id);
+    if (first != null) await this.setGrid(deck, { downbeatAt: first });
+    else this.deckLoaded(deck);
   }
 
   protected saved = new Map<number, T.CueDto[]>();
@@ -1769,6 +1806,21 @@ export class DemoBackend implements Backend {
     return "~/Music/MixIt/Recordings/demo.wav";
   }
 
+  async finishMix(path: string, target: T.FinishTarget) {
+    const out = path.replace(/\.wav$/i, "") + " (finished).wav";
+    const steps = target.kind === "like" ? ["Reading the recording", "Listening to the track to match", "Finishing the tone and loudness"] : ["Reading the recording", "Finishing the tone and loudness"];
+    void (async () => {
+      for (const [i, message] of steps.entries()) {
+        this.emit("job", { kind: "finish", done: i, total: steps.length, message, finished: false, error: null });
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const loud = target.kind === "club" ? "-9 LUFS, club level" : target.kind === "streaming" ? "-14 LUFS, streaming level" : "-11 LUFS";
+      const message = `Turned down the low mids, where mud builds up by 2 dB. Brought up the air by 1 dB. Made it 5.2 dB louder (${loud})`;
+      this.emit("job", { kind: "finish", done: steps.length, total: steps.length, message, finished: true, error: null });
+    })();
+    return out;
+  }
+
   /** Files the demo "wrote", for tests. */
   readonly savedTexts = new Map<string, string>();
 
@@ -1998,6 +2050,58 @@ export class DemoBackend implements Backend {
   async samplerSequence(sequencer: T.SequencerDto) {
     if (sequencer.on && !this.seq.on) this.seqStep = -1;
     this.seq = { ...sequencer, pads: sequencer.pads.map((r) => [...r]) };
+  }
+
+  // Make a track: the demo "sets up" in a moment and "makes" a track from its library.
+  private makeInstalled = false;
+  private making: number | null = null;
+  async makeStatus(): Promise<T.MakeStatus> {
+    return { enabled: this.settings.makeTrack !== false, installed: this.makeInstalled, folder: "~/Library/Application Support/MixIt/Models/ace-step", running: this.makeInstalled, uv: true, uvInstall: "curl -LsSf https://astral.sh/uv/install.sh | sh", busy: this.making !== null };
+  }
+  private makeSteps(steps: string[], done: () => string) {
+    let i = 0;
+    this.making = window.setInterval(() => {
+      if (i < steps.length) {
+        this.emit("job", { kind: "make", done: 0, total: 0, message: steps[i++], finished: false, error: null });
+        return;
+      }
+      window.clearInterval(this.making!);
+      this.making = null;
+      this.emit("job", { kind: "make", done: 1, total: 1, message: done(), finished: true, error: null });
+    }, 200);
+  }
+  async makeInstall() {
+    this.makeSteps(["Getting the track maker's code", "Getting Python and the libraries it needs (a few GB, only once)"], () => {
+      this.makeInstalled = true;
+      return "The track maker is set up. The first track also downloads its models (several GB), so it takes a while.";
+    });
+  }
+  async makeTrack(r: T.MakeRequest) {
+    if (!this.makeInstalled) throw new Error("Set up the track maker first");
+    const name = r.name.trim() || r.description.trim().split(/\s+/).slice(0, 6).join(" ") || "New track";
+    this.makeSteps(["Starting the track maker", "Making the track (2 s)", "Making the track (4 s)"], () => {
+      const path = `~/Music/MixIt/Made/${name}.wav`;
+      const base = this.tracks[0];
+      const id = Math.max(...this.tracks.map((t) => t.row.id)) + 1;
+      this.tracks.push({ ...base, row: { ...base.row, id, path, title: name, artist: "", album: "", bpm: r.bpm ?? base.row.bpm, playCount: 0, lastPlayed: null, addedAt: Math.floor(Date.now() / 1000), rating: 0, color: null, comment: `Made with MixIt from: ${r.description.trim()}` } });
+      this.emit("library-changed", null);
+      return JSON.stringify({ trackId: id, path });
+    });
+  }
+  async makeCancel() {
+    if (this.making !== null) window.clearInterval(this.making);
+    this.making = null;
+    this.emit("job", { kind: "make", done: 0, total: 0, message: "", finished: true, error: "Stopped" });
+  }
+
+  /** The demo "hears" a two-bar riff in A minor at 120 BPM on any pad with a sound. */
+  async padNotes(pad: number): Promise<T.PadNotes> {
+    const p = this.pads[pad];
+    if (!p || p.source.type === "empty") throw new Error(`Pad ${pad + 1} is empty`);
+    const riff: [number, number][] = [[0, 57], [0.25, 60], [0.5, 64], [1, 62], [1.25, 60], [1.5, 57], [2, 55], [2.5, 57], [2.75, 60], [3, 64], [3.5, 67], [3.75, 64]];
+    // Times in beats; a beat is half a second.
+    const notes = riff.map(([at, pitch], i) => ({ start: at / 2, length: (((riff[i + 1]?.[0] ?? 4) - at) / 2) * 0.9, pitch, strength: 0.75 }));
+    return { notes, seconds: 4, bpm: 120 };
   }
 
   protected samplerMask(): number {

@@ -49,6 +49,8 @@ export class TauriBackend implements Backend {
   setMemoryCue(deck: number, seconds: number, label: string, color?: number | null) { return invoke<void>("set_memory_cue", { deck, seconds, label, color: color ?? null }); }
   deleteMemoryCue(deck: number, seconds: number) { return invoke<void>("delete_memory_cue", { deck, seconds }); }
   setGrid(deck: number, edit: T.GridEdit) { return invoke<void>("grid_set", { deck, edit }); }
+  useGridSuggestion(deck: number, useIt: boolean) { return invoke<void>("grid_suggestion_use", { deck, useIt }); }
+  resetGrid(deck: number) { return invoke<void>("grid_reset", { deck }); }
   deleteHotCue(deck: number, slot: number) { return invoke<void>("delete_hot_cue", { deck, slot }); }
   setMainCue(deck: number, seconds: number) { return invoke<void>("set_main_cue", { deck, seconds }); }
   setLoop(deck: number, start: number, end: number, active: boolean) { return invoke<void>("set_loop", { deck, start, end, active }); }
@@ -160,6 +162,7 @@ export class TauriBackend implements Backend {
   layoutsSave(text: string) { return invoke<void>("layouts_set", { text }); }
   recordStart() { return invoke<string>("record_start"); }
   recordStop() { return invoke<string>("record_stop"); }
+  finishMix(path: string, target: T.FinishTarget) { return invoke<string>("finish_mix", { path, target: target.kind, like: target.kind === "like" ? target.path : null }); }
   importTrack(path: string) { return invoke<T.TrackRow>("library_import", { path }); }
   registerFiles(_files: File[]): string[] { return []; }
   inputDevices() { return invoke<T.DeviceInfo[]>("input_devices"); }
@@ -190,6 +193,11 @@ export class TauriBackend implements Backend {
   samplerReset() { return invoke<T.PadInfo[]>("sampler_reset"); }
   samplerStopAll() { return invoke<void>("sampler_stop_all"); }
   samplerSequence(sequencer: T.SequencerDto) { return invoke<void>("sampler_sequence", { sequencer }); }
+  padNotes(pad: number) { return invoke<T.PadNotes>("pad_notes", { pad }); }
+  makeStatus() { return invoke<T.MakeStatus>("make_status"); }
+  makeInstall() { return invoke<void>("make_install"); }
+  makeTrack(request: T.MakeRequest) { return invoke<void>("make_track", { request }); }
+  makeCancel() { return invoke<void>("make_cancel"); }
   addPracticeTracks() { return invoke<void>("practice_add"); }
   importRekordbox(path: string) { return invoke<void>("import_rekordbox", { path }); }
   importTraktor(path: string) { return invoke<void>("import_traktor", { path }); }

@@ -891,6 +891,58 @@ impl Library {
         Ok(out)
     }
 
+    // ---------------------------------------------------------------- beat helper
+
+    /// Analysed tracks (files that are there) whose grid the analysis wasn't sure of
+    /// (confidence below `below`), that the person hasn't edited and `model` hasn't
+    /// heard yet, oldest first.
+    pub fn unsure_grids(&self, model: &str, below: f32) -> Result<Vec<Track>> {
+        let sql = format!(
+            "SELECT {TRACK_COLS} FROM tracks t JOIN analyses a ON a.track_id = t.id
+             WHERE t.missing = 0 AND t.analysis_state = 1
+               AND json_extract(a.data, '$.grid.confidence') < ?2
+               AND NOT EXISTS (SELECT 1 FROM grids g WHERE g.track_id = t.id)
+               AND NOT EXISTS (SELECT 1 FROM grid_suggestions s WHERE s.track_id = t.id AND s.model = ?1)
+             ORDER BY t.id"
+        );
+        let mut st = self.conn.prepare(&sql)?;
+        let rows = st.query_map(params![model, below as f64], track_from_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Keeps what the beat helper `model` made of a track: its grid and why it differs
+    /// from the analysis's, or `None` when they agree (so it isn't heard again).
+    pub fn save_grid_suggestion(&self, id: TrackId, model: &str, found: Option<(&Beatgrid, &str)>) -> Result<()> {
+        let data = found.map(|(g, _)| serde_json::to_string(g)).transpose()?;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO grid_suggestions (track_id, model, data, why, dismissed) VALUES (?1, ?2, ?3, ?4, 0)",
+            params![id, model, data, found.map(|(_, w)| w)],
+        )?;
+        Ok(())
+    }
+
+    /// The beat helper's grid for a track and why it differs, while the person hasn't
+    /// used or dismissed it and hasn't edited the grid themselves.
+    pub fn grid_suggestion(&self, id: TrackId) -> Result<Option<(Beatgrid, String)>> {
+        let row: Option<(String, Option<String>)> = self
+            .conn
+            .query_row(
+                "SELECT s.data, s.why FROM grid_suggestions s WHERE s.track_id = ?1 AND s.dismissed = 0
+                   AND s.data IS NOT NULL AND NOT EXISTS (SELECT 1 FROM grids g WHERE g.track_id = s.track_id)",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let Some((data, why)) = row else { return Ok(None) };
+        Ok(Some((serde_json::from_str(&data)?, why.unwrap_or_default())))
+    }
+
+    /// Stops offering the beat helper's grid for a track (it stays stored).
+    pub fn dismiss_grid_suggestion(&self, id: TrackId) -> Result<()> {
+        self.conn.execute("UPDATE grid_suggestions SET dismissed = 1 WHERE track_id = ?", [id])?;
+        Ok(())
+    }
+
     // ---------------------------------------------------------------- analysis
 
     /// Stores an analysis and copies its headline values into the track row. A grid the
@@ -904,6 +956,8 @@ impl Library {
             "INSERT OR REPLACE INTO analyses (track_id, version, data, waveform, waveform_sr) VALUES (?, ?, ?, ?, ?)",
             params![id, a.version, data, wave.as_ref().map(|w| w.base_bytes()), wave.as_ref().map(|w| w.sample_rate)],
         )?;
+        // A new analysis gets a fresh second opinion, if it still needs one.
+        self.conn.execute("DELETE FROM grid_suggestions WHERE track_id = ?", [id])?;
         let key = a.key.as_ref().map(|k| k.key);
         self.conn.execute(
             "UPDATE tracks SET bpm = ?2, key_index = ?3, key_order = ?4, energy = ?5, lufs = ?6, auto_gain_db = ?7,

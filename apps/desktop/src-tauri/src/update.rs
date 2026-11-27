@@ -131,7 +131,17 @@ fn emit(app: &AppHandle, done: usize, total: usize, message: impl Into<String>) 
 
 /// Runs a command line through the login shell in `dir`, passing each line it prints to
 /// `line`. Stops it when Update is cancelled.
-fn run(dir: &Path, cmd: &str, mut line: impl FnMut(&str)) -> R<()> {
+fn run(dir: &Path, cmd: &str, line: impl FnMut(&str)) -> R<()> {
+    run_in_shell(dir, cmd, &CANCEL, line).map_err(|e| if e == STOPPED { "Update stopped".into() } else { e })
+}
+
+/// What [`run_in_shell`] returns when `cancel` stopped it.
+pub(crate) const STOPPED: &str = "stopped";
+
+/// Runs a command line through the login shell in `dir` (so the tools the person's
+/// terminal finds are found), passing each line it prints to `line`, until it ends or
+/// `cancel` is set. Fails with the last lines it printed.
+pub(crate) fn run_in_shell(dir: &Path, cmd: &str, cancel: &AtomicBool, mut line: impl FnMut(&str)) -> R<()> {
     let (shell, args) = Os::current().login_shell();
     let mut child = Command::new(shell)
         .args(args)
@@ -167,10 +177,10 @@ fn run(dir: &Path, cmd: &str, mut line: impl FnMut(&str)) -> R<()> {
                 tail.remove(0);
             }
         }
-        if CANCEL.load(Ordering::SeqCst) {
+        if cancel.load(Ordering::SeqCst) {
             let _ = child.kill();
             let _ = child.wait();
-            return Err("Update stopped".into());
+            return Err(STOPPED.into());
         }
         if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
             for r in readers {

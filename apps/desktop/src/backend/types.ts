@@ -108,6 +108,16 @@ export interface TrackDetail {
   audible: [number, number];
   /** Where the track has a voice: [start, end] seconds. */
   vocals?: [number, number][];
+  /** The beat helper's grid, waiting to be used or not. */
+  gridSuggestion?: GridSuggestion | null;
+}
+
+/** A second opinion on a track's grid, from the beat helper. */
+export interface GridSuggestion {
+  /** What it hears differently, in plain words ("a different tempo"). */
+  why: string;
+  bpm: number;
+  beatsPerBar: number;
 }
 
 /** How a built set's energy moves. */
@@ -391,7 +401,16 @@ export interface Settings {
   /** Desktop: split stems with the trained model (downloaded once) instead of the quick split. */
   trainedStems?: boolean;
   /** Let a trained listener hear each track (downloaded once), for search by sound. */
+  /** After the trained splitter, a larger model takes the vocals out more cleanly (slow). */
+  cleanVocals?: boolean;
   soundSearch?: boolean;
+  beatHelper?: boolean;
+  /** A small trained note listener turns the notes a pad plays into a sequencer pattern. */
+  soundToNotes?: boolean;
+  /** Make a track: a local helper (ACE-Step) makes new tracks from a description. */
+  makeTrack?: boolean;
+  /** Where the track maker is set up (empty: in the models folder). */
+  makeTrackFolder?: string | null;
   /** Ask MixIt: the command palette also understands requests typed in plain words. */
   ask?: boolean;
   /** Looks for new code in the checkout MixIt was built from, a little after it starts. */
@@ -569,6 +588,23 @@ export interface SequencerDto {
   swing: number;
   /** pads[p][s]: whether pad p plays on step s. */
   pads: boolean[][];
+  /** pitches[p][s]: how far pad p is pitched on step s, in semitones (missing = 0). */
+  pitches?: number[][];
+}
+
+/** A note heard in a sound: when (s), how long (s), which key (MIDI number) and how clearly (0 to 1). */
+export interface HeardNote {
+  start: number;
+  length: number;
+  pitch: number;
+  strength: number;
+}
+
+/** The notes a pad's sound plays, with its length (s) and tempo if known. */
+export interface PadNotes {
+  notes: HeardNote[];
+  seconds: number;
+  bpm: number | null;
 }
 
 export interface PadPatch {
@@ -621,8 +657,33 @@ export interface HistoryEntry {
   artist: string;
 }
 
+/** Where Make a track stands: set up or not, its helper running, uv found. */
+export interface MakeStatus {
+  enabled: boolean;
+  installed: boolean;
+  folder: string;
+  running: boolean;
+  uv: boolean;
+  /** The line that installs uv, for a terminal. */
+  uvInstall: string;
+  busy: boolean;
+}
+
+/** A track to make: the sound in words, words to sing (empty: instrumental), tempo, key and length. */
+export interface MakeRequest {
+  description: string;
+  lyrics: string;
+  bpm: number | null;
+  key: string | null;
+  seconds: number;
+  name: string;
+}
+
+/** What to finish a recorded mix like: club or streaming level, or a track's sound. */
+export type FinishTarget = { kind: "club" } | { kind: "streaming" } | { kind: "like"; path: string };
+
 export interface JobProgress {
-  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems" | "update";
+  kind: "scan" | "analyze" | "render" | "import" | "copy" | "stems" | "update" | "finish" | "make";
   done: number;
   total: number;
   message: string;
