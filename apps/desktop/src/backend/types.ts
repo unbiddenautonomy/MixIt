@@ -824,5 +824,10 @@ export type WindowMessage =
   | { kind: "layout-undo"; from: string; token: string }
   /** The main window turned a change down, with the reason in plain words. */
   | { kind: "layout-refused"; id: string; to: string; reason: string }
+  /** Edit layout mode is on or off in every window (from the main window). */
+  | { kind: "layout-edit"; on: boolean }
+  /** A layout window asks to turn Edit layout mode on or off, or to undo or redo a step in it. */
+  | { kind: "layout-edit-ask"; on: boolean }
+  | { kind: "layout-step"; step: "undo" | "redo" }
   /** A layout window's size in its own CSS pixels, for the rules about what fits. */
   | { kind: "layout-size"; win: string; w: number; h: number };

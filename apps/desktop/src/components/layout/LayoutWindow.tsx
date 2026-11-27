@@ -9,13 +9,16 @@
 // isn't showing, or on another page isn't drawn at all, as tabs and pages work today.
 import clsx from "clsx";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
-import { Component, createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ErrorInfo, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Component, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ErrorInfo, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { TAB_PX, hardMinFor, drawnAt, fitTree, isCollapsed, minSize, shownPlace, visiblePlaces, type Fit } from "../../lib/layout/fit";
 import { MAIN, findWin, isFolded, type Env, type LayoutNode, type PageId, type Split, type Stack, type UnitId } from "../../lib/layout/model";
 import { BAR_PX, HANDLE_PX, UNITS } from "../../lib/layout/units";
 import { useApp } from "../../store/app";
 import { ME, initLayout, layoutDo, layoutEnv, setLayoutSize, showLayoutPage, useLayout } from "../../store/layout";
+import { dropOn, previewBox, sideAt, type Box } from "../../lib/layout/dock";
+import { isRefusal, run, type Op } from "../../lib/layout/ops";
+import { EditBar } from "./EditBar";
 import { UnitMenu } from "./UnitMenu";
 import { UnitView } from "./units";
 
@@ -28,6 +31,18 @@ interface Ctx {
   host: (unit: UnitId) => HTMLDivElement;
   /** Opens a unit that was folded only to fit: it then stays open, and others give way or the page scrolls. */
   keepOpen: (unit: UnitId, open: boolean) => void;
+  /** Edit layout mode: tabs can be dragged. */
+  editing: boolean;
+  /** Starts dragging a unit by its tab (Edit layout mode). */
+  startDrag: (unit: UnitId, e: ReactPointerEvent) => void;
+}
+
+/** A drag in progress: the unit, the pointer, and what letting go there would do. */
+interface Drag {
+  unit: UnitId;
+  x: number;
+  y: number;
+  drop: { op: Op; box: Box; why: string | null } | null;
 }
 const LayoutCtx = createContext<Ctx | null>(null);
 const useCtx = () => useContext(LayoutCtx)!;
@@ -59,6 +74,90 @@ export function LayoutWindow() {
   const hosts = useRef(new Map<UnitId, HTMLDivElement>());
   // Not saved: a unit the person opened while the window was too small for it.
   const [kept, setKept] = useState<ReadonlySet<UnitId>>(new Set());
+  const editing = useLayout((s) => s.editing);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const dragging = useRef(false);
+  const isDragging = useCallback(() => dragging.current, []);
+
+  /** What letting go of `unit` at (x, y) would do, and why not if it can't. */
+  const dropAt = useCallback(
+    (unit: UnitId, x: number, y: number): Drag["drop"] => {
+      const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-drop]");
+      if (!el || !area.current?.contains(el)) return null;
+      const r = el.getBoundingClientRect();
+      const b: Box = { left: r.left, top: r.top, width: r.width, height: r.height };
+      let op: Op;
+      let box = b;
+      if (el.dataset.drop === "page") op = { op: "send", unit, win, page };
+      else {
+        const units = (el.dataset.units ?? "").split(",").filter(Boolean) as UnitId[];
+        const d = dropOn(unit, sideAt(x, y, b), units, el.dataset.drop as UnitId);
+        if (!d) return null;
+        op = { op: "place", unit, target: { win, page, unit: d.unit }, side: d.side };
+        box = previewBox(d.side, b);
+      }
+      // Tried on a copy first, so the person sees before letting go whether it will work.
+      const l = useLayout.getState().layout;
+      const res = l ? run(l, layoutEnv(), op) : null;
+      return { op, box, why: isRefusal(res) ? res.reason : null };
+    },
+    [win, page],
+  );
+
+  const startDrag = useCallback(
+    (unit: UnitId, e: ReactPointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.currentTarget as HTMLElement;
+      const sx = e.clientX;
+      const sy = e.clientY;
+      let started = false;
+      let latest: Drag["drop"] = null;
+      const move = (ev: PointerEvent) => {
+        if (!started) {
+          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+          started = true;
+          dragging.current = true;
+          try {
+            target.setPointerCapture(ev.pointerId);
+          } catch {
+            /* the drag still follows the window's events */
+          }
+        }
+        latest = dropAt(unit, ev.clientX, ev.clientY);
+        setDrag({ unit, x: ev.clientX, y: ev.clientY, drop: latest });
+      };
+      const end = (commit: boolean) => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("keydown", key, true);
+        if (!started) return;
+        dragging.current = false;
+        setDrag(null);
+        // The end of a drag isn't a click on the tab.
+        const eat = (c: MouseEvent) => {
+          c.stopPropagation();
+          c.preventDefault();
+        };
+        window.addEventListener("click", eat, { capture: true, once: true });
+        window.setTimeout(() => window.removeEventListener("click", eat, true), 0);
+        if (commit && latest && !latest.why) layoutDo(latest.op);
+      };
+      const up = () => end(true);
+      const cancel = () => end(false);
+      const key = (ev: KeyboardEvent) => {
+        if (ev.key !== "Escape" || !started) return;
+        ev.stopPropagation();
+        ev.preventDefault();
+        end(false);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", cancel);
+      window.addEventListener("keydown", key, true);
+    },
+    [dropAt],
+  );
 
   useEffect(() => void initLayout(), []);
   useEffect(() => {
@@ -102,18 +201,22 @@ export function LayoutWindow() {
           else next.delete(unit);
           return next;
         }),
+      editing,
+      startDrag,
     }),
-    [win, page, env, fit],
+    [win, page, env, fit, editing, startDrag],
   );
   const shown = useMemo(() => shownUnits(root, { env, fit }), [root, env, fit]);
 
   return (
     <LayoutCtx.Provider value={ctx}>
+      <EditBar dragging={isDragging} />
       <div ref={area} data-testid="layout" className={clsx("relative min-h-0 min-w-0 flex-1", fit.scroll ? "overflow-auto" : "overflow-hidden")}>
         <div className="flex h-full w-full" style={fit.scroll ? { minWidth: need.w, minHeight: need.h } : undefined}>
           {root ? <NodeView node={root} path={[]} parentDir={null} /> : layout ? <EmptyPage page={page} /> : null}
         </div>
       </div>
+      {drag && <DragPreview drag={drag} />}
       {shown.map((unit) =>
         createPortal(
           <UnitBoundary unit={unit}>
@@ -128,7 +231,25 @@ export function LayoutWindow() {
 }
 
 function EmptyPage({ page }: { page: PageId }) {
-  return <div className="m-auto text-sm text-zinc-500">Nothing is on the {page === "mix" ? "Mix" : page === "library" ? "Library" : "Arrange"} page.</div>;
+  return (
+    <div data-drop="page" className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+      Nothing is on the {page === "mix" ? "Mix" : page === "library" ? "Library" : "Arrange"} page.
+    </div>
+  );
+}
+
+/** Where the dragged part will go (or why it can't), and its name by the pointer. */
+function DragPreview({ drag }: { drag: Drag }) {
+  const d = drag.drop;
+  const name = UNITS[drag.unit].name;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50" aria-live="polite">
+      {d && <div className={clsx("absolute rounded-lg border-2", d.why ? "border-red-400/70 bg-red-500/10" : "border-[var(--accent)] bg-[var(--accent)]/15")} style={{ left: d.box.left, top: d.box.top, width: d.box.width, height: d.box.height }} />}
+      <div className="absolute max-w-xs rounded-md border border-white/10 bg-zinc-900/95 px-2 py-1 text-[11px] text-zinc-200 shadow-lg" style={{ left: drag.x + 14, top: drag.y + 14 }}>
+        {d?.why ?? (d ? `Move ${name} here` : `Move ${name}: point at another part`)}
+      </div>
+    </div>
+  );
 }
 
 function NodeView({ node, path, parentDir }: { node: LayoutNode; path: number[]; parentDir: "row" | "col" | null }) {
@@ -289,11 +410,12 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
     layoutDo({ op: "fold", unit: shown.unit, folded, where });
   };
 
-  if (person || auto) return <FoldedBar unit={shown.unit} vertical={parentDir === "row"} auto={auto} onOpen={() => fold(false)} />;
+  const units = node.units.map((p) => p.unit).join(",");
+  if (person || auto) return <FoldedBar unit={shown.unit} units={units} vertical={parentDir === "row"} auto={auto} onOpen={() => fold(false)} />;
 
   const FoldIcon = parentDir === "row" ? ChevronLeft : ChevronUp;
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-stack={shown.unit} aria-label={UNITS[shown.unit].name}>
+    <section className={clsx("flex min-h-0 min-w-0 flex-1 flex-col", ctx.editing && "rounded-lg outline outline-1 -outline-offset-1 outline-[var(--accent)]/25")} data-stack={shown.unit} data-drop={shown.unit} data-units={units} aria-label={UNITS[shown.unit].name}>
       <div role="tablist" className="flex shrink-0 items-center gap-0.5 px-1 text-[11px]" style={{ height: TAB_PX }}>
         {places.map((p) => {
           const active = p === shown;
@@ -304,7 +426,9 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
               role="tab"
               aria-selected={active}
               onClick={() => layoutDo({ op: "activate", unit: p.unit, where })}
-              className={clsx("h-5 truncate rounded px-1.5 font-medium", active ? "text-zinc-200" : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200", places.length === 1 && "pointer-events-none")}
+              onPointerDown={ctx.editing ? (e) => ctx.startDrag(p.unit, e) : undefined}
+              title={ctx.editing ? `Drag ${UNITS[p.unit].name} to move it` : undefined}
+              className={clsx("h-5 truncate rounded px-1.5 font-medium", active ? "text-zinc-200" : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200", ctx.editing ? "cursor-grab touch-none bg-white/[0.04] active:cursor-grabbing" : places.length === 1 && "pointer-events-none")}
             >
               {UNITS[p.unit].name}
             </button>
@@ -322,7 +446,7 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
 }
 
 /** A folded unit: a slim bar with its name and an arrow to open it. */
-function FoldedBar({ unit, vertical, auto, onOpen }: { unit: UnitId; vertical: boolean; auto: boolean; onOpen: () => void }) {
+function FoldedBar({ unit, units, vertical, auto, onOpen }: { unit: UnitId; units: string; vertical: boolean; auto: boolean; onOpen: () => void }) {
   const name = UNITS[unit].name;
   const Icon = vertical ? ChevronRight : ChevronDown;
   const hint = auto ? `Open ${name} (folded to fit the window; opening it makes room by folding something else, or lets the page scroll)` : `Open ${name}`;
@@ -330,6 +454,8 @@ function FoldedBar({ unit, vertical, auto, onOpen }: { unit: UnitId; vertical: b
     <button
       type="button"
       data-folded={unit}
+      data-drop={unit}
+      data-units={units}
       data-auto={auto || undefined}
       title={hint}
       aria-label={`Open ${name}`}

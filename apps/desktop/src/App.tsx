@@ -49,6 +49,7 @@ import { layoutDo, useLayout } from "./store/layout";
 import { partState, startLayoutShare } from "./store/layoutShare";
 import { PAGE_IDS, findWin, type PageId } from "./lib/layout/model";
 import { windowNumber } from "./lib/layout/windows";
+import { EditLayoutButton } from "./components/layout/EditBar";
 
 /** Another window changed what the library shows: this one reloads its list. */
 function hookLibrarySync() {
@@ -252,6 +253,8 @@ function LayoutPartWindow({ theme }: { theme: string }) {
               ))}
             </nav>
           )}
+          <span className="ml-auto" />
+          {win && <EditLayoutButton />}
         </header>
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {win ? (

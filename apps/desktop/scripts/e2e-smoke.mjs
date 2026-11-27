@@ -362,6 +362,33 @@ try {
     await page.waitForSelector('[data-slot="library"]', { timeout: 3000 });
     await page.click('button:has-text("Mix")');
     await page.waitForSelector('[data-slot="mixer"]', { timeout: 3000 });
+    // Edit layout: drag the sidebar by its tab onto the right edge of the track list, then undo it.
+    const left = (sel) => page.$eval(sel, (e) => e.getBoundingClientRect().left);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "the sidebar did not start left of the list");
+    // Outside Edit layout a tab can't be dragged.
+    await page.click('button[aria-label^="Edit the layout"]');
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    const tab = await page.$eval('[data-drop="sidebar"] [role="tab"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    const dest = await page.$eval('[data-drop="library"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.right - 8, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(tab.x, tab.y);
+    await page.mouse.down();
+    await page.mouse.move(tab.x + 30, tab.y + 10, { steps: 3 });
+    await page.mouse.move(dest.x, dest.y, { steps: 8 });
+    await page.waitForSelector("text=/^Move .+ here$/", { timeout: 3000 });
+    await page.mouse.up();
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) > (await left('[data-slot="library"]')), "the sidebar did not move right of the list");
+    await page.keyboard.press("Control+z");
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "undo did not put the sidebar back");
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
   }
 
   await step("the guide finds a topic", async () => {

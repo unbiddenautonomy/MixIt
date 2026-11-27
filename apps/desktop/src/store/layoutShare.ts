@@ -16,7 +16,7 @@ import { LayoutFeed } from "../lib/layout/sync";
 import { fromReport, placeOn, windowChanges, windowNumber, windowPlan, type WinSpec } from "../lib/layout/windows";
 import { isMainWindow, layoutScreens, refreshScreens, useScreens } from "../lib/screens";
 import { useApp } from "./app";
-import { ME, layoutChange, layoutHooks, layoutRun, layoutUndo, mainScreenRef, multiWindow, offerUndo, settling, useLayout } from "./layout";
+import { ME, editHooks, editStep, setEditing, layoutChange, layoutHooks, layoutRun, layoutUndo, mainScreenRef, multiWindow, offerUndo, settling, useLayout } from "./layout";
 
 /** How long a moved window must stay put before its new place is kept. */
 const MOVE_SETTLE_MS = 400;
@@ -161,6 +161,7 @@ function startMain(): () => void {
 
   const offs = [
     useLayout.subscribe((s, prev) => {
+      if (s.editing !== prev.editing) send({ kind: "layout-edit", on: s.editing });
       if (s.layout === prev.layout) return;
       announce(true);
       void adopted.then(() => reconcileWindows());
@@ -172,11 +173,18 @@ function startMain(): () => void {
       if (s.screens !== prev.screens || s.supported !== prev.supported) void adopted.then(() => reconcileWindows());
     }),
     b.onBroadcast?.((m) => {
-      if (m.kind === "layout-hello") announce(false);
+      if (m.kind === "layout-hello") {
+        announce(false);
+        if (useLayout.getState().editing) send({ kind: "layout-edit", on: true });
+      } else if (m.kind === "layout-edit-ask") setEditing(!!m.on);
+      else if (m.kind === "layout-step") {
+        if (m.step === "undo" || m.step === "redo") editStep(m.step);
+      }
       else if (m.kind === "layout-intent") {
         const l = useLayout.getState().layout;
         if (!l || !findWin(l, m.from)) return;
-        let op = isOp(m.op) ? m.op : null;
+        // Whole layouts are applied only from this window's own menu.
+        let op = isOp(m.op) && m.op.op !== "preset" ? m.op : null;
         // Another window doesn't know which screen this one is on.
         if (op?.op === "swap" && !op.mainAt) op = { ...op, mainAt: mainScreenRef() };
         if (!op) send({ kind: "layout-refused", id: m.id, to: m.from, reason: "MixIt didn't understand that." });
@@ -253,6 +261,7 @@ function startPart(): () => void {
   let n = 0;
   /** Notes to show with Undo once the main window says the change is made. */
   const notes = new Map<string, string>();
+  editHooks.ask = (m) => send("on" in m ? { kind: "layout-edit-ask", on: m.on } : { kind: "layout-step", step: m.step });
   layoutHooks.ask = (op, note) => {
     const id = `${ME}-${Date.now()}-${n++}`;
     if (note) notes.set(id, note);
@@ -277,7 +286,8 @@ function startPart(): () => void {
         partState.waiting = false;
         window.clearTimeout(helloTimer);
         useLayout.setState({ layout: m.layout as unknown as Layout });
-      } else if (m.kind === "layout-refused" && m.to === ME) {
+      } else if (m.kind === "layout-edit") useLayout.setState({ editing: !!m.on });
+      else if (m.kind === "layout-refused" && m.to === ME) {
         notes.delete(m.id);
         toast.message(m.reason);
       } else if (m.kind === "layout-done" && m.to === ME) {
@@ -301,6 +311,7 @@ function startPart(): () => void {
     window.clearTimeout(helloTimer);
     window.clearTimeout(sizeTimer);
     layoutHooks.ask = null;
+    editHooks.ask = null;
   };
 }
 

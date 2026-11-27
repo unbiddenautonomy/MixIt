@@ -34,15 +34,31 @@ export interface SetAside {
   why: string;
 }
 
+/** A layout the person saved under a name, to apply on any set of screens. */
+export interface Preset {
+  id: string;
+  name: string;
+  /** As it was saved; read through `loadLayout` before use. */
+  layout: unknown;
+  /** The set of screens it was made on. */
+  setup: string;
+  made: number;
+}
+
+/** Saved layouts kept at most; saving another past this is refused with a note. */
+export const MAX_PRESETS = 20;
+const MAX_NAME = 60;
+
 export interface Book {
   version: 1;
   /** Counts up with every save, so the newer of two copies can be told apart. */
   saved: number;
   setups: Record<string, Setup>;
   setAside: SetAside[];
+  presets: Preset[];
 }
 
-export const emptyBook = (): Book => ({ version: 1, saved: 0, setups: {}, setAside: [] });
+export const emptyBook = (): Book => ({ version: 1, saved: 0, setups: {}, setAside: [], presets: [] });
 
 export interface ReadBook {
   book: Book;
@@ -74,7 +90,34 @@ export function readBook(text: string | null | undefined): ReadBook {
   if (Array.isArray(data.setAside))
     for (const v of data.setAside.slice(-MAX_SET_ASIDE))
       if (isObj(v) && typeof v.key === "string") book.setAside.push({ key: v.key.slice(0, MAX_KEY), layout: v.layout, at: num(v.at) ? v.at : 0, why: typeof v.why === "string" ? v.why.slice(0, 500) : "" });
+  if (Array.isArray(data.presets))
+    for (const v of data.presets.slice(0, MAX_PRESETS))
+      if (isObj(v) && typeof v.id === "string" && typeof v.name === "string" && "layout" in v && !book.presets.some((p) => p.id === v.id))
+        book.presets.push({ id: v.id.slice(0, 40), name: cleanName(v.name), layout: v.layout, setup: typeof v.setup === "string" ? v.setup.slice(0, MAX_KEY) : "", made: num(v.made) ? v.made : 0 });
   return { book: trim(book, null) };
+}
+
+/** A preset's name as kept: one line, trimmed, not too long, never empty. */
+export function cleanName(name: string): string {
+  return name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME) || "My layout";
+}
+
+/** The book with a layout saved under a name. A name already used is replaced (after asking, in the UI). */
+export function addPreset(book: Book, name: string, layout: Layout, setup: string, now: number): Book | { full: true } {
+  const clean = cleanName(name);
+  const same = book.presets.find((p) => p.name.toLowerCase() === clean.toLowerCase());
+  if (!same && book.presets.length >= MAX_PRESETS) return { full: true };
+  const preset: Preset = { id: same?.id ?? `p${now.toString(36)}${book.presets.length}`, name: clean, layout, setup, made: now };
+  const presets = same ? book.presets.map((p) => (p === same ? preset : p)) : [...book.presets, preset];
+  return trim({ ...book, saved: book.saved + 1, presets }, null);
+}
+
+export function removePreset(book: Book, id: string): Book {
+  return { ...book, saved: book.saved + 1, presets: book.presets.filter((p) => p.id !== id) };
+}
+
+export function renamePreset(book: Book, id: string, name: string): Book {
+  return { ...book, saved: book.saved + 1, presets: book.presets.map((p) => (p.id === id ? { ...p, name: cleanName(name) } : p)) };
 }
 
 /** Of two copies of the book (the library's and the quick one), the one saved last. Ties go to the first. */

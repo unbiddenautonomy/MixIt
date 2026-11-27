@@ -14,7 +14,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import { backend } from "../backend";
-import { emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, type Book } from "../lib/layout/book";
+import { addPreset, emptyBook, lastUsed, newerOf, pickLayout, putLayout, readBook, removePreset, renamePreset, type Book } from "../lib/layout/book";
 import { loadLayout } from "../lib/layout/check";
 import { MAIN, isFolded, orderedScreens, placesOf, refOf, resolveScreen, setupKey, type Env, type Layout, type PageId, type ScreenRef, type UnitId } from "../lib/layout/model";
 import { isRefusal, normalise, run, type Op } from "../lib/layout/ops";
@@ -35,13 +35,20 @@ export const SETTLE_MS = 3000;
 
 interface LayoutState {
   layout: Layout | null;
+  /** Edit layout mode: parts are moved by dragging their tabs, and ⌘Z undoes layout steps. The main window decides it for every window. */
+  editing: boolean;
+  /** Steps that Undo and Redo can take in Edit layout mode. */
+  canUndo: boolean;
+  canRedo: boolean;
+  /** The layouts saved under a name (the main window only). */
+  presets: { id: string; name: string; setup: string }[];
   /** This window's layout area, in CSS pixels. */
   size: { w: number; h: number };
   /** The other windows' sizes, as they report them (the main window only). */
   sizes: Record<string, { w: number; h: number }>;
 }
 
-export const useLayout = create<LayoutState>(() => ({ layout: null, size: { w: 1280, h: 760 }, sizes: {} }));
+export const useLayout = create<LayoutState>(() => ({ layout: null, editing: false, canUndo: false, canRedo: false, presets: [], size: { w: 1280, h: 760 }, sizes: {} }));
 
 /** This window's id in the layout. */
 export const ME = thisWin ?? MAIN;
@@ -232,6 +239,7 @@ export function initLayout(): Promise<void> {
       layout = builtIn(layoutEnv());
     }
     useLayout.setState({ layout: onShownPage(layout) });
+    showPresets();
     // Kept straight away, so the moved-across layout is what the next start finds.
     book = putLayout(book, setup, layout, Date.now());
     writeBook();
@@ -268,6 +276,8 @@ function screensChanged() {
 function switchSetup(key: string) {
   if (!isMainWindow || starting || key === setup || !useLayout.getState().layout) return;
   flush();
+  // An older layout can point at a screen that's gone.
+  forget();
   const seen = key in book.setups;
   setup = key;
   const before = useLayout.getState().layout;
@@ -314,10 +324,107 @@ export function layoutRun(op: Op): string | null {
   if (isRefusal(next)) return next.reason;
   // Many operations return a copy even when nothing changed; only a real change is drawn and saved.
   if (next !== layout && serialise(next) !== serialise(layout)) {
+    // A window the system moved isn't a step to undo.
+    if (useLayout.getState().editing && op.op !== "moved") remember(layout);
     useLayout.setState({ layout: next });
     save(next);
   }
   return null;
+}
+
+// ------------------------------------------------------------------ Edit layout mode
+
+/** Layouts before each step taken in Edit layout mode, and those undone. */
+let past: Layout[] = [];
+let future: Layout[] = [];
+const HISTORY = 50;
+
+function remember(before: Layout) {
+  past.push(before);
+  if (past.length > HISTORY) past.shift();
+  future = [];
+  useLayout.setState({ canUndo: true, canRedo: false });
+}
+
+function forget() {
+  past = [];
+  future = [];
+  useLayout.setState({ canUndo: false, canRedo: false });
+}
+
+/** Set by layoutShare: asks the main window to switch Edit layout mode or take a step. */
+export const editHooks: { ask: ((m: { on: boolean } | { step: "undo" | "redo" }) => void) | null } = { ask: null };
+
+/** Turns Edit layout mode on or off, for every window. Leaving it clears the steps to undo. */
+export function setEditing(on: boolean) {
+  if (!isMainWindow) return editHooks.ask?.({ on });
+  if (useLayout.getState().editing === on) return;
+  forget();
+  useLayout.setState({ editing: on });
+}
+
+/** Undoes or redoes one step in Edit layout mode. */
+export function editStep(step: "undo" | "redo") {
+  if (!isMainWindow) return editHooks.ask?.({ step });
+  const now = useLayout.getState().layout;
+  const from = step === "undo" ? past : future;
+  const to = step === "undo" ? future : past;
+  const target = from.pop();
+  if (!now || !target) return;
+  to.push(now);
+  const next = normalise(target, layoutEnv());
+  useLayout.setState({ layout: next, canUndo: past.length > 0, canRedo: future.length > 0 });
+  save(next);
+}
+
+// ------------------------------------------------------------------ saved layouts
+
+function showPresets() {
+  useLayout.setState({ presets: book.presets.map((p) => ({ id: p.id, name: p.name, setup: p.setup })) });
+}
+
+/** Saves the layout showing under a name. Returns why not, or null. */
+export function savePreset(name: string): string | null {
+  const layout = useLayout.getState().layout;
+  if (!layout) return "The layout isn't ready yet.";
+  if (readOnly) return "These layouts were made by a newer MixIt, so nothing can be saved here.";
+  const next = addPreset(book, name, { ...layout, edited: false }, setup, Date.now());
+  if ("full" in next) return "You have 20 saved layouts already. Delete one first.";
+  book = next;
+  writeBook();
+  showPresets();
+  return null;
+}
+
+export function deletePreset(id: string) {
+  book = removePreset(book, id);
+  writeBook();
+  showPresets();
+}
+
+export function renameSavedPreset(id: string, name: string) {
+  book = renamePreset(book, id, name);
+  writeBook();
+  showPresets();
+}
+
+/** Applies a saved layout (undoable). Parts meant for screens that aren't connected come to this window. */
+export function applySavedPreset(id: string): string | null {
+  const p = book.presets.find((x) => x.id === id);
+  if (!p) return "That saved layout is gone.";
+  const r = loadLayout(p.layout, layoutEnv());
+  if (!r.layout) return "That saved layout couldn't be read.";
+  const { why, token } = layoutChange({ op: "preset", layout: { ...r.layout, preset: p.id } });
+  if (why) return why;
+  if (token) offerUndo(`Switched to "${p.name}".`, () => layoutUndo(token));
+  return null;
+}
+
+/** Applies the built-in layout for these screens (undoable). */
+export function applyStandard() {
+  const { why, token } = layoutChange({ op: "preset", layout: builtIn(layoutEnv()) });
+  if (why) toast.message(why);
+  else if (token) offerUndo("Switched to the standard layout.", () => layoutUndo(token));
 }
 
 /** Runs one layout operation. A refusal is shown in plain words and changes nothing. */
@@ -414,6 +521,7 @@ export function showLayoutPage(page: PageId) {
 useApp.subscribe((s, prev) => {
   // Only the main window changes the layout; the others get the result.
   if (!isMainWindow) return;
+  if (!s.settings?.layoutEngine && prev.settings?.layoutEngine) setEditing(false);
   if (s.settings?.decks === prev.settings?.decks && s.settings?.viewMode === prev.settings?.viewMode) return;
   const { layout } = useLayout.getState();
   if (!layout) return;

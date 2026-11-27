@@ -13,6 +13,7 @@ import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../
 import { openTool, useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { AssistantButton } from "../feedback/MixAssistant";
+import { EditLayoutButton } from "../layout/EditBar";
 import { MicButton } from "../mic/MicPanel";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
@@ -69,6 +70,7 @@ export function TopBar() {
             <span className="hidden xl:inline">Pads</span>
           </Btn>
         </Ctl>
+        {settings?.layoutEngine && <EditLayoutButton />}
         <AssistantButton />
         <Ctl id="app.guide" side="bottom">
           <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">

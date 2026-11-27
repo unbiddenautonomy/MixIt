@@ -647,7 +647,9 @@ export type Op =
   | { op: "unmirror"; unit: UnitId; win: string }
   | { op: "page"; win: string; page: PageId }
   | { op: "moved"; win: string; screen: ScreenInfo | null; bounds: Rect01 | "full"; fullscreen: boolean }
-  | { op: "swap"; a: ScreenRef; b: ScreenRef; mainAt: ScreenRef | null };
+  | { op: "swap"; a: ScreenRef; b: ScreenRef; mainAt: ScreenRef | null }
+  /** A whole layout (a saved one, or the built-in one), already read through `loadLayout`. */
+  | { op: "preset"; layout: Layout };
 
 export function run(layout: Layout, env: Env, o: Op): Result {
   switch (o.op) {
@@ -677,6 +679,8 @@ export function run(layout: Layout, env: Env, o: Op): Result {
       return windowMoved(layout, env, o.win, o.screen, o.bounds, o.fullscreen);
     case "swap":
       return swapScreens(layout, env, o.a, o.b, o.mainAt);
+    case "preset":
+      return applyPreset(o.layout, env);
   }
 }
 
