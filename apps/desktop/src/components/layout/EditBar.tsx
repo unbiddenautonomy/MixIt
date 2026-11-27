@@ -3,12 +3,15 @@
 // the top of each window says what to do, and holds Undo, Redo, saved layouts and Done.
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { LayoutDashboard, Redo2, Undo2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { backend } from "../../backend";
+import { PRESET_EXT } from "../../lib/layout/book";
+import { BUILT_INS } from "../../lib/layout/presets";
 import { toast } from "sonner";
 import { isMainWindow } from "../../lib/screens";
 import { useApp } from "../../store/app";
 import { shortcutLabel } from "../../lib/actions";
-import { applySavedPreset, applyStandard, deletePreset, editStep, renameSavedPreset, savePreset, setEditing, useLayout } from "../../store/layout";
+import { applyBuiltIn, applySavedPreset, deletePreset, duplicatePreset, editStep, exportPreset, importPreset, layoutName, renameSavedPreset, savePreset, setEditing, useLayout } from "../../store/layout";
 import { ask, askText } from "../shell/Dialogs";
 import { Btn } from "../ui/Button";
 
@@ -69,9 +72,25 @@ export function EditBar({ dragging }: { dragging: () => boolean }) {
   );
 }
 
-/** Saved layouts: apply one, save this one under a name, rename or delete. */
+/** Saves a saved layout as a small file, to keep or to use on another computer. */
+async function exportToFile(id: string) {
+  const out = exportPreset(id);
+  if (!out) return;
+  const path = await backend().pickSave(`${out.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "My layout"}.${PRESET_EXT}`, [PRESET_EXT]);
+  if (!path) return;
+  try {
+    await backend().saveText(path, out.text);
+    toast.success(`Exported "${out.name}".`);
+  } catch (e) {
+    toast.error(`Couldn't export "${out.name}": ${String(e)}`);
+  }
+}
+
+/** Layouts: the built-in ones, the saved ones (use, rename, duplicate, export, delete), save this one, import one. */
 function Saved() {
   const presets = useLayout((s) => s.presets);
+  const current = useLayout((s) => layoutName(s.layout, s.presets));
+  const file = useRef<HTMLInputElement>(null);
   const saveAs = async () => {
     const name = await askText({ title: "Save this layout", placeholder: "Home studio, Club with projector…", confirm: "Save", help: "You can switch to it any time from here, on any screens." });
     if (name == null) return;
@@ -80,59 +99,93 @@ function Saved() {
     if (why) toast.message(why);
     else toast.success(`Saved as "${name.trim() || "My layout"}".`);
   };
+  const imported = async (f: File | undefined) => {
+    if (!f) return;
+    const r = importPreset(await f.text());
+    if ("why" in r) toast.message(r.why);
+    else toast.success(`Added "${r.name}" to your layouts.`);
+  };
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <Btn size="sm" tone="ghost" aria-label="Saved layouts">
-          Layouts
-        </Btn>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content align="end" sideOffset={4} className="menu">
-          <DropdownMenu.Item className="menu-item" onSelect={() => applyStandard()}>
-            The standard layout
-          </DropdownMenu.Item>
-          {presets.map((p) => (
-            <DropdownMenu.Sub key={p.id}>
-              <DropdownMenu.SubTrigger className="menu-item">{p.name}</DropdownMenu.SubTrigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.SubContent className="menu" sideOffset={4}>
-                  <DropdownMenu.Item
-                    className="menu-item"
-                    onSelect={() => {
-                      const why = applySavedPreset(p.id);
-                      if (why) toast.message(why);
-                    }}
-                  >
-                    Use this layout
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className="menu-item"
-                    onSelect={async () => {
-                      const name = await askText({ title: "Rename this layout", initial: p.name, confirm: "Rename" });
-                      if (name != null) renameSavedPreset(p.id, name);
-                    }}
-                  >
-                    Rename…
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className="menu-item text-red-300"
-                    onSelect={async () => {
-                      if (await ask({ title: `Delete "${p.name}"?`, body: "The layout showing now stays as it is.", confirm: "Delete", danger: true })) deletePreset(p.id);
-                    }}
-                  >
-                    Delete…
-                  </DropdownMenu.Item>
-                </DropdownMenu.SubContent>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Sub>
-          ))}
-          <DropdownMenu.Separator className="my-1 h-px bg-white/[0.06]" />
-          <DropdownMenu.Item className="menu-item" onSelect={() => void saveAs()}>
-            Save this layout…
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <>
+      <input ref={file} type="file" accept={`.${PRESET_EXT},application/json`} className="hidden" data-testid="layout-import" onChange={(e) => (void imported(e.target.files?.[0]), (e.target.value = ""))} />
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <Btn size="sm" tone="ghost" aria-label={current ? `Layouts: showing ${current}` : "Layouts"} title={current ? `Showing: ${current}` : undefined}>
+            Layouts{current && <span className="hidden max-w-[12rem] truncate text-zinc-500 lg:inline">: {current}</span>}
+          </Btn>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" sideOffset={4} className="menu max-w-[20rem]">
+            <DropdownMenu.Label className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Built in</DropdownMenu.Label>
+            {BUILT_INS.map((b) => (
+              <DropdownMenu.Item key={b.id} className="menu-item flex-col items-start gap-0" onSelect={() => applyBuiltIn(b.id)} data-built-in={b.id}>
+                <span>{b.id === "standard" ? "Standard (back to default)" : b.name}</span>
+                <span className="text-[11px] leading-snug text-zinc-500">{b.what}</span>
+              </DropdownMenu.Item>
+            ))}
+            {presets.length > 0 && (
+              <>
+                <DropdownMenu.Separator className="my-1 h-px bg-white/[0.06]" />
+                <DropdownMenu.Label className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Yours</DropdownMenu.Label>
+              </>
+            )}
+            {presets.map((p) => (
+              <DropdownMenu.Sub key={p.id}>
+                <DropdownMenu.SubTrigger className="menu-item">{p.name}</DropdownMenu.SubTrigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.SubContent className="menu" sideOffset={4}>
+                    <DropdownMenu.Item
+                      className="menu-item"
+                      onSelect={() => {
+                        const why = applySavedPreset(p.id);
+                        if (why) toast.message(why);
+                      }}
+                    >
+                      Use this layout
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="menu-item"
+                      onSelect={async () => {
+                        const name = await askText({ title: "Rename this layout", initial: p.name, confirm: "Rename" });
+                        if (name != null) renameSavedPreset(p.id, name);
+                      }}
+                    >
+                      Rename…
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="menu-item"
+                      onSelect={() => {
+                        const why = duplicatePreset(p.id);
+                        if (why) toast.message(why);
+                      }}
+                    >
+                      Duplicate
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item className="menu-item" onSelect={() => void exportToFile(p.id)}>
+                      Export to a file…
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="menu-item text-red-300"
+                      onSelect={async () => {
+                        if (await ask({ title: `Delete "${p.name}"?`, body: "The layout showing now stays as it is.", confirm: "Delete", danger: true })) deletePreset(p.id);
+                      }}
+                    >
+                      Delete…
+                    </DropdownMenu.Item>
+                  </DropdownMenu.SubContent>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Sub>
+            ))}
+            <DropdownMenu.Separator className="my-1 h-px bg-white/[0.06]" />
+            <DropdownMenu.Item className="menu-item" onSelect={() => void saveAs()}>
+              Save this layout…
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="menu-item" onSelect={() => file.current?.click()}>
+              Import a layout file…
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </>
   );
 }

@@ -1,5 +1,7 @@
 // The ⋯ menu on every part of the new layout: send it to another window, open it in a new
 // window on a screen, bring it back to Window 1, or swap the screens the windows are on.
+// A view (the waveforms, track details, the clock) can also be shown in another window as
+// well, and a copy shown that way can be taken away again.
 // The browser version has one window, so there the menu isn't shown.
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
@@ -8,7 +10,7 @@ import { UNITS } from "../../lib/layout/units";
 import { screenName, windowLabel } from "../../lib/layout/windows";
 import { layoutDoUndoable, mainScreenRef, useLayout } from "../../store/layout";
 
-export function UnitMenu({ unit, win, env }: { unit: UnitId; win: string; env: Env }) {
+export function UnitMenu({ unit, win, env, mirror = false }: { unit: UnitId; win: string; env: Env; mirror?: boolean }) {
   const layout = useLayout((s) => s.layout);
   if (!layout || env.browser || !env.screens.length) return null;
   const name = UNITS[unit].name;
@@ -18,6 +20,9 @@ export function UnitMenu({ unit, win, env }: { unit: UnitId; win: string; env: E
   const perf = mainAt ? resolveScreen(env.screens, mainAt) : null;
   const canOpen = layout.windows.length < MAX_WINDOWS;
   const away = !placesOf(layout, unit).some((f) => f.win.id === MAIN);
+  const showing = new Set(placesOf(layout, unit, true).map((f) => f.win.id));
+  const alsoIn = UNITS[unit].mirrorable ? others.filter((w) => !showing.has(w.id)) : [];
+  const here = windowLabel(layout, win, env.screens);
 
   return (
     <DropdownMenu.Root>
@@ -29,17 +34,31 @@ export function UnitMenu({ unit, win, env }: { unit: UnitId; win: string; env: E
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={4} className="menu">
           <DropdownMenu.Label className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{name}</DropdownMenu.Label>
-          {others.map((w) => (
+          {mirror && (
+            <>
+              <div className="max-w-[16rem] px-2 pb-1 text-[11px] leading-snug text-zinc-500">This is a second view of {name}; its own place is in another window.</div>
+              <DropdownMenu.Item className="menu-item" onSelect={() => layoutDoUndoable({ op: "unmirror", unit, win }, `${name} is no longer shown in ${here}.`)}>
+                Stop showing it here
+              </DropdownMenu.Item>
+            </>
+          )}
+          {!mirror && others.map((w) => (
             <DropdownMenu.Item key={w.id} className="menu-item" onSelect={() => layoutDoUndoable(w.id === MAIN && away ? { op: "home", unit } : { op: "send", unit, win: w.id }, `${name} moved to ${windowLabel(layout, w.id, env.screens)}.`)}>
               Send to {windowLabel(layout, w.id, env.screens)}
             </DropdownMenu.Item>
           ))}
-          {screens.map((s) => (
+          {!mirror &&
+            alsoIn.map((w) => (
+              <DropdownMenu.Item key={`also-${w.id}`} className="menu-item" onSelect={() => layoutDoUndoable({ op: "mirror", unit, win: w.id }, `${name} is shown in ${windowLabel(layout, w.id, env.screens)} too.`)}>
+                Also show in {windowLabel(layout, w.id, env.screens)}
+              </DropdownMenu.Item>
+            ))}
+          {!mirror && screens.map((s) => (
             <DropdownMenu.Item key={`new-${s.name}-${s.x}-${s.y}`} className="menu-item" disabled={!canOpen} onSelect={() => layoutDoUndoable({ op: "newWindow", unit, screen: refOf(env.screens, s) }, `${name} opened in a new window on ${screenName(env.screens, s)}.`)}>
               New window on {screenName(env.screens, s)}
             </DropdownMenu.Item>
           ))}
-          {!canOpen && <div className="max-w-[16rem] px-2 py-1.5 text-[11px] leading-snug text-zinc-400">MixIt can have up to {MAX_WINDOWS} windows. Send this to one that's open, or close one first.</div>}
+          {!mirror && !canOpen && <div className="max-w-[16rem] px-2 py-1.5 text-[11px] leading-snug text-zinc-400">MixIt can have up to {MAX_WINDOWS} windows. Send this to one that's open, or close one first.</div>}
           {perf && screens.length > 1 && (
             <>
               <DropdownMenu.Separator className="my-1 h-px bg-white/[0.06]" />

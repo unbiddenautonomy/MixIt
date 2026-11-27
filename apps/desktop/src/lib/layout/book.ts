@@ -120,6 +120,30 @@ export function renamePreset(book: Book, id: string, name: string): Book {
   return { ...book, saved: book.saved + 1, presets: book.presets.map((p) => (p.id === id ? { ...p, name: cleanName(name) } : p)) };
 }
 
+/** What an exported layout file says it is. */
+export const PRESET_FILE = "mixit-layout";
+/** The file's ending: a small JSON file. */
+export const PRESET_EXT = "mixitlayout";
+
+/** A saved layout as the text of a file to keep or pass on. */
+export function presetFile(name: string, layout: unknown, setup: string): string {
+  return JSON.stringify({ kind: PRESET_FILE, version: BOOK_VERSION, name: cleanName(name), setup, layout }, null, 1);
+}
+
+/** Reads an exported layout file. The layout itself still goes through `loadLayout`. */
+export function readPresetFile(text: string): { name: string; setup: string; layout: unknown } | { why: string } {
+  if (text.length > MAX_BOOK_TEXT) return { why: "That file is too big to be a MixIt layout." };
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { why: "That file isn't a MixIt layout." };
+  }
+  if (!isObj(data) || data.kind !== PRESET_FILE || !("layout" in data)) return { why: "That file isn't a MixIt layout." };
+  if (num(data.version) && data.version > BOOK_VERSION) return { why: "That layout was saved by a newer MixIt. Update MixIt to use it." };
+  return { name: cleanName(typeof data.name === "string" ? data.name : ""), setup: typeof data.setup === "string" ? data.setup.slice(0, MAX_KEY) : "", layout: data.layout };
+}
+
 /** Of two copies of the book (the library's and the quick one), the one saved last. Ties go to the first. */
 export function newerOf(a: ReadBook, b: ReadBook): ReadBook {
   if (a.problem === "newer") return a;

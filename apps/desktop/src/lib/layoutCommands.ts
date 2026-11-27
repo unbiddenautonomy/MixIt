@@ -6,10 +6,11 @@ import { MAIN, MAX_WINDOWS, isFolded, orderedScreens, placesOf, refOf, resolveSc
 import { UNITS } from "./layout/units";
 import { screenName, windowLabel } from "./layout/windows";
 import { isMainWindow } from "./screens";
-import { applyStandard, layoutDo, layoutDoUndoable, layoutEnv, mainScreenRef, multiWindow, setEditing, useLayout } from "../store/layout";
+import { applyBuiltIn, applyStandard, layoutDo, layoutDoUndoable, layoutEnv, mainScreenRef, multiWindow, setEditing, useLayout } from "../store/layout";
 import { useApp } from "../store/app";
 import { updateSettings } from "./appCommands";
 import { runInMain } from "./windowSync";
+import { BUILT_INS, type BuiltIn } from "./layout/presets";
 
 const layoutOn = () => !!useApp.getState().settings?.layoutEngine;
 
@@ -58,6 +59,14 @@ export function standardLayout() {
   if (!needLayout("The standard layout", standardLayout)) return;
   if (!isMainWindow) return runInMain("app.layout_standard");
   applyStandard();
+}
+
+/** One of the built-in layouts (Controller, Prepare, Arrange or Standard) for these screens, with Undo. */
+export function builtInLayout(kind: BuiltIn) {
+  const name = BUILT_INS.find((b) => b.id === kind)?.name ?? "Standard";
+  if (!needLayout(`The ${name} layout`, () => builtInLayout(kind))) return;
+  if (!isMainWindow) return runInMain(`layout.preset.${kind}`);
+  applyBuiltIn(kind);
 }
 
 const nameOf = (unit: UnitId) => UNITS[unit].name;

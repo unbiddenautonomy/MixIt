@@ -179,7 +179,7 @@ export interface Backend {
   layoutsSave(text: string): Promise<void>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
-  /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */
+  /** Writes a tracklist, CUE sheet or exported layout (.cue, .txt, .m3u8 or .mixitlayout). In a browser it is downloaded. */
   saveText(path: string, text: string): Promise<void>;
   /** Finishes a recording's tone and loudness and writes "<name> (finished).wav" beside
    * it, leaving the recording as it was. Returns that file; a "finish" job says when it

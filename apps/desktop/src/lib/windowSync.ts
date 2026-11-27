@@ -56,7 +56,7 @@ export function changed(name: string, next: object, prev: object): Record<string
 }
 
 /** Things a part window asks the main window to do. */
-export type MainRun = "global.record" | "app.feedback" | "app.layout_standard";
+export type MainRun = "global.record" | "app.feedback" | "app.layout_standard" | `layout.preset.${"standard" | "controller" | "prepare" | "arrange"}`;
 
 /**
  * Starts sharing with the other windows. `main` answers new windows with everything and

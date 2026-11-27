@@ -949,9 +949,12 @@ function partIn(t: string): { id: string; name: string } | null {
   return null;
 }
 
-/** Edit layout, the controller switch, the standard layout, and moving or folding one part. */
+/** Edit layout, the controller switch, the built-in layouts, and moving or folding one part. */
 function layoutCommands(t: string): Understood | null {
   const app = (id: string, say: string) => control([{ do: "app", id }], say);
+  if (has(t, /\b(?:controller|dj controller) (?:screen )?layout\b|\blayout for (?:a |my |the )?(?:dj )?controller\b/)) return app("layout.preset.controller", "Switch to the Controller layout");
+  if (has(t, /\b(?:prepare|preparing|preparation|prep) (?:screen )?layout\b|\blayout for (?:preparing|getting tracks ready|prep(?:aration)?)\b/)) return app("layout.preset.prepare", "Switch to the Prepare layout");
+  if (has(t, /\barrange(?:ment)? (?:screen )?layout\b|\blayout for arranging\b/)) return app("layout.preset.arrange", "Switch to the Arrange layout");
   if (has(t, /\b(?:no|without|unplugged|disconnected|unplug|disconnect|removed?) (?:a |my |the )?(?:dj |midi )?controller\b|\bcontroller (?:is )?(?:off|unplugged|disconnected|gone|out)\b/)) return app("app.controller:off", "Playing without a DJ controller");
   if (has(t, /\b(?:using|playing (?:with|on)|plugged in|connected|have|got|with|plug in|connect) (?:a |my |the )?(?:dj |midi )?controller\b|\bcontroller (?:is )?(?:on|connected|plugged in|in)\b/)) return app("app.controller:on", "Playing with a DJ controller");
   if (has(t, /\b(?:standard|default|original|normal|usual) (?:screen )?layout\b|\breset (?:the |my )?(?:screen layout|layout|screen)\b/)) return app("app.layout_standard", "Go back to the standard layout");
