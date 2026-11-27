@@ -67,9 +67,10 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
       data-deck={L}
     >
       <Header deck={deck} />
-      {info ? <Overview deck={deck} height={compact ? 32 : 46} /> : <EmptyDeck letter={L} compact={compact} />}
+      {info ? <Overview deck={deck} height={compact ? 32 : 40} /> : <EmptyDeck letter={L} compact={compact} />}
       <SafetyNote deck={deck} />
-      <div className={clsx("flex min-w-0", compact ? "items-center gap-2" : "gap-3")}>
+      {/* The tempo fader sits on the side nearer the mixer, so both hands work in one area. */}
+      <div className={clsx("flex min-w-0", compact ? "items-center gap-2" : "gap-3", deck % 2 === 1 && "flex-row-reverse")}>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Transport deck={deck} pro={pro} compact={compact} />
           {!compact && <Pads deck={deck} />}
@@ -77,7 +78,7 @@ export function Deck({ deck, compact = false }: { deck: number; compact?: boolea
         <Tempo deck={deck} pro={pro} compact={compact} />
       </div>
       {compact && <Pads deck={deck} compact />}
-      <Stems deck={deck} compact={compact} />
+      {compact && <Stems deck={deck} compact />}
     </section>
   );
 }
@@ -100,7 +101,7 @@ function SafetyNote({ deck }: { deck: number }) {
 
 function EmptyDeck({ letter, compact }: { letter: string; compact: boolean }) {
   return (
-    <div className={clsx("flex items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 text-xs text-zinc-500", compact ? "h-8" : "h-[46px]")}>
+    <div className={clsx("flex items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 text-xs text-zinc-500", compact ? "h-8" : "h-10")}>
       <Music2 size={14} />
       Drag a track here, or select one and press <kbd className="rounded border border-white/10 px-1 font-mono text-[11px]">Enter</kbd> to load deck {letter}
     </div>
@@ -178,7 +179,7 @@ function Header({ deck }: { deck: number }) {
             </span>
           </Ctl>
           <div className="text-right">
-            <div className="font-mono text-base font-semibold leading-none tabular-nums text-zinc-50">{fmtBpm(bpm)}</div>
+            <div className="font-mono text-[18px] font-semibold leading-none tabular-nums text-zinc-50">{fmtBpm(bpm)}</div>
             <div className={clsx("font-mono text-[11px] leading-tight tabular-nums", tempo === 0 ? "text-zinc-500" : "text-[var(--accent-ink)]")}>{signedPct(tempo)}</div>
           </div>
           <BeatCounter deck={deck} />
@@ -207,7 +208,7 @@ function TimeReadout({ deck }: { deck: number }) {
   const left = Math.max(0, dur - pos);
   const warn = left < 30 && dur > 0;
   return (
-    <button type="button" onClick={() => setRemaining((r) => !r)} title="Elapsed or remaining" className={clsx("min-h-6 w-16 text-right font-mono text-sm tabular-nums", warn ? "animate-pulse text-red-400" : "text-zinc-200")}>
+    <button type="button" onClick={() => setRemaining((r) => !r)} title="Elapsed or remaining" className={clsx("min-h-6 w-[5.5rem] text-right font-mono text-[18px] tabular-nums", warn ? "animate-pulse text-red-400" : "text-zinc-200")}>
       {remaining ? `-${clock(left, true)}` : clock(pos, true)}
     </button>
   );

@@ -1,5 +1,5 @@
 // The performance pads under each deck: hot cues, loops, beat jump, the slicer, rolls,
-// FX and (Pro) the beat grid tools.
+// FX, the stems and (Pro) the beat grid tools.
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, X } from "lucide-react";
 import { backend } from "../../backend";
@@ -13,8 +13,9 @@ import { livePosition, useDeckTele } from "../../store/telemetry";
 import { ActionBtn, Btn } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
 import { FxUnit } from "./FxUnit";
+import { Stems } from "./Stems";
 
-type Tab = "cues" | "loop" | "jump" | "slicer" | "roll" | "keys" | "fx" | "grid";
+type Tab = "cues" | "loop" | "jump" | "slicer" | "roll" | "keys" | "fx" | "stems" | "grid";
 
 export function Pads({ deck, compact = false }: { deck: number; compact?: boolean }) {
   const pro = usePro();
@@ -26,6 +27,8 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
     // Easy keeps the three a first mix needs; the rest are in Pro.
     ...(pro ? [{ id: "jump" as Tab, label: "Jump" }, { id: "slicer" as Tab, label: "Slicer" }, { id: "roll" as Tab, label: "Roll" }, { id: "keys" as Tab, label: "Keys" }] : []),
     { id: "fx", label: "FX" },
+    // Stems sit with the pads rather than on a row of their own, so the deck stays short.
+    ...(compact ? [] : [{ id: "stems" as Tab, label: "Stems" }]),
     ...(pro ? [{ id: "grid" as Tab, label: "Grid" }] : []),
   ];
   const current = tabs.some((t) => t.id === tab) ? tab : "cues";
@@ -54,6 +57,7 @@ export function Pads({ deck, compact = false }: { deck: number; compact?: boolea
       {current === "keys" && <KeyPads deck={deck} compact={compact} />}
       {current === "fx" && <FxUnit unit={deck} />}
       {current === "grid" && <Grid deck={deck} />}
+      {current === "stems" && <Stems deck={deck} />}
     </div>
   );
 }

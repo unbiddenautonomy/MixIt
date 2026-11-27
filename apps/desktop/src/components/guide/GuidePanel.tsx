@@ -35,7 +35,8 @@ export function reveal(ids: string[], tab?: [number, string]) {
   if (ids.some((id) => id.startsWith("fx.master"))) openTool("effects");
   else if (ids.some((id) => id.startsWith("sampler."))) openTool("pads");
   const fxDeck = ids.map((id) => /^fx\.([A-D])\./.exec(id)?.[1]).find(Boolean);
-  const t = tab ?? (fxDeck ? [fxDeck.charCodeAt(0) - 65, "fx"] : undefined);
+  const stemDeck = ids.map((id) => /^deck\.([A-D])\.stem\./.exec(id)?.[1]).find(Boolean);
+  const t = tab ?? (fxDeck ? [fxDeck.charCodeAt(0) - 65, "fx"] : stemDeck ? [stemDeck.charCodeAt(0) - 65, "stems"] : undefined);
   if (t) s.set({ padTabs: s.padTabs.map((x, i) => (i === t[0] ? t[1] : x)) });
   // Let React draw the screen and tab first.
   window.setTimeout(() => {

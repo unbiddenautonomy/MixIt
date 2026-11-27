@@ -159,7 +159,7 @@ function Lane({ deck, seconds, height }: { deck: number; seconds: number; height
 export function WaveStack({ decks }: { decks: number[] }) {
   const [zoom, setZoom] = useState(3);
   const seconds = ZOOMS[zoom];
-  const h = decks.length > 2 ? 44 : 76;
+  const h = decks.length > 2 ? 44 : 60;
   return (
     <div className="screen relative shrink-0 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950">
       {decks.map((d, i) => (

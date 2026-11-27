@@ -19,13 +19,15 @@ import { BatchInspector } from "./BatchInspector";
 import { TagEditor } from "./TagEditor";
 import { editTracksWithUndo } from "../../lib/libraryUndo";
 
-export function Inspector() {
+/** A track's analysis and details. Beside the library it only takes room once a track is
+ * selected (`placeholder` keeps it, with a hint, where it is a part of its own). */
+export function Inspector({ placeholder = false }: { placeholder?: boolean }) {
   const selected = useLibrary((s) => s.selected);
   if (selected.length > 1) return <BatchInspector ids={selected} />;
-  return <OneTrack />;
+  return <OneTrack placeholder={placeholder} />;
 }
 
-function OneTrack() {
+function OneTrack({ placeholder }: { placeholder: boolean }) {
   const id = useLibrary((s) => s.inspect);
   const [d, setD] = useState<TrackDetail | null>(null);
   const notation = useNotation();
@@ -47,7 +49,8 @@ function OneTrack() {
   }, [id]);
 
   if (id == null || !d) {
-    return <aside className="hidden w-72 shrink-0 items-center justify-center border-l border-white/[0.06] p-4 text-center text-xs text-zinc-500 xl:flex">Select a track to see its analysis.</aside>;
+    if (!placeholder) return null;
+    return <aside className="flex h-full w-full items-center justify-center p-4 text-center text-xs text-zinc-500">Select a track to see its analysis.</aside>;
   }
   const t = d.track;
   const save = async (edit: TrackEdit) => {

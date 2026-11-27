@@ -839,6 +839,8 @@ try {
 
   await step("a deck splits its track into stems and switches the vocals off", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix", toolSize: "docked" }));
+    // The stems sit with the pads, on their own tab.
+    await page.click('[data-deck="A"] button:text-is("Stems")');
     await page.click('[data-testid="stems-split-A"]');
     await page.waitForSelector('[data-testid="stem-A-vocals"]', { timeout: 5000 });
     await page.click('[data-testid="stem-A-vocals"]');
