@@ -6,6 +6,7 @@ import { LayoutDashboard, Redo2, Undo2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { isMainWindow } from "../../lib/screens";
+import { useApp } from "../../store/app";
 import { shortcutLabel } from "../../lib/actions";
 import { applySavedPreset, applyStandard, deletePreset, editStep, renameSavedPreset, savePreset, setEditing, useLayout } from "../../store/layout";
 import { ask, askText } from "../shell/Dialogs";
@@ -14,8 +15,10 @@ import { Btn } from "../ui/Button";
 /** The top bar's switch for Edit layout mode. */
 export function EditLayoutButton() {
   const editing = useLayout((s) => s.editing);
+  const key = useApp((s) => s.registry.find((a) => a.id === "app.layout_edit")?.shortcut ?? null);
+  const keys = key ? ` (${shortcutLabel(key)})` : "";
   return (
-    <Btn size="sm" tone="ghost" active={editing} onClick={() => setEditing(!editing)} aria-label={editing ? "Finish editing the layout" : "Edit the layout: move parts by dragging their tabs"} title={editing ? "Finish editing the layout (Esc)" : "Edit the layout: drag parts to move them"}>
+    <Btn size="sm" tone="ghost" active={editing} onClick={() => setEditing(!editing)} aria-label={editing ? "Finish editing the layout" : "Edit the layout: move parts by dragging their tabs"} title={editing ? `Finish editing the layout (Esc${key ? ` or ${shortcutLabel(key)}` : ""})` : `Edit the layout: drag parts to move them${keys}`}>
       <LayoutDashboard size={14} />
       <span className="hidden xl:inline">{editing ? "Done" : "Edit layout"}</span>
     </Btn>

@@ -49,5 +49,6 @@ On small machines build the desktop crate with `-j 2`; linking it with full para
 
 - Tests generate their audio with `mixit-generator`, so every claim (BPM, key, beat positions, section boundaries) is checked against exact ground truth.
 - User-facing text is plain language for someone who has never DJed: say what a control does, not its jargon.
+- Shortcuts in user-facing text go through `keyLabel` (or `{Mod+K}` in guide text, which `keysIn` writes), so a Mac shows ⌘ and Windows and Linux show Ctrl; never write Ctrl+ or ⌘ in by hand (the platform test fails if you do). A new feature gets a guide topic in `src/guide/concepts.ts`.
 - Easy view shows the essentials; Pro shows everything. Never lock a feature behind Pro, only hide it.
 - Commit messages: imperative subject, a body that says what and why.

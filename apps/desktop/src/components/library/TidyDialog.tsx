@@ -1,6 +1,7 @@
 // "Tidy details": proposes fixes for messy titles, artists and genres (from file names,
 // spaces, clutter, "ft.", SHOUTING, genre spellings), shows each change before anything is
 // saved, and applies the ones you keep as one step you can undo.
+import { keyLabel } from "../../lib/platform";
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import { ArrowRight, X } from "lucide-react";
@@ -90,7 +91,7 @@ function Tidy({ rows }: { rows: TrackRow[] }) {
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-base font-semibold text-zinc-50">Tidy track details</Dialog.Title>
               <Dialog.Description className="mt-1 text-xs leading-relaxed text-zinc-400">
-                {plural(rows.length, "track")}. See every change before it is saved, untick any you want to keep as it is, and undo it all afterwards with Ctrl+Z. Your files are not changed until you choose Write tags to the file.
+                {plural(rows.length, "track")}. See every change before it is saved, untick any you want to keep as it is, and undo it all afterwards with {keyLabel("Mod+Z")}. Your files are not changed until you choose Write tags to the file.
               </Dialog.Description>
             </div>
             <Dialog.Close className="rounded p-1 text-zinc-500 hover:bg-white/10 hover:text-zinc-100" aria-label="Close">

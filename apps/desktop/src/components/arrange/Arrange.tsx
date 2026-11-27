@@ -1,5 +1,6 @@
 // Arrange: a mix on a timeline. Clips sit on four deck lanes over a tempo ruler; move
 // and trim them on the bar grid, edit gain, key and automation, then render the mix.
+import { keyLabel } from "../../lib/platform";
 import clsx from "clsx";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -114,7 +115,7 @@ export function Arrange() {
           {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
           <IssuesButton project={project} select={setSel} />
           {dirty && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title="Save with the Save button or Ctrl/⌘+S">
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title={`Save with the Save button or ${keyLabel("Mod+S")}`}>
               Not saved
             </span>
           )}
@@ -410,7 +411,7 @@ function Timeline({
         )}
         <Playhead project={project} ppb={ppb} scroller={scroller} />
         <div className="px-24 py-3 text-[11px] text-zinc-600">
-          Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim and the top corners to fade. Ctrl/⌘-click or drag a box to select several clips; Alt-click a clip to cut it there. Right-click a clip for more.
+          Drag tracks from the library onto a lane. Drag clips to move them (up or down to change deck; they snap to the Beat, Bar or Phrase grid you picked, or to beats while you hold Shift), drag the right edge to trim and the top corners to fade. {keyLabel("Mod")}-click or drag a box to select several clips; Alt-click a clip to cut it there. Right-click a clip for more.
         </div>
       </div>
     </div>
@@ -920,16 +921,16 @@ function EditTools({ count }: { count: number }) {
   const none = count === 0;
   return (
     <div className="flex items-center gap-0.5" role="group" aria-label="Edit clips">
-      <Btn size="sm" tone="ghost" onClick={() => splitAt()} aria-label="Cut in two at the play marker" title="Cut the selected clips (or every clip under the play marker) in two at the play marker (Ctrl/⌘+B)">
+      <Btn size="sm" tone="ghost" onClick={() => splitAt()} aria-label="Cut in two at the play marker" title={`Cut the selected clips (or every clip under the play marker) in two at the play marker (${keyLabel("Mod+B")})`}>
         <Scissors size={12} />
       </Btn>
-      <Btn size="sm" tone="ghost" disabled={none} onClick={duplicateSelection} aria-label="Duplicate" title="Repeat the selected clips right after themselves (Ctrl/⌘+D)">
+      <Btn size="sm" tone="ghost" disabled={none} onClick={duplicateSelection} aria-label="Duplicate" title={`Repeat the selected clips right after themselves (${keyLabel("Mod+D")})`}>
         <CopyPlus size={12} />
       </Btn>
-      <Btn size="sm" tone="ghost" disabled={none} onClick={copySelection} aria-label="Copy" title="Copy the selected clips (Ctrl/⌘+C)">
+      <Btn size="sm" tone="ghost" disabled={none} onClick={copySelection} aria-label="Copy" title={`Copy the selected clips (${keyLabel("Mod+C")})`}>
         <Copy size={12} />
       </Btn>
-      <Btn size="sm" tone="ghost" onClick={paste} aria-label="Paste" title="Paste at the play marker (Ctrl/⌘+V)">
+      <Btn size="sm" tone="ghost" onClick={paste} aria-label="Paste" title={`Paste at the play marker (${keyLabel("Mod+V")})`}>
         <ClipboardPaste size={12} />
       </Btn>
       <Btn size="sm" tone="ghost" disabled={none} onClick={deleteSelection} aria-label="Remove selected clips" title="Remove the selected clips (Delete)">
@@ -1015,7 +1016,7 @@ function MultiPanel({ ids, project }: { ids: number[]; project: MixProject }) {
           <Trash2 size={11} /> Remove
         </Btn>
       </div>
-      <p className="leading-snug text-zinc-500">Drag any selected clip to move them all together. Ctrl/⌘-click a clip to add it to or take it out of the selection.</p>
+      <p className="leading-snug text-zinc-500">Drag any selected clip to move them all together. {keyLabel("Mod")}-click a clip to add it to or take it out of the selection.</p>
     </aside>
   );
 }

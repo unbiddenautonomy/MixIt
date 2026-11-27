@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PLATFORMS, detectOs, fileName, fileStem, keyLabel, type Os } from "../lib/platform";
+import { PLATFORMS, detectOs, fileName, fileStem, keyLabel, keysIn, modName, type Os } from "../lib/platform";
+import { CONCEPTS } from "../guide/concepts";
 
 describe("platform table", () => {
   it("recognises each system from what the webview reports", () => {
@@ -39,3 +40,29 @@ describe("platform table", () => {
     expect(fileStem("C:\\x\\no extension")).toBe("no extension");
   });
 });
+
+describe("shortcuts written in text", () => {
+  it("writes each one for the system", () => {
+    expect(keysIn("Paste with {Mod+V}, {Mod}-click to add more, undo with {Mod+Shift+Z}.", PLATFORMS.mac)).toBe("Paste with ⌘V, ⌘-click to add more, undo with ⌘⇧Z.");
+    expect(keysIn("Paste with {Mod+V}, {Mod}-click to add more, undo with {Mod+Shift+Z}.", PLATFORMS.windows)).toBe("Paste with Ctrl+V, Ctrl-click to add more, undo with Ctrl+Shift+Z.");
+    expect(keysIn("{artist} - {title}", PLATFORMS.mac)).toBe("{artist} - {title}");
+    expect(modName(PLATFORMS.linux)).toBe("Ctrl");
+  });
+
+  it("never names one system's keys in what people read", () => {
+    // Text shown to people goes through keyLabel or keysIn, so a Mac shows ⌘ and Windows Ctrl.
+    const files = import.meta.glob(["../**/*.ts", "../**/*.tsx", "!../test/**", "!../lib/platform.ts"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+    expect(Object.keys(files).length).toBeGreaterThan(50);
+    const bad: string[] = [];
+    for (const [f, text] of Object.entries(files))
+      text
+        .split("\n")
+        .forEach((line, i) => {
+          if (/^\s*(?:\/\/|\*|\/\*)/.test(line)) return;
+          if (/\bCtrl[+/-]|\bCmd\+|⌘/.test(line)) bad.push(`${f}:${i + 1}`);
+        });
+    expect(bad).toEqual([]);
+    for (const c of CONCEPTS) for (const t of [c.summary, ...c.body]) expect(t, c.id).not.toMatch(/\bCtrl[+/-]|\bCmd\+|⌘/);
+  });
+});
+

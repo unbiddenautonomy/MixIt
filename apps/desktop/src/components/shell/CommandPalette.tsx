@@ -25,6 +25,7 @@ import { understand } from "../../lib/ask";
 import { askContext, runAsk } from "../../lib/askRun";
 import { openProject, saveProject, renderProject, renderStems } from "../arrange/projectIo";
 import { CONCEPTS } from "../../guide/concepts";
+import { keysIn } from "../../lib/platform";
 import { LABS } from "../../guide/labs";
 import { useGuide } from "../../guide/model";
 
@@ -241,7 +242,7 @@ export function CommandPalette() {
                       <BookOpen size={13} className="text-zinc-500" />
                       <span className="min-w-0 flex-1 truncate">
                         {c.title}
-                        <span className="ml-2 text-[11px] text-zinc-500">{c.summary}</span>
+                        <span className="ml-2 text-[11px] text-zinc-500">{keysIn(c.summary)}</span>
                       </span>
                     </Command.Item>
                   ))}

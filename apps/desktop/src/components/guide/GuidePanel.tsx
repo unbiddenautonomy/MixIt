@@ -1,6 +1,7 @@
 // The built-in guide: plain-English concepts with "Show me", the nine practice labs that
 // tick themselves off as you do them, live troubleshooting, the signal chain and the
 // keyboard shortcuts. It sits beside the decks, so you can follow it while you play.
+import { keysIn } from "../../lib/platform";
 import clsx from "clsx";
 import { ArrowLeft, BookOpen, Check, ChevronRight, Circle, Eye, FlaskConical, Headphones, Lightbulb, Loader2, Play, RotateCcw, Search, TriangleAlert, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -104,7 +105,7 @@ function LearnTab() {
   const concept = conceptById(topic);
   if (concept) return <ConceptView c={concept} />;
   const needle = q.trim().toLowerCase();
-  const hits = needle ? CONCEPTS.filter((c) => `${c.title} ${c.summary} ${c.body.join(" ")}`.toLowerCase().includes(needle)) : CONCEPTS;
+  const hits = needle ? CONCEPTS.filter((c) => keysIn(`${c.title} ${c.summary} ${c.body.join(" ")}`).toLowerCase().includes(needle)) : CONCEPTS;
   return (
     <div className="flex flex-col gap-3">
       <label className="relative block">
@@ -123,7 +124,7 @@ function LearnTab() {
                 <button key={c.id} type="button" onClick={() => useGuide.getState().set({ topic: c.id })} className="group flex items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/[0.04]">
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium text-zinc-100">{c.title}</div>
-                    <div className="text-xs leading-snug text-zinc-400">{c.summary}</div>
+                    <div className="text-xs leading-snug text-zinc-400">{keysIn(c.summary)}</div>
                   </div>
                   <ChevronRight size={14} className="mt-1 shrink-0 text-zinc-600 group-hover:text-zinc-300" />
                 </button>
@@ -164,11 +165,11 @@ function ConceptView({ c }: { c: Concept }) {
       <div>
         <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{c.group}</div>
         <h2 className="text-base font-semibold text-zinc-50">{c.title}</h2>
-        <p className="mt-0.5 text-[13px] text-zinc-300">{c.summary}</p>
+        <p className="mt-0.5 text-[13px] text-zinc-300">{keysIn(c.summary)}</p>
       </div>
       {c.body.map((p, i) => (
         <p key={i} className="text-[13px] leading-relaxed text-zinc-300">
-          {p}
+          {keysIn(p)}
         </p>
       ))}
       <div className="flex flex-wrap gap-2">
