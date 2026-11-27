@@ -124,6 +124,20 @@ describe("key names", () => {
     expect(keyName(ev("1", "Digit1"))).toBe("1");
     expect(keyName(ev("?", "Slash", { shiftKey: true }))).toBe("?");
   });
+
+  it("names deck keys by position, so each deck keeps its side on any layout", async () => {
+    const { keyName } = await import("../lib/keyboard");
+    // AZERTY: the key left of X types W, the first number key types &.
+    expect(keyName(ev("w", "KeyZ"))).toBe("Z");
+    expect(keyName(ev("&", "Digit1"))).toBe("1");
+    expect(keyName(ev(";", "Comma"))).toBe(",");
+    expect(keyName(ev("!", "Slash"))).toBe("/");
+    // Shift+letter is its own key (beat jump), and Option+letter on a Mac stays the letter.
+    expect(keyName(ev("A", "KeyA", { shiftKey: true }))).toBe("Shift+A");
+    expect(keyName(ev("å", "KeyA", { altKey: true }))).toBe("Alt+A");
+    // Chords follow the printed letter, as the system's own do.
+    expect(keyName(ev("z", "KeyW", { metaKey: true, ctrlKey: true }))).toMatch(/^Mod\+Z$/);
+  });
 });
 
 describe("theme", () => {

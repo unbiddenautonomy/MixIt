@@ -165,43 +165,17 @@ pub const FX_TYPES: [&str; 18] = [
 ];
 
 /// Shortcuts for the first two decks: deck A under the left hand, deck B under the right,
-/// mirrored so each finger does the same job on both (little finger Cue, ring Play, middle
-/// Sync, index tempo leader; loop keys with Loop in the middle, halve left and double right).
-fn deck_shortcuts(d: usize) -> [Option<&'static str>; 13] {
-    match d {
-        // play, cue, sync, hc1..4, loop, halve, double, nudge-, nudge+, sync-master
-        0 => [
-            Some("X"),
-            Some("Z"),
-            Some("C"),
-            Some("1"),
-            Some("2"),
-            Some("3"),
-            Some("4"),
-            Some("W"),
-            Some("Q"),
-            Some("E"),
-            Some("A"),
-            Some("S"),
-            Some("V"),
-        ],
-        1 => [
-            Some("."),
-            Some("/"),
-            Some(","),
-            Some("7"),
-            Some("8"),
-            Some("9"),
-            Some("0"),
-            Some("I"),
-            Some("U"),
-            Some("O"),
-            Some("J"),
-            Some("K"),
-            Some("M"),
-        ],
-        _ => [None; 13],
-    }
+/// each in the order its buttons sit on screen (CUE, PLAY, SYNC from the left; Loop, Halve,
+/// Double), so the leftmost button is the leftmost key. Shift with a nudge key jumps a beat.
+fn deck_shortcuts(d: usize) -> [Option<&'static str>; 15] {
+    // play, cue, sync, hc1..4, loop, halve, double, nudge-, nudge+, sync-master,
+    // beat jump back, beat jump forward
+    let keys: [&'static str; 15] = match d {
+        0 => ["X", "Z", "C", "1", "2", "3", "4", "Q", "W", "E", "A", "S", "V", "Shift+A", "Shift+S"],
+        1 => [",", "M", ".", "7", "8", "9", "0", "U", "I", "O", "J", "K", "/", "Shift+J", "Shift+K"],
+        _ => return [None; 15],
+    };
+    keys.map(Some)
 }
 
 /// The three effect slots of one FX unit (`fx.{unit}.{slot}.*`), for a deck or the master.
@@ -604,7 +578,7 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             trig(),
             "Jumps back by the beat-jump size, staying on the beat.",
             false,
-            None,
+            sc[13],
             Some("beat-jump"),
         );
         b.add(
@@ -614,7 +588,7 @@ pub fn registry(num_decks: usize, num_pads: usize) -> Vec<ActionSpec> {
             trig(),
             "Jumps forward by the beat-jump size, staying on the beat.",
             false,
-            None,
+            sc[14],
             Some("beat-jump"),
         );
         b.add(

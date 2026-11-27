@@ -2367,8 +2367,9 @@ function demoRegistry(): T.ActionSpec[] {
     out.push({ id, label, group, kind, explain, easy, shortcut, glossary: null });
   const cont = (min: number, max: number, def: number): T.ActionKind => ({ type: "continuous", spec: { min, max, default: def, unit: "None", taper: "Linear", smoothing_ms: 10, step: 0 } });
   const keys = [
-    ["X", "Z", "C", "1", "2", "3", "4", "W", "Q", "E", "A", "S"],
-    [".", "/", ",", "7", "8", "9", "0", "I", "U", "O", "J", "K"],
+    // play, cue, sync, hot cues 1-4, loop, halve, double, beat jump back and forward
+    ["X", "Z", "C", "1", "2", "3", "4", "Q", "W", "E", "Shift+A", "Shift+S"],
+    [",", "M", ".", "7", "8", "9", "0", "U", "I", "O", "Shift+J", "Shift+K"],
   ];
   ["A", "B", "C", "D"].forEach((l, i) => {
     const g = `Deck ${l}`;
