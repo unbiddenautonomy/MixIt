@@ -370,6 +370,10 @@ export interface Settings {
   micStereo: boolean;
   /** How knobs follow a drag: "linear" (up or right is more, the default), "aim" (point at the value) or "turn" (circle round it). */
   knobDrag?: "linear" | "aim" | "turn";
+  /** Draws the main window from the new layout (a preview while it is being built). */
+  layoutEngine?: boolean;
+  /** A DJ controller is plugged in (said by the person; MixIt can't tell yet). The layout keeps its folds apart for each. */
+  controllerConnected?: boolean;
   /** Raising a channel fader from the bottom starts its deck; closing it stops and goes back to the cue. */
   faderStart?: boolean;
   /** Loops the end of the only track playing so the music never stops (on unless turned off). */
@@ -782,9 +786,50 @@ export interface Screen {
   scale: number;
 }
 
+/** Where a window of the new layout goes, in physical pixels (desktop app only). */
+export interface WinPlace {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Maximised on its screen, full screen, or exactly this rectangle. */
+  fill: "max" | "full" | "rect";
+}
+
+/** Where a window of the new layout is, as the system reports it after the person moves it. */
+export interface WinReport {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  maximized: boolean;
+  fullscreen: boolean;
+}
+
 /** What the app's windows tell each other (desktop app only). */
 export type WindowMessage =
   | { kind: "move"; part: string; screen: string | null }
   | { kind: "hello" }
   | { kind: "sync"; store: string; patch: Record<string, unknown> }
-  | { kind: "run"; id: string };
+  | { kind: "run"; id: string }
+  // The new layout (store/layoutShare.ts). The layout and operation are checked where they arrive.
+  /** The main window's layout, numbered: a window draws only a higher number than it last drew. */
+  | { kind: "layout"; seq: number; layout: unknown }
+  /** A layout window opened (or reloaded) and wants the layout. */
+  | { kind: "layout-hello"; win: string }
+  /** A layout window asks the main window to make a change. */
+  | { kind: "layout-intent"; id: string; from: string; basedOn: number; op: unknown; undo?: boolean }
+  /** The main window made an undoable change a window asked for: the token undoes it. */
+  | { kind: "layout-done"; id: string; to: string; token: string }
+  /** A window asks the main window to undo a change. */
+  | { kind: "layout-undo"; from: string; token: string }
+  /** The main window turned a change down, with the reason in plain words. */
+  | { kind: "layout-refused"; id: string; to: string; reason: string }
+  /** Edit layout mode is on or off in every window (from the main window). */
+  | { kind: "layout-edit"; on: boolean }
+  /** A layout window asks to turn Edit layout mode on or off, or to undo or redo a step in it. */
+  | { kind: "layout-edit-ask"; on: boolean }
+  | { kind: "layout-step"; step: "undo" | "redo" }
+  /** A layout window's size in its own CSS pixels, for the rules about what fits. */
+  | { kind: "layout-size"; win: string; w: number; h: number };

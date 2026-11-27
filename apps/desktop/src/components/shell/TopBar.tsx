@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Popover from "@radix-ui/react-popover";
-import { AlarmClock, AlertTriangle, BookOpen, Check, Circle, Command, Compass, Grid2x2, GraduationCap, HelpCircle, Settings as Gear, Square } from "lucide-react";
+import { AlarmClock, AlertTriangle, BookOpen, Check, Circle, Command, Compass, Grid2x2, GraduationCap, HelpCircle, Keyboard, LayoutDashboard, Monitor, Settings as Gear, Square } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toggleRecording, updateSettings } from "../../lib/appCommands";
 import { setOn, shortcutLabel, findAction } from "../../lib/actions";
@@ -13,6 +13,10 @@ import { endAt, setLeftLabel, setSecondsLeft, setSetEnd, useSetClock } from "../
 import { openTool, useApp, type Workspace } from "../../store/app";
 import { useTelemetry } from "../../store/telemetry";
 import { AssistantButton } from "../feedback/MixAssistant";
+import { EditLayoutButton } from "../layout/EditBar";
+import { editLayout } from "../../lib/layoutCommands";
+import { useGuide } from "../../guide/model";
+import { useLayout } from "../../store/layout";
 import { MicButton } from "../mic/MicPanel";
 import { Btn, Segmented } from "../ui/Button";
 import { Ctl } from "../ui/Ctl";
@@ -69,6 +73,7 @@ export function TopBar() {
             <span className="hidden xl:inline">Pads</span>
           </Btn>
         </Ctl>
+        {settings?.layoutEngine && <EditLayoutButton />}
         <AssistantButton />
         <Ctl id="app.guide" side="bottom">
           <Btn size="sm" tone="ghost" active={guideOpen} onClick={() => useApp.getState().set({ guideOpen: !guideOpen })} aria-label="Guide and practice labs">
@@ -108,6 +113,10 @@ function AbBypass() {
  * the command palette. They used to be four unlabelled icons in the bar.
  */
 function HelpMenu({ explain, coach }: { explain: boolean; coach: boolean }) {
+  const layout = useApp((s) => !!s.settings?.layoutEngine);
+  const editing = useLayout((s) => s.editing);
+  // Followed so a key changed in Settings shows here at once.
+  useApp((s) => s.registry);
   const key = (id: string) => shortcutLabel(findAction(id)?.shortcut);
   const item = (icon: ReactNode, label: string, hint: string, onSelect: () => void, on?: boolean, shortcut?: string) => (
     <DropdownMenu.Item className="menu-item items-start" onSelect={onSelect}>
@@ -136,11 +145,21 @@ function HelpMenu({ explain, coach }: { explain: boolean; coach: boolean }) {
           {item(<GraduationCap size={13} />, "Coach tips", "Tips while you mix, like keys that clash.", () => updateSettings({ coach: !coach }), coach, key("app.coach"))}
           <DropdownMenu.Separator className="menu-sep" />
           {item(<Compass size={13} />, "Take the tour", "A short walk round the screen.", () => startTour())}
-          {item(<Command size={13} />, "Find any action", "Search every command by name.", () => useApp.getState().set({ paletteOpen: true }), undefined, key("app.palette"))}
+          {item(<BookOpen size={13} />, "Guide and practice labs", "What each part does, step-by-step practice, and fixes.", () => openGuide({ tab: "learn", topic: null }), undefined, key("app.guide"))}
+          {item(<Keyboard size={13} />, "Keyboard shortcuts", "Every key, and how to change them.", () => openGuide({ tab: "keys" }))}
+          {item(<Monitor size={13} />, "Arranging the screen", "Fold, move and save parts of the screen, and use a second screen.", () => openGuide({ tab: "learn", topic: "screen-layout" }))}
+          <DropdownMenu.Separator className="menu-sep" />
+          {layout && item(<LayoutDashboard size={13} />, "Edit layout", "Move parts by dragging their names.", () => editLayout(), editing, key("app.layout_edit"))}
+          {item(<Command size={13} />, "Find any action", "Search every command by name, or ask in plain words.", () => useApp.getState().set({ paletteOpen: true }), undefined, key("app.palette"))}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
   );
+}
+
+function openGuide(p: Parameters<ReturnType<typeof useGuide.getState>["set"]>[0]) {
+  useGuide.getState().set(p);
+  useApp.getState().set({ guideOpen: true });
 }
 
 function Logo() {

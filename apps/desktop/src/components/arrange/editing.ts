@@ -1,5 +1,6 @@
 // Arrange editing commands shared by the toolbar, the keyboard and the clip menu: copy,
 // cut, paste, duplicate, split and delete on the selected clips, markers and the loop.
+import { keyLabel } from "../../lib/platform";
 import { toast } from "sonner";
 import { addMarker, clipsInBox, copyClips, duplicateClips, markerNear, pasteClips, removeClips, splitClip, type ClipBoard } from "../../lib/arrangeOps";
 import { useApp } from "../../store/app";
@@ -21,7 +22,7 @@ const plural = (n: number) => `${n} clip${n === 1 ? "" : "s"}`;
 function needSelection(): number[] | null {
   const ids = selectedIds();
   if (!ids.length) {
-    toast.message("Select a clip first", { description: "Click a clip, Ctrl/⌘-click to add more, or drag a box around several." });
+    toast.message("Select a clip first", { description: `Click a clip, ${keyLabel("Mod")}-click to add more, or drag a box around several.` });
     return null;
   }
   return ids;
@@ -37,7 +38,7 @@ export function copySelection(): boolean {
   const ids = needSelection();
   if (!p || !ids) return false;
   board = copyClips(p, ids);
-  toast.success(`Copied ${plural(ids.length)}`, { description: "Click the ruler where they should go, then paste with Ctrl/⌘+V." });
+  toast.success(`Copied ${plural(ids.length)}`, { description: `Click the ruler where they should go, then paste with ${keyLabel("Mod+V")}.` });
   return true;
 }
 

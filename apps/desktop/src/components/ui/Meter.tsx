@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { useTelemetry } from "../../store/telemetry";
 import type { Telemetry } from "../../backend/types";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 const toDb = (x: number) => (x > 1e-5 ? 20 * Math.log10(x) : -100);
 /** dB to 0..1 meter height (−48 dB … +3 dB, more resolution near the top). */
@@ -9,6 +10,7 @@ const scale = (db: number) => Math.max(0, Math.min(1, (db + 48) / 51)) ** 1.4;
 
 export function Meter({ read, height = 120, width = 6, channels = 2 }: { read: (t: Telemetry) => [number, number]; height?: number; width?: number; channels?: 1 | 2 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const ratio = useDevicePixelRatio();
   useEffect(() => {
     const c = ref.current!;
     const dpr = window.devicePixelRatio || 1;
@@ -56,6 +58,6 @@ export function Meter({ read, height = 120, width = 6, channels = 2 }: { read: (
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [read, height, width, channels]);
+  }, [read, height, width, channels, ratio]);
   return <canvas ref={ref} className="screen screen-bg rounded-[2px]" style={{ width: channels * width + (channels - 1) * 2, height }} />;
 }

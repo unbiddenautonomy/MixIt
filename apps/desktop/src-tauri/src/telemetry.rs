@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use mixit_engine::Event;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, EventTarget, Manager};
 
 use crate::audio::DECKS;
 use crate::dto::TelemetryDto;
@@ -11,6 +11,8 @@ use crate::state::AppState;
 
 /// A deck counts as played (for history) after this long.
 const PLAYED_SECONDS: f64 = 30.0;
+/// A window showing nothing live gets every this many frames (about 4 a second).
+const SLOW_EVERY: u64 = 15;
 
 pub fn spawn(app: AppHandle) {
     std::thread::Builder::new().name("mixit-telemetry".into()).spawn(move || run(app)).expect("spawn telemetry thread");
@@ -24,7 +26,9 @@ fn run(app: AppHandle) {
     let mut scope_buf: Vec<f32> = Vec::with_capacity(16_384);
     let mut spectrum: Option<(u32, mixit_dsp::studio::Spectrum)> = None;
     let mut bands = [0.0f32; mixit_dsp::studio::SPECTRUM_BANDS];
+    let mut frame: u64 = 0;
     loop {
+        frame = frame.wrapping_add(1);
         std::thread::sleep(period);
         let now = Instant::now();
         let dt = (now - last).as_secs_f64();
@@ -89,7 +93,18 @@ fn run(app: AppHandle) {
             }
             mic_buf.clear();
         }
-        let _ = app.emit("telemetry", &dto);
+        let slow = state.telemetry_slow.lock().clone();
+        if slow.is_empty() {
+            let _ = app.emit("telemetry", &dto);
+        } else {
+            // Each window on its own, so the ones showing nothing live can rest.
+            let light = frame % SLOW_EVERY == 0;
+            for label in app.webview_windows().into_keys() {
+                if light || !slow.contains(&label) {
+                    let _ = app.emit_to(EventTarget::WebviewWindow { label }, "telemetry", &dto);
+                }
+            }
+        }
         for d in ended {
             let _ = app.emit("deck-ended", d);
         }

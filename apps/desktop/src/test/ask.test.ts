@@ -356,6 +356,27 @@ const CASES: [string, string][] = [
   ["undo that", "app app.undo"],
   ["analyse the library", "extra x.analyse"],
   ["render my mix to mp3", "extra x.render"],
+  // The layout.
+  ["edit the layout", "app app.layout_edit:on"],
+  ["I want to rearrange the screen", "app app.layout_edit:on"],
+  ["move things around", "app app.layout_edit:on"],
+  ["done editing the layout", "app app.layout_edit:off"],
+  ["go back to the standard layout", "app app.layout_standard"],
+  ["reset the layout", "app app.layout_standard"],
+  ["I'm using a DJ controller", "app app.controller:on"],
+  ["my controller is plugged in", "app app.controller:on"],
+  ["I unplugged my controller", "app app.controller:off"],
+  ["playing without a controller", "app app.controller:off"],
+  ["move the library to the other screen", "app layout.screen.library"],
+  ["put the waveforms on the second monitor", "app layout.screen.waves"],
+  ["send deck b to the projector", "app layout.screen.deck.B"],
+  ["open the library in a new window", "app layout.window.library"],
+  ["pop out the pads", "app layout.window.tool.pads"],
+  ["bring the library back", "app layout.home.library"],
+  ["bring the playlists back to the main window", "app layout.home.sidebar"],
+  ["fold the mixer", "app layout.fold.mixer:on"],
+  ["collapse the track details", "app layout.fold.details:on"],
+  ["unfold the mixer", "app layout.fold.mixer:off"],
 ];
 
 describe("Ask MixIt", () => {

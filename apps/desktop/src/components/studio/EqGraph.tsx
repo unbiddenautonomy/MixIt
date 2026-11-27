@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BandDto, StudioDto } from "../../backend/types";
 import { BAND_SLOTS, EQ_RANGE, bandDb, eqDb, fmtHz, freqToX, hasGain, xToFreq } from "../../lib/studio";
 import { useTelemetry } from "../../store/telemetry";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 /** Display range of the curve (dB). */
 const DB = 18;
@@ -30,6 +31,7 @@ function dotDb(b: BandDto): number {
 export function EqGraph({ settings, onChange, selected, onSelect, height = 220, color = "#38bdf8" }: EqGraphProps) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const ratio = useDevicePixelRatio();
   const [width, setWidth] = useState(600);
   const live = useRef(settings);
   live.current = settings;
@@ -133,7 +135,7 @@ export function EqGraph({ settings, onChange, selected, onSelect, height = 220, 
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [width, height, color]);
+  }, [width, height, color, ratio]);
 
   const drag = useRef<{ i: number; id: number } | null>(null);
 

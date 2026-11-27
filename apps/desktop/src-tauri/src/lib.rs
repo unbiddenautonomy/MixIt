@@ -142,6 +142,8 @@ pub fn run() {
             commands::mic_record_start,
             commands::mic_record_stop,
             commands::settings_set,
+            commands::layouts_get,
+            commands::layouts_set,
             commands::record_start,
             commands::record_stop,
             commands::automix,
@@ -175,6 +177,11 @@ pub fn run() {
             commands::stems_cancel,
             windows::part_open,
             windows::part_close,
+            windows::win_open,
+            windows::win_close,
+            windows::win_title,
+            windows::win_list,
+            windows::telemetry_rate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MixIt");

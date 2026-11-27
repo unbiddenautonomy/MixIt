@@ -302,6 +302,100 @@ try {
     await page.keyboard.press("Escape");
   });
 
+  await step("the new layout draws the Mix screen from parts, folds and opens them, and goes back", async () => {
+    const setLayout = (on) => page.evaluate((on) => {
+      const s = window.mixit.useApp.getState();
+      s.set({ settings: { ...s.settings, layoutEngine: on } });
+    }, on);
+    await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix" }));
+    await setLayout(true);
+    try {
+      await layoutChecks();
+    } finally {
+      // Whatever happened, the steps after this one expect the layout people have today.
+      await setLayout(false);
+    }
+    await page.waitForSelector('[data-testid="tool-panel"]', { timeout: 5000 });
+    expect(!(await page.$('[data-testid="layout"]')), "the new layout is still showing");
+  });
+
+  async function layoutChecks() {
+    for (const u of ["waves", "deck.A", "deck.B", "mixer", "library", "sidebar", "details"]) await page.waitForSelector(`[data-slot="${u}"]`, { timeout: 5000 });
+    const width = (sel) => page.$eval(sel, (e) => e.getBoundingClientRect().width);
+    const before = await width('[data-slot="deck.A"]');
+    // Fold the mixer: it becomes a bar and the decks take its room.
+    await page.click('button[aria-label="Fold Mixer"]');
+    await page.waitForSelector('[data-folded="mixer"]', { timeout: 3000 });
+    expect(!(await page.$('[data-slot="mixer"]')), "the folded mixer is still drawn");
+    const wider = await width('[data-slot="deck.A"]');
+    expect(wider > before + 100, `deck A did not grow when the mixer folded (${before} → ${wider})`);
+    // Open it again from its bar.
+    await page.click('[data-folded="mixer"]');
+    await page.waitForSelector('[data-slot="mixer"]', { timeout: 3000 });
+    // Drag the handle between the sidebar and the list: the sidebar gets wider, and stays so.
+    const side0 = await width('[data-slot="sidebar"]');
+    const handle = await page.$eval('[data-slot="sidebar"]', (e) => {
+      const sep = e.closest("section").parentElement.nextElementSibling;
+      const r = sep.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(handle.x, handle.y);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 40, handle.y, { steps: 4 });
+    await page.mouse.move(handle.x + 80, handle.y, { steps: 4 });
+    await page.mouse.up();
+    await sleep(200);
+    const side1 = await width('[data-slot="sidebar"]');
+    expect(side1 > side0 + 50, `the sidebar did not widen with the handle (${side0} → ${side1})`);
+    // Opening a tool (the Pads button, the palette, a shortcut) shows its part.
+    await page.evaluate(async () => (await import("/src/store/app.ts")).openTool("effects"));
+    await page.waitForSelector('[data-slot="tool.effects"]', { timeout: 3000 });
+    await page.evaluate(async () => (await import("/src/store/app.ts")).openTool("effects", true));
+    await page.waitForSelector('[data-folded="tool.effects"]', { timeout: 3000 });
+    await page.click('[data-folded="tool.effects"]');
+    // The layout is saved.
+    await sleep(700);
+    const saved = await page.evaluate(() => localStorage.getItem("mixit.demo.layouts"));
+    expect(saved && saved.includes('"mixer"'), "the layout was not saved");
+    // The Library page is drawn from the layout too.
+    await page.click('button:has-text("Library")');
+    await page.waitForSelector('[data-slot="library"]', { timeout: 3000 });
+    await page.click('button:has-text("Mix")');
+    await page.waitForSelector('[data-slot="mixer"]', { timeout: 3000 });
+    // Edit layout: drag the sidebar by its tab onto the right edge of the track list, then undo it.
+    const left = (sel) => page.$eval(sel, (e) => e.getBoundingClientRect().left);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "the sidebar did not start left of the list");
+    // Outside Edit layout a tab can't be dragged.
+    await page.click('button[aria-label^="Edit the layout"]');
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    const tab = await page.$eval('[data-drop="sidebar"] [role="tab"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    const dest = await page.$eval('[data-drop="library"]', (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.right - 8, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(tab.x, tab.y);
+    await page.mouse.down();
+    await page.mouse.move(tab.x + 30, tab.y + 10, { steps: 3 });
+    await page.mouse.move(dest.x, dest.y, { steps: 8 });
+    await page.waitForSelector("text=/^Move .+ here$/", { timeout: 3000 });
+    await page.mouse.up();
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) > (await left('[data-slot="library"]')), "the sidebar did not move right of the list");
+    await page.keyboard.press("Control+z");
+    await sleep(200);
+    expect((await left('[data-slot="sidebar"]')) < (await left('[data-slot="library"]')), "undo did not put the sidebar back");
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
+    // Its shortcut turns it on and off too.
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { timeout: 3000 });
+    await page.keyboard.press("Control+Shift+L");
+    await page.waitForSelector('[data-testid="edit-bar"]', { state: "detached", timeout: 3000 });
+  }
+
   await step("the guide finds a topic", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ guideOpen: true }));
     await page.fill('input[aria-label="Search the guide"]', "build a set");

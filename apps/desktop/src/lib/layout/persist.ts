@@ -32,7 +32,7 @@ export function serialise(value: unknown): string {
   return JSON.stringify(sorted(value));
 }
 
-const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+export const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 
 function asFolded(x: unknown): Folded {

@@ -104,6 +104,12 @@ pub struct Settings {
     /// How knobs follow a drag: "linear" (up or right is more), "aim" (point at the
     /// value) or "turn" (circle round the knob). Only the UI reads it.
     pub knob_drag: String,
+    /// Draws the main window from the new layout, a preview while it is being built.
+    /// Only the UI reads it.
+    pub layout_engine: bool,
+    /// A DJ controller is plugged in, as the person says (MixIt can't tell by itself yet).
+    /// The layout folds what the controller has and keeps its folds apart. Only the UI reads it.
+    pub controller_connected: bool,
     /// Loops the end of the only track playing so the music never stops.
     pub safety_loop: bool,
     /// A text file that gets the track now playing, for streaming software to show.
@@ -150,6 +156,8 @@ impl Default for Settings {
             mic_denoise: "strong".into(),
             fader_start: false,
             knob_drag: "linear".into(),
+            layout_engine: false,
+            controller_connected: false,
             safety_loop: true,
             now_playing_file: None,
             now_playing_format: crate::nowplaying::DEFAULT_FORMAT.into(),
@@ -227,6 +235,9 @@ pub struct AppState {
     /// The sound describer, loaded on the first search by sound.
     #[cfg(feature = "sound-search")]
     pub describer: Mutex<Option<mixit_ml::sound::Clap>>,
+    /// Windows that show nothing live (a library on its own, or hidden): they get the
+    /// engine's state a few times a second instead of every frame (`telemetry.rs`).
+    pub telemetry_slow: Mutex<Vec<String>>,
 }
 
 impl AppState {
@@ -258,6 +269,7 @@ impl AppState {
             describer: Mutex::new(None),
             next_token: Mutex::new(1),
             pads: Mutex::new(pads),
+            telemetry_slow: Mutex::new(Vec::new()),
         };
         state.apply_mixer_settings();
         state.apply_mic_settings();

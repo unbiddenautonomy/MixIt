@@ -33,21 +33,28 @@ function ok(r: Result, e: Env): Layout {
 const where = (l: Layout, unit: UnitId) => placesOf(l, unit).map((f) => `${f.win.id}/${f.page}`);
 
 describe("layout presets", () => {
-  it("the laptop layout keeps every rule and fits 13-inch and 15-inch laptops without folding", () => {
-    for (const size of [
-      { w: 1280, h: 800 },
-      { w: 1440, h: 900 },
-      { w: 1470, h: 956 },
-      { w: 1710, h: 1112 },
+  it("the laptop layout fits 13-inch and 15-inch laptops, and never folds the decks or mixer to do it", () => {
+    // The area under the top bar, as the app gives it to the layout (measured in the browser).
+    const area = (w: number, h: number) => ({ w: w - 16, h: h - 112 });
+    for (const [w, h] of [
+      [1280, 800],
+      [1440, 900],
+      [1470, 956],
+      [1710, 1112],
     ])
       for (const mode of ["easy", "pro"] as const)
         for (const decks of [2, 4] as const) {
+          const size = area(w, h);
           const e = env({ sizes: { [MAIN]: size }, mode, decks });
           const l = presetFor(e);
-          expect(check(l, e)).toEqual([]);
+          const what = `${w}×${h} ${mode} ${decks} decks`;
+          expect(check(l, e), what).toEqual([]);
           const fit = fitTree(l.windows[0].pages.mix, size, e);
-          expect(fit.scroll, `${size.w}×${size.h} ${mode} ${decks}`).toBe(false);
-          expect([...fit.autoFolded], `${size.w}×${size.h} ${mode} ${decks}`).toEqual([]);
+          expect(fit.scroll, what).toBe(false);
+          for (const u of ["deck.A", "deck.B", "mixer"] as UnitId[]) expect(fit.autoFolded.has(u), `${what}: ${u}`).toBe(false);
+          // Today's parts already fit the two target laptops with two decks and nothing folded.
+          // (The rebuilt mixer and deck strip will make 1280×800 fit too.)
+          if (decks === 2 && w >= 1470) expect([...fit.autoFolded], what).toEqual([]);
         }
   });
 
@@ -163,8 +170,8 @@ describe("layout operations", () => {
     const stacks = stacksOf(findWin(docked, MAIN)!.pages.mix);
     const i = stacks.findIndex((s) => s.units[0].unit === "tool.pads");
     expect(stacks[i + 1].units[0].unit).toBe("library");
-    const tiny = env({ sizes: { [MAIN]: { w: 1280, h: 800 } } });
-    const r = placeUnit(l, tiny, "arrange", { win: MAIN, page: "mix", unit: "mixer" }, "right");
+    // Arrange under the mixer would make the deck row taller than a 15-inch screen.
+    const r = placeUnit(l, e, "arrange", { win: MAIN, page: "mix", unit: "mixer" }, "below");
     expect(isRefusal(r) ? r.reason : "placed").toMatch(/room/);
     expect(isRefusal(placeUnit(l, e, "deck.A", { win: MAIN, page: "library", unit: "library" }, "left"))).toBe(true);
   });
@@ -305,11 +312,19 @@ describe("fitting a window", () => {
     // Both rows are too wide: the side column and the mixer fold, the decks and library stay open.
     expect([...fit.autoFolded].sort()).toEqual(["details", "mixer"]);
     expect(fit.scroll).toBe(false);
-    // 830 px fits Easy as it is; Pro's mixer is wider, and only the row that is too wide gives way.
-    const near = fitTree(mix, { w: 830, h: 900 }, e);
-    expect([...near.autoFolded]).toEqual([]);
-    const pro = env({ mode: "pro" });
-    expect([...fitTree(mix, { w: 830, h: 900 }, pro).autoFolded]).toEqual(["mixer"]);
+    // 960 px fits two decks as they are; four decks make the mixer wider, and only that row gives way.
+    expect([...fitTree(mix, { w: 960, h: 900 }, e).autoFolded]).toEqual([]);
+    const four = env({ decks: 4 });
+    expect([...fitTree(presetFor(four).windows[0].pages.mix!, { w: 960, h: 1200 }, four).autoFolded]).toEqual(["mixer"]);
+  });
+
+  it("never folds a unit the person opened from its bar, even if the window has to scroll", () => {
+    const e = env();
+    const mix = presetFor(e).windows[0].pages.mix!;
+    const small = { w: 1264, h: 600 };
+    expect(fitTree(mix, small, e).autoFolded.has("waves")).toBe(true);
+    const kept = fitTree(mix, small, e, undefined, new Set<UnitId>(["waves"]));
+    expect(kept.autoFolded.has("waves")).toBe(false);
   });
 
   it("scrolls rather than cutting off when nothing more can fold", () => {
@@ -367,10 +382,16 @@ describe("moving today's settings across", () => {
   });
 
   it("turns the library's height into its share of the Mix page", () => {
-    const l = migrateOld({ libraryHeight: 450, windowHeight: 956 }, env());
+    const big = env({ sizes: { [MAIN]: { w: 1694, h: 976 } } });
+    const l = migrateOld({ libraryHeight: 380, windowHeight: 1112 }, big);
     const mix = l.windows[0].pages.mix;
     if (mix?.kind !== "split") throw new Error("expected a split");
-    expect(mix.sizes[2]).toBeCloseTo(450 / (956 - 47), 2);
+    expect(mix.sizes[2]).toBeCloseTo(380 / (1112 - 47), 2);
+    // A height the decks above can't make room for is held to what they need.
+    const small = migrateOld({ libraryHeight: 700, windowHeight: 956 }, env());
+    const m2 = small.windows[0].pages.mix;
+    if (m2?.kind !== "split") throw new Error("expected a split");
+    expect(m2.sizes[2]).toBeLessThan(700 / (956 - 47));
   });
 
   it("skips a screen that isn't connected, and a part on the main window's own screen", () => {

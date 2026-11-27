@@ -18,6 +18,7 @@ import {
   refOf,
   refuse,
   resolveScreen,
+  sameScreen,
   split,
   stack,
   stacksOf,
@@ -35,7 +36,7 @@ import {
   type UnitId,
   type Win,
 } from "./model";
-import { HANDLE_PX, UNITS, isControl, isUnitId, pageFor, required, type Side } from "./units";
+import { HANDLE_PX, UNITS, isControl, isUnitId, minOf, pageFor, required, type Side } from "./units";
 
 export type Result = Layout | Refusal;
 
@@ -377,9 +378,9 @@ function addToPage(env: Env, win: Win, page: PageId, p: Place) {
     return;
   }
   const size = sizeOf(env, win.id);
-  const need = minSize(root, env).w + HANDLE_PX + UNITS[p.unit].min[env.mode].w;
+  const need = minSize(root, env).w + HANDLE_PX + minOf(p.unit, env).w;
   if (need <= size.w) {
-    win.pages[page] = appendRight(root, p, Math.max(0.25, Math.min(0.5, UNITS[p.unit].min[env.mode].w / size.w)));
+    win.pages[page] = appendRight(root, p, Math.max(0.25, Math.min(0.5, minOf(p.unit, env).w / size.w)));
     return;
   }
   const st = largestStack(root, size);
@@ -607,6 +608,24 @@ export function windowMoved(layout: Layout, env: Env, winId: string, screen: Scr
   return normalise(l, env);
 }
 
+/**
+ * Swaps two screens: every window on one goes to the other, the main window too. This is
+ * how the decks move to the other screen without losing anything the person arranged.
+ * `mainAt` is the screen the main window is on now, for a main window placed "wherever".
+ */
+export function swapScreens(layout: Layout, env: Env, a: ScreenRef, b: ScreenRef, mainAt: ScreenRef | null): Result {
+  if (env.browser) return refuse("This version of MixIt has one window.");
+  if (sameScreen(a, b)) return layout;
+  if (!resolveScreen(env.screens, a) || !resolveScreen(env.screens, b)) return refuse("That screen isn't connected any more.");
+  const l = clone(layout);
+  for (const w of l.windows) {
+    const on = w.screen ?? (w.id === MAIN ? mainAt : null);
+    if (sameScreen(on, a)) w.screen = { ...b };
+    else if (sameScreen(on, b)) w.screen = { ...a };
+  }
+  return normalise(changed(l), env);
+}
+
 /** Replaces the whole layout with a preset, fitted to the screens there are now. */
 export function applyPreset(preset: Layout, env: Env): Layout {
   return normalise({ ...preset, edited: false }, env);
@@ -626,7 +645,11 @@ export type Op =
   | { op: "resize"; win: string; page: PageId; path: number[]; sizes: number[] }
   | { op: "mirror"; unit: UnitId; win: string }
   | { op: "unmirror"; unit: UnitId; win: string }
-  | { op: "page"; win: string; page: PageId };
+  | { op: "page"; win: string; page: PageId }
+  | { op: "moved"; win: string; screen: ScreenInfo | null; bounds: Rect01 | "full"; fullscreen: boolean }
+  | { op: "swap"; a: ScreenRef; b: ScreenRef; mainAt: ScreenRef | null }
+  /** A whole layout (a saved one, or the built-in one), already read through `loadLayout`. */
+  | { op: "preset"; layout: Layout };
 
 export function run(layout: Layout, env: Env, o: Op): Result {
   switch (o.op) {
@@ -652,6 +675,12 @@ export function run(layout: Layout, env: Env, o: Op): Result {
       return unmirror(layout, env, o.unit, o.win);
     case "page":
       return showPage(layout, env, o.win, o.page);
+    case "moved":
+      return windowMoved(layout, env, o.win, o.screen, o.bounds, o.fullscreen);
+    case "swap":
+      return swapScreens(layout, env, o.a, o.b, o.mainAt);
+    case "preset":
+      return applyPreset(o.layout, env);
   }
 }
 

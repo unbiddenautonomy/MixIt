@@ -2,9 +2,9 @@
 // Nothing here changes the layout: folds made to fit are worked out fresh for each window
 // size, so growing the window again brings everything back as the person left it.
 import { isFolded, stacksOf, type Env, type LayoutNode, type Place, type Stack, type UnitId } from "./model";
-import { BAR_PX, HANDLE_PX, UNITS, enabled } from "./units";
+import { BAR_PX, HANDLE_PX, UNITS, enabled, minOf } from "./units";
 
-/** Height of the tab row a stack shows when it holds more than one unit. */
+/** Height of the row above every open stack: its tabs (or its name) and the fold arrow. */
 export const TAB_PX = 24;
 
 /** The hard minimum window sizes; below these a window scrolls instead of fitting. */
@@ -30,6 +30,20 @@ function stackFolded(st: Stack, env: Opts, auto: ReadonlySet<UnitId>): boolean {
   return !!p && (isFolded(p, env.controller) || auto.has(p.unit));
 }
 
+/** Whether anything in a node is drawn (a stack of disabled units isn't). */
+export function drawnAt(node: LayoutNode, env: Pick<Env, "decks">): boolean {
+  return node.kind === "stack" ? visiblePlaces(node, env).length > 0 : node.children.some((c) => drawnAt(c, env));
+}
+
+/** Whether a node shows nothing but folded bars (or nothing at all), so it is drawn as one bar and takes no share of the space. */
+export function isCollapsed(node: LayoutNode, env: Opts, auto: ReadonlySet<UnitId>): boolean {
+  if (node.kind === "stack") {
+    const p = shownPlace(node, env);
+    return !p || isFolded(p, env.controller) || auto.has(p.unit);
+  }
+  return node.children.every((c) => isCollapsed(c, env, auto));
+}
+
 /** The smallest size a node can take, in CSS pixels. A node with nothing to draw takes none. */
 export function minSize(node: LayoutNode, env: Opts, auto: ReadonlySet<UnitId> = new Set()): { w: number; h: number } {
   if (node.kind === "stack") {
@@ -40,12 +54,14 @@ export function minSize(node: LayoutNode, env: Opts, auto: ReadonlySet<UnitId> =
     let w = 0;
     let h = 0;
     for (const p of shown) {
-      const m = UNITS[p.unit].min[env.mode];
+      const m = minOf(p.unit, env);
       w = Math.max(w, m.w);
       h = Math.max(h, m.h);
     }
-    return { w, h: h + (shown.length > 1 ? TAB_PX : 0) };
+    return { w, h: h + TAB_PX };
   }
+  // An area with everything in it folded is drawn as one bar.
+  if (isCollapsed(node, env, auto)) return drawnAt(node, env) ? { w: BAR_PX, h: BAR_PX } : { w: 0, h: 0 };
   const kids = node.children.map((c) => minSize(c, env, auto)).filter((m) => m.w > 0 || m.h > 0);
   if (!kids.length) return { w: 0, h: 0 };
   const gaps = (kids.length - 1) * HANDLE_PX;
@@ -65,7 +81,14 @@ export interface Fit {
  * then opens again whatever can stay open, so a too-narrow window doesn't keep folds that
  * only saved height. Units with fold priority 0 (decks A and B) never fold by themselves.
  */
-export function fitTree(root: LayoutNode | undefined, given: { w: number; h: number }, env: Opts, hard: { w: number; h: number } = { w: 0, h: 0 }): Fit {
+export function fitTree(
+  root: LayoutNode | undefined,
+  given: { w: number; h: number },
+  env: Opts,
+  hard: { w: number; h: number } = { w: 0, h: 0 },
+  /** Units the person opened from their folded bar: never folded to fit, even if the window then scrolls. */
+  keepOpen: ReadonlySet<UnitId> = new Set(),
+): Fit {
   const auto = new Set<UnitId>();
   // Below the hard minimum, lay out at the minimum and let the window scroll.
   const below = given.w < hard.w || given.h < hard.h;
@@ -87,7 +110,7 @@ export function fitTree(root: LayoutNode | undefined, given: { w: number; h: num
   for (const { st } of candidates) {
     if (fits(m)) break;
     const p = shownPlace(st, env);
-    if (!p || UNITS[p.unit].foldPriority === 0 || stackFolded(st, env, auto)) continue;
+    if (!p || UNITS[p.unit].foldPriority === 0 || keepOpen.has(p.unit) || stackFolded(st, env, auto)) continue;
     auto.add(p.unit);
     order.push(p.unit);
     m = minSize(root, env, auto);

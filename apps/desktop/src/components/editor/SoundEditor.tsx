@@ -4,6 +4,7 @@
 // step can be undone, or taken out later while keeping the ones after it.
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
+import { keyLabel } from "../../lib/platform";
 import {
   ArrowLeftToLine,
   ArrowRightToLine,
@@ -38,6 +39,7 @@ import { afterStep, clipboardLength, FADE_SHAPES, groupSteps, lengthAfter, type 
 import { LOUDNESS_TARGETS } from "../../lib/studio";
 import { useApp } from "../../store/app";
 import { Btn } from "../ui/Button";
+import { useDevicePixelRatio } from "../../lib/dpr";
 
 // ------------------------------------------------------------------ state
 
@@ -336,9 +338,9 @@ function Body() {
             </Btn>
             <Sep />
             <Tool icon={<Crop size={12} />} label="Keep selection" hint="Keeps only the selected part" disabled={!selected} onClick={act.trim} />
-            <Tool icon={<Scissors size={12} />} label="Cut" hint="Removes the selection and keeps it for pasting (Ctrl+X)" disabled={!selected} onClick={act.cut} />
-            <Tool icon={<Copy size={12} />} label="Copy" hint="Keeps a copy of the selection for pasting (Ctrl+C)" disabled={!selected} onClick={act.copy} />
-            <Tool icon={<ClipboardPaste size={12} />} label="Paste" hint="Inserts what you cut or copied at the cursor (Ctrl+V)" disabled={clipboardLength(ops) <= 0} onClick={act.paste} />
+            <Tool icon={<Scissors size={12} />} label="Cut" hint={`Removes the selection and keeps it for pasting (${keyLabel("Mod+X")})`} disabled={!selected} onClick={act.cut} />
+            <Tool icon={<Copy size={12} />} label="Copy" hint={`Keeps a copy of the selection for pasting (${keyLabel("Mod+C")})`} disabled={!selected} onClick={act.copy} />
+            <Tool icon={<ClipboardPaste size={12} />} label="Paste" hint={`Inserts what you cut or copied at the cursor (${keyLabel("Mod+V")})`} disabled={clipboardLength(ops) <= 0} onClick={act.paste} />
             <Tool icon={<Trash2 size={12} />} label="Delete" hint="Removes the selection; the rest closes up (Delete)" disabled={!selected} onClick={act.delete} />
             <Tool icon={<VolumeX size={12} />} label="Silence" hint="Makes the selection silent, keeping the length" disabled={!selected} onClick={act.silence} />
             <Sep />
@@ -360,7 +362,7 @@ function Body() {
           </div>
           <Wave />
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
-            <span>Drag to select · click to place the cursor · Shift+click to extend · Ctrl+scroll to zoom</span>
+            <span>Drag to select · click to place the cursor · Shift+click to extend · {keyLabel("Mod")}+scroll to zoom</span>
             {view && (
               <span className="ml-auto font-mono text-zinc-400">
                 {view.seconds.toFixed(2)} s · peak {view.peakDb <= -98 ? "–" : `${view.peakDb.toFixed(1)} dB`} · {view.lufs <= -98 ? "too short to measure loudness" : `${view.lufs.toFixed(1)} LUFS`}
@@ -371,10 +373,10 @@ function Body() {
         <aside className="flex w-64 shrink-0 flex-col gap-3">
           <div className="flex items-center gap-1">
             <div className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Steps</div>
-            <Btn size="sm" tone="ghost" disabled={!steps.length} onClick={undo} aria-label="Undo" title="Undo (Ctrl+Z)">
+            <Btn size="sm" tone="ghost" disabled={!steps.length} onClick={undo} aria-label="Undo" title={`Undo (${keyLabel("Mod+Z")})`}>
               <Undo2 size={12} />
             </Btn>
-            <Btn size="sm" tone="ghost" disabled={!redoN} onClick={redo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+            <Btn size="sm" tone="ghost" disabled={!redoN} onClick={redo} aria-label="Redo" title={`Redo (${keyLabel("Mod+Shift+Z")})`}>
               <Redo2 size={12} />
             </Btn>
           </div>
@@ -591,6 +593,7 @@ function Wave() {
   // Visible window (seconds); null shows everything.
   const [win, setWin] = useState<[number, number] | null>(null);
   const H = 220;
+  const ratio = useDevicePixelRatio();
   const len = view?.seconds ?? 1;
   const [v0, v1] = win ?? [0, len];
   const xOf = useCallback((t: number) => ((t - v0) / Math.max(1e-6, v1 - v0)) * width, [v0, v1, width]);
@@ -645,7 +648,7 @@ function Wave() {
       }
       if (hi > lo) g.fillRect(x, mid - hi * (mid - 6), 1, Math.max(1, (hi - lo) * (mid - 6)));
     }
-  }, [view, width, v0, v1, xOf, tOf, len]);
+  }, [view, width, v0, v1, xOf, tOf, len, ratio]);
 
   const drag = useRef<{ t0: number } | null>(null);
   const tAt = (e: React.PointerEvent | React.WheelEvent) => tOf(e.clientX - canvas.current!.getBoundingClientRect().left);

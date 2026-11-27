@@ -15,8 +15,9 @@ import { toast } from "sonner";
 import { backend } from "../backend";
 import type { Settings } from "../backend/types";
 import { openTool, setTools, useApp, type Workspace } from "../store/app";
-import { thisPart } from "./screens";
+import { isMainWindow } from "./screens";
 import { runInMain } from "./windowSync";
+import { editLayout, setController, standardLayout } from "./layoutCommands";
 import { useLibrary } from "../store/library";
 import { livePosition, useTelemetry } from "../store/telemetry";
 import { quantized } from "../components/deck/Pads";
@@ -109,7 +110,7 @@ export async function openCapturedMix(p: MixProject) {
 
 export async function toggleRecording() {
   // The main window records (it keeps the moves you make while recording).
-  if (thisPart) return runInMain("global.record");
+  if (!isMainWindow) return runInMain("global.record");
   const rec = useTelemetry.getState().t.recording;
   try {
     if (rec) {
@@ -174,6 +175,15 @@ export function runApp(id: string): boolean {
     case "guide":
       s.set({ guideOpen: !s.guideOpen });
       return true;
+    case "layout_edit":
+      editLayout();
+      return true;
+    case "layout_standard":
+      standardLayout();
+      return true;
+    case "controller":
+      setController();
+      return true;
     case "autodj":
       if (useAutoDj.getState().phase === "off") {
         s.set({ workspace: "library" });
@@ -217,7 +227,7 @@ export function runApp(id: string): boolean {
       startTour();
       return true;
     case "feedback":
-      if (thisPart) runInMain("app.feedback");
+      if (!isMainWindow) runInMain("app.feedback");
       else if (useReport.getState().report) useReport.setState({ open: true });
       else toast.message("No feedback yet", { description: "Press Rec, mix two or more tracks, then stop recording. MixIt then tells you how the mix went." });
       return true;

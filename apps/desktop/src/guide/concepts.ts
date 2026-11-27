@@ -19,9 +19,9 @@ export interface Concept {
   glossary?: string[];
 }
 
-export type ConceptGroup = "Basics" | "Beat and tempo" | "Mixer" | "Keys" | "Effects and tricks" | "Studio" | "Your library" | "Sound quality";
+export type ConceptGroup = "Basics" | "Your screen" | "Beat and tempo" | "Mixer" | "Keys" | "Effects and tricks" | "Studio" | "Your library" | "Sound quality";
 
-export const CONCEPT_GROUPS: ConceptGroup[] = ["Basics", "Beat and tempo", "Mixer", "Keys", "Effects and tricks", "Studio", "Your library", "Sound quality"];
+export const CONCEPT_GROUPS: ConceptGroup[] = ["Basics", "Your screen", "Beat and tempo", "Mixer", "Keys", "Effects and tricks", "Studio", "Your library", "Sound quality"];
 
 export const CONCEPTS: Concept[] = [
   // ---------------------------------------------------------------- basics
@@ -85,6 +85,54 @@ export const CONCEPTS: Concept[] = [
     ],
     controls: ["deck.A.play"],
     lab: "phrase-drop",
+  },
+  // ---------------------------------------------------------------- your screen
+  {
+    id: "screen-layout",
+    title: "Arranging the screen",
+    group: "Your screen",
+    summary: "Fold parts away, move them beside each other or into tabs, and save the layout you like.",
+    body: [
+      "This is the new layout, a preview for now: turn it on in Settings > Display > New layout. Turn it off any time to go straight back to the layout you know.",
+      "Every part (the decks, the mixer, the waveforms, the library, the pads and the rest) has a name bar with an arrow. Click the arrow to fold the part down to its bar and give the room to the others; click it again to open it. When the window is too small, MixIt folds the least needed parts by itself and opens them again when there is room.",
+      "To move parts, press Edit layout at the top ({Mod+Shift+L}). Then drag a part by its name: let go near an edge of another part to put it beside that part, or over the middle to make it a tab there. The coloured box shows where it will go, and says so if it can't go there (the decks and the mixer always stay on the Mix page). {Mod+Z} undoes a step and {Mod+Shift+Z} redoes it. Press Done or Esc when you're finished. Parts only move in Edit layout, so a slip while you play never rearranges the screen.",
+      "The Layouts button in the Edit layout bar keeps layouts under a name, like Home studio or Club, to switch to on any screens. The standard layout puts everything back where MixIt first had it, and you can undo that too.",
+      "Ask MixIt understands this as well: type \"edit the layout\", \"fold the mixer\" or \"reset the layout\" in the command palette ({Mod+K}).",
+    ],
+  },
+  {
+    id: "two-screens",
+    title: "Using a second screen",
+    group: "Your screen",
+    summary: "Put the library or the tools on another screen and keep the decks in front of you.",
+    body: [
+      "Plug in a second screen and MixIt can use both. In the usual layout, the screen button on the library and on the tools panel moves that part to the other screen: click it for a menu, or drag it out of the window and let go over the other screen. In the new layout, every part's ⋯ menu can send it to another window, or open it in a new window on any screen.",
+      "The decks and the mixer stay with the main window, on the screen you play on. To change which screen that is, use Swap screens in a part's ⋯ menu: everything on one screen moves to the other.",
+      "Close a window on the other screen and its parts come back to the main window. Move it and MixIt remembers where. MixIt also remembers a layout for each set of screens, so plugging in the same screen again brings back the layout you made for it, and the laptop on its own goes back to its own.",
+      "From the command palette you can type \"move the library to the other screen\", \"open the pads in a new window\" or \"bring the library back\".",
+    ],
+  },
+  {
+    id: "dj-controller",
+    title: "Playing with a DJ controller",
+    group: "Your screen",
+    summary: "Tell MixIt a controller is plugged in, so the screen makes room for what the controller doesn't have.",
+    body: [
+      "A DJ controller has the mixer's knobs and faders on it, so you don't need them on screen as well. Turn on Settings > Display > DJ controller (or type \"I'm using a DJ controller\" in the command palette) and the mixer folds away. Turn it off when you unplug it and the mixer comes back.",
+      "MixIt keeps what you fold apart for playing with and without a controller. Open the mixer while the controller is in and it stays open next time the controller is in, without changing how the screen looks when you play on the laptop alone.",
+      "MixIt can't tell by itself yet that a controller is plugged in, so it's a switch for now. The switch is shown while the new layout is on.",
+    ],
+  },
+  {
+    id: "keyboard",
+    title: "Keyboard shortcuts",
+    group: "Your screen",
+    summary: "Play, cue, loop and open every part from the keyboard, and change any key.",
+    body: [
+      "{Mod+K} opens the command palette: type the name of anything (a control, a setting, a track) or a request in plain words, like \"cut the bass on deck B\". It shows each action's key beside it.",
+      "Hold F1 or ? to see what every control does, with its key. The Keys tab in this guide lists every shortcut, written the way your computer names its keys.",
+      "To change a key, open Settings > Shortcuts, click the key beside an action and press the new one. MixIt says if another action already uses it.",
+    ],
   },
   // ---------------------------------------------------------------- beat and tempo
   {
@@ -612,8 +660,8 @@ export const CONCEPTS: Concept[] = [
     group: "Your library",
     summary: "Select, copy, repeat, cut and fade clips, label the mix with markers, and loop a passage while you work on it.",
     body: [
-      "Click a clip to select it, Ctrl/⌘-click to add more, or drag a box over an empty part of the lanes. Drag any selected clip and the whole group moves together, so a transition you have built keeps its shape.",
-      "Copy and paste (Ctrl/⌘+C and V) put clips at the play marker, the green line you set by clicking the ruler. Duplicate (Ctrl/⌘+D) repeats them right after themselves. Ctrl/⌘+B cuts clips in two at the marker, and Alt-click cuts a clip where you click, so you can drop a verse or move a breakdown.",
+      "Click a clip to select it, {Mod}-click to add more, or drag a box over an empty part of the lanes. Drag any selected clip and the whole group moves together, so a transition you have built keeps its shape.",
+      "Copy and paste ({Mod+C} and {Mod+V}) put clips at the play marker, the green line you set by clicking the ruler. Duplicate ({Mod+D}) repeats them right after themselves. {Mod+B} cuts clips in two at the marker, and Alt-click cuts a clip where you click, so you can drop a verse or move a breakdown.",
       "Drag the small squares at a clip's top corners to fade it in or out. Markers label parts of the mix such as Intro or Drop: drag them to move, double-click to rename. Press L to loop: Play then repeats the selected clips (or a stretch you Shift-drag on the ruler) until you stop it.",
     ],
     controls: ["app.clip_split", "app.clip_duplicate", "app.arrange_loop", "app.marker_add"],
@@ -640,7 +688,7 @@ export const CONCEPTS: Concept[] = [
       "Some tracks end soon after their mix-out point, with no long outro to mix over. With Loop a short ending on, Auto DJ loops the last 8 or 16 beats of the old track on the beat while the new one comes in, so the mix still gets its full 32 beats; the loop is let go when the mix is over. Turn it off to have it make a shorter mix instead.",
       "Each new track is synced to the one before, so it starts at that track's tempo. With Ease the tempo back on, Auto DJ then lets the tempo drift back to the new track's own speed, half a percent every 8 bars, too slowly for anyone to notice. A set then doesn't stay stretched to its first track's tempo, and every track ends up sounding as it should. Touch the tempo yourself and it stops.",
       "Watch the Next card and the log to learn why each choice was made. Touch any control to take over, press Mix now to mix early, or Stop to carry on by hand.",
-      "Mixing by hand, you can get the same judgement for one mix: set Mix it in the mixer to Smart and press it. MixIt plans the change from the playing deck into the other one right now, picking the transition, its length, any key shift and a loop for a short ending as Auto DJ would, starts it on the next bar and tells you what it chose and why (T on the keyboard does the same). The headphones button beside Mix it plays that mix in your headphones first (Smart or the transition you chose), without touching the decks, so you can check it before the audience hears it; H does that from the keyboard, and while Auto DJ plays it hears Auto DJ's coming mix. Rehearse the set, Make a mix, Best order and Save are in the command palette (Ctrl+K) too.",
+      "Mixing by hand, you can get the same judgement for one mix: set Mix it in the mixer to Smart and press it. MixIt plans the change from the playing deck into the other one right now, picking the transition, its length, any key shift and a loop for a short ending as Auto DJ would, starts it on the next bar and tells you what it chose and why (T on the keyboard does the same). The headphones button beside Mix it plays that mix in your headphones first (Smart or the transition you chose), without touching the decks, so you can check it before the audience hears it; H does that from the keyboard, and while Auto DJ plays it hears Auto DJ's coming mix. Rehearse the set, Make a mix, Best order and Save are in the command palette ({Mod+K}) too.",
       "To hear a mix before it happens, point at a track in the queue and press Hear this mix under it: MixIt plays the change from that track into the next one in the preview player, exactly as Auto DJ plans it (the same transition, length, key shift and tempo), from a few bars before to a few bars after. While Auto DJ plays, Hear it first on the Next card does the same for the coming mix. The blue part of the strip is the transition; Jump to the mix goes to just before it.",
       "Rehearse the set above the queue does it for the whole queue: every change one after another, a few bars either side of each, so you can hear a whole set's mixes in a few minutes. The bar says which change you are hearing, and Next change skips to the next one.",
       "Not sure about a change while you hear it? Pick another transition in the menu on the bar: MixIt makes the mix again and plays it from just before that change, so you can compare. Your pick is kept for that change.",
@@ -786,7 +834,7 @@ export const CONCEPTS: Concept[] = [
     group: "Sound quality",
     summary: "Switch every EQ, filter and effect off and on again, to hear what your changes really do.",
     body: [
-      "After a while of turning knobs it gets hard to tell what still sounds natural. Press A/B at the top (or Ctrl+Shift+B, ⌘⇧B on a Mac): EQ, filters, effects, the studio settings and the shared reverb and echo switch off together, so you hear the music plain. Press it again to hear your mix.",
+      "After a while of turning knobs it gets hard to tell what still sounds natural. Press A/B at the top (or {Mod+Shift+B}): EQ, filters, effects, the studio settings and the shared reverb and echo switch off together, so you hear the music plain. Press it again to hear your mix.",
       "Switch back and forth a few times while you listen to one spot. If the plain version sounds better, take your changes back a little. Faders, the crossfader and the limiter keep working, so the levels do not jump. The button stays lit while the mix is plain.",
     ],
     controls: ["mixer.bypass"],

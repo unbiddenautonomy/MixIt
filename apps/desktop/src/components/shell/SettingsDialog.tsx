@@ -18,6 +18,7 @@ import { useApp } from "../../store/app";
 import { Segmented } from "../ui/Button";
 import { addMusicFolder } from "../library/Library";
 import { KNOB_DRAG_MODES } from "../../lib/knobDrag";
+import { setController, standardLayout } from "../../lib/layoutCommands";
 import { TEMPO_RANGES, TEMPO_RANGE_LABELS } from "../deck/Deck";
 
 const BUFFERS = [64, 128, 256, 512, 1024, 2048];
@@ -290,6 +291,19 @@ function Display({ s }: { s: Settings }) {
       <Field label="Explain mode">
         <Toggle on={s.explain} onChange={(v) => updateSettings({ explain: v })} label="Show explanations in every tooltip" />
       </Field>
+      <Field label="New layout (preview)" hint="Try the new screen layout while it is being built: every part can fold away with its arrow and share space with a drag. Turn it off to go straight back to the layout you have now, which is kept as it was.">
+        <Toggle on={!!s.layoutEngine} onChange={(v) => updateSettings({ layoutEngine: v })} label="Use the new layout" />
+        {s.layoutEngine && (
+          <button type="button" className="mt-2 text-xs text-zinc-400 underline-offset-2 hover:text-zinc-100 hover:underline" onClick={() => standardLayout()}>
+            Back to the standard layout
+          </button>
+        )}
+      </Field>
+      {s.layoutEngine && (
+        <Field label="DJ controller" hint="Turn this on while a DJ controller is plugged in. The parts it has knobs for (the mixer) fold away to make room, and come back when you turn it off. What you fold is remembered apart for each. MixIt can't tell by itself yet.">
+          <Toggle on={!!s.controllerConnected} onChange={(v) => setController(v)} label="I'm playing with a DJ controller" />
+        </Field>
+      )}
     </div>
   );
 }

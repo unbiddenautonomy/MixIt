@@ -12,8 +12,10 @@ export interface UnitInfo {
   kind: "control" | "view";
   /** A view that may also be shown in another window. */
   mirrorable: boolean;
-  /** Smallest useful size in CSS pixels, open. */
+  /** Smallest size in CSS pixels at which the unit shows everything without scrolling, open. */
   min: { easy: { w: number; h: number }; pro: { w: number; h: number } };
+  /** The same with four decks, where decks are compact and the mixer has four channels. */
+  minFour?: { easy: { w: number; h: number }; pro: { w: number; h: number } };
   /** When a window is too small, units with a higher number fold first; 0 never folds by itself. */
   foldPriority: number;
   /**
@@ -27,6 +29,8 @@ export interface UnitInfo {
 export const BAR_PX = 28;
 export const HANDLE_PX = 4;
 
+// Measured on today's parts (two decks loaded, demo library). The plan's rebuilt mixer and
+// deck strip bring the deck row down to about 280 px; these follow them when they land.
 const size = (w: number, h: number, pw = w, ph = h) => ({ easy: { w, h }, pro: { w: pw, h: ph } });
 
 const SIDE_COLUMN: { unit: UnitId; side: Side }[] = [
@@ -37,13 +41,13 @@ const SIDE_COLUMN: { unit: UnitId; side: Side }[] = [
 ];
 
 const list: UnitInfo[] = [
-  { id: "waves", name: "Waveforms", kind: "view", mirrorable: true, min: size(320, 60), foldPriority: 3, home: { page: "mix", anchors: [{ unit: "mixer", side: "above" }, { unit: "deck.A", side: "above" }] } },
-  { id: "deck.A", name: "Deck A", kind: "control", mirrorable: false, min: size(300, 150), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "left" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
-  { id: "deck.B", name: "Deck B", kind: "control", mirrorable: false, min: size(300, 150), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "right" }, { unit: "deck.A", side: "right" }, { unit: "waves", side: "below" }] } },
-  { id: "deck.C", name: "Deck C", kind: "control", mirrorable: false, min: size(300, 120), foldPriority: 4, home: { page: "mix", anchors: [{ unit: "deck.A", side: "below" }, { unit: "mixer", side: "left" }] } },
-  { id: "deck.D", name: "Deck D", kind: "control", mirrorable: false, min: size(300, 120), foldPriority: 4, home: { page: "mix", anchors: [{ unit: "deck.B", side: "below" }, { unit: "mixer", side: "right" }] } },
-  { id: "mixer", name: "Mixer", kind: "control", mirrorable: false, min: size(200, 260, 240, 260), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "right" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
-  { id: "library", name: "Library", kind: "control", mirrorable: false, min: size(360, 160), foldPriority: 2, home: { page: "mix", anchors: [{ unit: "sidebar", side: "right" }, { unit: "details", side: "left" }, { unit: "mixer", side: "below" }] } },
+  { id: "waves", name: "Waveforms", kind: "view", mirrorable: true, min: size(320, 155), foldPriority: 2, home: { page: "mix", anchors: [{ unit: "mixer", side: "above" }, { unit: "deck.A", side: "above" }] } },
+  { id: "deck.A", name: "Deck A", kind: "control", mirrorable: false, min: size(300, 390, 300, 430), minFour: size(300, 285), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "left" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
+  { id: "deck.B", name: "Deck B", kind: "control", mirrorable: false, min: size(300, 390, 300, 430), minFour: size(300, 285), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "right" }, { unit: "deck.A", side: "right" }, { unit: "waves", side: "below" }] } },
+  { id: "deck.C", name: "Deck C", kind: "control", mirrorable: false, min: size(300, 215), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "below" }, { unit: "mixer", side: "left" }] } },
+  { id: "deck.D", name: "Deck D", kind: "control", mirrorable: false, min: size(300, 215), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.B", side: "below" }, { unit: "mixer", side: "right" }] } },
+  { id: "mixer", name: "Mixer", kind: "control", mirrorable: false, min: size(320, 410), minFour: size(410, 410), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "right" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
+  { id: "library", name: "Library", kind: "control", mirrorable: false, min: size(360, 160), foldPriority: 3, home: { page: "mix", anchors: [{ unit: "sidebar", side: "right" }, { unit: "details", side: "left" }, { unit: "mixer", side: "below" }] } },
   { id: "sidebar", name: "Collections and playlists", kind: "control", mirrorable: false, min: size(160, 160), foldPriority: 5, home: { page: "mix", anchors: [{ unit: "library", side: "left" }] } },
   { id: "details", name: "Track details", kind: "view", mirrorable: true, min: size(240, 160), foldPriority: 6, home: { page: "mix", anchors: [{ unit: "tool.pads", side: "tab" }, { unit: "library", side: "right" }, { unit: "mixer", side: "below" }] } },
   { id: "autodj", name: "Auto DJ queue", kind: "control", mirrorable: false, min: size(280, 160), foldPriority: 6, home: { page: "mix", anchors: SIDE_COLUMN } },
@@ -84,6 +88,12 @@ export function enabled(unit: UnitId, env: Pick<Env, "decks">): boolean {
 /** Units that must always be on a Mix page somewhere, so Play is never more than a click away. */
 export function required(unit: UnitId, env: Pick<Env, "decks">): boolean {
   return (unit === "mixer" || unit.startsWith("deck.")) && enabled(unit, env);
+}
+
+/** A unit's smallest size for these settings. */
+export function minOf(unit: UnitId, env: Pick<Env, "mode" | "decks">): { w: number; h: number } {
+  const info = UNITS[unit];
+  return (env.decks === 4 && info.minFour ? info.minFour : info.min)[env.mode];
 }
 
 export const isControl = (unit: UnitId) => UNITS[unit].kind === "control";

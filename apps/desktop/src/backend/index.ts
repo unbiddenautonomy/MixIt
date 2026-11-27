@@ -35,6 +35,8 @@ import type { BackupInfo, BuildSetRequest, SessionDto, SoundMatch, SoundSearchSt
   TrackRow,
   WaveformData,
   WindowMessage,
+  WinPlace,
+  WinReport,
   Screen,
   WriteTagsResult,
 } from "./types";
@@ -167,6 +169,10 @@ export interface Backend {
   devices(): Promise<DeviceInfo[]>;
   audioStatus(): Promise<AudioStatus>;
   saveSettings(s: Settings): Promise<Settings>;
+  /** The saved screen layouts (src/lib/layout/book.ts), as last written, or null before the first save. */
+  layoutsLoad(): Promise<string | null>;
+  /** Keeps the screen layouts. Apart from the settings, so saving them never touches the engine. */
+  layoutsSave(text: string): Promise<void>;
   recordStart(): Promise<string>;
   recordStop(): Promise<string>;
   /** Writes a tracklist or CUE sheet (.cue, .txt or .m3u8). In a browser it is downloaded. */
@@ -266,6 +272,20 @@ export interface Backend {
   closePart?(part: string): Promise<void>;
   /** A part's window was closed (by the user or because its screen went away). */
   onPartClosed?(cb: (part: string) => void): Unlisten;
+  // Windows of the new layout (desktop app only): "w2", "w3"... loaded with `?win=`.
+  /** Opens a layout window, or moves one that is open, to where the layout says. */
+  winOpen?(id: string, title: string, place: WinPlace): Promise<void>;
+  winClose?(id: string): Promise<void>;
+  /** Renames a layout window without moving it. */
+  winTitle?(id: string, title: string): Promise<void>;
+  /** The layout windows open now (after the main window reloads, it adopts these). */
+  winList?(): Promise<string[]>;
+  /** A layout window was closed by the person (or the system). */
+  onWinClosed?(cb: (id: string) => void): Unlisten;
+  /** This window shows nothing live (or is hidden): the engine's state can come a few times a second. */
+  telemetryRate?(slow: boolean): Promise<void>;
+  /** A layout window (or the main window, as "main") was moved or resized by the person. */
+  onWinMoved?(cb: (r: WinReport) => void): Unlisten;
   /** Tells the app's other windows something. */
   broadcast?(m: WindowMessage): void;
   onBroadcast?(cb: (m: WindowMessage) => void): Unlisten;
