@@ -65,7 +65,7 @@ export function UnitView({ unit }: { unit: UnitId }) {
       return (
         <Panel>
           <Fill>
-            <Inspector />
+            <Inspector placeholder />
           </Fill>
         </Panel>
       );

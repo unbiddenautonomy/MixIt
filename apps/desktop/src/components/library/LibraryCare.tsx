@@ -92,7 +92,7 @@ function Section({ icon, title, count, children, actions }: { icon: React.ReactN
       <div className="flex items-center gap-2">
         <span className="text-zinc-400">{icon}</span>
         <h3 className="text-[13px] font-semibold text-zinc-100">{title}</h3>
-        {count != null && <span className={clsx("rounded-full px-1.5 font-mono text-[10px]", count ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/10 text-emerald-300")}>{count}</span>}
+        {count != null && <span className={clsx("rounded-full px-1.5 font-mono text-[11px]", count ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/10 text-emerald-300")}>{count}</span>}
         <div className="ml-auto flex gap-1.5">{actions}</div>
       </div>
       {children}
@@ -181,7 +181,7 @@ function Missing({ rows }: { rows: TrackRow[] | null }) {
                   <div className="truncate text-[12px] text-zinc-100">
                     {t.title} <span className="text-zinc-500">· {t.artist}</span>
                   </div>
-                  <div className="truncate font-mono text-[10px] text-zinc-500" title={t.path}>
+                  <div className="truncate font-mono text-[11px] text-zinc-500" title={t.path}>
                     {t.path}
                   </div>
                 </div>
@@ -249,7 +249,7 @@ function Duplicates({ groups }: { groups: TrackRow[][] | null }) {
                 <div className="flex items-center gap-2 text-[12px] text-zinc-100">
                   <span className="truncate font-medium">{g[0].title}</span>
                   <span className="truncate text-zinc-500">{g[0].artist}</span>
-                  <span className="font-mono text-[10px] text-zinc-500">{clock(g[0].duration)}</span>
+                  <span className="font-mono text-[11px] text-zinc-500">{clock(g[0].duration)}</span>
                   <Btn size="sm" className="ml-auto" onClick={() => merge([g])}>
                     Keep one, fold the rest
                   </Btn>
@@ -264,7 +264,7 @@ function Duplicates({ groups }: { groups: TrackRow[][] | null }) {
                       <Star size={10} /> {t.rating}
                     </span>
                     <span className="w-16 text-right text-zinc-500">{plural(t.playCount, "play")}</span>
-                    {k === t.id && <span className="rounded bg-emerald-400/15 px-1 text-[10px] text-emerald-300">keep</span>}
+                    {k === t.id && <span className="rounded bg-emerald-400/15 px-1 text-[11px] text-emerald-300">keep</span>}
                   </label>
                 ))}
               </div>

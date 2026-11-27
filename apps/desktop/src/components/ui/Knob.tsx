@@ -91,9 +91,9 @@ export function Knob({ value, min, max, def, onChange, label, size = 40, color =
       </div>
       <ValueBubble anchor={anchor.current} show={busy} text={bubbleText(label, (readout ?? format)?.(value) ?? defaultReadout(norm(value), !!bipolar))} />
       {label && (
-        <div className="text-center text-[10px] font-medium uppercase leading-none tracking-wide text-zinc-400">
+        <div className="text-center text-[11px] font-medium uppercase leading-none tracking-wide text-zinc-400">
           {label}
-          {format && <div className="mt-0.5 font-mono text-[10px] normal-case tracking-normal text-zinc-500">{format(value)}</div>}
+          {format && <div className="mt-0.5 font-mono text-[11px] normal-case tracking-normal text-zinc-500">{format(value)}</div>}
         </div>
       )}
     </div>

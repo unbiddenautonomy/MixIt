@@ -321,7 +321,7 @@ describe("fitting a window", () => {
   it("never folds a unit the person opened from its bar, even if the window has to scroll", () => {
     const e = env();
     const mix = presetFor(e).windows[0].pages.mix!;
-    const small = { w: 1264, h: 600 };
+    const small = { w: 1264, h: 500 };
     expect(fitTree(mix, small, e).autoFolded.has("waves")).toBe(true);
     const kept = fitTree(mix, small, e, undefined, new Set<UnitId>(["waves"]));
     expect(kept.autoFolded.has("waves")).toBe(false);

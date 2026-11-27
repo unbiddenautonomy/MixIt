@@ -92,7 +92,7 @@ export function HistoryButtons() {
         <Popover.Trigger asChild>
           <Btn size="sm" tone="ghost" aria-label="Edit history" title="Every change you made. Click one to go back to it.">
             <History size={12} />
-            {undo.length > 0 && <span className="font-mono text-[10px] text-zinc-400">{undo.length}</span>}
+            {undo.length > 0 && <span className="font-mono text-[11px] text-zinc-400">{undo.length}</span>}
           </Btn>
         </Popover.Trigger>
         <Popover.Portal>
@@ -112,7 +112,7 @@ export function HistoryButtons() {
                     onClick={() => jumpHistory(i)}
                     className={clsx("flex items-center gap-2 rounded-md px-2 py-1 text-left", now ? "bg-[var(--accent)]/15 text-zinc-50" : future ? "text-zinc-600 hover:bg-white/5" : "text-zinc-300 hover:bg-white/5")}
                   >
-                    <span className="w-5 text-right font-mono text-[10px] text-zinc-600">{i}</span>
+                    <span className="w-5 text-right font-mono text-[11px] text-zinc-600">{i}</span>
                     <span className="flex-1 truncate">{label}</span>
                     {now && <Check size={11} className="text-[var(--accent-ink)]" />}
                   </button>
@@ -192,8 +192,8 @@ export function TempoLane({ project, ppb, beats }: { project: MixProject; ppb: n
   return (
     <div className="flex border-b border-white/[0.06]" style={{ height: TEMPO_H }}>
       <div className="sticky left-0 z-10 flex w-20 shrink-0 flex-col justify-center border-r border-white/[0.06] bg-zinc-950 px-2">
-        <span className="text-[10px] font-semibold text-amber-300">Tempo</span>
-        <span className="text-[9px] leading-tight text-zinc-600">double-click to add</span>
+        <span className="text-[11px] font-semibold text-amber-300">Tempo</span>
+        <span className="text-[11px] leading-tight text-zinc-600">double-click to add</span>
       </div>
       <div
         className="relative flex-1"
@@ -214,7 +214,7 @@ export function TempoLane({ project, ppb, beats }: { project: MixProject; ppb: n
             key={i}
             type="button"
             className={clsx(
-              "absolute top-1 flex h-5 -translate-x-px items-center gap-0.5 rounded-r border-l-2 px-1 font-mono text-[10px]",
+              "absolute top-1 flex h-5 -translate-x-px items-center gap-0.5 rounded-r border-l-2 px-1 font-mono text-[11px]",
               sel === i ? "border-amber-300 bg-amber-400/30 text-amber-100" : "border-amber-400/70 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20",
             )}
             style={{ left: s.start_beat * ppb, cursor: i > 0 ? "ew-resize" : "pointer" }}
@@ -301,7 +301,7 @@ export function TempoPanel({ project, index }: { project: MixProject; index: num
       )}
       {playing.length > 0 && (
         <div className="flex flex-col gap-1 rounded-lg bg-black/20 p-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Playing here</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Playing here</div>
           {playing.map((c) => {
             const pct = (s.bpm / c.track.bpm - 1) * 100;
             return (
@@ -452,7 +452,7 @@ export function TransitionSection({ clip, project }: { clip: Clip; project: MixP
   };
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Transition in</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Transition in</div>
       <p className="leading-snug text-zinc-500">
         From “{outName}”. {overlap > 0 ? `They play together for ${Math.round(overlap)} beats (${(overlap / 4).toFixed(overlap % 4 ? 1 : 0)} bars).` : "They do not overlap yet."}
       </p>

@@ -149,7 +149,7 @@ function Flow({ rows, playlistId, editable }: { rows: TrackRow[]; playlistId: nu
           )}
         </div>
       </div>
-      <div className="mt-0.5 flex gap-3 text-[10px] text-zinc-500">
+      <div className="mt-0.5 flex gap-3 text-[11px] text-zinc-500">
         <span>Bars: energy, coloured by key</span>
         <span>Line: tempo</span>
         <span>Dots: how easily each track mixes into the next. Click a dot for details.</span>
@@ -234,7 +234,7 @@ function Dot({ t, a, b, index, rows, playlistId, editable }: { t: Transition; a:
                     <div key={f.track.id} className="flex items-center gap-2 rounded-md bg-white/[0.03] px-2 py-1">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-zinc-100">{f.track.title}</div>
-                        <div className="truncate text-[10px] text-zinc-500">
+                        <div className="truncate text-[11px] text-zinc-500">
                           {f.track.artist} · {fmtBpm(f.track.bpm)} · {f.track.key?.camelot}
                         </div>
                       </div>

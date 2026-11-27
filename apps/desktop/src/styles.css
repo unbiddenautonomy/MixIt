@@ -336,3 +336,11 @@ body.dragging-tracks * {
 html[data-control-drag] [data-radix-popper-content-wrapper]:has(> [data-state="delayed-open"], > [data-state="instant-open"]) {
   visibility: hidden;
 }
+
+/* A row that may scroll sideways on a narrow window without showing a bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -115,7 +115,7 @@ export function Arrange() {
           {path && <span className="max-w-64 truncate text-[11px] text-zinc-600">{path}</span>}
           <IssuesButton project={project} select={setSel} />
           {dirty && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300" title={`Save with the Save button or ${keyLabel("Mod+S")}`}>
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300" title={`Save with the Save button or ${keyLabel("Mod+S")}`}>
               Not saved
             </span>
           )}
@@ -460,8 +460,8 @@ function Ruler({ project, ppb, beats, barEvery }: { project: MixProject; ppb: nu
         {Array.from({ length: Math.ceil(beats / 4) }, (_, bar) =>
           bar % barEvery === 0 ? (
             <div key={bar} className="pointer-events-none absolute top-0 h-full border-l border-white/[0.08] pl-1" style={{ left: bar * 4 * ppb }}>
-              <div className="font-mono text-[10px] text-zinc-400">{bar + 1}</div>
-              {bar % (barEvery * 4) === 0 && <div className="font-mono text-[9px] text-zinc-600">{clock(beatToSeconds(project, bar * 4))}</div>}
+              <div className="font-mono text-[11px] text-zinc-400">{bar + 1}</div>
+              {bar % (barEvery * 4) === 0 && <div className="font-mono text-[11px] text-zinc-600">{clock(beatToSeconds(project, bar * 4))}</div>}
             </div>
           ) : null,
         )}
@@ -479,7 +479,7 @@ function MarkerFlag({ index, beat, label, ppb }: { index: number; beat: number; 
   return (
     <div
       data-marker
-      className="absolute top-0 z-10 flex h-full cursor-grab items-start border-l-2 border-pink-400 bg-zinc-950/70 pl-1 pr-1 text-[10px] font-medium text-pink-200 active:cursor-grabbing"
+      className="absolute top-0 z-10 flex h-full cursor-grab items-start border-l-2 border-pink-400 bg-zinc-950/70 pl-1 pr-1 text-[11px] font-medium text-pink-200 active:cursor-grabbing"
       style={{ left: beat * ppb }}
       title={`${label}: drag to move, double-click to rename, right-click to remove`}
       onPointerDown={(e) => {
@@ -523,7 +523,7 @@ function MarkerFlag({ index, beat, label, ppb }: { index: number; beat: number; 
           autoFocus
           defaultValue={label}
           aria-label="Marker name"
-          className="w-24 rounded bg-zinc-900 px-1 text-[10px] text-zinc-100 outline-none ring-1 ring-pink-400"
+          className="w-24 rounded bg-zinc-900 px-1 text-[11px] text-zinc-100 outline-none ring-1 ring-pink-400"
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -643,7 +643,7 @@ function ClipBox({ clip, ppb, laneH, selected, only, show, silent }: { clip: Cli
             {clip.reverse && <Rewind size={10} className="shrink-0 text-zinc-300" aria-label="Plays backwards" />}
             <span className="truncate">{clip.name || clip.track.title}</span>
           </div>
-          <div className="relative truncate px-1.5 text-[10px] text-zinc-300 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
+          <div className="relative truncate px-1.5 text-[11px] text-zinc-300 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {clip.track.artist} · {fmtBpm(clip.track.bpm)}
             {clip.key_shift !== 0 && ` · ${clip.key_shift > 0 ? "+" : ""}${clip.key_shift} st`}
             {clip.gain_db !== 0 && ` · ${clip.gain_db > 0 ? "+" : ""}${clip.gain_db.toFixed(1)} dB`}
@@ -697,7 +697,7 @@ function ClipBox({ clip, ppb, laneH, selected, only, show, silent }: { clip: Cli
 /** A shortcut hint at the end of a menu item. */
 function Kbd({ id }: { id: string }) {
   const sc = useApp((s) => s.registry.find((a) => a.id === id)?.shortcut ?? null);
-  return sc ? <span className="ml-auto pl-4 font-mono text-[10px] text-zinc-500">{shortcutLabel(sc)}</span> : null;
+  return sc ? <span className="ml-auto pl-4 font-mono text-[11px] text-zinc-500">{shortcutLabel(sc)}</span> : null;
 }
 
 /** A new length for a clip; a reversed clip keeps what is heard at its start, so its
@@ -777,7 +777,7 @@ function ClipPanel({ clip, project, close }: { clip: Clip; project: MixProject; 
           <Play size={11} /> Mix out
         </Btn>
       </div>
-      <div className="truncate font-mono text-[10px] text-zinc-600" title={clip.track.path ?? ""}>
+      <div className="truncate font-mono text-[11px] text-zinc-600" title={clip.track.path ?? ""}>
         {clip.track.path}
       </div>
       <div className="flex gap-1">
@@ -814,7 +814,7 @@ function AutomationSection({ clip }: { clip: Clip }) {
   const lane = editing ? clip.lanes.find((l) => l.param === editing) : undefined;
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Automation</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Automation</div>
       <div className="flex flex-wrap gap-1">
         {(Object.keys(PARAM_LABEL) as ProjectParam[]).map((p) => {
           const n = clip.lanes.find((l) => l.param === p)?.points.length ?? 0;
@@ -828,7 +828,7 @@ function AutomationSection({ clip }: { clip: Clip }) {
             >
               <span className="size-1.5 rounded-full" style={{ background: PARAM_COLORS[p] }} />
               {PARAM_LABEL[p]}
-              {n > 0 && <span className="font-mono text-[10px] text-zinc-500">{n}</span>}
+              {n > 0 && <span className="font-mono text-[11px] text-zinc-500">{n}</span>}
             </button>
           );
         })}
@@ -1079,7 +1079,7 @@ function LaneMuteSolo({ project, lane }: { project: MixProject; lane: number }) 
         aria-pressed={!!st?.muted}
         title={`Mute: leave deck ${L} out of the mix (also when you play and render)`}
         onClick={() => set({ muted: !st?.muted }, st?.muted ? `Unmute deck ${L}` : `Mute deck ${L}`)}
-        className={clsx("h-[14px] w-4 rounded-sm text-[9px] font-bold leading-none", st?.muted ? "bg-red-500 text-white" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
+        className={clsx("h-[14px] w-4 rounded-sm text-[11px] font-bold leading-none", st?.muted ? "bg-red-500 text-white" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
       >
         M
       </button>
@@ -1089,7 +1089,7 @@ function LaneMuteSolo({ project, lane }: { project: MixProject; lane: number }) 
         aria-pressed={!!st?.solo}
         title={`Solo: hear only deck ${L} (and other soloed lanes)`}
         onClick={() => set({ solo: !st?.solo }, st?.solo ? `Unsolo deck ${L}` : `Solo deck ${L}`)}
-        className={clsx("h-[14px] w-4 rounded-sm text-[9px] font-bold leading-none", st?.solo ? "bg-amber-400 text-zinc-950" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
+        className={clsx("h-[14px] w-4 rounded-sm text-[11px] font-bold leading-none", st?.solo ? "bg-amber-400 text-zinc-950" : "bg-white/[0.06] text-zinc-500 hover:text-zinc-200")}
       >
         S
       </button>
@@ -1106,7 +1106,7 @@ function LaneStudioButton({ project, lane }: { project: MixProject; lane: number
     <button
       type="button"
       onClick={() => openLaneStudio(open ? null : lane)}
-      className={clsx("relative flex h-6 items-center gap-1 rounded-md border px-1 text-[10px]", open ? "border-transparent bg-white/15 text-zinc-50" : "border-white/10 text-zinc-500 hover:text-zinc-200")}
+      className={clsx("relative flex h-6 items-center gap-1 rounded-md border px-1 text-[11px]", open ? "border-transparent bg-white/15 text-zinc-50" : "border-white/10 text-zinc-500 hover:text-zinc-200")}
       title={`Studio for deck ${String.fromCharCode(65 + lane)}: EQ, compression and warmth for every clip on this lane`}
       aria-label={`Deck ${String.fromCharCode(65 + lane)} lane studio`}
     >
@@ -1133,7 +1133,7 @@ function ExportMenu() {
       <Popover.Portal>
         <Popover.Content align="end" sideOffset={6} className="z-50 flex w-80 flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-xs shadow-2xl backdrop-blur">
           <div className="flex flex-col gap-1">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">File type</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">File type</div>
             <div className="flex gap-1">
               {(["wav", "flac"] as const).map((f) => (
                 <Btn key={f} size="sm" active={format === f} disabled={web && f === "flac"} onClick={() => setFormat(f)} className="flex-1">
@@ -1144,7 +1144,7 @@ function ExportMenu() {
             <div className="leading-snug text-zinc-500">{web ? "The browser version saves WAV files." : "FLAC is lossless like WAV and about half the size."}</div>
           </div>
           <div className="flex flex-col gap-1">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Loudness</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Loudness</div>
             <select value={target} onChange={(e) => setTarget(e.target.value)} className="h-7 rounded-md border border-white/10 bg-zinc-900 px-1 text-[11px] text-zinc-200 outline-none" disabled={web}>
               <option value="none">As mixed</option>
               {LOUDNESS_TARGETS.map((t) => (

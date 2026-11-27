@@ -128,7 +128,7 @@ function Body({ report, project, onEdit }: { report: MixReport; project: MixProj
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Each transition</h3>
             <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.03] text-[10px] uppercase tracking-wider text-zinc-500">
+                <thead className="bg-white/[0.03] text-[11px] uppercase tracking-wider text-zinc-500">
                   <tr>
                     <th className="px-2 py-1.5 font-medium">At</th>
                     <th className="px-2 py-1.5 font-medium">From → to</th>

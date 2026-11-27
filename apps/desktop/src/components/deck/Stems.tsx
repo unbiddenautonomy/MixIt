@@ -27,7 +27,7 @@ export function Stems({ deck, compact = false }: { deck: number; compact?: boole
   const level = useApp((s) => s.mixer.stems[deck].level);
   const job = useApp((s) => s.jobs.stems);
   const pro = usePro();
-  if (trackId === null) return null;
+  if (trackId === null) return compact ? null : <p className="py-2 text-[11px] text-zinc-500">Load a track, then split it into vocals, drums, bass and melody to switch each part on and off.</p>;
   const running = !!job && !job.finished;
 
   if (!has) {

@@ -41,12 +41,12 @@ const SIDE_COLUMN: { unit: UnitId; side: Side }[] = [
 ];
 
 const list: UnitInfo[] = [
-  { id: "waves", name: "Waveforms", kind: "view", mirrorable: true, min: size(320, 155), foldPriority: 2, home: { page: "mix", anchors: [{ unit: "mixer", side: "above" }, { unit: "deck.A", side: "above" }] } },
-  { id: "deck.A", name: "Deck A", kind: "control", mirrorable: false, min: size(300, 390, 300, 430), minFour: size(300, 285), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "left" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
-  { id: "deck.B", name: "Deck B", kind: "control", mirrorable: false, min: size(300, 390, 300, 430), minFour: size(300, 285), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "right" }, { unit: "deck.A", side: "right" }, { unit: "waves", side: "below" }] } },
+  { id: "waves", name: "Waveforms", kind: "view", mirrorable: true, min: size(320, 124), foldPriority: 2, home: { page: "mix", anchors: [{ unit: "mixer", side: "above" }, { unit: "deck.A", side: "above" }] } },
+  { id: "deck.A", name: "Deck A", kind: "control", mirrorable: false, min: size(300, 357, 300, 395), minFour: size(300, 293, 300, 327), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "left" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
+  { id: "deck.B", name: "Deck B", kind: "control", mirrorable: false, min: size(300, 357, 300, 395), minFour: size(300, 293, 300, 327), foldPriority: 0, home: { page: "mix", anchors: [{ unit: "mixer", side: "right" }, { unit: "deck.A", side: "right" }, { unit: "waves", side: "below" }] } },
   { id: "deck.C", name: "Deck C", kind: "control", mirrorable: false, min: size(300, 215), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "below" }, { unit: "mixer", side: "left" }] } },
   { id: "deck.D", name: "Deck D", kind: "control", mirrorable: false, min: size(300, 215), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.B", side: "below" }, { unit: "mixer", side: "right" }] } },
-  { id: "mixer", name: "Mixer", kind: "control", mirrorable: false, min: size(320, 410), minFour: size(410, 410), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "right" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
+  { id: "mixer", name: "Mixer", kind: "control", mirrorable: false, min: size(346, 354, 371, 407), minFour: size(484, 340, 484, 396), foldPriority: 1, home: { page: "mix", anchors: [{ unit: "deck.A", side: "right" }, { unit: "deck.B", side: "left" }, { unit: "waves", side: "below" }] } },
   { id: "library", name: "Library", kind: "control", mirrorable: false, min: size(360, 160), foldPriority: 3, home: { page: "mix", anchors: [{ unit: "sidebar", side: "right" }, { unit: "details", side: "left" }, { unit: "mixer", side: "below" }] } },
   { id: "sidebar", name: "Collections and playlists", kind: "control", mirrorable: false, min: size(160, 160), foldPriority: 5, home: { page: "mix", anchors: [{ unit: "library", side: "left" }] } },
   { id: "details", name: "Track details", kind: "view", mirrorable: true, min: size(240, 160), foldPriority: 6, home: { page: "mix", anchors: [{ unit: "tool.pads", side: "tab" }, { unit: "library", side: "right" }, { unit: "mixer", side: "below" }] } },

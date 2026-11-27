@@ -89,7 +89,7 @@ const MATCH: Column = {
 };
 
 const COLUMNS: Column[] = [
-  { key: "n", label: "#", sort: null, width: "36px", align: "right", cell: (_r, c) => <span className="font-mono text-[10px] text-zinc-600">{c.index + 1}</span> },
+  { key: "n", label: "#", sort: null, width: "36px", align: "right", cell: (_r, c) => <span className="font-mono text-[11px] text-zinc-600">{c.index + 1}</span> },
   { key: "art", label: "Art", sort: null, width: "32px", align: "center", cell: (r) => <Cover trackId={r.id} has={r.hasArt} title={r.title} artist={r.artist} size={22} rounded="rounded" quiet /> },
   {
     key: "title",
@@ -145,8 +145,8 @@ const COLUMNS: Column[] = [
     cell: (r) => (r.vocals == null ? <span className="text-zinc-600">–</span> : <span className="text-zinc-400" title={vocalLabel(r.vocals) ?? ""}>{r.vocals < 5 ? "None" : `${r.vocals}%`}</span>),
   },
   { key: "duration", label: "Time", sort: "duration", width: "52px", align: "right", cell: (r) => <span className="font-mono tabular-nums text-zinc-400">{clock(r.duration)}</span> },
-  { key: "rating", label: "Rating", sort: "rating", width: "76px", cell: (r) => <Stars track={r} /> },
-  { key: "genre", label: "Genre", sort: "genre", width: "minmax(80px,0.8fr)", cell: (r) => <span className="truncate text-zinc-500">{r.genre}</span> },
+  { key: "rating", label: "Rating", sort: "rating", width: "76px", pro: true, cell: (r) => <Stars track={r} /> },
+  { key: "genre", label: "Genre", sort: "genre", width: "minmax(80px,0.8fr)", pro: true, cell: (r) => <span className="truncate text-zinc-500">{r.genre}</span> },
   {
     key: "tags",
     label: "Tags",
@@ -156,7 +156,7 @@ const COLUMNS: Column[] = [
     cell: (r, c) => (
       <span className="flex min-w-0 gap-1 overflow-hidden" title={c.tags[r.id]?.join(", ")}>
         {(c.tags[r.id] ?? []).map((n) => (
-          <span key={n} className="shrink-0 rounded-full px-1.5 text-[10px] leading-4" style={tagStyle(n, null)}>
+          <span key={n} className="shrink-0 rounded-full px-1.5 text-[11px] leading-4" style={tagStyle(n, null)}>
             {n}
           </span>
         ))}
@@ -179,7 +179,7 @@ function ColumnChoices({ pro, Item, Sep }: { pro: boolean; Item: typeof ContextM
   const prefs = useColumns();
   return (
     <>
-      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Columns</div>
+      <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Columns</div>
       {COLUMNS.filter((c) => c.key !== "title" && c.key !== "n").map((c) => {
         const on = isShown(c.key, LEVEL(c), pro, prefs);
         return (
@@ -217,7 +217,7 @@ function ColumnsButton({ pro }: { pro: boolean }) {
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button type="button" aria-label="Choose columns" title="Choose which columns show" className="mx-auto flex size-5 items-center justify-center rounded text-zinc-500 hover:bg-white/10 hover:text-zinc-200" data-testid="columns-button">
+        <button type="button" aria-label="Choose columns" title="Choose which columns show" className="mx-auto flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-white/10 hover:text-zinc-200" data-testid="columns-button">
           <Columns3 size={12} />
         </button>
       </Dropdown.Trigger>
@@ -267,7 +267,7 @@ function EnergyBar({ v }: { v: number | null }) {
       <span className="h-1.5 w-8 overflow-hidden rounded-full bg-white/10">
         <span className="block h-full rounded-full" style={{ width: `${n * 10}%`, background: `hsl(${120 - n * 12}, 80%, 55%)` }} />
       </span>
-      <span className="font-mono text-[10px] text-zinc-500">{Math.round(n)}</span>
+      <span className="font-mono text-[11px] text-zinc-500">{Math.round(n)}</span>
     </span>
   );
 }
@@ -380,7 +380,7 @@ export function TrackTable() {
         if (s.sort === c.sort) s.set(s.sortDir === 1 ? { sortDir: -1 } : { sort: null, sortDir: 1 });
         else s.set({ sort: c.sort, sortDir: 1 });
       }}
-      className={clsx("flex items-center gap-0.5 truncate px-2 text-[10px] font-semibold uppercase tracking-wider", c.align === "right" && "justify-end", c.align === "center" && "justify-center", sort === c.sort && c.sort ? "text-zinc-200" : "text-zinc-500 hover:text-zinc-300")}
+      className={clsx("flex h-full min-h-6 items-center gap-0.5 truncate px-2 text-[11px] font-semibold uppercase tracking-wider", c.align === "right" && "justify-end", c.align === "center" && "justify-center", sort === c.sort && c.sort ? "text-zinc-200" : "text-zinc-500 hover:text-zinc-300")}
     >
       {c.label}
       {sort === c.sort && c.sort && (sortDir === 1 ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
@@ -546,7 +546,7 @@ function RowMenu({ track, children }: { track: TrackRow; children: ReactNode }) 
                     <ContextMenu.CheckboxItem key={t.id} className="menu-item" checked={on} onSelect={() => void tagTracks(ids(), t.name, !on)}>
                       <span className="mr-1.5 inline-block size-1.5 rounded-full" style={{ background: tagStyle(t.name, t.color).color }} />
                       {t.name}
-                      {on && <span className="ml-auto pl-3 text-[10px] text-zinc-500">on</span>}
+                      {on && <span className="ml-auto pl-3 text-[11px] text-zinc-500">on</span>}
                     </ContextMenu.CheckboxItem>
                   );
                 })}

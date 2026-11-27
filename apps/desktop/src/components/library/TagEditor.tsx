@@ -57,7 +57,7 @@ export function TagEditor({ ids }: { ids: number[] }) {
               title={partial ? `On ${t.count} of the ${ids.length} tracks` : undefined}
             >
               {t.name}
-              {partial && <span className="ml-0.5 text-[9px] opacity-80">{t.count}/{ids.length}</span>}
+              {partial && <span className="ml-0.5 text-[11px] opacity-80">{t.count}/{ids.length}</span>}
               {partial && (
                 <button type="button" onClick={() => add(t.name)} aria-label={`Put ${t.name} on all selected`} title="Put it on all of them" className="rounded-full p-0.5 hover:bg-white/15">
                   <Plus size={9} />
@@ -119,11 +119,11 @@ export function TagEditor({ ids }: { ids: number[] }) {
               >
                 <span className="size-1.5 rounded-full" style={{ background: tagStyle(n, colorOf(n)).color }} />
                 {n}
-                {!tags.some((t) => t.name.toLowerCase() === n.toLowerCase()) && <span className="ml-auto text-[9px] text-zinc-600">new</span>}
+                {!tags.some((t) => t.name.toLowerCase() === n.toLowerCase()) && <span className="ml-auto text-[11px] text-zinc-600">new</span>}
               </button>
             ))}
             {text.trim() !== "" && !offered.some((n) => n.toLowerCase() === text.trim().toLowerCase()) && (
-              <div className="px-1.5 py-0.5 text-[10px] text-zinc-500">Enter adds “{text.trim()}” as a new tag.</div>
+              <div className="px-1.5 py-0.5 text-[11px] text-zinc-500">Enter adds “{text.trim()}” as a new tag.</div>
             )}
           </div>
         )}

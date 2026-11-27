@@ -71,7 +71,7 @@ export function BatchInspector({ ids }: { ids: number[] }) {
               </button>
             ))}
           </span>
-          {rating == null && <span className="text-[10px] text-zinc-500">mixed</span>}
+          {rating == null && <span className="text-[11px] text-zinc-500">mixed</span>}
         </div>
         <div className="flex items-center gap-2">
           <span className="w-16 shrink-0 text-zinc-500">Colour</span>

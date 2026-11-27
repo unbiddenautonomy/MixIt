@@ -93,7 +93,7 @@ export function AutomixDialog() {
               {tracks.length === 0 && <p className="p-6 text-center text-sm text-zinc-500">Select tracks in the library (or right-click a playlist) and open Automix again.</p>}
               {tracks.map((t, i) => (
                 <div key={t.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-white/[0.04]">
-                  <span className="w-5 text-right font-mono text-[10px] text-zinc-600">{i + 1}</span>
+                  <span className="w-5 text-right font-mono text-[11px] text-zinc-600">{i + 1}</span>
                   <span className={`min-w-0 flex-1 truncate ${t.analysis === "done" ? "text-zinc-200" : "text-zinc-600"}`}>
                     {t.title} <span className="text-zinc-500">· {t.artist}</span>
                   </span>
@@ -178,7 +178,7 @@ export function AutomixDialog() {
 function Label({ text, hint, children }: { text: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{text}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{text}</div>
       {children}
       {hint && <div className="text-[11px] leading-snug text-zinc-500">{hint}</div>}
     </div>

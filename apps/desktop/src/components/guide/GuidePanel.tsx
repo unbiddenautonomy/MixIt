@@ -35,7 +35,8 @@ export function reveal(ids: string[], tab?: [number, string]) {
   if (ids.some((id) => id.startsWith("fx.master"))) openTool("effects");
   else if (ids.some((id) => id.startsWith("sampler."))) openTool("pads");
   const fxDeck = ids.map((id) => /^fx\.([A-D])\./.exec(id)?.[1]).find(Boolean);
-  const t = tab ?? (fxDeck ? [fxDeck.charCodeAt(0) - 65, "fx"] : undefined);
+  const stemDeck = ids.map((id) => /^deck\.([A-D])\.stem\./.exec(id)?.[1]).find(Boolean);
+  const t = tab ?? (fxDeck ? [fxDeck.charCodeAt(0) - 65, "fx"] : stemDeck ? [stemDeck.charCodeAt(0) - 65, "stems"] : undefined);
   if (t) s.set({ padTabs: s.padTabs.map((x, i) => (i === t[0] ? t[1] : x)) });
   // Let React draw the screen and tab first.
   window.setTimeout(() => {
@@ -76,7 +77,7 @@ export function GuidePanel() {
               value: "fix",
               label: (
                 <span className="inline-flex items-center gap-1">
-                  Fix{live > 0 && <span className="rounded-full bg-amber-400 px-1 text-[9px] font-bold leading-[14px] text-zinc-950">{live}</span>}
+                  Fix{live > 0 && <span className="rounded-full bg-amber-400 px-1 text-[11px] font-bold leading-[14px] text-zinc-950">{live}</span>}
                 </span>
               ),
               title: "Common problems and how to fix them",
@@ -118,7 +119,7 @@ function LearnTab() {
         if (list.length === 0) return null;
         return (
           <div key={g}>
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
             <div className="flex flex-col">
               {list.map((c) => (
                 <button key={c.id} type="button" onClick={() => useGuide.getState().set({ topic: c.id })} className="group flex items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/[0.04]">
@@ -163,7 +164,7 @@ function ConceptView({ c }: { c: Concept }) {
     <div className="flex flex-col gap-3">
       <BackLink onClick={() => useGuide.getState().set({ topic: null })}>All topics</BackLink>
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{c.group}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{c.group}</div>
         <h2 className="text-base font-semibold text-zinc-50">{c.title}</h2>
         <p className="mt-0.5 text-[13px] text-zinc-300">{keysIn(c.summary)}</p>
       </div>
@@ -186,7 +187,7 @@ function ConceptView({ c }: { c: Concept }) {
       </div>
       {related.length > 0 && (
         <div className="mt-1 border-t border-white/[0.06] pt-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Related</div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Related</div>
           {related.map((r) => (
             <button key={r.id} type="button" onClick={() => useGuide.getState().set({ topic: r.id })} className="flex w-full items-center gap-1 rounded-md px-1 py-1 text-left text-xs text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-100">
               <ChevronRight size={12} className="text-zinc-600" /> {r.title}
@@ -245,7 +246,7 @@ function LabList() {
                 <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                   <div className={clsx("h-full rounded-full", complete ? "bg-emerald-400" : "bg-[var(--accent)]")} style={{ width: `${(n / l.steps.length) * 100}%` }} />
                 </div>
-                <span className="font-mono text-[10px] text-zinc-500">
+                <span className="font-mono text-[11px] text-zinc-500">
                   {n}/{l.steps.length}
                 </span>
               </div>
@@ -259,7 +260,7 @@ function LabList() {
 }
 
 function ProBadge() {
-  return <span className="rounded bg-white/[0.08] px-1 text-[9px] font-semibold uppercase tracking-wide text-zinc-400">Pro</span>;
+  return <span className="rounded bg-white/[0.08] px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Pro</span>;
 }
 
 function LabView({ lab }: { lab: Lab }) {
@@ -302,7 +303,7 @@ function LabView({ lab }: { lab: Lab }) {
     <div className="flex flex-col gap-3">
       <BackLink onClick={() => useGuide.getState().set({ lab: null })}>All labs</BackLink>
       <div>
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
           Lab {lab.number} {lab.pro && <ProBadge />}
         </div>
         <h2 className="text-base font-semibold text-zinc-50">{lab.title}</h2>
@@ -354,7 +355,7 @@ function StepRow({ lab, step, index, state }: { lab: Lab; step: Step; index: num
   return (
     <li className={clsx("rounded-xl border p-2.5", current ? "border-[var(--accent)]/40 bg-[var(--accent)]/[0.06]" : "border-transparent")}>
       <div className="flex items-start gap-2">
-        <span className={clsx("mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold", state === "done" ? "bg-emerald-400 text-zinc-950" : current ? "bg-[var(--accent)] text-zinc-950" : "border border-white/15 text-zinc-500")}>
+        <span className={clsx("mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold", state === "done" ? "bg-emerald-400 text-zinc-950" : current ? "bg-[var(--accent)] text-zinc-950" : "border border-white/15 text-zinc-500")}>
           {state === "done" ? <Check size={12} strokeWidth={3} /> : index + 1}
         </span>
         <div className="min-w-0 flex-1">
@@ -609,7 +610,7 @@ function ChainNode({ n, l, deck, last, master, tap }: { n: Node; l: string; deck
       <button type="button" onClick={() => reveal(n.controls(l))} className={clsx("rounded-xl border px-3 py-2 text-left transition-colors hover:border-[var(--accent)]/50", master ? "border-white/10 bg-white/[0.04]" : "border-white/[0.06] bg-white/[0.02]")}>
         <div className="flex items-center gap-2">
           <span className="text-[13px] font-semibold text-zinc-100">{n.name}</span>
-          {state && <span className="ml-auto truncate font-mono text-[10px] text-[var(--accent-ink)]">{state}</span>}
+          {state && <span className="ml-auto truncate font-mono text-[11px] text-[var(--accent-ink)]">{state}</span>}
         </div>
         <div className="text-[11px] leading-snug text-zinc-400">{n.what}</div>
       </button>
@@ -650,7 +651,7 @@ function KeysTab() {
       </p>
       {groups.map((g) => (
         <div key={g}>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{g}</div>
           {withKeys
             .filter((a) => a.group === g)
             .map((a) => (

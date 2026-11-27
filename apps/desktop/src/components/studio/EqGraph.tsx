@@ -64,7 +64,7 @@ export function EqGraph({ settings, onChange, selected, onSelect, height = 220, 
       // Grid: octaves and 6 dB steps.
       g.strokeStyle = "rgba(255,255,255,0.05)";
       g.lineWidth = 1;
-      g.font = "10px ui-sans-serif, system-ui";
+      g.font = "11px ui-sans-serif, system-ui";
       g.fillStyle = "rgba(255,255,255,0.3)";
       for (const f of [30, 50, 100, 200, 500, 1000, 2000, 5000, 10_000]) {
         const x = freqToX(f) * w;
@@ -238,7 +238,7 @@ export function EqGraph({ settings, onChange, selected, onSelect, height = 220, 
               else return;
               e.preventDefault();
             }}
-            className="pointer-events-none absolute flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[9px] font-bold text-zinc-950 focus-visible:pointer-events-auto"
+            className="pointer-events-none absolute flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[11px] font-bold text-zinc-950 focus-visible:pointer-events-auto"
             style={{
               left: `${freqToX(b.freq) * 100}%`,
               top: yOf(dotDb(b), height),

@@ -22,13 +22,13 @@ export function UnitMenu({ unit, win, env }: { unit: UnitId; win: string; env: E
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button type="button" aria-label={`More for ${name}: send it to another window or screen`} title={`Send ${name} to another window or screen`} data-unit-menu={unit} className="flex size-5 items-center justify-center rounded text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100">
+        <button type="button" aria-label={`More for ${name}: send it to another window or screen`} title={`Send ${name} to another window or screen`} data-unit-menu={unit} className="flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100">
           <MoreHorizontal size={13} />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={4} className="menu">
-          <DropdownMenu.Label className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{name}</DropdownMenu.Label>
+          <DropdownMenu.Label className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{name}</DropdownMenu.Label>
           {others.map((w) => (
             <DropdownMenu.Item key={w.id} className="menu-item" onSelect={() => layoutDoUndoable(w.id === MAIN && away ? { op: "home", unit } : { op: "send", unit, win: w.id }, `${name} moved to ${windowLabel(layout, w.id, env.screens)}.`)}>
               Send to {windowLabel(layout, w.id, env.screens)}

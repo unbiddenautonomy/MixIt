@@ -357,6 +357,8 @@ export interface Settings {
   decks: 2 | 4;
   explain: boolean;
   coach: boolean;
+  /** New coach tips open by themselves; otherwise they wait behind the lightbulb. Only the UI reads it. */
+  coachPopup?: boolean;
   recordFloat: boolean;
   autoGain: boolean;
   limiter: boolean;

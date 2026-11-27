@@ -13,6 +13,9 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
 
+// Easy tucks some parts away (At a glance, the set clock, A/B); steps about them switch to Pro.
+const view = (page, mode) => page.evaluate((mode) => { const a = window.mixit.useApp.getState(); a.set({ settings: { ...a.settings, viewMode: mode } }); }, mode);
+
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
@@ -111,9 +114,11 @@ try {
   });
 
   await step("the collection overview draws", async () => {
+    await view(page, "pro");
     await page.click("text=At a glance");
     await page.waitForSelector("text=Your collection at a glance");
     expect((await page.locator("svg").count()) > 3, "no charts");
+    await view(page, "easy");
   });
 
   await step("Fix library checks missing files, duplicates and messy details", async () => {
@@ -241,6 +246,7 @@ try {
   });
 
   await step("the set clock counts down an hour", async () => {
+    await view(page, "pro");
     await page.click('[data-testid="set-clock"]');
     await page.click('[data-testid="set-length-60"]');
     await page.waitForSelector('[data-testid="set-clock"]:has-text("left")', { timeout: 3000 });
@@ -807,6 +813,7 @@ try {
   });
 
   await step("A/B plays the mix plain and back", async () => {
+    await view(page, "pro");
     await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix" }));
     await page.click('[data-testid="ab-bypass"]');
     await page.waitForFunction(() => window.mixit.useApp.getState().mixer.bypass === true, null, { timeout: 3000 });
@@ -832,6 +839,8 @@ try {
 
   await step("a deck splits its track into stems and switches the vocals off", async () => {
     await page.evaluate(() => window.mixit.useApp.getState().set({ workspace: "mix", toolSize: "docked" }));
+    // The stems sit with the pads, on their own tab.
+    await page.click('[data-deck="A"] button:text-is("Stems")');
     await page.click('[data-testid="stems-split-A"]');
     await page.waitForSelector('[data-testid="stem-A-vocals"]', { timeout: 5000 });
     await page.click('[data-testid="stem-A-vocals"]');

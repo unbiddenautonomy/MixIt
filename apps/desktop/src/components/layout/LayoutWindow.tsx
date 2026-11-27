@@ -429,7 +429,7 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
               onClick={() => layoutDo({ op: "activate", unit: p.unit, where })}
               onPointerDown={ctx.editing ? (e) => ctx.startDrag(p.unit, e) : undefined}
               title={ctx.editing ? `Drag ${UNITS[p.unit].name} to move it` : undefined}
-              className={clsx("h-5 truncate rounded px-1.5 font-medium", active ? "text-zinc-200" : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200", ctx.editing ? "cursor-grab touch-none bg-white/[0.04] active:cursor-grabbing" : places.length === 1 && "pointer-events-none")}
+              className={clsx("h-6 truncate rounded px-1.5 font-medium", active ? "text-zinc-200" : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200", ctx.editing ? "cursor-grab touch-none bg-white/[0.04] active:cursor-grabbing" : places.length === 1 && "pointer-events-none")}
             >
               {UNITS[p.unit].name}
             </button>
@@ -437,7 +437,7 @@ function StackView({ node, parentDir }: { node: Stack; parentDir: "row" | "col" 
         })}
         <span className="ml-auto" />
         <UnitMenu unit={shown.unit} win={ctx.win} env={ctx.env} />
-        <button type="button" title={`Fold ${UNITS[shown.unit].name}`} aria-label={`Fold ${UNITS[shown.unit].name}`} onClick={() => fold(true)} className="flex size-5 items-center justify-center rounded text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100">
+        <button type="button" title={`Fold ${UNITS[shown.unit].name}`} aria-label={`Fold ${UNITS[shown.unit].name}`} onClick={() => fold(true)} className="flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100">
           <FoldIcon size={13} />
         </button>
       </div>

@@ -86,6 +86,31 @@ export const CONCEPTS: Concept[] = [
     controls: ["deck.A.play"],
     lab: "phrase-drop",
   },
+  {
+    id: "coach",
+    title: "The coach",
+    group: "Basics",
+    summary: "Tips while you mix, like two keys that clash, wait behind the lightbulb at the top.",
+    body: [
+      "MixIt listens to what the decks are doing and keeps a few plain tips ready: two basses up at once, keys that clash, two voices singing together, a track that will run past the end of your set. The lightbulb at the top lights up and shows how many there are. Click it to read them; most have a button that does the fix for you.",
+      "Settings > Mixing > Coach chooses how they reach you. Only when I ask (the start) keeps them behind the lightbulb. Pop up opens a new tip by itself: a hint closes again after a few seconds, a warning stays until you close it with × or Esc. Off hides the lightbulb.",
+      "Hide this tip stops one tip from showing again until MixIt restarts. A tip never takes the keyboard, so the deck keys keep working while it's open.",
+    ],
+    glossary: ["coach"],
+  },
+  {
+    id: "easy-pro",
+    title: "Easy and Pro",
+    group: "Basics",
+    summary: "Easy shows what a first mix needs; Pro shows every control. Nothing is locked, and nothing moves.",
+    body: [
+      "Easy and Pro use the same screen, so switching never moves anything; Pro only adds controls. Switch at the top, or press {Mod+E}.",
+      "Easy keeps: the decks' Cue, Play, Sync, key lock, match key and tempo; Hot cues, Loop and FX pads; each channel's EQ, filter, headphone cue and volume; the crossfader, Mix it, the master level and the headphones; and the library's Collection, Suggestions, History, Auto DJ and playlists.",
+      "Pro adds: Master, key shift, Slip, reverse and nudge on the decks; Jump, Slicer, Roll, Keys and Grid pads; gain, EQ kills, the studio buttons and the loudness readout on the mixer; A/B and the set clock at the top; past sets by date, At a glance, tags, smart playlists and folders in the library; and the Rating and Genre columns.",
+      "Everything hidden in Easy is still in the command palette ({Mod+K}), and a column or tool you turn on yourself stays on in Easy.",
+    ],
+    glossary: ["easy-pro"],
+  },
   // ---------------------------------------------------------------- your screen
   {
     id: "screen-layout",
@@ -256,7 +281,7 @@ export const CONCEPTS: Concept[] = [
     group: "Mixer",
     summary: "Split a track into its parts, then turn each part up or down on its own.",
     body: [
-      "Press Split into stems on a deck and MixIt separates the track into four parts: the vocals, the drums, the bass and everything else (the melody). It takes a little while the first time and is remembered after that.",
+      "Open a deck's Stems tab (beside its pads) and press Split into stems: MixIt separates the track into four parts: the vocals, the drums, the bass and everything else (the melody). It takes a little while the first time and is remembered after that.",
       "Then each part has its own button: switch the vocals off for an instrumental, or everything but the vocals for an a cappella you can lay over another track. Turning one track's drums off while the next track's drums play is a clean way to swap rhythms.",
       "The split is a quick one made by analysing the sound, so a little of each part can leak into the others (the kick's boom often sits with the bass).",
     ],
